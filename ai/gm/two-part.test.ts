@@ -11,6 +11,7 @@ import type { Scene } from "../../shared/scene/types.ts";
 import { fakeFetch, readPrep, walkTo, type FakeOptions } from "../llm/fake-openrouter.ts";
 import type { CallContext } from "../llm/openrouter.ts";
 import { CAERWYN, viewAt } from "./fixtures.ts";
+import { playerNow } from "./brief.ts";
 import { closingDirective, coGm, coGmInput, coGmInstructions, companionsOf, deniesItself, firstSentence, inReach, mouthpieceInput, mouthpieceInstructions, movedDirective, movedText, narrationSoFar, prepOf, pressureOffered, routeLine, saidLast, speak, tellOf, twoPartNow } from "./two-part.ts";
 import type { TurnView } from "./view.ts";
 
@@ -125,7 +126,8 @@ test("the per-turn note: what's hidden from the player right now: the world's th
   assert.match(hidden, /^## Hidden from the player right now\nBehind the screen until the player finds it, or someone shows or tells them of it in play/);
   assert.match(hidden, /Out of the player's sight:\n- a folded page sewn into the left boot's lining \[ledger-page\]/);
   // QA round qa1-1018: the board, Cob's way in, and the crown, in Moll's fist, were named by the narration.
-  assert.match(hidden, /Kept back by the people here[^\n]*\n[\s\S]*- Cob: The boots are Prout's\. He was in the loft last night: [^\n]*reached through a loose board behind the water butt/);
+  // QA round qa2-1018: kept back as the GM's knowledge, shown in behaviour, never theirs to say (people had recited what would open them).
+  assert.match(hidden, /What the people here keep back, as you know it \(their cards have the whole of it, and what would bring each of them round\)\. It's your knowledge, not theirs to explain: until the player has earned it, it shows only in how they behave and in their tells, and nobody says what would earn it\.\n[\s\S]*- Cob: The boots are Prout's\. He was in the loft last night: [^\n]*reached through a loose board behind the water butt/);
   assert.match(hidden, /- Moll: [^\n]*The crown, stamped on one face with a little wheat-ear, is in her fist\./);
   assert.match(hidden, /What shows of it is their tells, now and then[^\n]*\n[\s\S]*- Moll: one fist kept tightly closed; her eyes keep going to the yard gate; she shuts Cob up whenever he gets near the night\./);
   assert.ok(!/- Moll: [^\n]*Torn:/.test(hidden), "a tell is what shows, not what they're torn between");
@@ -175,13 +177,30 @@ test("the instructions after the user's prompt: a check at a turning point, neve
   // Setup and outcome: the setup stops at the attempt, and each outcome adds only what the roll decided.
   assert.match(mouthpiece, /\n  The narration before a check stops at the attempt: [^\n]*Nothing the roll is for comes before the dice: /);
   assert.match(mouthpiece, /Each one follows on from the narration as you wrote it and never undoes it: [^\n]*an offer made there is still on the table after a failure[^\n]* And each says only what the roll decided, once: never what the narration has already said\./);
+  // Nobody recites their own terms; the player character's body is the player's; the scene stays in its place.
+  assert.match(mouthpiece, /- What would win someone over [^\n]*Nobody states their own terms or price unasked, or says their card's words for what would open them/);
+  assert.match(mouthpiece, /\n\n## The player character\nTheir body and mind are the player's\. Never give them a wound, an ache, tiredness, fear or any other condition that play [^\n]* or the rules [^\n]* haven't given them/);
+  assert.match(mouthpiece, /\n\n## Where the scene plays\nThis scene plays in its place[^\n]*follow them as far as its edge[^\n]*Never narrate the way there, arriving, or anything that happens there\./);
   // Kell walks with the player from the granary on (its onEnd's follow), and here already.
   assert.deepEqual(companionsOf(clerk, yard()).map(c => c.id), ["kell"]);
-  assert.match(mouthpiece, /\n\n## The companion\nSergeant Agnes Kell goes with the player, and it's the player's case, not hers: she never makes their case for them, examines or searches anything for them unasked, draws their conclusions, or chooses their next step or where they go, or hints at it\. She answers when asked, does what she's asked, and tests a case once, at its weakest point\.$/);
+  const companion = mouthpiece.slice(mouthpiece.indexOf("\n\n## The companion\n") + 2);
+  assert.equal(companion, [
+    "## The companion",
+    "Sergeant Agnes Kell goes with the player, and it's the player's case, not hers:",
+    "- What she sees, she says plainly when asked and writes down, and stops there: what it means (murder or not, who did it, where it leads) and what the case still needs are the player's to say. Never \"That tells us…\", \"That establishes…\" or \"I still need…\".",
+    "- A question put to the player is the player's to answer: she never answers it for them, or makes an offer or a promise in their place.",
+    "- The player's word stands: a promise or a condition they've made (\"don't take it\", \"his name stays out\"), she keeps, and she never overrides their choice.",
+    "- She tests a case once, at its weakest point, when the player puts it to her, never before.",
+    "- She never examines or searches anything for them unasked, or chooses their next step or where they go, or hints at it. She does what she's asked.",
+  ].join("\n"));
+  // The co-GM writes her role with what she holds back, every turn (ours, before its tools).
+  const coGmSays = coGmInstructions(clerk, yard());
+  assert.match(coGmSays, /\n\n## The companion\nSergeant Agnes Kell \[kell\] goes with the player, and it's the player's case\. Every turn, her conversation role says what she holds back as well as what she does\.[^\n]*Never put a conclusion, what the case still needs or the player's next step in her status, mental state or role: the GM voices what it's given\.\n\n## Your tools\n/);
   // The King's morning has no follow of its own: Kell is the companion because the granary made her one.
   const king = sceneFile("kings-morning");
   const morning = viewAt(king, king.start, { turn: 1 });
   assert.deepEqual(companionsOf(king, morning), []);
+  assert.doesNotMatch(coGmInstructions(king, morning), /## The companion/);
   morning.history = [{ sceneId: "hanged-clerk" } as TurnView["history"][number]];
   morning.story = { scene: (id: string) => sceneFile(id) } as unknown as TurnView["story"];
   assert.deepEqual(companionsOf(king, morning).map(c => c.id), ["kell"]);
@@ -218,6 +237,14 @@ test("a check's failures read against who holds what the player still needs: one
   assert.deepEqual(inReach(clerk, yard({ turn: 18, reached: [clerk.start, "hobb"] }), outcomes), outcomes);
 });
 
+test("the player character's state shows only when it's from play: a quarter down or more, or a condition (QA round qa2-1018: a fresh dwarf's HP 28/31 got a sore side)", () => {
+  const at = (status: string) => playerNow({ ...yard(), rules: { status } });
+  assert.equal(at("HP 28/31"), undefined, "a fresh dwarf: toughness is on the sheet's maximum, which healing never reaches");
+  assert.equal(at("HP 31/31, spell slots 1st 2/2"), undefined);
+  assert.equal(at("HP 20/31"), "## The player character now\nHP 20/31. Let it show as what play has done to them (a blow they took, a fall, a spell): someone hurt moves and looks hurt, and nothing else is wrong with them.");
+  assert.match(at("HP 31/31, poisoned")!, /^## The player character now\nHP 31\/31, poisoned\. Let it show/);
+});
+
 test("the closing goes on from where the last reply ended: what was said there is listed, and not said again", () => {
   const heron = sceneFile("heron-warehouse");
   const view = viewAt(heron, heron.start, { turn: 16 });
@@ -227,7 +254,10 @@ test("the closing goes on from where the last reply ended: what was said there i
   view.transcript.push({ turn: 16, scene: heron.id, speaker: "player", kind: "player", text: "(I grab the mooring rope.)" });
   assert.deepEqual(saidLast(heron, view), ["[Sergeant Agnes Kell] “Master Josiah Sallow, you are under arrest.”", "[Master Josiah Sallow] “Sergeant, you will regret this.”"]);
   const caught = heron.exits.find(e => e.id === "caught")!;
-  assert.match(closingDirective(caught, false, saidLast(heron, view)), /Don't narrate beyond the ending into what comes next\. Your last reply's moment has happened \(an arrest made, a ruling given, words said\), even where it's what this ending should feel like: don't stage it again or say it again, but go on from where it ended\. Said there already, so not said again: \[Sergeant Agnes Kell\] “Master Josiah Sallow, you are under arrest\.” \[Master Josiah Sallow\] “Sergeant, you will regret this\.”$/);
+  // What the last reply did comes before the ending's words, and only what it didn't is played (QA round qa2-1018: the clerk's close had Kell give Tull his order again).
+  assert.match(closingDirective(caught, false, saidLast(heron, view)), /Then bring the scene to a close in a few sentences, where the player is now, landing on a moment that belongs to the player\. Your last reply's moment has happened \(an arrest made, a ruling given, an order given, words said\), even where it's what this ending should feel like: don't stage it again or say it again, but go on from where it ended\. Said there already, so not said again, in those words or others: \[Sergeant Agnes Kell\] “Master Josiah Sallow, you are under arrest\.” \[Master Josiah Sallow\] “Sergeant, you will regret this\.” Of what this ending should feel like, play only what your last reply didn't: /);
+  // The ending's words are its feeling, not where the player is: the Heron's left the player on the wharf mid-arrest, and the Rat's walked on into the Heron.
+  assert.match(closingDirective(caught, false), / Those words are how the ending should feel, not a script: [^\n]*where they put the player somewhere they aren't \(outside, on the wharf, at a door\), close where the player is\. Don't move the player anywhere they haven't gone themselves, and don't narrate beyond the ending: not the way to the next place, through a door they haven't gone through, arriving there, or anything that happens there\.$/);
   assert.equal(closingDirective(caught, false).includes("Said there already"), false, "nothing said, nothing listed");
 });
 
@@ -388,7 +418,7 @@ test("the mouthpiece on the fake: its narration streamed as it grows with who sa
 
 test("the closing: it may wait once for something the ending has to answer; a fight's ends on the moment it breaks out", () => {
   const caught = clerk.exits.find(e => e.id === "murder-unknown")!;
-  assert.match(closingDirective(caught, true), /^The scene is ending: Kell signs Prout in[\s\S]*set `closes` to false[\s\S]*Otherwise bring the scene to a close[\s\S]*set `closes` to true\. Your last reply's moment has happened/);
+  assert.match(closingDirective(caught, true), /^The scene is ending: Kell signs Prout in[\s\S]*set `closes` to false[\s\S]*Otherwise bring the scene to a close[\s\S]*Your last reply's moment has happened[\s\S]*Set `closes` to true\. Those words are how the ending should feel/);
   assert.match(closingDirective(caught, false), /^This reply closes the scene: Kell signs Prout in[\s\S]*Then bring the scene to a close/);
   const fight = sceneFile("heron-warehouse").exits.find(e => e.id === "fight")!;
   assert.match(closingDirective(fight, false), /A fight starts here and is played out blow by blow on the map/);

@@ -273,9 +273,11 @@ export function playerNow(state: TurnView): string | undefined {
   const status = state.rules?.status;
   if (!status) return undefined;
   const hp = /^HP (\d+)\/(\d+)/.exec(status);
-  const hurt = !!hp && Number(hp[1]) < Number(hp[2]);
+  // Hurt enough to show: a quarter down or more. A scratch isn't, nor a fresh dwarf's "HP 28/31" (toughness is on the sheet's maximum, which healing never reaches: shared/rules/actions.ts),
+  // which had the GM give the player a sore side and keep it (QA round qa2-1018).
+  const hurt = !!hp && Number(hp[1]) <= Number(hp[2]) * 0.75;
   const conditions = status.split(", ").slice(1).filter(p => !p.startsWith("spell slots") && !/^\d/.test(p));
-  return hurt || conditions.length ? `## The player character now\n${status}. Let it show: someone hurt moves and looks hurt.` : undefined;
+  return hurt || conditions.length ? `## The player character now\n${status}. Let it show as what play has done to them (a blow they took, a fall, a spell): someone hurt moves and looks hurt, and nothing else is wrong with them.` : undefined;
 }
 
 export function sceneEntries(state: TurnView): ViewEntry[] {
