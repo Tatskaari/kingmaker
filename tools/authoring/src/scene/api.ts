@@ -9,7 +9,13 @@ export type LoreRequest={title:string;kinds?:LoreKind[];linked:string[];onPick:(
 /** A destructive action, asked about first. */
 export type Confirmation={title:string;description:string;confirmLabel:string;onConfirm:()=>void};
 
-/** What the scene editor's panels share: the scene, the campaign around it, and the ways to change them. */
+/** The scene editor's views: the graph (with the inspector of what's selected on it), and the scene's own. */
+export type View='graph'|'scene'|'cast'|'facts'|'problems';
+
+/** Where a list of effects is: an ending's effects, or the scene's onEnd or afterwards. */
+export type EffectsAt={kind:'node';id:string}|{kind:'scene';field:'onEnd'|'afterwards'};
+
+/** What the scene editor's panels share: the scene, the campaign around it, and the ways to change them and to go to a part of them. */
 export type SceneApi={
   doc:SceneDocument;
   campaign:Campaign|null;
@@ -23,10 +29,19 @@ export type SceneApi={
   openScene:(id:string)=>void;
   pickLore:(request:LoreRequest)=>void;
   confirm:(confirmation:Confirmation)=>void;
-  /** Show a node, a connection (by a route of it) or a person of the cast in the inspector. */
-  showNode:(id:string)=>void;
-  showRoute:(id:string)=>void;
-  showCast:(id:string)=>void;
+  /**
+   * Go to a part of the scene: a node or a route (selected on the graph, its inspector open), a person
+   * (their card in the Cast view), a fact (in the Facts view), a field of the scene (in the Scene view),
+   * or an effect. `field` focuses one part of it, a dot path ("closing", "paths.1.clue", "effects.0").
+   */
+  showNode:(id:string,field?:string)=>void;
+  showRoute:(id:string,field?:string)=>void;
+  showCast:(id:string,field?:string)=>void;
+  showFact:(id:string)=>void;
+  showScene:(field?:string)=>void;
+  showEffect:(at:EffectsAt,index:number,part?:string)=>void;
+  /** An id renamed: what the editor has selected or open follows it. */
+  renamed:(kind:'node'|'route'|'cast',from:string,to:string)=>void;
   /** Start drawing a route from a node: the next node clicked is where it goes. */
   connectFrom:(id:string)=>void;
   /** A route to open for editing when its connection is shown (a problem's, or one just added). */

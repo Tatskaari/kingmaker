@@ -1,153 +1,287 @@
-/* The scene editor: the graph's nodes by kind, the inspector's tabs and fields, the cast and the problems. */
-.km-scene {
+/* The scene editor (its rules are .km-workshop.km-scene, one class more than the shared styles.css's, so they hold whichever comes first in the bundle): the title and its bar of views, the graph's nodes by kind, the inspector of what's
+   selected, the views of the scene's own (Scene, Cast, Facts, Problems), and the controls they share.
+   Sizes follow the editor's own width (a container query), since an Obsidian pane is narrower than its window. */
+.km-workshop.km-scene {
+  container:km-scene / inline-size;
   --km-start:#5f8f6a; --km-discovery:#8874ac; --km-event:#b07f3f; --km-ending:#a5615c;
   --km-good:#5f9a68; --km-mixed:#b8933f; --km-bad:#b25a5a;
 }
-.km-scene textarea {min-height:0;line-height:1.55}
-.km-scene code {font:11px ui-monospace,monospace;background:var(--km-bg);border:1px solid var(--km-line);border-radius:4px;padding:0 4px;color:var(--km-muted)}
-.km-scene .eyebrow code {font-size:9px;letter-spacing:0;padding:0 3px}
+.km-workshop.km-scene textarea {min-height:calc(var(--rows,3) * 1.55em + 18px);line-height:1.55;field-sizing:content;resize:vertical}
+.km-workshop.km-scene code {font:11px ui-monospace,monospace;background:var(--km-bg);border:1px solid var(--km-line);border-radius:4px;padding:0 4px;color:var(--km-muted)}
+.km-workshop.km-scene .eyebrow code {font-size:9px;letter-spacing:0;padding:0 3px}
+.km-workshop.km-scene .sr-only {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.km-workshop.km-scene .flash {animation:km-flash 1.4s ease-out}
+@keyframes km-flash {0% {box-shadow:0 0 0 3px var(--km-accent)} 100% {box-shadow:0 0 0 3px transparent}}
+
+/* The title, the problems under it, and the bar of views. */
+.km-workshop.km-scene .canvas-heading {padding:14px 20px 10px;align-items:flex-start}
+.km-workshop.km-scene .scene-title {min-width:0}
+.km-workshop.km-scene .scene-title h1 {overflow-wrap:anywhere}
+.km-workshop.km-scene .problems-link {padding:3px 0;margin-top:6px;font-size:11px;color:var(--km-muted);gap:5px}
+.km-workshop.km-scene .problems-link svg {color:var(--km-good)}
+.km-workshop.km-scene .problems-link.has-problems,.km-workshop.km-scene .problems-link.has-problems svg {color:var(--text-error,#d77d83)}
+.km-workshop.km-scene .view-bar {display:flex;align-items:flex-end;justify-content:space-between;gap:8px;padding:0 10px 0 12px;border-bottom:1px solid var(--km-line);flex-shrink:0;background:var(--km-bg)}
+.km-workshop.km-scene .view-tabs {display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;min-width:0}
+.km-workshop.km-scene .view-tabs [role=tab] {border-radius:5px 5px 0 0;padding:9px 12px 8px;font-size:12px;color:var(--km-muted);border-bottom:2px solid transparent;gap:6px;white-space:nowrap}
+.km-workshop.km-scene .view-tabs [role=tab].active {color:var(--km-text);border-bottom-color:var(--km-accent);background:transparent;font-weight:600}
+.km-workshop.km-scene .view-tabs .count,.km-workshop.km-scene .count {font-size:9px;font-weight:500;background:var(--km-panel);border:1px solid var(--km-line);border-radius:8px;padding:0 6px;line-height:15px;color:var(--km-muted)}
+.km-workshop.km-scene .view-tabs .count.bad {background:var(--km-bad);border-color:var(--km-bad);color:#fff}
+.km-workshop.km-scene .view-actions {display:flex;align-items:center;gap:1px;padding-bottom:3px;flex-shrink:0}
+.km-workshop.km-scene .view-actions button {color:var(--km-muted);padding:6px}
+.km-workshop.km-scene .view-actions button[aria-pressed=true] {color:var(--km-text)}
+.km-workshop.km-scene .view-area {flex:1;min-height:0;display:flex;position:relative}
+.km-workshop.km-scene .graph-view {flex:1;min-width:0;display:flex;position:relative}
+.km-workshop.km-scene .graph-canvas {flex:1;min-width:0}
+.km-workshop.km-scene .scene-scroll {flex:1;min-width:0;overflow-y:auto}
 
 /* The graph's nodes: the kind at a glance. */
-.km-scene .scene-card {border-width:1px;border-left-width:4px}
-.km-scene .scene-card.start {border-color:var(--km-start)}
-.km-scene .scene-card.discovery {border-color:var(--km-discovery)}
-.km-scene .scene-card.event {border-color:var(--km-event);border-style:solid dashed solid solid}
-.km-scene .scene-card.ending {border-color:var(--km-ending);border-radius:8px 20px 20px 8px}
-.km-scene .scene-card.ending.result-good {border-left-color:var(--km-good)}
-.km-scene .scene-card.ending.result-mixed {border-left-color:var(--km-mixed)}
-.km-scene .scene-card.ending.result-bad {border-left-color:var(--km-bad)}
-.km-scene .scene-card.required {box-shadow:0 0 0 1px var(--km-discovery),0 5px 16px #0002}
-.km-scene .scene-card.chosen {box-shadow:0 0 0 2px var(--km-accent),0 6px 20px #0002}
-.km-scene .scene-card.start .card-kind {color:var(--km-start)}
-.km-scene .scene-card.discovery .card-kind {color:var(--km-discovery)}
-.km-scene .scene-card.event .card-kind {color:var(--km-event)}
-.km-scene .scene-card.ending .card-kind {color:var(--km-ending)}
-.km-scene .card-kind span {margin-left:0}
-.km-scene .required-mark {display:inline-flex;align-items:center;gap:3px;margin-left:auto !important;color:var(--km-discovery);font-weight:700}
-.km-scene .card-problems {margin-left:auto;background:var(--km-bad);color:#fff;border-radius:9px;min-width:17px;height:17px;display:inline-grid;place-items:center;font-size:9px;letter-spacing:0}
-.km-scene .required-mark+.card-problems {margin-left:6px}
-.km-scene .scene-card footer {flex-wrap:wrap}
-.km-scene .scene-card footer span {margin-left:0}
-.km-scene .scene-card footer .next {margin-left:auto}
-.km-scene .paths-count {font-weight:600;color:var(--km-discovery)}
-.km-scene .result-badge {text-transform:uppercase;letter-spacing:1px;font-weight:700;padding:1px 5px;border-radius:3px;color:#fff}
-.km-scene .result-badge.good {background:var(--km-good)}
-.km-scene .result-badge.mixed {background:var(--km-mixed)}
-.km-scene .result-badge.bad {background:var(--km-bad)}
+.km-workshop.km-scene .scene-card {border-width:1px;border-left-width:4px}
+.km-workshop.km-scene .scene-card.start {border-color:var(--km-start)}
+.km-workshop.km-scene .scene-card.discovery {border-color:var(--km-discovery)}
+.km-workshop.km-scene .scene-card.event {border-color:var(--km-event);border-style:solid dashed solid solid}
+.km-workshop.km-scene .scene-card.ending {border-color:var(--km-ending);border-radius:8px 20px 20px 8px}
+.km-workshop.km-scene .scene-card.ending.result-good {border-left-color:var(--km-good)}
+.km-workshop.km-scene .scene-card.ending.result-mixed {border-left-color:var(--km-mixed)}
+.km-workshop.km-scene .scene-card.ending.result-bad {border-left-color:var(--km-bad)}
+.km-workshop.km-scene .scene-card.required {box-shadow:0 0 0 1px var(--km-discovery),0 5px 16px #0002}
+.km-workshop.km-scene .scene-card.chosen {box-shadow:0 0 0 2px var(--km-accent),0 6px 20px #0002}
+.km-workshop.km-scene .scene-card.start .card-kind {color:var(--km-start)}
+.km-workshop.km-scene .scene-card.discovery .card-kind {color:var(--km-discovery)}
+.km-workshop.km-scene .scene-card.event .card-kind {color:var(--km-event)}
+.km-workshop.km-scene .scene-card.ending .card-kind {color:var(--km-ending)}
+.km-workshop.km-scene .card-kind span {margin-left:0}
+.km-workshop.km-scene .required-mark {display:inline-flex;align-items:center;gap:3px;margin-left:auto !important;color:var(--km-discovery);font-weight:700}
+.km-workshop.km-scene .card-problems {margin-left:auto;background:var(--km-bad);color:#fff;border-radius:9px;min-width:17px;height:17px;display:inline-grid;place-items:center;font-size:9px;letter-spacing:0}
+.km-workshop.km-scene .required-mark+.card-problems {margin-left:6px}
+.km-workshop.km-scene .scene-card footer {flex-wrap:wrap}
+.km-workshop.km-scene .scene-card footer span {margin-left:0}
+.km-workshop.km-scene .scene-card footer .next {margin-left:auto}
+.km-workshop.km-scene .paths-count {font-weight:600;color:var(--km-discovery)}
+.km-workshop.km-scene .result-badge {text-transform:uppercase;letter-spacing:1px;font-weight:700;font-size:9px;padding:2px 6px !important;border-radius:3px;color:#fff;line-height:1.3}
+.km-workshop.km-scene button.result-badge {cursor:pointer}
+.km-workshop.km-scene button.result-badge:hover,.km-workshop.km-scene button.result-badge:focus-visible {box-shadow:0 0 0 2px var(--km-panel),0 0 0 4px var(--km-accent)}
+.km-workshop.km-scene .result-badge.good {background:var(--km-good)}
+.km-workshop.km-scene .result-badge.mixed {background:var(--km-mixed)}
+.km-workshop.km-scene .result-badge.bad {background:var(--km-bad)}
 
-/* The toolbar's problems count. */
-.km-scene .toolbar .has-problems {color:var(--text-error,#d77d83)}
+/* The inspector: what's selected on the graph, and nothing else. */
+.km-workshop.km-scene .scene-inspector {flex:0 0 380px;width:380px;display:flex;flex-direction:column;overflow:hidden;border-left:1px solid var(--km-line);background:var(--km-panel)}
+.km-workshop.km-scene .inspector-top {display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:34px;padding:2px 6px 2px 16px;border-bottom:1px solid var(--km-line);font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--km-muted);flex-shrink:0}
+.km-workshop.km-scene .inspector-top button {padding:5px;color:var(--km-muted)}
+.km-workshop.km-scene .scene-inspector .inspector-body {overflow-y:auto;flex:1;padding:4px 16px 24px}
+.km-workshop.km-scene .inspector-header {display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 10px;margin:10px 0 2px}
+.km-workshop.km-scene .inspector-header .id-field {margin:0}
+.km-workshop.km-scene .inspector-header .id-field.editing {flex-basis:100%}
+.km-workshop.km-scene .inspector-kind {display:flex;align-items:center;gap:8px;margin:0;font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--km-muted)}
+.km-workshop.km-scene .beat-kind {display:flex;align-items:center;gap:8px}
+.km-workshop.km-scene .beat-kind .choice-field {margin:0}
+.km-workshop.km-scene .beat-kind legend,.km-workshop.km-scene .beat-kind .choice-detail {position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.km-workshop.km-scene .beat-kind .segment {padding:3px 9px;font-size:10px;text-transform:uppercase;letter-spacing:1px}
+.km-workshop.km-scene .kind-dot {width:9px;height:9px;border-radius:50%;display:inline-block;flex-shrink:0}
+.km-workshop.km-scene .kind-dot.start {background:var(--km-start)}
+.km-workshop.km-scene .kind-dot.discovery {background:var(--km-discovery)}
+.km-workshop.km-scene .kind-dot.event {background:var(--km-event)}
+.km-workshop.km-scene .kind-dot.ending {background:var(--km-ending)}
+.km-workshop.km-scene .kind-dot.route {background:var(--km-muted)}
+.km-workshop.km-scene .kind-dot.scene {background:var(--km-accent)}
 
-/* The inspector: tabs, then the panel. */
-.km-scene .scene-inspector {flex:0 0 380px;width:380px;display:flex;flex-direction:column;overflow:hidden}
-.km-scene .inspector-tabs {display:flex;align-items:stretch;border-bottom:1px solid var(--km-line);flex-shrink:0}
-.km-scene .inspector-tabs [role=tab] {flex:1;border-radius:0;font-size:11px;color:var(--km-muted);padding:10px 4px;border-bottom:2px solid transparent;gap:5px}
-.km-scene .inspector-tabs [role=tab].active {color:var(--km-text);border-bottom-color:var(--km-accent);background:transparent}
-.km-scene .inspector-tabs .count {font-size:9px;background:var(--km-bg);border-radius:8px;padding:0 6px;line-height:16px}
-.km-scene .inspector-tabs .count.bad {background:var(--km-bad);color:#fff}
-.km-scene .scene-inspector .inspector-body {overflow-y:auto;flex:1;padding:4px 16px 24px}
-.km-scene .inspector-kind {display:flex;align-items:center;gap:8px;margin:14px 0 0;font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--km-muted)}
-.km-scene .inspector-kind code {margin-left:auto;text-transform:none;letter-spacing:0}
-.km-scene .kind-dot {width:9px;height:9px;border-radius:50%;display:inline-block}
-.km-scene .kind-dot.start {background:var(--km-start)}
-.km-scene .kind-dot.discovery {background:var(--km-discovery)}
-.km-scene .kind-dot.event {background:var(--km-event)}
-.km-scene .kind-dot.ending {background:var(--km-ending)}
-.km-scene .inspector-section {border-bottom:1px solid var(--km-line);padding:6px 0}
-.km-scene .inspector-section>summary {cursor:pointer;font-size:12px;font-weight:600;padding:8px 0;display:flex;align-items:center;gap:8px}
-.km-scene .inspector-section>summary .count,.km-scene .field-label .count,.km-scene .route-list .count {font-size:9px;font-weight:500;background:var(--km-bg);border-radius:8px;padding:0 6px;color:var(--km-muted)}
-.km-scene .section-body {padding-bottom:6px}
+/* The views of the scene's own: a readable column, its groups as cards. */
+.km-workshop.km-scene .view-content {max-width:880px;margin:0 auto;padding:18px 24px 56px}
+.km-workshop.km-scene .view-header {margin:4px 0 16px}
+.km-workshop.km-scene .view-header h2 {font:22px/1.3 Georgia,serif;margin-bottom:6px}
+.km-workshop.km-scene .view-lede {font-size:12px;line-height:1.65;color:var(--km-muted);max-width:72ch}
+.km-workshop.km-scene .view-lede code {font-size:10px}
+.km-workshop.km-scene .view-index {display:flex;flex-wrap:wrap;gap:4px;position:sticky;top:0;z-index:3;background:var(--km-bg);padding:6px 0 10px;margin-bottom:6px}
+.km-workshop.km-scene .view-index button {font-size:11px;color:var(--km-muted);border:1px solid var(--km-line);padding:4px 9px}
+.km-workshop.km-scene .field-group {background:var(--km-panel);border:1px solid var(--km-line);border-radius:9px;padding:4px 20px 12px;margin:0 0 16px;scroll-margin-top:52px}
+.km-workshop.km-scene .group-title {font:600 11px/1.4 var(--font-interface,system-ui,sans-serif);letter-spacing:1.3px;text-transform:uppercase;color:var(--km-muted);margin:14px 0 2px;display:flex;align-items:center;gap:8px}
+.km-workshop.km-scene .group-hint {font-size:11px;line-height:1.6;color:var(--km-muted);margin:4px 0 0}
 
 /* Fields. */
-.km-scene .field {margin:12px 0;gap:5px}
-.km-scene .field-label {font-size:11px;font-weight:600;color:var(--km-text);display:flex;align-items:center;gap:6px}
-.km-scene .field-hint {display:block;font-size:10px;line-height:1.5;color:var(--km-muted);font-weight:400}
-.km-scene .field-row .field:last-child {max-width:none}
-.km-scene .field-row>.field {flex:1}
-.km-scene .check-field {margin:8px 0}
-.km-scene .check-field label {display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer}
-.km-scene .check-field input {width:auto;margin:0}
-.km-scene .check-field b {font-weight:500}
-.km-scene .check-field small {display:block;margin:2px 0 0 22px;font-size:10px;color:var(--km-muted);line-height:1.5}
-.km-scene fieldset {border:0;margin:14px 0;padding:0;min-width:0}
-.km-scene legend {padding:0;margin-bottom:6px}
-.km-scene .checklist {background:var(--km-bg);border:1px solid var(--km-line);border-radius:6px;padding:8px 10px}
-.km-scene .checklist legend {float:left;width:100%;margin-bottom:4px}
-.km-scene .checklist .check-field {clear:both;margin:6px 0}
-.km-scene .list-item {display:flex;gap:6px;align-items:flex-start;margin:6px 0}
-.km-scene .list-item textarea {flex:1}
-.km-scene .list-item-actions {display:flex;flex-direction:column;gap:1px}
-.km-scene .list-item-actions button {padding:3px;color:var(--km-muted)}
-.km-scene .add-item {border:1px dashed var(--km-line);color:var(--km-muted);font-size:11px;padding:6px 10px;margin-top:6px}
-.km-scene .lore-links {margin:14px 0}
-.km-scene .lore-link .lore-open {flex:1;flex-direction:column !important;align-items:flex-start !important;gap:2px !important;min-width:0}
-.km-scene .lore-link .lore-open b {display:inline-flex;align-items:center;gap:5px}
-.km-scene .lore-link .lore-open svg {color:var(--km-muted)}
-.km-scene .info-box {margin:14px 0}
+.km-workshop.km-scene .field {margin:12px 0;gap:5px}
+.km-workshop.km-scene .field-label {font-size:11px;font-weight:600;color:var(--km-text);display:flex;align-items:center;gap:6px}
+.km-workshop.km-scene .field-hint {display:block;font-size:10px;line-height:1.5;color:var(--km-muted);font-weight:400}
+.km-workshop.km-scene .sub-label {font-size:10px;color:var(--km-muted);font-weight:600;margin-top:4px}
+.km-workshop.km-scene .field-row {flex-wrap:wrap}
+.km-workshop.km-scene .field-row .field:last-child {max-width:none}
+.km-workshop.km-scene .field-row>.field {flex:1 1 140px}
+.km-workshop.km-scene .check-field {margin:10px 0}
+.km-workshop.km-scene .check-field label {display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer}
+.km-workshop.km-scene .check-field input {width:auto;margin:0}
+.km-workshop.km-scene .check-field b {font-weight:600}
+.km-workshop.km-scene .check-field small {display:block;margin:2px 0 0 22px;font-size:10px;color:var(--km-muted);line-height:1.5}
+.km-workshop.km-scene fieldset {border:0;margin:14px 0;padding:0;min-width:0}
+.km-workshop.km-scene legend {padding:0;margin-bottom:6px}
+.km-workshop.km-scene .checklist {background:var(--km-bg);border:1px solid var(--km-line);border-radius:6px;padding:8px 10px}
+.km-workshop.km-scene .checklist legend {float:left;width:100%;margin-bottom:4px}
+.km-workshop.km-scene .checklist .check-field {clear:both;margin:6px 0}
+.km-workshop.km-scene .list-item {display:flex;gap:6px;align-items:flex-start;margin:6px 0}
+.km-workshop.km-scene .list-item textarea {flex:1}
+.km-workshop.km-scene .list-item-actions {display:flex;flex-direction:column;gap:1px}
+.km-workshop.km-scene .list-item-actions button {padding:3px;color:var(--km-muted)}
+.km-workshop.km-scene .add-item {border:1px dashed var(--km-line);color:var(--km-muted);font-size:11px;padding:6px 10px;margin-top:6px}
+.km-workshop.km-scene .add-item:hover {color:var(--km-text);border-color:var(--km-accent)}
+.km-workshop.km-scene .icon-button {padding:4px !important;color:var(--km-muted)}
+.km-workshop.km-scene .text-button {gap:5px}
+.km-workshop.km-scene .lore-links {margin:14px 0}
+.km-workshop.km-scene .lore-link .lore-open {flex:1;flex-direction:column !important;align-items:flex-start !important;gap:2px !important;min-width:0}
+.km-workshop.km-scene .lore-link .lore-open b {display:inline-flex;align-items:center;gap:5px}
+.km-workshop.km-scene .lore-link .lore-open svg {color:var(--km-muted)}
+.km-workshop.km-scene .info-box {margin:14px 0}
+.km-workshop.km-scene .muted {margin:6px 0}
 
-/* A discovery's paths, an ending's effects. */
-.km-scene .path,.km-scene .effect,.km-scene .member,.km-scene .fact,.km-scene .route-card {background:var(--km-bg);border:1px solid var(--km-line);border-radius:7px;padding:10px 12px;margin:10px 0}
-.km-scene .path>header,.km-scene .effect>header,.km-scene .fact>header {display:flex;align-items:center;gap:7px;font-size:11px}
-.km-scene .path>header b,.km-scene .effect>header b {flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.km-scene .path>header button,.km-scene .effect-actions button,.km-scene .fact>header button {padding:3px;color:var(--km-muted)}
-.km-scene .path-number,.km-scene .effect-number {font-size:10px;background:var(--km-panel);border-radius:4px;min-width:20px;line-height:20px;text-align:center;color:var(--km-muted)}
-.km-scene .strength {font-size:9px;text-transform:uppercase;letter-spacing:1px;padding:1px 5px;border-radius:3px;border:1px solid var(--km-line);color:var(--km-muted)}
-.km-scene .strength.proof {border-color:var(--km-good);color:var(--km-good)}
-.km-scene .strength.strong {border-color:var(--km-discovery);color:var(--km-discovery)}
-.km-scene .dice-badge {display:inline-flex;align-items:center;gap:3px;font-size:9px;padding:1px 5px;border:1px solid var(--km-event);color:var(--km-event);border-radius:3px}
-.km-scene .effect-actions {display:flex;gap:1px}
-.km-scene .effect-conditions {margin:8px 0;font-size:11px;color:var(--km-muted)}
-.km-scene .effect-conditions summary {cursor:pointer}
-.km-scene .add-effect {display:flex;gap:6px;align-items:center;margin-top:8px}
-.km-scene .add-effect select {flex:1}
-.km-scene .add-effect .add-item {margin-top:0;white-space:nowrap}
-.km-scene .raw-json textarea {font:11px/1.5 ui-monospace,monospace}
-.km-scene .raw-json textarea.invalid {border-color:var(--text-error,#d77d83)}
-.km-scene .json-problem {display:block;color:var(--text-error,#d77d83);font-size:10px;margin-top:4px}
-.km-scene .ways-in,.km-scene .carry {margin:14px 0}
-.km-scene .way-in {width:100%;flex-direction:column;align-items:flex-start;text-align:left;border:1px solid var(--km-line);margin:6px 0;gap:3px}
-.km-scene .way-in small {font-size:10px;color:var(--km-muted)}
-.km-scene .new-fact,.km-scene .new-person {display:flex;flex-direction:column;gap:6px;margin:14px 0;padding-top:12px;border-top:1px solid var(--km-line)}
+/* One of a few, side by side. */
+.km-workshop.km-scene .choice-field {margin:12px 0}
+.km-workshop.km-scene .choice-field legend {margin-bottom:6px}
+.km-workshop.km-scene .segments {display:flex;flex-wrap:wrap;border:1px solid var(--km-line);border-radius:6px;overflow:hidden;width:fit-content;max-width:100%;background:var(--km-bg)}
+.km-workshop.km-scene .segment {position:relative;display:flex;align-items:center;cursor:pointer;font-size:12px;padding:6px 14px;border-right:1px solid var(--km-line);color:var(--km-muted);user-select:none}
+.km-workshop.km-scene .segment:last-child {border-right:0}
+.km-workshop.km-scene .segment input {position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer;padding:0;border:0}
+.km-workshop.km-scene .segment.on {background:var(--km-accent);color:var(--text-on-accent,#fff);font-weight:600}
+.km-workshop.km-scene .segment.good.on {background:var(--km-good);color:#fff}
+.km-workshop.km-scene .segment.mixed.on {background:var(--km-mixed);color:#fff}
+.km-workshop.km-scene .segment.bad.on {background:var(--km-bad);color:#fff}
+.km-workshop.km-scene .segment:has(input:focus-visible) {outline:2px solid var(--km-accent);outline-offset:-2px}
+.km-workshop.km-scene .choice-detail {display:block;font-size:11px;line-height:1.5;color:var(--km-muted);margin-top:6px}
+
+/* Chips, and the facts chosen as rows. */
+.km-workshop.km-scene .chips {list-style:none;margin:6px 0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.km-workshop.km-scene .chip {display:inline-flex;align-items:center;border:1px solid var(--km-line);background:var(--km-bg);border-radius:14px;font-size:12px;max-width:100%;min-width:0}
+.km-workshop.km-scene .chip>span,.km-workshop.km-scene .chip-open {padding:3px 2px 3px 11px !important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.km-workshop.km-scene .chip-open:hover {text-decoration:underline;background:transparent !important}
+.km-workshop.km-scene .chip-remove {padding:4px 8px !important;color:var(--km-muted);border-radius:0 14px 14px 0 !important;flex-shrink:0}
+.km-workshop.km-scene .chips-empty {font-size:11px}
+.km-workshop.km-scene .fact-rows {list-style:none;margin:6px 0;padding:0;display:flex;flex-direction:column;gap:4px}
+.km-workshop.km-scene .fact-row {display:flex;align-items:flex-start;border:1px solid var(--km-line);border-radius:6px;background:var(--km-bg)}
+.km-workshop.km-scene .fact-row .chip-remove {border-radius:0 6px 6px 0 !important;align-self:stretch}
+.km-workshop.km-scene .fact-open {flex:1;min-width:0;flex-direction:column;align-items:flex-start !important;text-align:left;gap:2px !important;padding:6px 9px !important}
+.km-workshop.km-scene .fact-open code {font-size:10px}
+.km-workshop.km-scene .fact-open span {font-size:11px;color:var(--km-muted);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.km-workshop.km-scene .facts-field,.km-workshop.km-scene .arrivals,.km-workshop.km-scene .roles-field,.km-workshop.km-scene .requires-field,.km-workshop.km-scene .ways-in {margin:16px 0}
+
+/* [+ Add …], opened: a short list to pick from in place, and a new one under it. */
+.km-workshop.km-scene .add-picker {border:1px solid var(--km-accent);border-radius:7px;background:var(--km-bg);padding:8px 10px 10px;margin:8px 0;box-shadow:0 4px 14px #0002}
+.km-workshop.km-scene .add-picker>header {display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;margin-bottom:6px}
+.km-workshop.km-scene .pick-search {display:flex;align-items:center;gap:6px;border:1px solid var(--km-line);border-radius:5px;padding:0 8px;margin-bottom:6px;color:var(--km-muted)}
+.km-workshop.km-scene .pick-search input {border:0;padding:6px 0;background:transparent;outline:none !important}
+.km-workshop.km-scene .pick-options {display:flex;flex-direction:column;gap:1px;max-height:280px;overflow-y:auto}
+.km-workshop.km-scene .pick-option {flex-direction:column;align-items:flex-start !important;text-align:left;gap:2px !important;padding:6px 8px !important;width:100%}
+.km-workshop.km-scene .pick-option b {font-weight:550;font-size:12px}
+.km-workshop.km-scene .pick-option small {font-size:10px;color:var(--km-muted);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.km-workshop.km-scene .new-fact {display:flex;flex-direction:column;gap:5px;margin:10px 0 0;padding-top:10px;border-top:1px solid var(--km-line)}
+.km-workshop.km-scene .new-person {display:flex;flex-direction:column;gap:6px}
+.km-workshop.km-scene .new-person .primary {align-self:flex-start}
+.km-workshop.km-scene .add-picker>.new-fact:first-of-type {border-top:0;padding-top:0;margin-top:0}
+.km-workshop.km-scene .new-fact .primary {align-self:flex-start;margin-top:4px}
+.km-workshop.km-scene .new-fact textarea {--rows:2}
+
+/* Optional parts, cards in lists, ids. */
+.km-workshop.km-scene .optional-add {margin:14px 0}
+.km-workshop.km-scene .optional-add .field-hint {margin-top:4px}
+.km-workshop.km-scene .optional-section {border:1px solid var(--km-line);border-radius:7px;padding:8px 12px 10px;margin:14px 0;background:var(--km-bg)}
+.km-workshop.km-scene .optional-section>header {display:flex;align-items:center;justify-content:space-between;gap:8px}
+.km-workshop.km-scene .optional-section .field:first-of-type {margin-top:6px}
+.km-workshop.km-scene .item-card .optional-section {background:var(--km-panel)}
+.km-workshop.km-scene .item-card,.km-workshop.km-scene .role-card,.km-workshop.km-scene .route-card,.km-workshop.km-scene .fact-card {background:var(--km-bg);border:1px solid var(--km-line);border-radius:7px;padding:10px 12px;margin:10px 0}
+.km-workshop.km-scene .item-card>header,.km-workshop.km-scene .role-card>header {display:flex;align-items:center;gap:7px;font-size:11px}
+.km-workshop.km-scene .item-card>header b {flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.km-workshop.km-scene .item-number {font-size:10px;background:var(--km-panel);border-radius:4px;min-width:20px;line-height:20px;text-align:center;color:var(--km-muted)}
+.km-workshop.km-scene .item-actions {display:flex;gap:1px;margin-left:auto}
+.km-workshop.km-scene .item-actions button {padding:3px;color:var(--km-muted)}
+.km-workshop.km-scene .item-card.draft {border-style:dashed;border-color:var(--km-accent)}
+.km-workshop.km-scene .draft-note {font-size:10px;color:var(--km-muted);margin:6px 0 0}
+.km-workshop.km-scene .role-card>header b {font-size:12px}
+.km-workshop.km-scene .role-card>header small {color:var(--km-muted);font-size:10px;flex:1}
+.km-workshop.km-scene .role-card>header button {margin-left:auto}
+.km-workshop.km-scene .role-card .field {margin:6px 0 0}
+.km-workshop.km-scene .strength {font-size:9px;text-transform:uppercase;letter-spacing:1px;padding:1px 5px;border-radius:3px;border:1px solid var(--km-line);color:var(--km-muted)}
+.km-workshop.km-scene .strength.proof {border-color:var(--km-good);color:var(--km-good)}
+.km-workshop.km-scene .strength.strong {border-color:var(--km-discovery);color:var(--km-discovery)}
+.km-workshop.km-scene .dice-badge {display:inline-flex;align-items:center;gap:3px;font-size:9px;padding:1px 5px;border:1px solid var(--km-event);color:var(--km-event);border-radius:3px;white-space:nowrap}
+.km-workshop.km-scene .condition-badge {font-size:9px;padding:1px 5px;border:1px solid var(--km-accent);color:var(--km-accent);border-radius:3px;white-space:nowrap}
+.km-workshop.km-scene .id-field {display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0}
+.km-workshop.km-scene .id-field code {font-size:11px}
+.km-workshop.km-scene .id-field .text-button {padding:2px 0;font-size:10px}
+.km-workshop.km-scene .id-field.editing {display:flex;flex-direction:column;align-items:stretch;gap:5px;padding:8px 10px;border:1px solid var(--km-accent);border-radius:7px;background:var(--km-bg)}
+.km-workshop.km-scene .id-rename {display:flex;gap:6px;align-items:center}
+.km-workshop.km-scene .id-rename input {flex:1;min-width:0;font:12px ui-monospace,monospace}
+.km-workshop.km-scene .id-rename button {white-space:nowrap;font-size:11px;padding:6px 10px}
+.km-workshop.km-scene .id-rename button:not(.primary) {border:1px solid var(--km-line)}
+
+/* Effects. */
+.km-workshop.km-scene .effects {margin:16px 0}
+.km-workshop.km-scene .effect-form .field:first-child {margin-top:8px}
+.km-workshop.km-scene .conditions {margin:10px 0 4px;padding-top:8px;border-top:1px dashed var(--km-line)}
+.km-workshop.km-scene .condition {margin:4px 0}
+.km-workshop.km-scene .condition-label {font-size:10px;font-weight:600;color:var(--km-muted);text-transform:uppercase;letter-spacing:.8px}
+.km-workshop.km-scene .raw-json textarea {font:11px/1.5 ui-monospace,monospace}
+.km-workshop.km-scene .raw-json textarea.invalid {border-color:var(--text-error,#d77d83)}
+.km-workshop.km-scene .json-problem {display:block;color:var(--text-error,#d77d83);font-size:10px;margin-top:4px}
+.km-workshop.km-scene .way-in {width:100%;flex-direction:column;align-items:flex-start;text-align:left;border:1px solid var(--km-line);margin:6px 0;gap:3px}
+.km-workshop.km-scene .way-in small {font-size:10px;color:var(--km-muted)}
 
 /* Routes. */
-.km-scene .route-card>header {display:flex;gap:8px;align-items:flex-start;margin:0 0 8px}
-.km-scene .route-card h3 {flex:1;font-size:13px;line-height:1.5;font-weight:600;overflow-wrap:anywhere}
-.km-scene .route-card>header button {font-size:10px;padding:3px 6px;border:1px solid var(--km-line);white-space:nowrap}
-.km-scene .route-path {flex-direction:row;flex-wrap:wrap;gap:6px}
-.km-scene .way-badges code {font-size:9px}
+.km-workshop.km-scene .route-card>header {display:flex;gap:8px;align-items:flex-start;margin:0 0 8px}
+.km-workshop.km-scene .route-card h3 {flex:1;font-size:13px;line-height:1.5;font-weight:600;overflow-wrap:anywhere}
+.km-workshop.km-scene .route-card>header button {font-size:10px;padding:3px 6px;border:1px solid var(--km-line);white-space:nowrap}
+.km-workshop.km-scene .route-path {flex-direction:row;flex-wrap:wrap;align-items:baseline;gap:4px 6px;margin-top:12px;max-width:100%;overflow-wrap:anywhere}
+.km-workshop.km-scene .route-path b {min-width:0}
+.km-workshop.km-scene .inspector-what {display:inline-flex;align-items:center;gap:7px}
+.km-workshop.km-scene .connection-inspector {width:auto;flex-basis:auto}
+.km-workshop.km-scene .way-badges code {font-size:9px}
 
-/* The cast. */
-.km-scene .cast-card {border:1px solid var(--km-line);border-radius:7px;margin:8px 0;background:var(--km-bg)}
-.km-scene .cast-card.open {border-color:var(--km-accent)}
-.km-scene .cast-summary {width:100%;justify-content:flex-start !important;flex-wrap:wrap;text-align:left;padding:10px 12px !important;gap:8px !important}
-.km-scene .cast-summary>span {flex:1;min-width:0}
-.km-scene .cast-summary small {color:var(--km-muted);font-size:10px}
-.km-scene .cast-summary .cast-meta {flex-basis:100%;padding-left:22px}
-.km-scene .cast-fields {padding:0 12px 12px;border-top:1px solid var(--km-line)}
-.km-scene .roles,.km-scene .members {border-top:1px solid var(--km-line);padding-top:10px}
+/* The Cast view: the people beside the chosen one's card. */
+.km-workshop.km-scene .cast-view {max-width:1120px;display:grid;grid-template-columns:230px minmax(0,1fr);gap:22px;align-items:start}
+.km-workshop.km-scene .cast-list {position:sticky;top:0;padding-top:4px}
+.km-workshop.km-scene .cast-list .group-title {margin-top:4px}
+.km-workshop.km-scene .cast-list ul {list-style:none;margin:8px 0;padding:0;display:flex;flex-direction:column;gap:3px}
+.km-workshop.km-scene .cast-pick {width:100%;flex-direction:column;align-items:flex-start !important;text-align:left;gap:2px !important;padding:8px 10px !important;border:1px solid transparent;border-radius:7px}
+.km-workshop.km-scene .cast-pick b {font-size:13px;font-weight:600}
+.km-workshop.km-scene .cast-pick small {font-size:10px;color:var(--km-muted)}
+.km-workshop.km-scene .cast-pick.active {border-color:var(--km-accent);background:var(--km-panel)}
+.km-workshop.km-scene .cast-detail {min-width:0}
+.km-workshop.km-scene .cast-head {display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:2px 0 4px}
+.km-workshop.km-scene .cast-head h2 {font:24px/1.25 Georgia,serif}
+.km-workshop.km-scene .cast-called {font-size:12px;color:var(--km-muted);margin-top:2px}
+.km-workshop.km-scene .cast-uses {background:var(--km-panel);border:1px solid var(--km-line);border-radius:9px;padding:10px 16px;margin:0 0 16px}
+.km-workshop.km-scene .cast-uses ul {margin:6px 0 0;padding-left:18px;font-size:12px;line-height:1.9;color:var(--km-muted)}
+.km-workshop.km-scene .roles .field:first-child {margin-top:8px}
+.km-workshop.km-scene .members {border-top:1px solid var(--km-line);padding-top:10px}
 
-/* The problems. */
-.km-scene .problems {list-style:none;margin:0;padding:0}
-.km-scene .problem {width:100%;justify-content:flex-start !important;align-items:flex-start !important;text-align:left;border:1px solid var(--km-line);margin:6px 0;padding:9px 10px !important}
-.km-scene .problem svg {flex-shrink:0;margin-top:2px;color:var(--text-error,#d77d83)}
-.km-scene .problem span {display:flex;flex-direction:column;gap:3px;min-width:0}
-.km-scene .problem b {font-weight:500;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
-.km-scene .problem small {font-size:10px;color:var(--km-muted)}
-.km-scene .problems-clear {display:flex;gap:8px;align-items:flex-start;color:var(--km-good);font-size:12px;margin:14px 0;line-height:1.6}
-.km-scene .problems-note {display:flex;gap:8px;align-items:flex-start;font-size:11px;color:var(--km-muted);margin:12px 0;line-height:1.6}
-.km-scene .problems-note svg,.km-scene .problems-clear svg {flex-shrink:0;margin-top:2px}
+/* The Facts view. */
+.km-workshop.km-scene .fact-card {background:var(--km-panel);border-radius:9px;padding:6px 18px 12px;margin:0 0 14px}
+.km-workshop.km-scene .fact-card>header {display:flex;align-items:center;justify-content:space-between;gap:10px}
+.km-workshop.km-scene .fact-card>header .id-field.editing {flex:1}
+.km-workshop.km-scene .fact-uses {display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:4px 18px}
+.km-workshop.km-scene .fact-uses ul {list-style:none;margin:6px 0;padding:0;display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.km-workshop.km-scene .use-link {display:inline-flex;align-items:baseline;justify-content:flex-start;gap:7px;padding:4px 9px !important;border:1px solid var(--km-line);border-radius:5px;font-size:11px;line-height:1.45;text-align:left;margin:1px 2px;max-width:100%}
+.km-workshop.km-scene .use-link .kind-dot {width:7px;height:7px;transform:translateY(-1px)}
+.km-workshop.km-scene .use-link>span:last-child {min-width:0;overflow-wrap:anywhere}
+.km-workshop.km-scene .use-link small {color:var(--km-muted);font-size:10px}
+.km-workshop.km-scene .facts-view>.add-item,.km-workshop.km-scene .facts-view>.add-picker {max-width:560px}
+
+/* The Problems view. */
+.km-workshop.km-scene .problems {list-style:none;margin:0;padding:0}
+.km-workshop.km-scene .problem {width:100%;justify-content:flex-start !important;align-items:flex-start !important;text-align:left;border:1px solid var(--km-line);background:var(--km-panel);margin:6px 0;padding:10px 12px !important}
+.km-workshop.km-scene .problem svg {flex-shrink:0;margin-top:2px;color:var(--text-error,#d77d83)}
+.km-workshop.km-scene .problem span {display:flex;flex-direction:column;gap:3px;min-width:0}
+.km-workshop.km-scene .problem b {font-weight:500;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.km-workshop.km-scene .problem small {font-size:10px;color:var(--km-muted)}
+.km-workshop.km-scene .problems-clear {display:flex;gap:8px;align-items:flex-start;color:var(--km-good);font-size:12px;margin:14px 0;line-height:1.6}
+.km-workshop.km-scene .problems-note {display:flex;gap:8px;align-items:flex-start;font-size:11px;color:var(--km-muted);margin:12px 0;line-height:1.6}
+.km-workshop.km-scene .problems-note svg,.km-workshop.km-scene .problems-clear svg {flex-shrink:0;margin-top:2px}
 
 /* The add node dialog. */
-.km-scene .add-node .add-options {gap:6px}
-.km-scene .add-option {display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--km-line);border-radius:7px;cursor:pointer}
-.km-scene .add-option.active {border-color:var(--km-accent);background:var(--background-modifier-hover,#9878bb22)}
-.km-scene .add-option input {width:auto;margin-top:3px}
-.km-scene .add-option span {display:flex;flex-direction:column;gap:3px}
-.km-scene .add-option small {font-size:11px;color:var(--km-muted);line-height:1.5}
-.km-scene .add-option.discovery b {color:var(--km-discovery)}
-.km-scene .add-option.event b {color:var(--km-event)}
-.km-scene .add-option.ending b {color:var(--km-ending)}
-.km-scene .add-fields {display:flex;flex-direction:column;gap:6px;margin-top:16px}
+.km-workshop.km-scene .add-node .add-options {gap:6px}
+.km-workshop.km-scene .add-option {display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--km-line);border-radius:7px;cursor:pointer}
+.km-workshop.km-scene .add-option.active {border-color:var(--km-accent);background:var(--background-modifier-hover,#9878bb22)}
+.km-workshop.km-scene .add-option input {width:auto;margin-top:3px}
+.km-workshop.km-scene .add-option span {display:flex;flex-direction:column;gap:3px}
+.km-workshop.km-scene .add-option small {font-size:11px;color:var(--km-muted);line-height:1.5}
+.km-workshop.km-scene .add-option.discovery b {color:var(--km-discovery)}
+.km-workshop.km-scene .add-option.event b {color:var(--km-event)}
+.km-workshop.km-scene .add-option.ending b {color:var(--km-ending)}
+.km-workshop.km-scene .add-fields {display:flex;flex-direction:column;gap:6px;margin-top:16px}
 
 /* A version 1 scene, read-only. */
 .km-legacy-scene {padding:32px;max-width:720px;font:14px/1.7 var(--font-interface,system-ui,sans-serif);color:var(--text-normal,inherit)}
@@ -155,5 +289,25 @@
 .km-legacy-scene p {margin:0 0 12px}
 .km-legacy-scene .muted {color:var(--text-muted,#888);font-size:12px}
 
-@media(max-width:900px){.km-scene .scene-inspector{width:300px;flex-basis:300px}}
-@media(max-width:650px){.km-scene .scene-inspector{position:absolute;right:0;top:35px;bottom:0;z-index:12;box-shadow:-8px 0 20px #0002}}
+/* Narrower panes: a narrower inspector, then one over the graph, the cast's list above the card. */
+@container km-scene (max-width:1000px) {
+  .km-workshop.km-scene .scene-inspector {flex-basis:330px;width:330px}
+}
+@container km-scene (max-width:760px) {
+  .km-workshop.km-scene .canvas-heading {padding:10px 12px 6px}
+  .km-workshop.km-scene h1 {font-size:20px}
+  .km-workshop.km-scene .topbar .save {display:none}
+  .km-workshop.km-scene .scene-inspector {position:absolute;top:0;right:0;bottom:0;z-index:12;width:min(360px,94%);flex-basis:auto;box-shadow:-8px 0 24px #0003}
+  .km-workshop.km-scene .scene-inspector.empty {display:none}
+  .km-workshop.km-scene .view-content {padding:14px 14px 48px}
+  .km-workshop.km-scene .field-group {padding:4px 14px 10px}
+  .km-workshop.km-scene .cast-view {grid-template-columns:minmax(0,1fr);gap:8px}
+  .km-workshop.km-scene .cast-list {position:static}
+  .km-workshop.km-scene .cast-list ul {flex-direction:row;flex-wrap:wrap}
+  .km-workshop.km-scene .cast-list li {flex:1 1 150px}
+  .km-workshop.km-scene .view-tabs [role=tab] {padding:8px 9px 7px}
+}
+@container km-scene (max-width:480px) {
+  .km-workshop.km-scene .canvas-heading>.primary kbd {display:none}
+  .km-workshop.km-scene .view-actions button {padding:5px 4px}
+}

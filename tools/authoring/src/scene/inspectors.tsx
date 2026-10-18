@@ -1,43 +1,53 @@
-// The inspectors for what's selected on the graph: a node (the start, a discovery, an event, an ending)
-// and a connection (the routes between two nodes, one way).
-import React,{useId,useMemo} from 'react';
+// The inspector of what's selected on the graph: a node (the start, a discovery, an event, an ending) or
+// a connection (the routes between two nodes, one way). Each shows every field its part of the file can
+// hold: the optional ones as [+ Add …] until they're there, the lists as cards or chips with [+ Add …],
+// and its id, renamed only by asking.
+import React,{useEffect,useId,useMemo,useRef,useState} from 'react';
 import {ArrowRight,Dices,Link,Plus,Trash2} from 'lucide-react';
 import {useScene} from './api.ts';
-import {Checkbox,Checklist,LoreLinks,NumberField,SelectField,TextArea,TextField} from './fields.tsx';
+import {AddPicker,Checkbox,Chips,ChoiceField,IdField,ItemCard,LoreLinks,NumberField,OptionalSection,SelectField,TextArea,TextField,moved} from './fields.tsx';
 import type {Option} from './fields.tsx';
 import {EffectsEditor} from './effects.tsx';
-import type {EffectChoices,EffectData} from './effects.tsx';
-import {EXIT_KINDS,ORDER,RESULTS,SKILLS,STRENGTHS,addRoute,isBeat,isDiscovery,isEnding,isStart,moveRoutes,nodeKind,optionalList,optionalText,removeNodes,removeRoutes,setArrival,setNodeField,setRouteField,titleOf,updateNode,updateRoute,withKey} from './model.ts';
+import {FactsField} from './facts.tsx';
+import {EXIT_KINDS,ORDER,SKILLS,addRoute,idProblem,isBeat,isDiscovery,isEnding,isStart,makeDiscovery,makeEvent,moveRoutes,nodeKind,optionalList,removeNodes,removeRoutes,renameNode,renameRoute,setArrival,setNodeField,setRouteField,titleOf,updateNode,updateRoute,withKey} from './model.ts';
 import type {BeatData,Connection,EndingData,NodeKind,Path,Route,SceneDocument,SceneNode,StartData} from './model.ts';
 
 export const KIND_LABELS:Record<NodeKind,string>={start:'Start',discovery:'Discovery',event:'Event',ending:'Ending'};
-const RESULT_LABELS:Record<string,string>={good:'Good',mixed:'Mixed',bad:'Bad'};
-const EXIT_LABELS:Record<string,string>={combat:'Combat (a fight)',persuaded:'Persuaded',progress:'Progress',leave:'Leave',other:'Other'};
 const SKILL_LABEL=(skill:string)=>skill.replace(/_/g,' ').replace(/^./,letter=>letter.toUpperCase());
 export const SKILL_OPTIONS:Option[]=SKILLS.map(skill=>({value:skill,label:SKILL_LABEL(skill)}));
 
-// ---------------------------------------------------------------------------------------------
-// Choices the fields offer, from the scene and its campaign.
-
-/** The scene's facts, to settle or test: each id with its sentence. */
-export function factOptions(doc:SceneDocument):Option[]{
-  return Object.entries(doc.facts??{}).map(([id,sentence])=>({value:id,label:id,detail:sentence}));
-}
-
-/** The cast, by id, named. */
-export const castOptions=(doc:SceneDocument):Option[]=>doc.cast.map(member=>({value:member.id,label:`${member.name||member.id} (${member.id})`}));
-
-/** What an effect chooses from. */
-export function effectChoices(doc:SceneDocument,quests:Record<string,string>):EffectChoices{
-  return {cast:castOptions(doc),facts:factOptions(doc),quests:Object.entries(quests).map(([id,title])=>({value:id,label:`${title} (${id})`}))};
-}
+/** An ending's result: what it means for the story, and for QA. */
+export const RESULT_OPTIONS=[
+  {value:'good',label:'Good',tone:'good',detail:'The player got what the scene was for. The story goes on at its best. QA counts it as ending well; in a scene with a required discovery, every way into it must require something found.'},
+  {value:'mixed',label:'Mixed',tone:'mixed',detail:'They got some of it (the lead, not the proof). The story goes on, a little worse off. QA counts it as ending well too.'},
+  {value:'bad',label:'Bad',tone:'bad',detail:'A last resort (a crime, the case abandoned): the scene ends without what it was for. QA doesn\'t count it; every scene needs a good or mixed ending it can reach.'},
+];
+/** An ending's exit kind, in full: only combat changes what the game does. */
+const EXIT_OPTIONS:Record<string,{label:string;detail:string}>={
+  combat:{label:'Combat: it ends in a fight',detail:'The GM closes on the moment the fight breaks out, before a blow lands, and the fight is played out on the map before the story picks up again.'},
+  persuaded:{label:'Persuaded: someone is talked round',detail:'It ends because someone was won over. The story reads it as a label; the effects say what it changes.'},
+  progress:{label:'Progress: the story moves on',detail:'The case made or the errand done. The story reads it as a label; the effects say what it changes.'},
+  leave:{label:'Leave: the player walks away, or is sent away',detail:'The story reads it as a label; the effects say what it changes.'},
+  other:{label:'Other: none of these',detail:'The story reads it as a label; the effects say what it changes.'},
+};
+const STRENGTH_OPTIONS=[
+  {value:'hook',label:'Hook',detail:'A hook: it points the way, and no more.'},
+  {value:'suggestive',label:'Suggestive',detail:'Suggestive: it hints, and needs backing up (a frightened child\'s account).'},
+  {value:'strong',label:'Strong',detail:'Strong: hard to dismiss (a sergeant who saw it).'},
+  {value:'proof',label:'Proof',detail:'Proof: it settles it (a document, a confession).'},
+];
+const PHASE_OPTIONS=[
+  {value:'outcome',label:'Outcome',detail:'Outcome: judged on what has happened in the story.'},
+  {value:'cue',label:'Cue',detail:'Cue: a moment (the noon bell, the player setting off) that the co-GM brings about when it comes.'},
+];
+const RENAME_NODE='Its routes, what requires it and who arrives there follow. Game state keys on it: a game already played loses track of it under the old id.';
 
 // ---------------------------------------------------------------------------------------------
 // A node.
 
-/** The inspector for a node: what every node has, then its kind's fields, its lore, and the routes in and out. */
+/** The inspector for a node: its kind and id, its title, its kind's fields, its lore, and the routes in and out. */
 export function NodeInspector({node}:{node:SceneNode}){
-  const {edit,confirm,doc,connectFrom}=useScene();
+  const {edit,confirm,doc,connectFrom,renamed}=useScene();
   const kind=nodeKind(node);
   const set=(key:string,value:unknown)=>edit(scene=>setNodeField(scene,node.id,key,value));
   const remove=()=>{
@@ -45,7 +55,10 @@ export function NodeInspector({node}:{node:SceneNode}){
     confirm({title:'Delete node?',confirmLabel:'Delete node',description:`Delete “${node.data.title||node.id}”${routes?` and the ${routes} route${routes===1?'':'s'} to and from it`:''}? Routes that require it, or fail into it, forget it, and anyone who arrives there arrives from the start. You can undo this.`,onConfirm:()=>edit(scene=>removeNodes(scene,[node.id]))});
   };
   return <div className={`node-inspector ${kind}`} data-node={node.id}>
-    <p className="inspector-kind"><span className={`kind-dot ${kind}`}/>{KIND_LABELS[kind]}<code title="The node's id: game state keys on it, so it stays as it is when the title changes">{node.id}</code></p>
+    <header className="inspector-header">
+      {isBeat(node)&&<BeatKind node={node}/>}
+      <IdField id={node.id} problem={next=>idProblem(next,doc.nodes.map(other=>other.id),node.id)} onRename={next=>{edit(scene=>renameNode(scene,node.id,next));renamed('node',node.id,next)}} warning={RENAME_NODE}/>
+    </header>
     <TextField label="Title" field="title" value={node.data.title} onChange={value=>set('title',value)}/>
     {kind==='start'&&<StartFields node={node as SceneNode<StartData>}/>}
     {kind==='discovery'&&<DiscoveryFields node={node as SceneNode<BeatData>}/>}
@@ -60,61 +73,79 @@ export function NodeInspector({node}:{node:SceneNode}){
   </div>;
 }
 
+/** A beat's kind, chosen: a discovery (with a revelation) or an event (without). What the other kind has no use for goes, after asking. */
+function BeatKind({node}:{node:SceneNode<BeatData>}){
+  const {doc,edit,confirm}=useScene();
+  const kind=isDiscovery(node)?'discovery':'event';
+  const change=(next:string)=>{
+    if(next===kind)return;
+    const d=node.data,title=d.title||node.id;
+    if(next==='event'){
+      const losing=[d.revelation?.trim()?'its revelation':'',d.paths?.length?`its ${d.paths.length} path${d.paths.length===1?'':'s'}`:'',d.required?'its required mark':''].filter(Boolean);
+      if(!losing.length){edit(scene=>makeEvent(scene,node.id));return}
+      confirm({title:'Make it an event?',confirmLabel:'Make it an event',description:`Make “${title}” an event, a turn the scene takes? ${sentence(losing)} go${losing.length===1?'es':''}: an event has none. You can undo this.`,onConfirm:()=>edit(scene=>makeEvent(scene,node.id))});
+      return;
+    }
+    const arriving=doc.cast.filter(member=>member.enters===node.id).length,roles=Object.keys(d.cast??{}).length;
+    const losing=[d.pressure!==undefined?'its pressure':'',roles?`its ${roles} conversation role${roles===1?'':'s'}`:'',arriving?`its ${arriving} arrival${arriving===1?'':'s'} (they're here from the start instead)`:''].filter(Boolean);
+    if(!losing.length){edit(scene=>makeDiscovery(scene,node.id));return}
+    confirm({title:'Make it a discovery?',confirmLabel:'Make it a discovery',description:`Make “${title}” a discovery, something the player can come to understand? ${sentence(losing)} go${losing.length===1?'es':''}: a discovery is never the scene's stage. You can undo this.`,onConfirm:()=>edit(scene=>makeDiscovery(scene,node.id))});
+  };
+  return <div className="beat-kind">
+    <ChoiceField label="Kind" field="kind" value={kind} options={[{value:'discovery',label:'Discovery',detail:'Something the player can come to understand, by any of its paths.'},{value:'event',label:'Event',detail:'A turn the scene takes, and its new situation from then on.'}]} onChange={change}/>
+  </div>;
+}
+const sentence=(parts:string[])=>{const text=parts.length>1?`${parts.slice(0,-1).join(', ')} and ${parts.at(-1)}`:parts[0]??'';return text.charAt(0).toUpperCase()+text.slice(1)};
+
 function StartFields({node}:{node:SceneNode<StartData>}){
-  const {edit,doc}=useScene();
-  const here=doc.cast.filter(member=>member.enters===undefined);
+  const {edit}=useScene();
   return <>
     <TextArea label="Opening" field="description" rows={7} hint="The situation the player walks into, the suggested ways into it, how to play the people here, and an opening image." value={node.data.description} onChange={value=>edit(scene=>setNodeField(scene,node.id,'description',value))}/>
-    <CastNotes node={node} people={here} label="Conversation roles at the start" hint="Each person's role as the scene opens: the co-GM's first note. Behaviour, not meaning."/>
+    <RolesEditor node={node} label="Conversation roles at the start" hint="Each person's role as the scene opens: the co-GM's first note. Behaviour, not meaning."/>
   </>;
 }
 
 function DiscoveryFields({node}:{node:SceneNode<BeatData>}){
   const {edit}=useScene();
   const set=(key:string,value:unknown)=>edit(scene=>setNodeField(scene,node.id,key,value));
-  const paths=node.data.paths??[];
   return <>
+    <Checkbox label="Required" field="required" hint="The scene can't end well without it: give it three paths or more, one needing no roll, and have a way into a good ending require it." checked={!!node.data.required} onChange={checked=>set('required',checked?true:undefined)}/>
     <TextArea label="Revelation" field="revelation" hint="What the player comes to understand, in a sentence or two." value={node.data.revelation??''} onChange={value=>set('revelation',value)}/>
     <TextArea label="How to play it" field="description" rows={4} hint="What the discovery is for and how to play it." value={node.data.description} onChange={value=>set('description',value)}/>
-    <Checkbox label="Required" field="required" hint="The scene can't end well without it: give it three paths or more, one needing no dice." checked={!!node.data.required} onChange={checked=>set('required',checked?true:undefined)}/>
-    <PathsEditor node={node} paths={paths}/>
-    <Establishes node={node}/>
+    <PathsEditor node={node}/>
+    <Establishes node={node} hint="Settled when it's reached: the GM is told their sentences, and endings' effects test them."/>
     <CarryEditor node={node}/>
+    {node.data.pressure!==undefined&&<Pressure node={node} hint="An event's: a discovery is never the stage, so this isn't used. Remove it, or make the beat an event."/>}
+    {node.data.cast&&<RolesEditor node={node} label="Conversation roles here" hint="An event's: a discovery is never the stage, so these aren't used. Remove them, or make the beat an event."/>}
   </>;
 }
 
 function EventFields({node}:{node:SceneNode<BeatData>}){
-  const {edit,doc}=useScene();
-  const set=(key:string,value:unknown)=>edit(scene=>setNodeField(scene,node.id,key,value));
-  const arriving=doc.cast.filter(member=>member.enters===node.id).map(member=>member.id);
-  const arrive=(ids:string[])=>edit(scene=>scene.cast.reduce((next,member)=>{
-    const now=ids.includes(member.id),was=member.enters===node.id;
-    return now===was?next:setArrival(next,member.id,node.id,now);
-  },scene));
+  const {edit}=useScene();
   return <>
-    <TextArea label="What happens" field="description" rows={5} hint="What happens, and what it puts to the player." value={node.data.description} onChange={value=>set('description',value)}/>
-    <TextArea label="Pressure" field="pressure" hint="What the world does if the scene stalls here." value={node.data.pressure??''} onChange={value=>set('pressure',optionalText(value))}/>
-    <Checklist label="Who arrives here" field="arrivals" options={doc.cast.map(member=>({value:member.id,label:`${member.name||member.id} (${member.id})`,...(member.enters&&member.enters!==node.id?{detail:`Arrives at ${titleOf(doc,member.enters)} now`}:{})}))} selected={arriving} onChange={arrive} hint="Present from the start unless they arrive at an event." empty="The scene has no cast yet."/>
-    <CastNotes node={node} people={doc.cast} label="Conversation roles here" hint="Each person's role while the scene is here: the co-GM's suggestions."/>
-    <Establishes node={node}/>
+    <TextArea label="What happens" field="description" rows={5} hint="What happens, and what it puts to the player." value={node.data.description} onChange={value=>edit(scene=>setNodeField(scene,node.id,'description',value))}/>
+    <Pressure node={node} hint="What the world does if the scene stalls here."/>
+    <Arrivals node={node}/>
+    <RolesEditor node={node} label="Conversation roles here" hint="Each person's role while the scene is here: the co-GM's suggestions. Behaviour, not meaning."/>
+    <Establishes node={node} hint="Settled when the scene reaches it: the GM is told their sentences, and endings' effects test them."/>
+    {node.data.paths!==undefined&&<PathsEditor node={node} note="An event has no paths (the rules say so): make it a discovery, or remove them."/>}
+    {node.data.required!==undefined&&<Checkbox label="Required" field="required" hint="A discovery's: an event isn't required, so this isn't used. Untick it to take it out, or make the beat a discovery." checked={!!node.data.required} onChange={checked=>edit(scene=>setNodeField(scene,node.id,'required',checked?true:undefined))}/>}
+    <CarryEditor node={node}/>
   </>;
 }
 
 function EndingFields({node}:{node:SceneNode<EndingData>}){
-  const {edit,doc,campaign,openScene}=useScene();
+  const {edit,campaign,openScene}=useScene();
   const set=(key:string,value:unknown)=>edit(scene=>setNodeField(scene,node.id,key,value));
   const scenes:Option[]=[{value:'',label:'Nowhere: the story ends here'},...(campaign?.scenes??[]).filter(scene=>scene.id!==campaign?.talk).map(scene=>({value:scene.id,label:`${scene.title} (${scene.id})`}))];
-  const choices=effectChoices(doc,campaign?.quests??{});
   return <>
+    <ChoiceField label="Result" field="result" value={node.data.result} options={RESULT_OPTIONS} onChange={value=>set('result',value)}/>
+    <SelectField label="Exit kind" field="exitKind" hint={EXIT_OPTIONS[node.data.exitKind]?.detail} value={node.data.exitKind} options={EXIT_KINDS.map(kind=>({value:kind,label:EXIT_OPTIONS[kind].label}))} onChange={value=>set('exitKind',value)}/>
     <TextArea label="What's true" field="description" rows={4} hint="What is true if the scene ends this way." value={node.data.description} onChange={value=>set('description',value)}/>
     <TextArea label="Closing" field="closing" rows={4} hint="How the GM should close it: the feeling, the last image." value={node.data.closing} onChange={value=>set('closing',value)}/>
-    <div className="field-row">
-      <SelectField label="Result" field="result" value={node.data.result} options={RESULTS.map(result=>({value:result,label:RESULT_LABELS[result]}))} onChange={value=>set('result',value)}/>
-      <SelectField label="Exit kind" field="exitKind" value={node.data.exitKind} options={EXIT_KINDS.map(kind=>({value:kind,label:EXIT_LABELS[kind]}))} onChange={value=>set('exitKind',value)}/>
-    </div>
-    <SelectField label="Next scene" field="next" hint="The scene the story goes on to: one of the campaign's." value={node.data.next??''} options={scenes} onChange={value=>set('next',optionalText(value))}/>
+    <SelectField label="Next scene" field="next" hint="The scene the story goes on to: one of the campaign's." value={node.data.next??''} options={scenes} onChange={value=>set('next',value||undefined)}/>
     {node.data.next&&<button type="button" className="text-button" onClick={()=>openScene(node.data.next!)}>Open {node.data.next} <ArrowRight size={12}/></button>}
-    <EffectsEditor label="Effects" field="effects" hint="What ending this way does to the story and the world." effects={(node.data.effects??[]) as EffectData[]} choices={choices} onChange={effects=>set('effects',optionalList(effects))}/>
+    <EffectsEditor label="Effects" field="effects" at={{kind:'node',id:node.id}} hint="What ending this way does to the story and the world, in order, each only when its facts say so."/>
     <WaysIn node={node}/>
   </>;
 }
@@ -123,7 +154,7 @@ function EndingFields({node}:{node:SceneNode<EndingData>}){
 function WaysIn({node}:{node:SceneNode}){
   const {doc,showRoute}=useScene();
   const routes=doc.edges.filter(route=>route.target===node.id);
-  return <div className="ways-in">
+  return <div className="ways-in" data-field="ways-in">
     <span className="field-label">Ways in</span>
     {!routes.length&&<p className="muted">No route comes here yet.</p>}
     {routes.map(route=><button type="button" key={route.id} className="way-in" onClick={()=>showRoute(route.id)}>
@@ -133,84 +164,131 @@ function WaysIn({node}:{node:SceneNode}){
   </div>;
 }
 
-/** Each person's note at the start or an event: a role for the co-GM, empty for none. */
-function CastNotes({node,people,label,hint}:{node:SceneNode<StartData|BeatData>;people:SceneDocument['cast'];label:string;hint:string}){
+/** An event's pressure: optional, added and removed; emptied, it's taken out as it's left. */
+function Pressure({node,hint}:{node:SceneNode<BeatData>;hint:string}){
+  const {edit}=useScene();
+  const set=(value:string|undefined)=>edit(scene=>setNodeField(scene,node.id,'pressure',value));
+  return <OptionalSection title="Pressure" field="pressure" present={node.data.pressure!==undefined} addLabel="Add pressure" hint={hint} onRemove={()=>set(undefined)}>
+    {close=><TextArea label="Pressure" hideLabel rows={3} hint={hint} value={node.data.pressure??''} onChange={set} onLeave={value=>{if(!value.trim()){set(undefined);close()}}}/>}
+  </OptionalSection>;
+}
+
+/** Who arrives at an event: those whose `enters` it is, as chips; [+ Add person] moves someone here from wherever they entered. */
+function Arrivals({node}:{node:SceneNode<BeatData>}){
+  const {edit,doc,showCast}=useScene();
+  const arriving=doc.cast.filter(member=>member.enters===node.id);
+  const fromStart=doc.cast.filter(member=>member.enters===undefined);
+  const options=doc.cast.filter(member=>member.enters!==node.id).map(member=>({value:member.id,label:`${member.name||member.id} (${member.id})`,detail:member.enters?`Arrives at ${titleOf(doc,member.enters)} now: moves here`:'Here from the start now'}));
+  return <div className="arrivals" data-field="arrivals">
+    <span className="field-label">Who arrives here<span className="count">{arriving.length}</span></span>
+    <Chips label="Who arrives here" items={arriving.map(member=>({value:member.id,label:member.name||member.id,detail:`${member.id}: their card in the Cast view`,onOpen:()=>showCast(member.id,'enters')}))} empty="Nobody arrives here." onRemove={id=>edit(scene=>setArrival(scene,id,node.id,false))}/>
+    <AddPicker label="Add person" title="Who arrives here" options={options} empty={doc.cast.length?'Everyone of the cast arrives here.':'The scene has no cast yet: add people in the Cast view.'} onPick={id=>edit(scene=>setArrival(scene,id,node.id,true))}/>
+    <small className="field-hint">Everyone else is here from the start{fromStart.length?` (${fromStart.map(member=>member.name||member.id).join(', ')})`:''} or arrives at another event. Removed, they're here from the start.</small>
+  </div>;
+}
+
+/**
+ * The conversation roles at the start or an event: a card for each person with a role here (their note,
+ * the co-GM's suggestion), and [+ Add role] for anyone else of the cast. A role is written once it has
+ * words; one emptied is taken out as it's left.
+ */
+function RolesEditor({node,label,hint}:{node:SceneNode<StartData|BeatData>;label:string;hint:string}){
   const {edit,doc}=useScene();
   const notes=node.data.cast??{};
-  const shown=[...people.map(member=>member.id),...Object.keys(notes).filter(id=>!people.some(member=>member.id===id))];
-  const set=(id:string,value:string)=>edit(scene=>updateNode(scene,node.id,data=>{
+  const [drafts,setDrafts]=useState<string[]>([]);
+  const shown=[...Object.keys(notes),...drafts.filter(id=>!(id in notes))];
+  const write=(id:string,value:string|undefined)=>edit(scene=>updateNode(scene,node.id,data=>{
     const current=('cast' in data?data.cast:undefined)??{};
-    const next=value.trim()?{...current,[id]:value}:Object.fromEntries(Object.entries(current).filter(([who])=>who!==id));
+    const next=value===undefined?Object.fromEntries(Object.entries(current).filter(([who])=>who!==id)):withKey(current,id,value,[]);
     return withKey(data,'cast',Object.keys(next).length?next:undefined,ORDER[data.kind]);
   }));
-  return <fieldset className="cast-notes" data-field="cast">
-    <legend className="field-label">{label}</legend>
-    {!shown.length&&<p className="muted">Nobody is here yet: add people in the Cast panel.</p>}
-    {shown.map(id=>{const member=doc.cast.find(person=>person.id===id);return <TextArea key={id} label={member?`${member.name||id} (${id})`:`${id} (not in the cast)`} rows={2} value={notes[id]??''} onChange={value=>set(id,value)}/>})}
+  const remove=(id:string)=>{setDrafts(old=>old.filter(other=>other!==id));if(id in notes)write(id,undefined)};
+  const where=(enters:string|undefined)=>enters===undefined?'Here from the start':enters===node.id?'Arrives here':`Arrives at ${titleOf(doc,enters)}`;
+  const options=doc.cast.filter(member=>!shown.includes(member.id)).map(member=>({value:member.id,label:`${member.name||member.id} (${member.id})`,detail:where(member.enters)}));
+  return <div className="roles-field" data-field="cast">
+    <span className="field-label">{label}<span className="count">{Object.keys(notes).length}</span></span>
+    {!shown.length&&<p className="muted">No roles here yet.</p>}
+    {shown.map(id=>{
+      const member=doc.cast.find(person=>person.id===id);
+      const name=member?`${member.name||id} (${id})`:`${id} (not in the cast)`;
+      return <article className="role-card" key={id} aria-label={`Role of ${member?.name||id}`}>
+        <header><b>{member?.name||id}</b><code>{id}</code>{member&&<small>{where(member.enters)}</small>}<button type="button" className="icon-button" aria-label={`Remove ${member?.name||id}'s role`} title="Remove role" onClick={()=>remove(id)}><Trash2 size={13}/></button></header>
+        <TextArea label={name} hideLabel rows={2} autoFocus={!(id in notes)} value={notes[id]??''} placeholder="What they do and hold back here: behaviour, not meaning." onChange={value=>{if(value.trim()||id in notes)write(id,value)}} onLeave={value=>{if(!value.trim())remove(id)}}/>
+      </article>;
+    })}
+    <AddPicker label="Add role" title="A role for…" options={options} empty={doc.cast.length?'Everyone of the cast has a role here.':'The scene has no cast yet: add people in the Cast view.'} onPick={id=>setDrafts(old=>[...old,id])}/>
     <small className="field-hint">{hint}</small>
-  </fieldset>;
+  </div>;
+}
+
+/** The facts a beat settles when it's reached. */
+function Establishes({node,hint}:{node:SceneNode<BeatData>;hint:string}){
+  return <FactsField hint={hint} facts={node.data.establishes??[]} set={(scene,change)=>{
+    const now=scene.nodes.find(other=>other.id===node.id) as SceneNode<BeatData>|undefined;
+    return setNodeField(scene,node.id,'establishes',optionalList(change(now?.data.establishes??[])));
+  }}/>;
 }
 
 /** A discovery's paths: who or what holds it, the clue, what earns it, how strong it is, and a roll that suits it. */
-function PathsEditor({node,paths}:{node:SceneNode<BeatData>;paths:Path[]}){
+function PathsEditor({node,note}:{node:SceneNode<BeatData>;note?:string}){
   const {edit,doc,place}=useScene();
-  const listId=useId();
-  const setPaths=(next:Path[])=>edit(scene=>setNodeField(scene,node.id,'paths',next));
-  const setPath=(index:number,key:string,value:unknown)=>edit(scene=>updateNode(scene,node.id,data=>{
-    const list=((data as BeatData).paths??[]).map((path,i)=>i===index?withKey(path,key,value,ORDER.path):path);
-    return withKey(data,'paths',list,ORDER.beat);
-  }));
+  const listId=useId(),list=useRef<HTMLFieldSetElement>(null);
+  const [focus,setFocus]=useState<number|null>(null);
+  const paths=node.data.paths??[];
+  const setPaths=(change:(paths:Path[])=>Path[])=>edit(scene=>updateNode(scene,node.id,data=>withKey(data,'paths',change((data as BeatData).paths??[]),ORDER.beat)));
+  const setPath=(index:number,key:string,value:unknown)=>setPaths(old=>old.map((path,i)=>i===index?withKey(path,key,value,ORDER.path):path));
+  useEffect(()=>{if(focus===null)return;list.current?.querySelector<HTMLElement>(`[data-field="paths.${focus}"] input`)?.focus();setFocus(null)},[focus]);
   const vias=useMemo(()=>[
     ...doc.cast.map(member=>({value:member.id,label:member.name})),
     ...(place?.things??[]).map(thing=>({value:thing.name,label:`a thing of ${place!.name}`})),
     ...(place?.areas??[]).map(area=>({value:area.name,label:`a part of ${place!.name}`})),
   ],[doc.cast,place]);
   const required=!!node.data.required;
-  return <fieldset className="paths" data-field="paths">
+  return <fieldset className="paths" data-field="paths" ref={list}>
     <legend className="field-label">Paths <span className="count">{paths.length}</span></legend>
-    <small className="field-hint">Ways it can come out: examples, not a sequence. {required?'Required: three or more, one with no roll.':'Two or more.'}</small>
+    <small className="field-hint">{note??`Ways it can come out: examples, not a sequence. ${required?'Required: three or more, one with no roll.':'Two or more.'}`}</small>
     <datalist id={listId}>{vias.map(via=><option key={`${via.value}:${via.label}`} value={via.value}>{via.label}</option>)}</datalist>
-    {paths.map((path,index)=><article className="path" key={index} aria-label={`Path ${index+1}`}>
-      <header><span className="path-number">{index+1}</span><b>{path.via||'Via…'}</b><span className={`strength ${path.strength}`}>{path.strength}</span>{path.check&&<span className="dice-badge"><Dices size={11}/>{SKILL_LABEL(path.check.skill)} {path.check.dc}</span>}
-        <button type="button" title="Remove path" aria-label={`Remove path ${index+1}`} onClick={()=>setPaths(paths.filter((_,i)=>i!==index))}><Trash2 size={13}/></button>
-      </header>
-      <TextField label="Via" list={listId} hint="A cast id, or a thing or place in a few words (“the body”)." value={path.via} onChange={value=>setPath(index,'via',value)}/>
-      <TextArea label="Clue" rows={2} hint="What's there to find or hear, concretely." value={path.clue} onChange={value=>setPath(index,'clue',value)}/>
-      <TextArea label="Earn" rows={2} hint="What earns it: free to a look, a kindness, a promise, a roll. Say when it's free." value={path.earn} onChange={value=>setPath(index,'earn',value)}/>
-      <SelectField label="Strength" value={path.strength} options={STRENGTHS.map(strength=>({value:strength,label:strength}))} onChange={value=>setPath(index,'strength',value)}/>
-      <Checkbox label="A roll suits it" hint="The mouthpiece calls this check when the player tries this path and the outcome is uncertain." checked={!!path.check} onChange={checked=>setPath(index,'check',checked?{skill:'investigation',dc:12}:undefined)}/>
-      {path.check&&<div className="field-row">
-        <SelectField label="Check skill" value={path.check.skill} options={SKILL_OPTIONS} onChange={value=>setPath(index,'check',withKey(path.check!,'skill',value,ORDER.check))}/>
-        <NumberField label="Check DC" min={1} max={30} value={path.check.dc} onChange={value=>setPath(index,'check',withKey(path.check!,'dc',value,ORDER.check))}/>
-      </div>}
-    </article>)}
-    <button type="button" className="add-item" onClick={()=>setPaths([...paths,{via:'',clue:'',earn:'',strength:'suggestive'}])}><Plus size={13}/>Add path</button>
+    {paths.map((path,index)=><ItemCard key={index} index={index} count={paths.length} field={`paths.${index}`} className="path" label={`Path ${index+1}`} removeLabel="Remove path"
+      title={path.via||'Via…'} badges={<><span className={`strength ${path.strength}`}>{path.strength}</span>{path.check&&<span className="dice-badge"><Dices size={11}/>{SKILL_LABEL(path.check.skill)} {path.check.dc}</span>}</>}
+      onMove={by=>setPaths(old=>moved(old,index,by))} onRemove={()=>setPaths(old=>old.filter((_,i)=>i!==index))}>
+      <TextField label="Via" field="via" list={listId} hint="A cast id, or a thing or place in a few words (“the body”)." value={path.via} onChange={value=>setPath(index,'via',value)}/>
+      <TextArea label="Clue" field="clue" rows={2} hint="What's there to find or hear, concretely." value={path.clue} onChange={value=>setPath(index,'clue',value)}/>
+      <TextArea label="Earn" field="earn" rows={2} hint="What earns it: free to a look, a kindness, a promise, a roll. Say when it's free." value={path.earn} onChange={value=>setPath(index,'earn',value)}/>
+      <ChoiceField label="Strength" field="strength" value={path.strength} options={STRENGTH_OPTIONS} onChange={value=>setPath(index,'strength',value)}/>
+      <OptionalSection title="Roll" field="check" present={!!path.check} addLabel="Add a roll" hint="A roll that suits this path: the mouthpiece calls it when the player tries it and the outcome is uncertain." onRemove={()=>setPath(index,'check',undefined)}>
+        <div className="field-row">
+          <SelectField label="Skill" field="skill" value={path.check?.skill??''} placeholder="Choose a skill…" options={SKILL_OPTIONS} onChange={skill=>setPath(index,'check',path.check?withKey(path.check,'skill',skill,ORDER.check):{skill,dc:12})}/>
+          <NumberField label="DC" field="dc" min={1} max={30} disabled={!path.check} value={path.check?.dc??12} onChange={dc=>{if(dc!==undefined&&path.check)setPath(index,'check',withKey(path.check,'dc',dc,ORDER.check))}}/>
+        </div>
+      </OptionalSection>
+    </ItemCard>)}
+    <button type="button" className="add-item" onClick={()=>{setPaths(old=>[...old,{via:'',clue:'',earn:'',strength:'suggestive'}]);setFocus(paths.length)}}><Plus size={13}/>Add path</button>
   </fieldset>;
 }
 
-/** The facts a beat settles when it's reached. */
-function Establishes({node}:{node:SceneNode<BeatData>}){
-  const {edit,doc}=useScene();
-  return <Checklist label="Establishes" field="establishes" hint="Facts settled when it's reached: the GM is told their sentences, and endings' effects test them. Add facts in the Scene panel." options={factOptions(doc)} selected={node.data.establishes??[]} empty="The scene has no facts yet." onChange={facts=>edit(scene=>setNodeField(scene,node.id,'establishes',optionalList(facts)))}/>;
-}
-
-/** When the rest of the story needs a discovery too: what it opens up, what later needs it, the things it's in. */
+/** When the rest of the story needs a beat too: what it opens up, what later needs it, the things it's in. */
 function CarryEditor({node}:{node:SceneNode<BeatData>}){
   const {edit,place,campaign,doc}=useScene();
   const carry=node.data.carry;
-  const set=(value:BeatData['carry'])=>edit(scene=>setNodeField(scene,node.id,'carry',value));
-  const things:Option[]=[
-    ...(place?.things??[]).map(thing=>({value:thing.id,label:`${thing.name} (${thing.id})`})),
-    ...carriedElsewhere(campaign?.scenes.map(scene=>scene.doc).filter((other):other is SceneDocument=>!!other&&other.id!==doc.id)??[]).filter(id=>!place?.things.some(thing=>thing.id===id)).map(id=>({value:id,label:`${id} (carried from another scene)`})),
-  ];
-  return <div className="carry" data-field="carry">
-    <Checkbox label="The story carries it" hint="Missed, the story owes it to the player in the next scene that can hold it." checked={!!carry} onChange={checked=>set(checked?{unlocks:''}:undefined)}/>
-    {carry&&<>
-      <TextArea label="Unlocks" rows={2} hint="What it opens up." value={carry.unlocks} onChange={value=>set(withKey(carry,'unlocks',value,ORDER.carry))}/>
-      <TextArea label="Later" rows={2} hint="What later needs it." value={carry.later??''} onChange={value=>set(withKey(carry,'later',optionalText(value),ORDER.carry))}/>
-      <Checklist label="Things" hint="The things of the place it's in (Prout's page in Cob's boot)." options={things} selected={carry.things??[]} empty="The scene's place has no things." onChange={list=>set(withKey(carry,'things',optionalList(list),ORDER.carry))}/>
-    </>}
-  </div>;
+  const set=(change:(carry:NonNullable<BeatData['carry']>)=>BeatData['carry'])=>edit(scene=>{
+    const now=(scene.nodes.find(other=>other.id===node.id)?.data as BeatData|undefined)?.carry;
+    return setNodeField(scene,node.id,'carry',now?change(now):undefined);
+  });
+  const elsewhere=carriedElsewhere(campaign?.scenes.map(scene=>scene.doc).filter((other):other is SceneDocument=>!!other&&other.id!==doc.id)??[]);
+  const names=new Map<string,string>([...(place?.things??[]).map(thing=>[thing.id,thing.name] as [string,string]),...elsewhere.map(id=>[id,`${id} (carried from another scene)`] as [string,string])]);
+  const things=carry?.things??[];
+  const options=[...names].filter(([id])=>!things.includes(id)).map(([id,name])=>({value:id,label:name,detail:id}));
+  return <OptionalSection title="The story carries it" field="carry" present={!!carry} addLabel="The story carries it" className="carry"
+    hint="Missed, the story owes it to the player in the next scene that can hold it." onAdd={()=>edit(scene=>setNodeField(scene,node.id,'carry',{unlocks:''}))} onRemove={()=>edit(scene=>setNodeField(scene,node.id,'carry',undefined))}>
+    <TextArea label="Unlocks" field="unlocks" rows={2} hint="What it opens up." value={carry?.unlocks??''} onChange={value=>set(old=>withKey(old,'unlocks',value,ORDER.carry))}/>
+    <TextArea label="Later" field="later" rows={2} hint="What later needs it." value={carry?.later??''} onChange={value=>set(old=>withKey(old,'later',value.trim()?value:undefined,ORDER.carry))}/>
+    <div className="field" data-field="things">
+      <span className="field-label">Things</span>
+      <Chips label="Things" items={things.map(id=>({value:id,label:names.get(id)??id,detail:id}))} empty="None." onRemove={id=>set(old=>withKey(old,'things',optionalList((old.things??[]).filter(other=>other!==id)),ORDER.carry))}/>
+      <AddPicker label="Add thing" title="A thing it's in" options={options} empty="The scene's place has no other things." onPick={id=>set(old=>withKey(old,'things',[...(old.things??[]),id],ORDER.carry))}/>
+      <small className="field-hint">The things of the place it's in (Prout's page in Cob's boot).</small>
+    </div>
+  </OptionalSection>;
 }
 
 function carriedElsewhere(scenes:SceneDocument[]):string[]{
@@ -228,7 +306,7 @@ function NodeLore({node}:{node:SceneNode}){
 function RoutesOf({node}:{node:SceneNode}){
   const {doc,showRoute}=useScene();
   const routes=doc.edges.filter(route=>route.source===node.id||route.target===node.id);
-  return <details className="route-list" open>
+  return <details className="route-list" open data-field="routes">
     <summary>Routes <span className="count">{routes.length}</span></summary>
     {routes.map(route=><button type="button" key={route.id} onClick={()=>showRoute(route.id)}><b>{titleOf(doc,route.source)} → {titleOf(doc,route.target)}</b><small>{route.label||route.id}</small></button>)}
   </details>;
@@ -278,7 +356,7 @@ function RouteCard({route,index,open,onToggle}:{route:Route;index:number;open:bo
       {onToggle&&<button type="button" aria-expanded={open} onClick={()=>onToggle(!open)}>{open?'Done':'Edit route'}</button>}
     </header>
     <div className="way-badges">
-      <code>{route.id}</code>
+      {!open&&<code>{route.id}</code>}
       <span>{d.phase==='cue'?'Cue':'Outcome'}</span>
       {d.skill&&<span className="dice-badge"><Dices size={11}/>{SKILL_LABEL(d.skill)} DC {d.dc}</span>}
       {d.requires?.length?<span>Requires {d.requires.map(id=>titleOf(doc,id)).join(', ')}</span>:null}
@@ -289,29 +367,35 @@ function RouteCard({route,index,open,onToggle}:{route:Route;index:number;open:bo
 }
 
 function RouteFields({route,onRemove}:{route:Route;onRemove:()=>void}){
-  const {doc,edit}=useScene();
+  const {doc,edit,showNode,renamed}=useScene();
   const d=route.data;
   const set=(key:string,value:unknown)=>edit(scene=>setRouteField(scene,route.id,key,value));
   const target=doc.nodes.find(node=>node.id===route.target);
-  const beats:Option[]=doc.nodes.filter(isBeat).filter(node=>node.id!==route.target).map(node=>({value:node.id,label:`${node.data.title||node.id} (${node.id})`,detail:isDiscovery(node)?'Discovery':'Event'}));
+  const requires=d.requires??[];
+  const beats:Option[]=doc.nodes.filter(isBeat).filter(node=>node.id!==route.target&&!requires.includes(node.id)).map(node=>({value:node.id,label:`${node.data.title||node.id} (${node.id})`,detail:isDiscovery(node)?'Discovery':'Event'}));
   const nodes:Option[]=doc.nodes.filter(node=>node.id!==route.source).map(node=>({value:node.id,label:`${node.data.title||node.id} (${node.id})`}));
-  const setSkill=(skill:string)=>edit(scene=>{
-    let next=setRouteField(scene,route.id,'skill',skill);
-    if(!skill)next=setRouteField(next,route.id,'onFailure',undefined);
-    return next;
-  });
+  const setRequires=(change:(ids:string[])=>string[])=>edit(scene=>setRouteField(scene,route.id,'requires',optionalList(change(scene.edges.find(other=>other.id===route.id)?.data.requires??[]))));
   return <div className="way-fields">
+    <IdField id={route.id} problem={next=>idProblem(next,doc.edges.map(other=>other.id),route.id)} onRename={next=>{edit(scene=>renameRoute(scene,route.id,next));renamed('route',route.id,next)}} warning="The co-GM moves the scene by it, and game state keys on it: a game already played loses track of it under the old id."/>
     <TextField label="Label" field="label" hint="The route's name on the graph." value={route.label} onChange={value=>edit(scene=>updateRoute(scene,route.id,old=>({...old,label:value})))}/>
     <TextArea label="Condition" field="condition" hint={target&&isDiscovery(target)?'What has to have happened, in prose. Into a discovery it may be empty: the route is taken when the revelation has landed.':'What has to have happened in the story to take it, in prose.'} value={d.condition} onChange={value=>set('condition',value)}/>
-    <SelectField label="Phase" field="phase" hint="Outcome: judged on what has happened. Cue: a moment the co-GM brings about when it comes." value={d.phase} options={[{value:'outcome',label:'Outcome'},{value:'cue',label:'Cue'}]} onChange={value=>set('phase',value)}/>
-    <Checklist label="Requires" field="requires" hint="Beats that must have been reached first: an ending's evidence, the lead." options={beats} selected={d.requires??[]} empty="The scene has no beats to require." onChange={ids=>set('requires',optionalList(ids))}/>
-    <div className="field-row">
-      <SelectField label="Dice" field="skill" value={d.skill} options={[{value:'',label:'No dice'},...SKILL_OPTIONS]} onChange={setSkill}/>
-      <NumberField label="DC" field="dc" min={1} max={30} disabled={!d.skill} value={d.dc} onChange={value=>set('dc',value)}/>
+    <ChoiceField label="Phase" field="phase" value={d.phase} options={PHASE_OPTIONS} onChange={value=>set('phase',value)}/>
+    <div className="requires-field" data-field="requires">
+      <span className="field-label">Requires<span className="count">{requires.length}</span></span>
+      <Chips label="Requires" items={requires.map(id=>({value:id,label:titleOf(doc,id),detail:id,onOpen:()=>showNode(id)}))} empty="Nothing: it can be taken once its condition has happened." onRemove={id=>setRequires(ids=>ids.filter(other=>other!==id))}/>
+      <AddPicker label="Add beat" title="Require a beat" options={beats} empty="Every beat is required already." onPick={id=>setRequires(ids=>[...ids,id])}/>
+      <small className="field-hint">Beats that must have been reached first: an ending's evidence, the lead.</small>
     </div>
-    {d.skill&&<SelectField label="On failure" field="onFailure" hint="Where a failed check goes; or the scene stays where it is, and the route stays open." value={d.onFailure??''} options={[{value:'',label:'Stays where it is'},...nodes]} onChange={value=>set('onFailure',optionalText(value))}/>}
-    <Checklist label="Establishes" field="establishes" hint="Facts settled when it's taken (a dice route's on a success)." options={factOptions(doc)} selected={d.establishes??[]} empty="The scene has no facts yet." onChange={facts=>set('establishes',optionalList(facts))}/>
+    <OptionalSection title="Roll" field="skill" present={!!d.skill||d.onFailure!==undefined} addLabel="Add a roll" hint="No roll: the route can't fail, and it's taken once its condition has happened."
+      onRemove={()=>edit(scene=>setRouteField(setRouteField(scene,route.id,'skill',''),route.id,'onFailure',undefined))}>
+      <div className="field-row">
+        <SelectField label="Skill" field="skill" value={d.skill} placeholder="Choose a skill…" options={SKILL_OPTIONS} onChange={value=>set('skill',value)}/>
+        <NumberField label="DC" field="dc" min={1} max={30} disabled={!d.skill} value={d.dc} onChange={value=>{if(value!==undefined)set('dc',value)}}/>
+      </div>
+      <SelectField label="On failure" field="onFailure" hint="Where a failed roll goes; or the scene stays where it is, and the route stays open to try again." value={d.onFailure??''} options={[{value:'',label:'Stays where it is'},...nodes]} onChange={value=>set('onFailure',value||undefined)}/>
+      <small className="field-hint">The roll decides it: when the player attempts what the condition says, the mouthpiece calls it, and a success takes the route (its facts settled then).</small>
+    </OptionalSection>
+    <FactsField label="Facts settled when it's taken" hint="A route with a roll settles them on a success." facts={d.establishes??[]} set={(scene,change)=>setRouteField(scene,route.id,'establishes',optionalList(change(scene.edges.find(other=>other.id===route.id)?.data.establishes??[])))}/>
     <button type="button" className="text-button danger" onClick={onRemove}><Trash2 size={13}/>Remove route</button>
   </div>;
 }
-
