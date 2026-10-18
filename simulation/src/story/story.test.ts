@@ -333,6 +333,30 @@ test("what an ending hands over goes on with the player: the yard's page into th
   assert.deepEqual(theirs(heron.placeId), [], "nothing of theirs left at the Heron");
 });
 
+test("caught in the act, the true book goes with Sallow as evidence, as its words say, unless the player has it in hand", async () => {
+  const HERON = caerwynPack().scenes.find(s => s.id === "heron-warehouse")!;
+  const caught = async (inHand: boolean) => {
+    const { host, wren, player, gameId, end, establish, sceneOf } = await game();
+    const go = async () => { assert.equal(host.as(wren).walk({ toward: "lead" }), undefined); await host.drain(); };
+    end("open-case");
+    await host.drain();
+    await go();
+    end("hobb-talks");
+    await host.drain();
+    await go();
+    if (inHand) establish(sceneOf("heron-warehouse")!.id, HERON.facts!["book-in-hand"]!);
+    end("caught-in-the-act");
+    const book = entityByKey(host, gameId, "heron/true-book")!;
+    const note = host.db.narrative.entityId.find(book.id)!.notes.at(-1)?.text;
+    const out = { gone: book.gone, theirs: book.parentId === entityByKey(host, gameId, `pc:${player.id}`)!.id, note, journal: byGame(host.db.journal, gameId).at(-1)!.text };
+    await host.drain();
+    return { ...out, king: [...host.db.entity.placeId.filter(sceneOf("kings-morning")!.placeId)].some(e => e.key.endsWith("true-book")) };
+  };
+  assert.deepEqual(await caught(false), { gone: true, theirs: false, note: "evidence: gone with Master Sallow to the watch-house", journal: "The true book went with him as evidence: every 'lost' wagon, initialled J.S.", king: false });
+  const kept = await caught(true);
+  assert.deepEqual([kept.gone, kept.theirs, kept.king, kept.journal], [false, true, true, "We caught Sallow at the Heron with the King's grain, and Kell arrested him."], "in her hands, she keeps it, into the King's morning");
+});
+
 test("an ending's world operation on something that isn't in its world isn't done, and nothing is handed over in its place", async () => {
   const { host, wren, player, gameId, end, establish, sceneOf } = await game();
   end("open-case");
