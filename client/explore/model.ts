@@ -8,6 +8,7 @@ import type { Tile2 } from "../../shared/map/types.ts";
 import type { Rejection } from "../backend.ts";
 import { pacing } from "../pace.ts";
 import type { SheetShown } from "../scene/model.ts";
+import { ui } from "../sound/cues.ts";
 import type { ExploreView } from "./rows.ts";
 import { TIME_WORDS } from "./words.ts";
 import type { AimAt, AimView, MenuCtx, MenuItem, MenuView } from "../../shared/map/menu.ts";
@@ -198,7 +199,9 @@ export class ExploreModel {
     if (!d || this.inFlight || this.idle()) return;
     // Steered: a key that would catch on a corner follows the street instead.
     const [dx, dy] = steer(this.ex, d[0], d[1]);
-    void this.explore(walkId(dx, dy));
+    const { map, at } = this.ex;
+    // A step that went nowhere (a wall, a locked door) bumps, as an old handheld's did.
+    void this.explore(walkId(dx, dy)).then(step => { if (!step.refused && !this.away() && this.ex.map === map && this.ex.at.x === at.x && this.ex.at.y === at.y) ui("bump"); });
   }
 
   interact(): void {
@@ -268,6 +271,7 @@ export class ExploreModel {
     this.menu = undefined;
     const choice = menu?.actions[index];
     if (!menu || !choice) { this.emit(); return; }
+    ui("choose");
     if (choice.id.startsWith("do@")) { this.openActions(menu.at, menu.x, menu.y); return; }
     await this.doAt(menu.at, choice);
   }
@@ -357,7 +361,8 @@ export class ExploreModel {
     const menu = this.doMenu;
     const item = menu ? entriesOf(menu.view)[index] : undefined;
     if (!menu || !item) return;
-    if (item.why) { menu.index = index; this.emit(); return; }
+    if (item.why) { ui("denied"); menu.index = index; this.emit(); return; }
+    ui("choose");
     this.doMenu = undefined;
     if (item.id) void this.act(item.id);
     else if (item.aiming) this.startAiming(item, menu.view.at);
@@ -419,8 +424,9 @@ export class ExploreModel {
   /** Do it, where it's aimed: if it can be done there. An area that would catch you asks first (the bottom line says so, in red). */
   fire(): void {
     const aiming = this.aiming, check = aiming?.check;
-    if (!aiming || !check?.ok || !check.id) { this.emit(); return; }
-    if (check.caught?.includes("you") && !aiming.confirm) { aiming.confirm = true; this.emit(); return; }
+    if (!aiming || !check?.ok || !check.id) { ui("denied"); this.emit(); return; }
+    if (check.caught?.includes("you") && !aiming.confirm) { ui("denied"); aiming.confirm = true; this.emit(); return; }
+    ui("choose");
     this.aiming = undefined;
     void this.act(check.id);
   }

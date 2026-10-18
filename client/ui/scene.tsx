@@ -10,6 +10,7 @@ import type { LookCanvasRenderable } from "../look/opentui.ts";
 import type { StagePicks } from "../look/stage.ts";
 import { replyRows, type Style } from "../reply.ts";
 import { pointedAt, pointOrder, sameTarget, thingActions, type SceneAction, type SceneTarget } from "../scene/menu.ts";
+import { ui } from "../sound/cues.ts";
 import type { SceneMenu, SceneModel } from "../scene/model.ts";
 import type { Line, SceneView, Suggestion } from "../scene/view.ts";
 import type { WayOn } from "../story/view.ts";
@@ -360,6 +361,7 @@ export function SceneScreen({ scene, surface = "terminal" }: { scene: SceneModel
   const choose = (i: number) => {
     const menu = scene.sceneMenu, a = menu?.actions[i];
     if (!menu || !a) return;
+    ui("choose");
     // What to give, which spell, something else that's there: its own menu, where this one was.
     if (a.choices) { scene.sceneMenu = { ...menu, title: a.title ?? a.label, actions: a.choices, index: 0, parent: menu }; scene.emit(); return; }
     scene.closeSceneMenu();
@@ -392,7 +394,7 @@ export function SceneScreen({ scene, surface = "terminal" }: { scene: SceneModel
   const placeOrder = () => (world && side && picks.current?.scene === world.scene ? pointOrder(world, picks.current.shown()) : []);
   /** Tab: through what's in the place, and round again; Shift+Tab the other way. */
   const tab = (by: number) => {
-    if (placeOrder().length) step(by);
+    if (placeOrder().length) { ui("move"); step(by); }
   };
   /** A spectator's pointer on the lead's character: the prototype's words for it are the lead's own ("You", "your things"), so there's nothing to do with it there. */
   const theLead = (target: SceneTarget) => !!view.watching && "id" in target && !!world?.entities[target.id]?.player;
@@ -435,6 +437,7 @@ export function SceneScreen({ scene, surface = "terminal" }: { scene: SceneModel
     } else if ((key.name === "up" || key.name === "down") && placeOrder().length && !typed()) {
       // With nothing in the box, the arrows go through the place too.
       key.preventDefault();
+      ui("move");
       step(key.name === "up" ? -1 : 1);
     } else if (isEnter(key) && !typed() && pointer?.from === "keys" && world) {
       // Enter with nothing in the box, on what Tab picked out: its menu. (Not what the mouse merely rests on; nothing for a spectator on the lead.)

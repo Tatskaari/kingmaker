@@ -4,6 +4,7 @@ import type { Action } from "../../shared/map/town.ts";
 import { FAREWELL, WALK_ON } from "../../shared/scene/talk.ts";
 import type { SheetData } from "../../shared/rules/types.ts";
 import { BusyLines } from "../busy.ts";
+import { ui } from "../sound/cues.ts";
 import { COMMANDS, commandNamed } from "../commands.ts";
 import { betweenOf, epilogueOf, fightOf, wayOnOf, type BetweenView, type EndView, type FightView, type StoryView, type WayOn } from "../story/view.ts";
 import { C } from "../theme.ts";
@@ -214,6 +215,7 @@ export class SceneModel {
   goOn(): void {
     const way = this.wayOn();
     if (!way) return;
+    ui("choose");
     this.typing = false;
     this.status = undefined;
     this.queued = false;
@@ -283,6 +285,7 @@ export class SceneModel {
    * explore screen); with no map, walk toward the lead, whose scene opens, and the seat with it.
    */
   toLead(): void {
+    ui("choose");
     this.typing = false;
     this.status = undefined;
     if (this.view.onMap) this.actions.out();
@@ -301,6 +304,7 @@ export class SceneModel {
    * in its transcript, and the GM's aftermath streams in.
    */
   fightOn(): void {
+    ui("choose");
     this.typing = false;
     this.status = undefined;
     void this.answer(this.actions.fightItOut?.(), () => { this.page = "scene"; });
@@ -407,6 +411,7 @@ export class SceneModel {
     if (text.startsWith("/") || text.startsWith("#")) { this.command(text.slice(1)); return; }
     if (!this.sends()) return;
     this.refusedAt = undefined;
+    ui("send");
     this.actions.say(text);
     this.emit();
   }

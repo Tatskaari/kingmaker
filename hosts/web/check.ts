@@ -872,6 +872,7 @@ async function theZoo(browser: Browser, url: string): Promise<void> {
     await waitFor(page, "One move at a time|Round 2 · ", "e ends the turn: the other side's moves play", 20000);
     // Nothing pressed: the page host's fight clock plays the other side's turns one at a time, each when the last has played.
     await waitFor(page, "▶ YOUR TURN.*Round 2 · ", "and they play on their own, a turn at a time, to the player's turn in round 2 (no F pressed)", 60000);
+    await theSound(page);
     await shot(page, "zoo-ring-round-2");
     await press(page, "n");
     await waitFor(page, "The combat ring · Round 1", "n fights it again: a new fight, from round 1", 30000);
@@ -886,6 +887,33 @@ async function theZoo(browser: Browser, url: string): Promise<void> {
   } finally {
     await context.close();
   }
+}
+
+/**
+ * The game's sound (web/page/sound.ts), in the ring once the other side's moves have played: the keys
+ * pressed have let the page's audio start (a browser plays nothing before), the client worker has
+ * asked for the fight's music and its blows,
+ * and the bar's Music turns it off (kept) and on again. A browser with no audio says why, and the
+ * rest is still checked.
+ */
+async function theSound(page: Page): Promise<void> {
+  if (await until(page, `km.sound.heard.mood === "fight" && km.sound.heard.kinds.sfx > 0`, 10000)) ok("the sound: the fight's music and its blows asked for by the client worker");
+  else fail(`the sound: the client worker asked for ${await page.evaluate("JSON.stringify(km.sound.heard)")}`);
+  if (await until(page, `km.sound.state === "running"`, 5000)) ok("the sound: the page's audio runs, from the keys pressed");
+  else ok(`the sound: this browser's audio didn't start (${await page.evaluate("km.sound.state")}), so nothing more of it is checked`);
+  await page.click('#key-bar [data-sound="music"]');
+  const off = await page.evaluate(`[km.sound.settings.music, localStorage.getItem("kingmaker.sound"), document.querySelector('[data-sound="music"]').getAttribute("aria-pressed")].join(" ")`);
+  await page.click('#key-bar [data-sound="music"]');
+  const on = await page.evaluate(`km.sound.settings.music`);
+  if (/^false .*"music":false.* false$/.test(String(off)) && on === true) ok("the bar's Music turns the music off (kept in this browser) and on again");
+  else fail(`the bar's Music: off said ${off}, on again ${on}`);
+  await page.locator("#key-bar [data-volume]").fill("50");
+  const half = await page.evaluate(`[km.sound.settings.volume, JSON.parse(localStorage.getItem("kingmaker.sound")).volume].join(" ")`);
+  await page.locator("#key-bar [data-volume]").fill("0");
+  const none = await until(page, `km.sound.settings.volume === 0 && km.sound.state !== "running"`, 3000);
+  await page.locator("#key-bar [data-volume]").fill("100");
+  if (half === "0.5 0.5" && none && (await page.evaluate("km.sound.settings.volume")) === 1) ok("the bar's slider sets the volume (kept in this browser), the audio stopping at nothing");
+  else fail(`the bar's volume: at half ${half}, stopped at nothing ${none}`);
 }
 
 /**

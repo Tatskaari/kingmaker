@@ -1,5 +1,7 @@
-// Copied from the prototype's src/game/look/director.ts at 44c6d4a, less barksFrom and barkers (and so runtime/speakers.ts): every GM entry carries its speakers since V5, so barksFromSpeech does.
+// Copied from the prototype's src/game/look/director.ts at 44c6d4a, less barksFrom and barkers (and so runtime/speakers.ts): every GM entry carries its speakers since V5, so barksFromSpeech does. New: what it plays is heard too (client/sound: a spell cast, flying and landing in its element, a blow's swing and thud, fire catching, water, things breaking, someone falling), each when its effect shows.
 import { positionOf, select, type Entity, type Point, type SceneWorld } from "../../shared/world/scene-world.ts";
+import { sfx } from "../sound/cues.ts";
+import type { Sfx } from "../sound/patches.ts";
 import type { Effects, Vec } from "./effects.ts";
 import { lookOf } from "./appearance.ts";
 import { smoothstep } from "./noise.ts";
@@ -72,6 +74,9 @@ export class Director {
     const now = snapshot(world);
     const did: string[] = [];
     const fx = this.effects;
+    // What it sounds like: each kind of thing once, however many things it happened to.
+    const heard = new Map<Sfx, { size?: number; delay: number }>();
+    const hear = (name: Sfx, more: { size?: number; delay?: number } = {}) => { if (!heard.has(name)) heard.set(name, { delay: more.delay ?? 0, ...(more.size ? { size: more.size } : {}) }); };
     for (const [id, cur] of now) {
       const e = world.entities[id]!;
       const before = this.seen.get(id);
@@ -82,17 +87,18 @@ export class Director {
         if (e.kind === "surface") {
           // A spill lands with a splash of its own colour; clouds and scorch marks just are.
           const liquid = SPLASH.find(([tag]) => e.tags.includes(tag));
-          if (burning) fx.effect("ignite", { at: { ...pos }, radius: e.radius ?? 3, flame: e.tags.includes("spirits") ? "blue" : "fire" }, t);
-          else if (liquid) fx.effect("splash", { at: { ...pos }, radius: Math.min(5, e.radius ?? 3), color: liquid[1], amount: 0.7 }, t);
+          if (burning) { fx.effect("ignite", { at: { ...pos }, radius: e.radius ?? 3, flame: e.tags.includes("spirits") ? "blue" : "fire" }, t); hear("world.ignite"); }
+          else if (liquid) { fx.effect("splash", { at: { ...pos }, radius: Math.min(5, e.radius ?? 3), color: liquid[1], amount: 0.7 }, t); hear("world.splash"); }
           did.push(`${e.name} spreads`);
           continue;
         }
         fx.effect(burning ? "ignite" : "poof", { at: { ...pos }, radius: 2 }, t);
+        hear(burning ? "world.ignite" : "world.poof");
         did.push(`${e.name} appears`);
         continue;
       }
       if (before.present && !cur.present) {
-        if (before.at && e.kind !== "surface") fx.effect("poof", { at: { ...before.at }, radius: 2 }, t);
+        if (before.at && e.kind !== "surface") { fx.effect("poof", { at: { ...before.at }, radius: 2 }, t); hear("world.poof"); }
         did.push(`${e.name} ${e.kind === "surface" ? "is gone" : "leaves"}`);
         continue;
       }
@@ -114,26 +120,29 @@ export class Director {
       const at = { ...pos };
       const look = lookOf(e, {});
       const size = e.kind === "surface" ? e.radius ?? 3 : { tiny: 1.5, small: 2.5, medium: 3.5, large: 5, huge: 8, gargantuan: 12 }[e.size ?? "medium"] ?? 3;
-      if (gained.includes("exploded")) { fx.effect("explosion", { at, radius: Math.max(10, size * 2) }, t); did.push(`${e.name} explodes`); }
-      if (gained.includes("burning") && !gained.includes("exploded")) { fx.effect("ignite", { at, radius: size, flame: look.flame ?? "fire" }, t); did.push(`${e.name} catches fire`); }
+      if (gained.includes("exploded")) { fx.effect("explosion", { at, radius: Math.max(10, size * 2) }, t); hear("world.explosion", { size: Math.max(10, size * 2) }); did.push(`${e.name} explodes`); }
+      if (gained.includes("burning") && !gained.includes("exploded")) { fx.effect("ignite", { at, radius: size, flame: look.flame ?? "fire" }, t); hear("world.ignite"); did.push(`${e.name} catches fire`); }
       if (gained.includes("wet") || gained.includes("soaked")) {
         const doused = lost.includes("burning") || was.has("burning");
         fx.effect(doused ? "douse" : "splash", { at, radius: Math.max(3, size) }, t);
+        hear(doused ? "world.douse" : "world.splash");
         did.push(doused ? `${e.name} is doused` : `${e.name} is soaked`);
       } else if (lost.includes("burning") && !is.has("destroyed")) {
         fx.effect("steam", { at, radius: size * 0.6 }, t);
+        hear("world.steam");
         did.push(`${e.name} goes out`);
       }
       if (gained.includes("destroyed")) {
         fx.effect("debris", { at, radius: size, ...(is.has("burning") || is.has("smouldering") ? { color: "#3a2c24" } : {}) }, t);
         if (is.has("burning") || is.has("smouldering")) fx.effect("smoke", { at, radius: size * 0.7 }, t + 120);
+        hear("world.debris");
         did.push(`${e.name} is destroyed`);
       }
-      if (gained.includes("frozen")) { fx.effect("sparks", { at, color: "#cfefff" }, t); did.push(`${e.name} freezes`); }
-      if (gained.includes("dead")) { fx.effect("splash", { at, radius: 2.5, color: "#a01818" }, t); did.push(`${e.name} falls dead`); }
-      else if (gained.some(s => s === "unconscious" || s === "prone" || s === "down")) { fx.effect("poof", { at, radius: 1.5 }, t); did.push(`${e.name} goes down`); }
-      if (gained.includes("hidden")) fx.effect("poof", { at, radius: 1.5 }, t);
-      if (gained.includes("fallen")) fx.effect("poof", { at, radius: 2 }, t);
+      if (gained.includes("frozen")) { fx.effect("sparks", { at, color: "#cfefff" }, t); hear("world.freeze"); did.push(`${e.name} freezes`); }
+      if (gained.includes("dead")) { fx.effect("splash", { at, radius: 2.5, color: "#a01818" }, t); hear("blow.fall"); did.push(`${e.name} falls dead`); }
+      else if (gained.some(s => s === "unconscious" || s === "prone" || s === "down")) { fx.effect("poof", { at, radius: 1.5 }, t); hear("blow.fall"); did.push(`${e.name} goes down`); }
+      if (gained.includes("hidden")) { fx.effect("poof", { at, radius: 1.5 }, t); hear("world.poof"); }
+      if (gained.includes("fallen")) { fx.effect("poof", { at, radius: 2 }, t); hear("blow.fall"); }
     }
     // The world's own log, for what states alone don't say (where a fire spread from).
     for (const entry of world.log.slice(this.logSeen)) {
@@ -142,12 +151,13 @@ export class Director {
         const target = select(world, spread[1]!)[0];
         const to = target ? positionOf(world, target.id) : undefined;
         const from = target ? nearestBurning(world, target.id) : undefined;
-        if (to && from) fx.effect("throw", { from, to: { ...to }, glyph: "*", color: "#ffa030" }, t);
+        if (to && from) hear("world.ignite", { delay: fx.effect("throw", { from, to: { ...to }, glyph: "*", color: "#ffa030" }, t).lands - t });
       }
     }
     this.logSeen = world.log.length;
     this.seen = now;
     this.floated.clear();
+    for (const [name, at] of heard) sfx(name, at.size ? { size: at.size } : {}, { delay: at.delay });
     return did;
   }
 
@@ -160,6 +170,15 @@ export class Director {
    */
   rulesLines(world: SceneWorld, lines: string[], t: number, aliases: Record<string, string> = {}): number {
     let n = 0, kind = "";
+    // A blow's sound (a spell's is spellsFrom's): its swing, then each hurt it did, or a miss.
+    const spell = lines.some(l => /^Cast /.test(l));
+    const blows = spell ? [] : lines.map(l => /^(.+?): (?:your|.+?'s) attack on .+?: .* vs AC \d+: (hit|miss|critical hit!)/i.exec(l)).filter(m => !!m);
+    const critical = blows.some(m => /critical/i.test(m[2]!));
+    blows.forEach((m, i) => {
+      sfx("blow.swing", { kind: m[1]! }, { delay: i * 160 });
+      if (/miss/i.test(m[2]!)) sfx("blow.miss", {}, { delay: i * 160 + 120 });
+    });
+    const landed = blows.length ? 140 : 0;
     for (const line of lines) {
       const roll = /^Damage(?: to things in it)?: .* (\w+)(?: \(things don't dodge\))?$/i.exec(line);
       if (roll) { kind = roll[1]!.toLowerCase(); continue; }
@@ -170,8 +189,13 @@ export class Director {
       const e = name ? whoIs(world, name, aliases) : undefined;
       const p = e ? positionOf(world, e.id) : undefined;
       if (!p) continue;
-      if (dmg) { this.effects.float({ ...p }, dmg[2]!, { damage: (dmg[3] ?? (kind || "bludgeoning")).toLowerCase() }, t + n * 90); this.floated.add(e!.id); }
-      else if (heal) this.effects.float({ ...p }, `+${heal[2]}`, { damage: "heal" }, t + n * 90);
+      if (dmg) {
+        const type = (dmg[3] ?? (kind || "bludgeoning")).toLowerCase();
+        this.effects.float({ ...p }, dmg[2]!, { damage: type }, t + n * 90);
+        this.floated.add(e!.id);
+        if (!spell) sfx("blow.hit", { kind: type, critical }, { delay: landed + n * 90 });
+      }
+      else if (heal) { this.effects.float({ ...p }, `+${heal[2]}`, { damage: "heal" }, t + n * 90); if (!spell) sfx("spell.heal", {}, { delay: n * 90 }); }
       else this.effects.float({ ...p }, "unharmed", { style: "info", color: "#a8a49c" }, t + n * 90);
       n++;
     }
@@ -202,21 +226,31 @@ export class Director {
       const aim = target ? positionOf(world, target.id) : undefined;
       const color = ELEMENTS[element ?? ""] ?? "#c79bf2";
       const at = (p: Point | undefined) => (p ? { ...p } : { ...caster });
+      const its = element ? { element } : {};
+      sfx("spell.cast", its);
       if (size && shape) {
         const feet = Number(size);
         // From the caster (a cone, a cube, a line) it fills the space towards the aim; aimed, it lands there.
         const centre = way === "towards" && aim ? along(caster, aim, Math.min(feet / 2, Math.hypot(aim.x - caster.x, aim.y - caster.y))) : at(aim);
-        if (element === "fire") this.effects.effect("fireball", { ...(way === "towards" ? {} : { from: { ...caster } }), at: centre, radius: way === "towards" ? feet / 2 : feet }, t);
-        else if (element === "lightning") this.effects.effect("lightning", { from: { ...caster }, to: at(aim) }, t);
-        else if (element === "thunder") this.effects.effect("shockwave", { at: centre, radius: feet, color }, t);
-        else { this.effects.effect("shockwave", { at: centre, radius: feet, color }, t); this.effects.effect("flash", { at: centre, radius: feet / 2, color }, t); }
-      } else if (heals) this.effects.effect("sparks", { at: at(aim), color: ELEMENTS.heal! }, t);
-      else if (aim && element === "lightning") this.effects.effect("lightning", { from: { ...caster }, to: { ...aim } }, t);
+        if (element === "fire") {
+          const flight = this.effects.effect("fireball", { ...(way === "towards" ? {} : { from: { ...caster } }), at: centre, radius: way === "towards" ? feet / 2 : feet }, t).lands - t;
+          if (flight > 0) sfx("spell.bolt", { ...its, ms: flight });
+          sfx("spell.area", { ...its, size: feet }, { delay: flight });
+        }
+        else if (element === "lightning") { this.effects.effect("lightning", { from: { ...caster }, to: at(aim) }, t); sfx("spell.hit", its); }
+        else if (element === "thunder") { this.effects.effect("shockwave", { at: centre, radius: feet, color }, t); sfx("spell.area", { ...its, size: feet }); }
+        else { this.effects.effect("shockwave", { at: centre, radius: feet, color }, t); this.effects.effect("flash", { at: centre, radius: feet / 2, color }, t); sfx("spell.area", { ...its, size: feet }); }
+      } else if (heals) { this.effects.effect("sparks", { at: at(aim), color: ELEMENTS.heal! }, t); sfx("spell.heal"); }
+      else if (aim && element === "lightning") { this.effects.effect("lightning", { from: { ...caster }, to: { ...aim } }, t); sfx("spell.hit", its); }
       else if (aim && element) {
         // Magic Missile is three darts; anything else one bolt.
         const darts = /missile/i.test(spell) ? 3 : 1;
-        for (let k = 0; k < darts; k++) this.effects.effect("bolt", { from: { ...caster }, to: { ...aim }, color, delay: k * 140 }, t);
-      } else this.effects.effect("sparks", { at: at(aim), color }, t);
+        for (let k = 0; k < darts; k++) {
+          const lands = this.effects.effect("bolt", { from: { ...caster }, to: { ...aim }, color, delay: k * 140 }, t).lands - t;
+          sfx("spell.bolt", { ...its, ms: lands - k * 140 }, { delay: k * 140 });
+          sfx("spell.hit", its, { delay: lands });
+        }
+      } else { this.effects.effect("sparks", { at: at(aim), color }, t); sfx("spell.hit", its); }
       n++;
     });
     return n;
