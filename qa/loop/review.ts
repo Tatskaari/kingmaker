@@ -38,7 +38,7 @@ export async function reviewPack(config: LoopConfig, round: string, game: string
 
   const scene = sceneOf(await campaign(record), record.scene);
   const out = packPath(config, round, game);
-  writeFileSync(out, `${packText({ config, round, record, prep: prepText(scene), hook: typeof scene.hook === "string" ? scene.hook : undefined })}\n`);
+  writeFileSync(out, `${packText({ config, round, record, prep: prepText(scene), hook: scene.hook })}\n`);
   return out;
 }
 

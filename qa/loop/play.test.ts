@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { copyFileSync, cpSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -8,7 +8,7 @@ import { YARD } from "../../client/check/fixture.ts";
 import { demoBackend } from "../../client/demo.ts";
 import type { SceneView } from "../../client/scene/view.ts";
 import { patiently, worthWaiting } from "./patience.ts";
-import { CAMPAIGNS, recordPath, type LoopConfig } from "./paths.ts";
+import { CAMPAIGNS, recordPath, REPO, type LoopConfig } from "./paths.ts";
 import { brief, say, start, transcript, type PlayDeps } from "./play.ts";
 import { entriesOf, newRecord, readRecord, writeRecord, type Wait } from "./record.ts";
 import { reachScene } from "./reach.ts";
@@ -23,6 +23,18 @@ import { campaignAt } from "./scenes.ts";
 
 const CONFIG = (): LoopConfig => ({ rounds: mkdtempSync(join(tmpdir(), "km-loop-")), command: "npm run -s loop --" });
 const loaded = campaignAt(join(CAMPAIGNS, "caerwyn"));
+
+/**
+ * The campaign as the demo plays it: the demo's yard ends through the tests' own hanged clerk's
+ * endings (shared/scene/testdata: case-made, open-case, ...), not the re-authored clerk's, so the loop
+ * reads a copy of the campaign with that clerk in the yard's place.
+ */
+const asTheDemo = (() => {
+  const dir = mkdtempSync(join(tmpdir(), "km-loop-campaign-"));
+  cpSync(join(CAMPAIGNS, "caerwyn"), dir, { recursive: true });
+  copyFileSync(join(REPO, "shared", "scene", "testdata", "hanged-clerk.kmscene"), join(dir, "scenes", "hanged-clerk.kmscene"));
+  return campaignAt(dir);
+})();
 
 /** The demo as every command's connection (its close a no-op: the next command finds the game as the last left it). */
 function demoDeps(): PlayDeps & { game: Backend } {
@@ -181,14 +193,14 @@ test("a later scene reached: the scene before it ended for QA on its first good 
   const game = demoBackend({ ms: 1 });
   const record = newRecord({ round: "r1", game: "g01", scene: "drowned-rat", stack: "demo" });
   const waits: Wait[] = [];
-  await reachScene(game, "drowned-rat", await loaded, record, { sleep: async () => {}, now: () => new Date(0), waits, backoff: [1] });
+  await reachScene(game, "drowned-rat", await asTheDemo, record, { sleep: async () => {}, now: () => new Date(0), waits, backoff: [1] });
 
   assert.equal(game.view()?.title, "The Drowned Rat");
   assert.equal(game.view()?.mayType, true, "its opening is over");
   // The demo's end_scene takes only open-case: case-made, the first of the yard's good endings, was refused, so the next was tried.
   assert.deepEqual(record.skipped, [{ scene: "hanged-clerk", exit: "open-case", title: "Murder by persons unknown", result: "good" }]);
   assert.deepEqual(waits, []);
-  await assert.rejects(reachScene(game, "hanged-clerk", await loaded, record, { sleep: async () => {}, now: () => new Date(0), waits, backoff: [1] }), /The story passed over hanged-clerk and opened drowned-rat/);
+  await assert.rejects(reachScene(game, "hanged-clerk", await asTheDemo, record, { sleep: async () => {}, now: () => new Date(0), waits, backoff: [1] }), /The story passed over hanged-clerk and opened drowned-rat/);
 });
 
 test("a tester's brief: their character, how they play, the commands with the round and game, where their notes go; nothing of the build", () => {

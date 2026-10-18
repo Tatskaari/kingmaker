@@ -17,7 +17,7 @@ const ROUND: Round = {
   arms: { k1: { name: "baseline", stack: "runs/loop-stack" }, k2: { name: "candidate", stack: "other" } },
   games: { g01: { arm: "k1", persona: "thief", scene: "hanged-clerk" }, g02: { arm: "k2", persona: "thief", scene: "hanged-clerk" }, g03: { arm: "k1", persona: "absurd", scene: "drowned-rat" } },
 };
-const ENDINGS: Ending[] = [{ id: "open-case", title: "Murder by persons unknown", grade: "good", kind: "progress" }, { id: "wrong-man", title: "The wrong name in the book", kind: "other" }];
+const ENDINGS: Ending[] = [{ id: "murder-unknown", title: "Murder by persons unknown", grade: "good", kind: "progress" }, { id: "failed", title: "Failed", grade: "bad", kind: "other" }];
 
 /** A game of three turns, the opening's and two lines', ended or not. */
 function played(id: string, ended?: string): GameRecord {
@@ -85,7 +85,7 @@ test("a game's numbers: its replies (the opening's among them), the kept finding
   assert.equal(g.replies, 3);
   assert.equal(g.penalty, 16);
   assert.equal(g.per10!.toFixed(1), "53.3");
-  assert.deepEqual(g.ending, { title: "Murder by persons unknown", exit: "open-case", outcome: "good" });
+  assert.deepEqual(g.ending, { title: "Murder by persons unknown", exit: "murder-unknown", outcome: "good" });
   assert.equal(g.outcome, "good");
   assert.equal(g.turns, 2);
   assert.deepEqual([...g.byTurn.keys()], [0, 1]);
@@ -95,7 +95,8 @@ test("a game's numbers: its replies (the opening's among them), the kept finding
   assert.equal(g.capped, 1);
   assert.equal(g.medianMs, 6000, "the player's turns, not the opening");
 
-  const ungraded = gameStats(ROUND, "g02", personas(), { record: played("g02", "The wrong name in the book"), triage: {}, calls: [], endings: ENDINGS });
+  // The game's own improvised ending (shared/scene/graph.ts), which a talk can reach: not one of the scene's, so not graded.
+  const ungraded = gameStats(ROUND, "g02", personas(), { record: played("g02", "An ending of their own"), triage: {}, calls: [], endings: ENDINGS });
   assert.equal(ungraded.outcome, "ungraded");
   assert.equal(ungraded.per10, undefined, "not reviewed");
   assert.equal(gameStats(ROUND, "g03", personas(), { record: played("g03"), triage: {}, calls: [], endings: [] }).outcome, "none");

@@ -160,7 +160,7 @@ async function report(config: LoopConfig, name: string, deps: PlayDeps): Promise
     async scene(record, key) {
       const loaded = record?.campaign ? await campaignOfRecord(record, deps) : await deps.campaign(STACK, "caerwyn", "");
       const scene = sceneOf(loaded, key);
-      return { title: typeof scene.title === "string" ? scene.title : key, endings: endingsOf(scene) };
+      return { title: scene.title, endings: endingsOf(scene) };
     },
   };
   const { dir, files, bytes, strays } = await roundReport(config, name, reading);
