@@ -43,6 +43,10 @@ type OptionList = (state: unknown, content: unknown, encounterId: string, charac
 /** The engine's options the board has acts of its own for (a shove, a grab, Dash), or that it can't play yet (hiding, readying, a word with weight): not offered as features. */
 const BOARD_HAS = new Set(["grapple", "shove", "help", "hide", "influence", "ready", "search", "study", "utilize", "cunning-action-hide", "nimble-escape-hide"]);
 
+/** Words with weight in a fight: the skills a threat, a plea or a lie is (all Charisma). */
+export type TalkSkill = "intimidation" | "persuasion" | "deception";
+export const TALK_SKILLS: Record<TalkSkill, string> = { intimidation: "Intimidation", persuasion: "Persuasion", deception: "Deception" };
+
 /** Why the engine says a feature can't be used now, in the game's words. */
 function featureWhy(code: string, you: boolean): string {
   const them = you ? "You've" : "They've";
@@ -786,6 +790,38 @@ export class Skirmish {
     const rule = { dash: `${u.speed} ft more movement this turn`, dodge: "attacks on you have disadvantage until your next turn", disengage: "no opportunity attacks as you move away this turn" }[kind];
     if (this.isYou(u)) { this.say(kind, u); this.log("system", `${cap(kind)}: ${rule}.`, u.id); }
     else if (kind !== "dash") this.log("narration", `${cap(u.called)} ${kind === "dodge" ? "keeps on the move, hard to pin down" : "backs off carefully"}.`, u.id);
+    this.settle();
+    return undefined;
+  }
+
+  /**
+   * Words with weight on the player's turn (a threat, a plea, a lie: the GM's talk_down on a typed
+   * turn, docs/combat-gm.md), for their action: their skill against the DC, by the engine's own check.
+   * Made, the one they spoke to gives up, as the board's surrender has it (a leader's people walk off
+   * with him); missed, the words were only words. A moment of its own, with the dice.
+   */
+  talkDown(u: Unit, targetId: string, skill: TalkSkill, dc: number): string | undefined {
+    if (!this.isTurnOf(u)) return "It isn't their turn.";
+    if (!this.able(u)) return `${cap(this.you(u).called)} can't just now.`;
+    if (!this.actionLeft(u)) return `${this.isYou(u) ? "You've" : "They've"} used ${this.isYou(u) ? "your" : "their"} action this turn: words with weight take it.`;
+    const target = this.unit(targetId) ?? this.units.find(v => v.castId === targetId);
+    if (!target || target.state !== "fighting" || !this.hostile(u, target)) return "There's nobody of the other side by that to talk down.";
+    this.moment("say", u, { target: target.id, with: TALK_SKILLS[skill] });
+    let events: Dnd.EngineEvent[];
+    try {
+      events = this.t.plan("abilityCheck", { type: "AbilityCheck", characterId: u.engineId, ability: "CHA", skill, dc });
+      this.t.apply([this.event("ActionEconomyConsumed", { encounterId: this.G.encounterId, combatantId: u.engineId, kind: "action" })]);
+    } catch (e) {
+      this.current = undefined;
+      return reason(e);
+    }
+    const roll = events.find(e => e.type === "AbilityCheckRolled");
+    const made = roll?.["success"] === true;
+    const d20 = (roll?.["d20"] as number[] | undefined)?.join("/") ?? "?";
+    this.log("dice", `${TALK_SKILLS[skill]}: ${possessive(this.you(u).called)} check at ${target.called}: ${d20} ${signed(Number(roll?.["bonus"] ?? 0))} = ${roll?.["total"]} vs DC ${dc}: ${made ? "success" : "failure"}`, u.id);
+    const how = skill === "intimidation" ? "threaten" : skill === "persuasion" ? "talk to" : "lie to";
+    this.current!.caption = `${cap(this.you(u).called)} ${this.isYou(u) ? how : `${how}s`} ${target.called}: ${made ? "it works" : "it doesn't"}.`;
+    if (made) this.surrender(target);
     this.settle();
     return undefined;
   }

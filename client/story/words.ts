@@ -49,15 +49,12 @@ export function talkBetween(friend: { id: string; name: string }, what: { notebo
 }
 
 /**
- * The fight's stand-in (the prototype's src/game/fight-standin.ts), until tactical combat is wired
- * in (V12): it resolves the fight in one go, as won. What it says while the fight is to be had
- * (observe), what it says as it's fought (act), and how it went (result's summary: the simulation
- * writes "The fight: <summary>" into the scene, which picks up from it).
+ * A scene at its fight (docs/combat-gm.md): what the card under the reply says while it's to be had
+ * (observe), and its one action, on to the fight, which sets it out on the board (fight_it_out). The
+ * scene picks up from how it went once the player is out of it ("The fight: …" in its transcript).
  */
 export const STANDIN = {
-  observe: "(Tactical combat on the map isn't wired in yet: this stand-in resolves the fight in one go.)",
-  act: "Steel, dust and lantern light: after a short, ugly fight the Crakes are down and Sallow drops his sword-cane and asks, very politely, to surrender.",
-  summary: "After a short, ugly fight the Crakes went down and Sallow surrendered, very politely.",
+  observe: "(The fight is set out on the board, the place's own map, everyone where they stand: fought a turn at a time, the GM telling each one.)",
   /** The one thing it offers: its action's id and label. */
-  action: { id: "fight", label: "Fight it out" },
+  action: { id: "fight", label: "To the fight" },
 } as const;

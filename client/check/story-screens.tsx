@@ -4,7 +4,7 @@
  * becomes the way on (the story moving on, with the spinner; stuck, with why; on with Kell; the fight
  * in red; a summons; The End; a spectator's), and Enter or a click goes on; Kell's talk, a line at a
  * time, word for word talkBetween's, and Enter walking to the lead; the card with nobody to walk with;
- * the notebook and the quests over it; the fight's stand-in card and Fight it out; The End.
+ * the notebook and the quests over it; the fight's card and To the fight; The End.
  */
 import { act } from "react";
 import { testRender } from "@opentui/react/test-utils";
@@ -199,7 +199,7 @@ async function sizes(checks: Checks, show: boolean, w: number, h: number): Promi
   act(() => fightSetup.mockInput.pressEnter());
   fight = await fightDraw();
   if (show) console.log(`${size}, the fight's card\n${fight}`);
-  checks.push([`${size}: story: Enter: the stand-in's card, its word on itself, Fight it out`, fighter.page === "fight" && inside(fight).includes(STANDIN.observe) && /▶ Fight it out/.test(fight) && fightStyle("Roll for initiative!") === C.danger]);
+  checks.push([`${size}: story: Enter: the stand-in's card, its word on itself, Fight it out`, fighter.page === "fight" && inside(fight).includes(STANDIN.observe) && /▶ To the fight/.test(fight) && fightStyle("Roll for initiative!") === C.danger]);
   act(() => fightSetup.mockInput.pressEnter());
   await act(async () => { await new Promise(r => setTimeout(r, 0)); });
   fight = await fightDraw();

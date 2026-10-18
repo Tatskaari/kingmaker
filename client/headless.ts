@@ -397,8 +397,8 @@ async function fightAct(game: Backend, fight: FightView, id: string, out: Out, w
   const refused = move ? await mapMove(game, move) : await game.act("fightTurn", { act: id });
   if (refused) return said(out, refused);
 
-  const after = await fightWhen(game, v => v.id !== fight.id || (lastSeq(v) > seen && (myTurn(v) || v.status !== "on")), waiting.ms ?? TURN_MS)
-    .catch(() => game.fight?.() ?? fight);
+  const after = await toldOf(game, await fightWhen(game, v => v.id !== fight.id || (lastSeq(v) > seen && (myTurn(v) || v.status !== "on")), waiting.ms ?? TURN_MS)
+    .catch(() => game.fight?.() ?? fight));
   out.print(boardText(game, after, after.events.filter(e => e.seq > seen)));
   return 0;
 }
@@ -434,8 +434,15 @@ async function sayInTheFight(game: Backend, fight: FightView, text: string, out:
   if (refused) return said(out, refused);
   const after = await fightWhen(game, v => v.id !== fight.id || (!v.board.thinking && lastSeq(v) > seen && (myTurn(v) || v.status !== "on")), waiting.ms ?? TURN_MS)
     .catch(() => game.fight?.() ?? fight);
-  out.print(boardText(game, after, after.events.filter(e => e.seq > seen)));
+  const told = await toldOf(game, after);
+  out.print(boardText(game, told, told.events.filter(e => e.seq > seen)));
   return 0;
+}
+
+/** The fight once the GM's telling of the last turn is in (a scene's fight: docs/combat-gm.md), a few seconds at most. */
+async function toldOf(game: Backend, view: FightView): Promise<FightView> {
+  if (!view.board.scene || !view.board.telling) return view;
+  return await fightWhen(game, v => v.id !== view.id || !v.board.telling, 8_000).catch(() => game.fight?.() ?? view);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -529,7 +536,7 @@ export async function fight(game: Backend, out: Out, waiting: Waiting = {}): Pro
   const refused = await game.act("fightItOut", {});
   if (refused) return said(out, refused);
 
-  const board = await fightWhen(game, v => v.id !== before && (myTurn(v) || v.status !== "on"), waiting.ms ?? TURN_MS);
+  const board = await toldOf(game, await fightWhen(game, v => v.id !== before && (myTurn(v) || v.status !== "on"), waiting.ms ?? TURN_MS));
   out.print(boardText(game, board, board.events));
   return 0;
 }

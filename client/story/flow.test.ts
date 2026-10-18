@@ -95,17 +95,17 @@ test("stuck: Enter carries the story on, and a refusal says why", async () => {
   assert.equal(scene.status, "(The story isn't stuck: there's nothing to carry on.)");
 });
 
-test("the fight: to its card, Fight it out, and back in the scene as it picks up; refused, the card says why", async () => {
+test("the fight: to its card, To the fight, and back in the scene as it picks up; refused, the card says why", async () => {
   const { made, actions } = moves();
   const fighting = { ...yardOver(heronFought()), over: false, fighting: true };
   const scene = new SceneModel(fighting, actions);
   scene.goOn();
-  assert.deepEqual([scene.page, scene.fight().go], ["fight", "Fight it out"]);
+  assert.deepEqual([scene.page, scene.fight().go], ["fight", "To the fight"]);
   scene.fightOn();
   await tick();
   assert.deepEqual([made, scene.page], [["fightItOut"], "scene"]);
   // The rows come with the move: the same scene, live again, the stand-in's lines in it and the aftermath being written.
-  scene.update({ ...YARD, story: storyOf(heronFought()), phase: "replying", mayType: false, entries: [...fighting.entries, { turn: 4, speaker: "system", kind: "system", text: `The fight: ${STANDIN.summary}` }] });
+  scene.update({ ...YARD, story: storyOf(heronFought()), phase: "replying", mayType: false, entries: [...fighting.entries, { turn: 4, speaker: "system", kind: "system", text: "The fight: After a short, ugly fight the Crakes went down and Sallow surrendered, very politely." }] });
   assert.deepEqual([scene.page, scene.wayOn(), scene.busy()], ["scene", undefined, "The GM is speaking…"]);
 
   const refused = new SceneModel(fighting, moves(() => refusal("no_fight")).actions);

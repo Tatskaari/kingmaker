@@ -72,10 +72,10 @@ export function sayCall(tx: TxCtx, plan: SayPlan): AiCall {
  * <uid>:s<scene>:t<n>:narrate-<to>, the scene's working set at the turn the fight broke out on, the
  * board as the GM sees it, and the turn's moments.
  */
-export function narrateCall(tx: TxCtx, plan: NarratePlan, fight: BoardView, moments: BoardMoment[]): AiCall {
+export function narrateCall(tx: TxCtx, plan: NarratePlan, fight: BoardView, moments: BoardMoment[], before: BoardMoment[] = []): AiCall {
   const at = whereOf(tx, plan.scene);
   const key = idempotencyKey(at.game.uid, at.scene.id, plan.n, "narrate", plan.to);
-  const request: NarrateRequest = { ...aiRequest(key, at), turn: sceneContext(tx, at, plan.n), fight, whose: plan.whose, moments };
+  const request: NarrateRequest = { ...aiRequest(key, at), turn: sceneContext(tx, at, plan.n), fight, whose: plan.whose, moments, ...(before.length ? { before } : {}) };
   return { endpoint: STEP_ENDPOINT.narrate, key, timeoutMs: STEP_TIMEOUT_MS.narrate, request };
 }
 

@@ -288,7 +288,7 @@ export interface BoardFighter {
 export interface BoardMoment { kind: string; actor?: string; caption: string; lines: string[] }
 
 /** POST /v1/fights/narrate: a turn the board played (the moments of it), for the GM to tell in the fight's log, in the scene's voice. */
-export interface NarrateRequest extends AiRequest { turn: SceneContext; fight: BoardView; whose: string; moments: BoardMoment[] }
+export interface NarrateRequest extends AiRequest { turn: SceneContext; fight: BoardView; whose: string; moments: BoardMoment[]; /** The fight so far, before this turn: its moments and words (the GM's, kind "gm"; the player's, "say"), told already. */ before?: BoardMoment[] }
 
 /** The GM's telling of it, as the screen has it (who says each line). */
 export interface NarrateResponse { entries: Reply[]; usage: Usage }
@@ -310,6 +310,7 @@ export interface BoardTurnRequest extends AiRequest { turn: TurnContext; fight: 
 export type BoardMove =
   | { kind: "act"; id: string; narration: string }
   | { kind: "toward"; target: string; away?: boolean; narration: string }
+  | { kind: "talk"; target: string; skill: "intimidation" | "persuasion" | "deception"; dc: number; narration: string }
   | { kind: "end_turn"; narration: string };
 
 /** The move, and its narration as the screen has it. */

@@ -30,6 +30,9 @@ import { afterAct, endTurn, playersTurn } from "./turns.ts";
 /** How long the board holds the next of the other side's turns for the GM's telling of the last: the log reads in order, but a slow GM never stops the fight. */
 export const TELL_WAIT_MS = 6000;
 
+/** How much of the fight so far a telling is given: its last moments and words. */
+const FIGHT_SO_FAR = 16;
+
 /** At most this many steps on a typed turn (the GM's own limit is one fewer: then only end_turn), then it's over. */
 const MOST_STEPS = 6;
 
@@ -119,8 +122,11 @@ export const narrateFight: Move<never, NarratePlan> = {
   think(tx, plan) {
     const fight = tx.db.fight.id.find(idOf(plan.fight))!;
     const board = boardOfRow(fight);
-    const moments = eventsOf(tx, fight.id).filter(e => e.seq >= plan.from && e.seq <= plan.to).map(momentOf);
-    return narrateCall(tx, plan, boardViewOf(board, whyOf(tx, board)), moments);
+    const all = eventsOf(tx, fight.id);
+    const moments = all.filter(e => e.seq >= plan.from && e.seq <= plan.to && e.kind !== "gm").map(momentOf);
+    // What's been told of the fight so far (the GM's own words, the player's, and the turns' captions), so nothing is told twice or borrowed.
+    const before = all.filter(e => e.seq < plan.from && e.kind !== "start").slice(-FIGHT_SO_FAR).map(momentOf);
+    return narrateCall(tx, plan, boardViewOf(board, whyOf(tx, board)), moments, before);
   },
   commit(tx, plan, answer) {
     const fight = tx.db.fight.id.find(idOf(plan.fight));
@@ -192,20 +198,22 @@ export const fightSay: Move<{ text: string }, BoardTurnPlan> = {
     if (!fight) return { done: true };
     const { move, entries } = answer as BoardTurnResponse;
     if (move.kind === "end_turn" || fight.status !== "on" || !fight.options) {
-      if (fight.status === "on" && fight.options) play(tx, fight, s => { if (playersTurn(s)) endTurn(s); });
+      // The turn's end told before it passes, so its words follow the turn they tell.
       done(tx, idOf(plan.fight), entries);
+      const told = tx.db.fight.id.find(fight.id)!;
+      if (told.status === "on" && told.options) play(tx, told, s => { if (playersTurn(s)) endTurn(s); });
       return { done: true };
     }
     const before = boardOfRow(fight);
     const said = writeWords(tx, fight, before, entries, fight.seq);
     const refused = play(tx, said, s => {
-      const why = move.kind === "act" ? optionAct(s, move.id) : towards(s, move.target, move.away);
+      const why = move.kind === "act" ? optionAct(s, move.id) : move.kind === "talk" ? s.talkDown(s.pc(), move.target, move.skill, move.dc) : towards(s, move.target, move.away);
       if (!why) afterAct(s, nothingLeft);
       return why;
     });
     const now = tx.db.fight.id.find(fight.id)!;
     const moments = eventsOf(tx, fight.id).filter(e => e.seq > said.seq && e.kind !== "gm").map(momentOf);
-    const step: BoardDone = { act: move.kind === "act" ? move.id : `move_towards ${move.target}${move.away ? " (away)" : ""}`, narration: move.narration, moments, ...(refused ? { refused } : {}) };
+    const step: BoardDone = { act: move.kind === "act" ? move.id : move.kind === "talk" ? `talk_down ${move.target} (${move.skill}, DC ${move.dc})` : `move_towards ${move.target}${move.away ? " (away)" : ""}`, narration: move.narration, moments, ...(refused ? { refused } : {}) };
     const doneSoFar = [...plan.done, step];
     if (now.status !== "on" || !now.options || doneSoFar.length >= MOST_STEPS) {
       if (now.status === "on" && now.options) play(tx, now, s => { if (playersTurn(s)) endTurn(s); });

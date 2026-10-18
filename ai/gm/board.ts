@@ -47,6 +47,20 @@ export const MOVE_TOWARDS: ToolDef = {
   },
 };
 
+export const TALK_DOWN: ToolDef = {
+  name: "talk_down",
+  description: "The player tries to end it with words at one of the other side, for their action: a threat, a plea or a lie. The board rolls their skill against the DC you set; made, the one they spoke to gives up (out of the fight, and a leader's people with him). Words that aren't meant to stop anyone (a taunt, a question) need no tool: answer them in end_turn.",
+  parameters: {
+    type: "object", additionalProperties: false, required: ["target", "skill", "dc", "narration"],
+    properties: {
+      target: { type: "string", description: "Whom they speak to: an id of the other side, still fighting." },
+      skill: { type: "string", enum: ["intimidation", "persuasion", "deception"], description: "intimidation: a threat. persuasion: a plea, an offer, reason. deception: a lie or a bluff." },
+      dc: { type: "integer", description: "How hard it is to make them give up now: 10 easy (hurt, alone, their leader down), 13 moderate, 15 hard (fight still in them), 18 very hard (winning, or loyal to the end)." },
+      narration: { ...NARRATION, description: "The words as the table hears them, up to the moment they land or don't; never whether it works." },
+    },
+  },
+};
+
 export const END_TURN: ToolDef = {
   name: "end_turn",
   description: "The player's turn is over: they've done what they said. The next in the initiative order goes next.",
@@ -95,6 +109,9 @@ const STATES: Record<string, string> = { down: "down: out cold", dead: "dead", f
 
 const nameIn = (all: BoardFighter[], id: string) => (id === "player" ? "you" : all.find(f => f.id === id)?.called ?? all.find(f => f.id === id)?.name ?? id);
 
+/** What's been told of the fight so far, a line each: the GM's words, the player's own, the board's captions. */
+const soFarLine = (m: BoardMoment) => (m.kind === "gm" ? `- (you told) ${m.caption}` : m.kind === "say" && m.actor === "player" ? `- (the player said) «${m.caption}»` : m.kind === "turn" ? `- ${m.caption}` : `- ${m.caption}`);
+
 /** A moment the board played, for the GM: its caption, and its dice under it. */
 const momentLine = (m: BoardMoment) => `- ${m.caption}${m.lines.length ? `\n${m.lines.map(l => `    ${l}`).join("\n")}` : ""}`;
 
@@ -105,15 +122,18 @@ export interface BoardHow { calls: CallContext; byKey(markup: Markup): Markup }
  * A turn the board played, told in the fight's log (one call on the mouthpiece's model, no
  * reasoning): what they did and what came of it, as the dice decided, in the scene's voice.
  */
-export async function narrateTurn(scene: Scene, view: TurnView, req: Pick<NarrateRequest, "fight" | "whose" | "moments">, how: BoardHow): Promise<{ entries: Reply[]; costUsd: number }> {
+export async function narrateTurn(scene: Scene, view: TurnView, req: Pick<NarrateRequest, "fight" | "whose" | "moments" | "before">, how: BoardHow): Promise<{ entries: Reply[]; costUsd: number }> {
   const whose = req.fight.fighters.find(f => f.id === req.whose);
   const who = req.whose === "player" ? "your (the player's)" : `${whose?.called ?? whose?.name ?? req.whose}'s`;
   const note = `${boardNote(req.fight)}
-
+${req.before?.length ? `
+## The fight so far (told already: never tell it again, and never give someone else's deeds to whoever's turn this is)
+${req.before.map(soFarLine).join("\n")}
+` : ""}
 ## Tell this turn: ${who}
 What the board played, moment by moment (its dice under each):
 ${req.moments.map(momentLine).join("\n")}
-Tell it in the fight's log: what they did and what came of it, exactly as the dice decided, in a sentence or two (a minor fighter's, one). Reply with the narration alone.`;
+Tell it in the fight's log: what ${req.whose === "player" ? "you" : "they"} did on this turn and what came of it, exactly as the dice decided, in a sentence or two (a minor fighter's, one). Only this turn's: what came before is told. Reply with the narration alone.`;
   const result = await respond({ operation: "fight.narrate", instructions: boardInstructions(scene, view), input: boardInput(scene, view, note), effort: "none", maxOutputTokens: 400, calls: how.calls });
   const text = result.text.trim();
   return { entries: text ? [spoken(scene, view, text, how.byKey)] : [], costUsd: result.costUsd };
@@ -126,7 +146,7 @@ Tell it in the fight's log: what they did and what came of it, exactly as the di
  */
 export async function boardTurn(scene: Scene, view: TurnView, req: Pick<BoardTurnRequest, "fight" | "options" | "movement" | "done"> & { line: string }, how: BoardHow): Promise<{ move: BoardMove; entries: Reply[]; costUsd: number }> {
   const result = await runTools({
-    operation: "fight.turn", instructions: boardInstructions(scene, view), input: boardInput(scene, view, `${boardNote(req.fight)}\n\n${turnNote(req)}`), tools: [ACT, MOVE_TOWARDS, END_TURN],
+    operation: "fight.turn", instructions: boardInstructions(scene, view), input: boardInput(scene, view, `${boardNote(req.fight)}\n\n${turnNote(req)}`), tools: [ACT, MOVE_TOWARDS, TALK_DOWN, END_TURN],
     effort: "low", maxTurns: 4, calls: how.calls, roundMs: 20_000, deadlineMs: 40_000, parallel: false, stop: () => true,
   }, async (name, args) => { checkBoardCall(req, name, args); return { ok: true }; });
   const move = result.stopped ? moveOf(result.stopped.name, result.stopped.args) : { kind: "end_turn" as const, narration: result.text.trim() };
@@ -145,7 +165,7 @@ function turnNote(req: Pick<BoardTurnRequest, "options" | "movement" | "done"> &
     `What they can do now (act's id: what it is):\n${options.map(o => `- ${o.id}: ${o.label}`).join("\n") || "- (nothing more but a move)"}`,
     req.movement > 0 ? `They have ${req.movement} ft of movement left: move_towards someone or something to go there.` : "They have no movement left this turn.",
     ...(req.done.length ? [`## This turn so far\n${req.done.map(doneLine).join("\n")}`] : []),
-    req.done.length >= BOARD_STEPS ? "That's all for this turn: call end_turn." : "Do what they said and nothing more, a call at a time, then end_turn with what came of it.",
+    req.done.length >= BOARD_STEPS ? "That's all for this turn: call end_turn." : "Do what they said and nothing more, a call at a time (no feature, spell, attack or move they didn't ask for), then end_turn with what came of it.",
   ].join("\n\n");
 }
 
@@ -167,6 +187,15 @@ export function checkBoardCall(req: Pick<BoardTurnRequest, "fight" | "options" |
     if (!narration) throw new InvalidToolArguments("move_towards needs its narration.");
     return;
   }
+  if (name === "talk_down") {
+    const target = req.fight.fighters.find(f => f.id === String(args.target ?? "").trim());
+    if (!target || target.side !== "enemy" || target.state !== "fighting") throw new InvalidToolArguments(`talk_down's target is one of the other side still fighting: ${req.fight.fighters.filter(f => f.side === "enemy" && f.state === "fighting").map(f => f.id).join(", ") || "nobody"}.`);
+    if (!["intimidation", "persuasion", "deception"].includes(String(args.skill))) throw new InvalidToolArguments("talk_down's skill is intimidation, persuasion or deception.");
+    if (!Number.isInteger(args.dc) || Number(args.dc) < 5 || Number(args.dc) > 25) throw new InvalidToolArguments("talk_down's dc is a whole number: 10, 13, 15 or 18.");
+    if (!req.options.some(o => o.cost === "action")) throw new InvalidToolArguments("They've used their action this turn: words with weight take it. Answer what they said in end_turn.");
+    if (!narration) throw new InvalidToolArguments("talk_down needs its narration.");
+    return;
+  }
   if (name === "end_turn" && !narration) throw new InvalidToolArguments("end_turn needs its narration.");
 }
 
@@ -174,6 +203,7 @@ function moveOf(name: string, args: Record<string, unknown>): BoardMove {
   const narration = String(args.narration ?? "").trim();
   if (name === "act") return { kind: "act", id: String(args.id).trim(), narration };
   if (name === "move_towards") return { kind: "toward", target: String(args.target).trim(), ...(args.away === true ? { away: true } : {}), narration };
+  if (name === "talk_down") return { kind: "talk", target: String(args.target).trim(), skill: args.skill as "intimidation" | "persuasion" | "deception", dc: Number(args.dc), narration };
   return { kind: "end_turn", narration };
 }
 

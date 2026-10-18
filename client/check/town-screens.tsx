@@ -241,7 +241,7 @@ async function fightCard(checks: Array<[string, boolean]>, show: boolean): Promi
   await setup.renderOnce();
   const frame = setup.captureCharFrame();
   if (show) console.log(`map 100x30, a fight\n${frame}`);
-  checks.push(["map 100x30, a fight: its stand-in's card over the map, Fight it out", /Roll for initiative!/.test(frame) && /▶ Fight it out/.test(frame)]);
+  checks.push(["map 100x30, a fight: its card over the map, To the fight", /Roll for initiative!/.test(frame) && /▶ To the fight/.test(frame)]);
   await act(async () => { setup.mockInput.pressArrow("up"); setup.mockInput.pressKey("m"); });
   checks.push(["map 100x30, a fight: the arrows and m do nothing while it's up", !moves.length && !model.doMenu]);
   await act(async () => { setup.mockInput.pressEnter(); });

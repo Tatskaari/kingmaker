@@ -108,8 +108,26 @@ test("the player's turn in their own words: their line in the log, the GM's atte
   const b = boardNow(host, game.id);
   assert.equal(b.thinking, undefined, "the menu's the player's again");
   assert.ok(fightRow(host, game.id).options === "" || fightRow(host, game.id).status !== "on", "the turn passed on");
-  // Its moments aren't told again: the GM played them.
+  // Its moments aren't told again: the GM played them (the typed turn's own "say" isn't a telling's).
   host.advance(1000); host.fightSteps(); await host.drain();
   const told = script.to("narrate").map(s => s.body as NarrateRequest);
   assert.ok(!told.some(r => r.moments.some(m => m.kind === "say" && m.actor === "player")), "the typed turn isn't told twice");
+});
+
+test("words with weight on a typed turn (talk_down): the player's skill against the GM's DC, for their action, rolled by the rules; made, the one they spoke to gives up on the board (no surrender the board hasn't made)", async () => {
+  const { host, script, wren, game } = await atTheToll();
+  await toPlayer(host, game.id);
+  script.then("fight",
+    { move: { kind: "talk", target: "crake-2", skill: "intimidation", dc: 2, narration: "\"Put it down, or you'll be eating sand.\"" }, entries: [{ speaker: "gm", kind: "narration", text: "\"Put it down, or you'll be eating sand.\"" }], usage } satisfies BoardTurnResponse,
+    { move: { kind: "end_turn", narration: "His cudgel drops." }, entries: [{ speaker: "gm", kind: "narration", text: "His cudgel drops." }], usage } satisfies BoardTurnResponse);
+  const seen = fightRow(host, game.id).seq;
+  assert.equal(host.as(wren).fightSay({ text: "I tell the quiet one to drop it or eat sand." }), undefined);
+  await host.drain();
+  const said = events(host, game.id).filter(e => e.seq > seen && e.kind === "say" && e.actor === "player" && e.detail.with === "Intimidation")[0]!;
+  assert.match(said.detail.lines.join(" / "), /^Intimidation: your check at .+: \d+ [+-]\d+ = \d+ vs DC 2: success$/, said.detail.lines.join(" / "));
+  assert.match(said.caption, /^You threaten .+: it works\.$/);
+  assert.equal(boardNow(host, game.id).units["crake-2"]!.state, "surrendered", "he gives up on the board");
+  const second = (script.to("fight").map(s => s.body as BoardTurnRequest))[1]!;
+  assert.match(second.done[0]!.act, /^talk_down crake-2 \(intimidation, DC 2\)$/);
+  assert.ok(!second.options.some(o => o.cost === "action"), "the words took the action");
 });
