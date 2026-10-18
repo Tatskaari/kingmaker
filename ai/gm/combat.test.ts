@@ -101,8 +101,21 @@ test("the loop stops on the first call that passes: a wrong one (Cob casting, a 
   assert.equal(out.entries[0]!.text, "Cob comes at you over the cobbles.");
   assert.equal(calls.inputs.length, 3, "two corrections, then the move");
   const corrections = JSON.stringify(calls.inputs.at(-1));
-  assert.match(corrections, /Cob can attack with their weapon, move, flee, surrender or do something else \(other\)/);
+  assert.match(corrections, /Cob can attack with their weapon, move, flee or surrender: the rules don't have cast for them/);
   assert.match(corrections, /Cob's attack is at someone in the fight/);
+});
+
+test("on anyone's turn but the player's there's no other (smoke2-1018: Kell's turn told as other, other, end_turn, her surrender among them): put right in the loop; and an other after the turn's action ends the turn on its words", async () => {
+  const calls = scripted([
+    ["perform_action", { action: "other", target: "player", narration: "Cob lets the boathook dip: “I'm done.”" }],
+    ["perform_action", { action: "surrender", narration: "Cob throws the boathook down: “I'm done.”" }],
+  ]);
+  const out = await combatMove(clerk, yard(), fight("cob"), { calls, byKey });
+  assert.deepEqual(out.move, { kind: "act", act: { action: "surrender", narration: "Cob throws the boathook down: “I'm done.”" } });
+  assert.match(JSON.stringify(calls.inputs.at(-1)), /What Cob says, how they hold their ground or how they look is end_turn's narration: call end_turn with it\. If they give up, perform_action surrender; if they run, flee\./);
+  const done = [{ act: { action: "attack" as const, target: "cob", narration: "You swing." }, lines: ["Longsword: your attack on Cob: 4 +5 = 9 vs AC 12: miss"], result: "You missed Cob." }];
+  const after = await combatMove(clerk, yard(), fight("player", { done }), { calls: scripted([["perform_action", { action: "other", narration: "Your blade rings off the post, and Cob laughs." }]]), byKey });
+  assert.deepEqual(after.move, { kind: "end_turn", narration: "Your blade rings off the post, and Cob laughs." }, "told once, as the turn's end");
 });
 
 test("a turn's action once: a second attack is put right; past the turn's calls only end_turn; once it's over only end_combat", async () => {

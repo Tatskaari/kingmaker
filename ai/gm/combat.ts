@@ -29,7 +29,7 @@ export const PERFORM_ACTION: ToolDef = {
     properties: {
       action: {
         type: "string", enum: COMBAT_VERBS.filter(v => v !== "move"),
-        description: "attack: a blow or a shot with a weapon (the cast use their own; a melee blow needs them within 5 ft: move_towards first). cast: a spell (the player's, by its id). grapple, shove: hands on someone within 5 ft (the player's). feature: a class feature (the player's, by its id). check: a stunt the dice decide (the player's: skill and dc). flee: running from the fight (they leave it). surrender: giving up (they're out of it). other: anything else (dodging, helping, a shout, picking something up).",
+        description: "attack: a blow or a shot with a weapon (the cast use their own; a melee blow needs them within 5 ft: move_towards first). cast: a spell (the player's, by its id). grapple, shove: hands on someone within 5 ft (the player's). feature: a class feature (the player's, by its id). check: a stunt the dice decide (the player's: skill and dc). flee: running from the fight (they leave it). surrender: giving up (they're out of it): whoever gives up calls it, so the rules know. other: something the player does that's none of these (picking something up, helping someone); on anyone else's turn, what they say, how they hold their ground or how they look is end_turn's narration.",
       },
       target: { type: "string", description: "Who it's aimed at: an id from the fight (\"player\" for the player character), or a thing's id; omit when it's at nobody." },
       spell: { type: "string", description: "cast: the spell's id, as the player's sheet has it." },
@@ -140,13 +140,13 @@ const nameIn = (all: CombatFighter[], id: string) => (id === "player" ? "you" : 
 
 function turnNote(view: TurnView, combat: CombatView, whose: CombatFighter): string {
   const used = actionUsed(combat);
-  const limit = combat.done.length >= ACTS_A_TURN ? "\nThat's all for this turn: call end_turn." : used ? "\nTheir action is used: anything more this turn is a move or something small (other), or call end_turn." : "";
+  const limit = combat.done.length >= ACTS_A_TURN ? "\nThat's all for this turn: call end_turn." : used ? `\nTheir action is used: anything more this turn is a move${whose.id === "player" ? " or something small (other)" : ""}, or call end_turn with what came of it.` : "";
   if (whose.id === "player") {
     const line = sceneEntries(view).filter(e => e.turn === view.turn && e.kind === "player").map(e => e.text).pop() ?? "";
     return `## It's the player's turn\nThey said: «${line}»\nDo what they said and nothing more: a move_towards for where they go and a perform_action for each thing they do that the rules decide, as their character can (${sheetLine(view)}), then end_turn. What they only say needs no action: answer it in end_turn.${limit}`;
   }
   const side = whose.side === "party" ? "with the player" : "against the player";
-  return `## It's ${whose.name}'s turn [${whose.id}], ${side}\nPlay it as ${whose.name} would, from who they are and how the fight is going for them now: move_towards someone if they need to close in (a melee blow needs them beside their target) or back off, a perform_action for what they do (attack with their weapon, flee, surrender, or other), then end_turn. They may talk, back off, run or give up instead of attacking.${limit}`;
+  return `## It's ${whose.name}'s turn [${whose.id}], ${side}\nPlay it as ${whose.name} would, from who they are and how the fight is going for them now: move_towards someone if they need to close in (a melee blow needs them beside their target) or back off, a perform_action for what they do (attack with their weapon; flee if they run; surrender if they give up, so the rules take them out of it), then end_turn, whose narration has what came of it and anything they say. They may talk, back off, run or give up instead of attacking.${limit}`;
 }
 
 /**
@@ -205,7 +205,9 @@ export async function combatMove(scene: Scene, view: TurnView, combat: CombatVie
     operation: combat.pending?.length ? "combat.sides" : combat.whose === "player" ? "combat.player" : "combat.turn", instructions: combatInstructions(scene, view), input: combatInput(scene, view, combat), tools,
     effort: "low", maxTurns: 4, calls: how.calls, roundMs: 20_000, deadlineMs: 45_000, parallel: false, stop: () => true,
   }, async (name, args) => { checkCall(combat, name, args); return { ok: true }; });
-  const move = result.stopped ? moveOf(result.stopped.name, result.stopped.args) : wordsAlone(combat, result.text);
+  const asked = result.stopped ? moveOf(result.stopped.name, result.stopped.args) : wordsAlone(combat, result.text);
+  // Something small after the turn's action is what came of the turn, told early (smoke2-1018: a miss told by other, then again by end_turn): the turn ends on it.
+  const move: CombatMove = asked.kind === "act" && asked.act.action === "other" && actionUsed(combat) ? { kind: "end_turn", narration: asked.act.narration } : asked;
   const narration = "narration" in move ? move.narration : move.act.narration;
   return { move, entries: narration.trim() ? [spoken(scene, view, narration, how.byKey)] : [], costUsd: result.costUsd };
 }
@@ -223,8 +225,10 @@ export function checkCall(combat: CombatView, name: string, args: Record<string,
   if (!COMBAT_VERBS.includes(action)) throw new InvalidToolArguments(`perform_action's action is one of ${COMBAT_VERBS.join(", ")}.`);
   const whose = fighterOf(combat, combat.whose);
   if (combat.done.length >= ACTS_A_TURN) throw new InvalidToolArguments("That's all for this turn: call end_turn.");
-  if (ACTION_VERBS.has(action) && actionUsed(combat)) throw new InvalidToolArguments(`${whose.name} has used their action this turn: a move or something small (other), or end_turn.`);
-  if (whose.id !== "player" && ["cast", "grapple", "shove", "feature", "check"].includes(action)) throw new InvalidToolArguments(`${whose.name} can attack with their weapon, move, flee, surrender or do something else (other): the rules don't have ${action} for them.`);
+  if (ACTION_VERBS.has(action) && actionUsed(combat)) throw new InvalidToolArguments(`${whose.name} has used their action this turn: a move${whose.id === "player" ? " or something small (other)" : ""}, or end_turn.`);
+  if (whose.id !== "player" && ["cast", "grapple", "shove", "feature", "check"].includes(action)) throw new InvalidToolArguments(`${whose.name} can attack with their weapon, move, flee or surrender: the rules don't have ${action} for them.`);
+  // smoke2-1018: Kell's turn told as other, other, end_turn (her surrender among them, so the rules never knew).
+  if (whose.id !== "player" && action === "other") throw new InvalidToolArguments(`What ${whose.name} says, how they hold their ground or how they look is end_turn's narration: call end_turn with it. If they give up, perform_action surrender; if they run, flee.`);
   if (["attack", "grapple", "shove"].includes(action) && typeof args.target !== "string") throw new InvalidToolArguments(`${action} needs a target: an id from the fight.`);
   if (action === "attack" && whose.id !== "player" && !combat.fighters.some(f => f.id === args.target)) throw new InvalidToolArguments(`${whose.name}'s attack is at someone in the fight: ${combat.fighters.filter(f => f.id !== whose.id).map(f => f.id).join(", ")}.`);
   if (action === "cast" && typeof args.spell !== "string") throw new InvalidToolArguments("cast needs the spell's id.");
