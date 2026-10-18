@@ -57,6 +57,38 @@ Two blind rounds on the toll, 6 persona games each on real models, played by the
 |---|---|---|---|---|---|---|
 | toll1-1018 | 1a6a4dd | 2 of 6 | 6 good | 15.1 | 3.5 | $0.033 |
 | toll2-1018 | 3e5733e, the testers set on refusing the toll and fighting it out | 3 of 6 | 6 good | 10.0 | 3.8 | $0.021 |
+| hobo1-1018 | 1b31991, the story's scenes (yard 2, Rat 2, Heron 3, King's morning 1), 6 murder hobos and 2 avengers | 6 of 8 (8 fights) | 2 good, 1 mixed, 5 bad | 20.5 | 2.6 | $0.189 |
+| hobo2-1018 | e08ebe6, the same shape on hobo1's fixes | 7 of 8 (9 fights) | 2 good, 1 mixed, 4 bad, 1 out of turns | 22.7 | 3.0 | $0.185 |
+
+**The murder-hobo rounds** (reports: hobo1 https://claude.ai/artifact/TowDeepFPx1H3c5rdM6goc, hobo2 https://claude.ai/artifact/2tw86Z6otBCAyBXdRLY2QD, each with a table of its fights):
+- **Fights broke out when someone fought back, and not before**: Duchess defending the downed watchman, the Rat turning on the axe-man, Kell drawing her truncheon in the yard, the palace guard at the King's morning. A threat, or a blow that felled someone who couldn't answer it (a child), started none.
+- **The BBEG fight triggered in all six Heron games**, each with Sallow and both Crakes in the order: from the player going for him (the `attack` route) or from Sallow drawing as he was exposed (`cornered`), from the reply or the settle. Two ended "Caught in the act" (one an avenger, one a murder hobo who won it with Kell, Saul and the mastiff beside him), the rest with the player beaten.
+- **Who came, came:** the dockers at the Rat's third round, the palace guards at the King's second, every time.
+- The bad endings are the scenes' last resorts, which is what murder hobos earn; the penalties are mostly the fight's narration (moments told twice, the same plea every round, long replies), not its triggering.
+
+Fixed after hobo1:
+- a prone fighter couldn't get up (stand, half the move);
+- the act step read threats as blows;
+- Divine Smite was called as a feature (now cast, a bonus action);
+- the closing reply could neither resolve an act nor start a fight (now it reopens the scene);
+- the stage manager made copies of the cast (two Sallows);
+- the initiative line gave Duchess's name away;
+- a reaction or a fight sent away the people the story needs (keepers).
+
+Fixed after hobo2:
+- the player's own words echoed as someone else's line;
+- a second move to someone already beside spent the swing;
+- the clock ticked every fighter's turn;
+- a group fought on after its leader yielded;
+- a kick at a table read as a blow;
+- people who'd run came back as copies (now the originals come back);
+- a hit narrated as a disarm or a hold.
+
+Still open after them (for the user's judgement where it's the prep's):
+- **Talk in a fight gives secrets up without a check** (Hobb names Sallow at axe-point), though the combat prompt says it shouldn't: worth a mechanical step.
+- **The Rat's last resort ends the scene on "Hobb hurt" even with the lead in hand** ("the trail goes cold" after Hobb named the Heron): a scene-authoring call.
+- **Picks against the cards' limits** (Saul and the mastiff with the player).
+- Someone down still talking after a fight, moments told twice, "Someone" tags.
 
 What they found in the fight, each fixed:
 - A fight that broke out on the player's own blow left the world's player where they stood, 25 ft off: it now starts with them beside the blow's target.
