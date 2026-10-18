@@ -8,6 +8,7 @@ import { stageView } from "../client/look/stage-view.ts";
 import { connect, type Connection } from "../client/net/connection.ts";
 import type { Mode } from "./dev/mode.ts";
 import { startStack, type Stack } from "./dev/stack.ts";
+import { fixDice } from "./e2e/kit.ts";
 import { configureTerminal } from "./terminal.ts";
 
 /**
@@ -27,6 +28,8 @@ const USAGE = `npm run arc [-- options]
   --root <dir>          the stack's folder (runs/arc): emptied at the start, but for its keys
   --mode host|namespace detected when absent: host when 11.0.0.1 is on this machine`;
 
+/** The arc's dice, fixed once the campaign is in (no check reads a roll yet, but none is ever SpacetimeDB's randomness). */
+const DICE = 1018;
 /** The prototype's flow's character (flow.ts:31). */
 const WHO = "Tamsin Vell: a disgraced palace auditor with a ledger-keeper's eye, a sharp tongue and a borrowed rapier";
 
@@ -139,7 +142,7 @@ process.exit(failed ? 1 : 0);
 // ---------------------------------------------------------------------------------------------
 
 /**
- * The campaign installed, then play new as the flow makes its character: the game made and begun.
+ * The campaign installed and the dice fixed, then play new as the flow makes its character: the game made and begun.
  * On the map, observe, then go_to_lead as the flow walks to its lead (flow.ts:22-27), each printed.
  * Then the story on, as the flow takes it (story-design §1.3): each scene ended through the flow's
  * exit as the QA console's end does (end_scene as the stack's owner), and go to the next, walking to
@@ -147,6 +150,7 @@ process.exit(failed ? 1 : 0);
  */
 async function theStory(stack: Stack): Promise<Arc> {
   await stack.install(join(import.meta.dirname, "..", "campaigns", "caerwyn"));
+  await fixDice(stack, DICE);
   // The stack's owner, for end (end_scene), as play end has it from the dev stack's stack.json.
   const conn = await connect({ url: stack.ws, db: stack.db, owner: { http: stack.http, db: stack.db, token: stack.owner.token } });
   const who = newGameOf(WHO, "", "caerwyn");
