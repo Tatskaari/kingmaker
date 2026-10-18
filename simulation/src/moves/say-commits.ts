@@ -167,7 +167,7 @@ export function takeAct(tx: TxCtx, at: At, plan: Pick<SayPlan, "n" | "input" | "
   if (result.directive) outcome.acts = [...(outcome.acts ?? []), result.directive];
   at.gm.path.push({ turn: plan.n, from: at.gm.beat, to: at.gm.beat, via: `rules:${m.kind}${m.kind === "cast" ? `:${m.spell}` : m.kind === "attack" || m.kind === "wrestle" ? `:${m.target}` : m.kind === "jump" ? `:${m.how}` : m.kind === "feature" ? `:${m.feature}` : `:${m.length}`}`, source: "pre" });
   // Violence draws a reaction from everyone present: some fight, some flee, some run for help (not while a fight is on already).
-  const act = !at.gm.brawl && !at.gm.combat ? engine(rules => violence(rules, at.graph, session, m, before)) : undefined;
+  const act = !at.gm.brawl && !at.gm.fight ? engine(rules => violence(rules, at.graph, session, m, before)) : undefined;
 
   playedOut(tx, at.scene, at.graph, at.gm, played);
   tx.log(`[rules] act ${m.kind} ${Math.round(tx.elapsedMs() - started)} ms: ${result.lines.length} dice lines${act ? `; violence: ${act.what}` : ""}`);

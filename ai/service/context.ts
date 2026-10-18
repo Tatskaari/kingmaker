@@ -1,8 +1,8 @@
 import type { CallContext } from "../llm/openrouter.ts";
 import type {
   ActRequest, ActResponse, AiErrorCode, BackstoriesRequest, BackstoriesResponse, BoundaryRequest, BoundaryResponse, CharactersRequest, CharactersResponse,
-  CombatRequest, CombatResponse, LooksRequest, LooksResponse, OpenRequest, OpenResponse, ReactionsRequest, ReactionsResponse, RememberRequest, RememberResponse,
-  ReplyRequest, ReplyResponse, SettleRequest, SettleResponse, SuggestRequest, SuggestResponse, Usage,
+  LooksRequest, LooksResponse, OpenRequest, OpenResponse, ReactionsRequest, ReactionsResponse, RememberRequest, RememberResponse,
+  ReplyRequest, ReplyResponse, SettleRequest, SettleResponse, SidesRequest, SidesResponse, SuggestRequest, SuggestResponse, Usage,
 } from "../../shared/protocol/ai.ts";
 import type { Campaign } from "./campaigns.ts";
 import type { ReviewLog } from "./stores.ts";
@@ -55,8 +55,8 @@ export interface Endpoints {
   boundary: Handler<BoundaryRequest, BoundaryResponse>;
   /** How things the story made look on the map (look.invent): one call for a batch. */
   looks: Handler<LooksRequest, LooksResponse>;
-  /** The GM's next move in a fight in the conversation (docs/combat-gm.md): an action to resolve, a turn's end or the fight's. */
-  combat: Handler<CombatRequest, CombatResponse>;
+  /** The sides a fight's people take as it breaks out (docs/combat-gm.md): the GM's pick for each the reply left with none. */
+  sides: Handler<SidesRequest, SidesResponse>;
   /** The builds: three offered (offer), the model's one (pick), the player's own made legal (own). */
   characters: Handler<CharactersRequest, CharactersResponse>;
   /** The backstory: a draft, notes worked in, the lore check, and what it says of them (traits). */

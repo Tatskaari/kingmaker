@@ -44,6 +44,8 @@ async function moveOn(conn: Backend, patience: Patience): Promise<void> {
   if (view?.story?.ended) throw new Error("The story is over (The End) before the scene was reached.");
 
   if (!view) await patiently(conn, () => verbs.act(conn, "go_to_lead", QUIET, SETTLED), carryTurnOn, patience);
+  // A fight on the board (a scene's, docs/combat-gm.md) is seen through by the dice, and the scene picks up after it.
+  else if (conn.fight?.()) await patiently(conn, () => verbs.foughtOut(conn, QUIET, SETTLED), carryTurnOn, patience);
   else if (view.over || view.fighting) await patiently(conn, () => verbs.go(conn, QUIET, SETTLED), carryStoryOn, patience);
   else await patiently(conn, () => carryTurnOn(conn), carryTurnOn, patience);
 }

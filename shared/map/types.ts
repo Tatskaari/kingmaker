@@ -94,6 +94,8 @@ export interface CombatantSetup {
   role?: string;
   /** Their letter on the battlefield, when the name's first letter won't tell them apart (two palace guards: G and g). */
   glyph?: string;
+  /** The rules' own character for them, and their weapon in hand (a scene's people, made when the rules first needed them): they fight as that, hurt as they are. */
+  engine?: { id: string; weapon: string };
 }
 
 export interface CombatSetup {

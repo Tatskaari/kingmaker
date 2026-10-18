@@ -290,7 +290,7 @@ function SidePanel({ model, play, header, inner, rows, mine, over, othersPlaying
     out.push(<text key="gap" height={1} flexShrink={0}>{" "}</text>);
     for (const [i, l] of wrap(view.result?.told ?? view.result?.summary ?? "", inner).slice(0, Math.max(1, rows - 7)).entries()) line(`sum${i}`, <span fg={C.text}>{l}</span>);
     out.push(<text key="gap2" height={1} flexShrink={0}>{" "}</text>);
-    if (!view.watching && !zooHints(model, true).length) out.push(<Clickable key="out" height={1} flexShrink={0} onClick={() => void model.out()}><text><span fg={C.lead}>{"▶ "}</span><span fg={C.lead} attributes={BOLD}>{truncate("Back to the map", inner - 10)}</span><span fg={C.faint}>{"  Enter"}</span></text></Clickable>);
+    if (!view.watching && !zooHints(model, true).length) out.push(<Clickable key="out" height={1} flexShrink={0} onClick={() => void model.out()}><text><span fg={C.lead}>{"▶ "}</span><span fg={C.lead} attributes={BOLD}>{truncate(view.board.scene ? "Back to the scene" : "Back to the map", inner - 10)}</span><span fg={C.faint}>{"  Enter"}</span></text></Clickable>);
   } else if (mine && o) {
     const pip = (used: boolean) => (used ? "○ spent" : "● ready");
     // The bonus action is "ready" only with something to spend it on (a bonus-action spell); else it says there's none to use.
@@ -364,7 +364,7 @@ function BottomLine({ model, play, width, mine, over, othersPlaying }: { model: 
   }
   const button = (run: () => void) => run;
   const report: KeyHint = ["b", "report a problem", button(() => model.report("b"))];
-  const hints: KeyHint[] = over ? [...(zooHints(model, true).length ? zooHints(model, true) : [["Enter", "back to the map", button(() => void model.out())] as KeyHint]), ["r", "the log"], ["?", "help"], report]
+  const hints: KeyHint[] = over ? [...(zooHints(model, true).length ? zooHints(model, true) : [["Enter", model.view.board.scene ? "back to the scene" : "back to the map", button(() => void model.out())] as KeyHint]), ["r", "the log"], ["?", "help"], report]
     : mine ? [["m", "actions", button(() => model.openMenu())], ["click", "walk or act"], ["←↑→↓", "step"], ["e", "end turn", button(() => model.endTurn())], ["c", "sheet"], ["r", "the log"], ["?", "help"], ["Esc", "menu"], report]
     : [["Space", "finish this move", button(() => model.finish())], ...(model.view.watching ? [] : [["F", "skip to your turn", button(() => model.skip())] as KeyHint]), ["r", "the log"], ["?", "help"], ["Esc", "menu"], report];
   void othersPlaying;
@@ -424,7 +424,7 @@ const FIGHT_HELP = [
   "On your turn: move up to your speed, a tile at a time (click a blue tile, or the arrows), and take one action, and a bonus action if you have one. A red tile is one a walk to would draw a swing at you, leaving someone's reach: Disengage first and it won't.",
   "m (or Enter) is the action menu, by what each takes: your action (attack, spells, shove, grab, dash, dodge, disengage), your bonus action, your movement, your turn (let the dice decide, yield, end it). A line with ▸ is aimed on the board: its reach and targets lit, Tab between them, Enter or a click does it. A click on someone opens what you can do to them.",
   "e ends your turn; with nothing at all left, it ends by itself and says so. At 0 hit points you make death saves; nobody dies in these fights.",
-  "c your sheet, r the whole log, Esc the menu (reduced motion, back to the title, Report a problem…). When it's over, Enter goes back to the map.",
+  "c your sheet, r the whole log, Esc the menu (reduced motion, back to the title, Report a problem…). When it's over, Enter goes back (to the scene it broke out in, or to the map).",
   REPORT_HELP,
 ];
 

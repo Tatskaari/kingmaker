@@ -46,10 +46,10 @@ export function eventLines(events: FightEvent[], board?: FightBoard): string[] {
   });
 }
 
-/** The player's actions by id; once it's over, out back to the map. A spectator has none. */
+/** The player's actions by id; once it's over, out back to the scene it broke out in, or to the map. A spectator has none. */
 function actionsOf(view: FightView): string[] {
   if (view.watching) return [];
-  if (view.status === "over") return ["- out: Back to the map"];
+  if (view.status === "over") return [view.board.scene ? "- out: Back to the scene" : "- out: Back to the map"];
   const o = view.options;
   if (!o) return [];
   const walk = o.moves.length ? [`- walk@x,y: Move to any tile marked · (${o.movementLeft} ft left), a tile at a time`] : [];

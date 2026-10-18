@@ -1,5 +1,4 @@
-import type { CombatOutcome } from "../../../shared/gm/combat.ts";
-import type { CombatDone, CombatFighter, CombatNewcomer, Outcome, TurnAct, TurnCheck } from "../../../shared/protocol/ai.ts";
+import type { Outcome, SidesRequest, TurnAct, TurnCheck } from "../../../shared/protocol/ai.ts";
 import type { Act, Mechanic } from "../../../shared/rules/types.ts";
 
 /**
@@ -24,10 +23,11 @@ export interface OpenPlan { step: "open"; game: string; scene: string; turn: str
  * A say turn's plan: the two-part GM's reply, then its settle (on the wind-down, the reply alone).
  * Before the reply, a line that might be an act the rules resolve is asked what it is (the act
  * step), and an act that was violence draws the reactions of everyone who saw it (the reactions
- * step: world-bridge-design §3.4).
+ * step: world-bridge-design §3.4). A reply that rolls for initiative (or a settle that takes the scene
+ * into a fight) leaves the people it put on no side to the sides step (docs/combat-gm.md).
  */
 export interface SayPlan {
-  step: "act" | "reactions" | "reply" | "settle" | "combat";
+  step: "act" | "reactions" | "reply" | "settle" | "sides";
   game: string; scene: string; turn: string; n: number; player: string;
   input: string;
   /** settledFacts(gm) at the turn's start: the stage manager's `settled`. */
@@ -59,14 +59,9 @@ export interface SayPlan {
   read?: Mechanic;
   /** The check the two-part GM's mouthpiece called this turn, as rolled, for the co-GM. */
   check?: TurnCheck;
-  /** A fight's step (docs/combat-gm.md): the combat GM's next move, on whoever's turn it is. */
-  combat?: CombatPlan;
-  /** The turn's second settle (2): a fight that broke out in its first settle ended this turn, and this is the settle after it (its key is settle-2). */
-  settleAsk?: number;
+  /** A fight breaking out (docs/combat-gm.md): who's on which side, and who's the GM's to place (the sides step's request). */
+  sides?: SidesRequest["sides"];
 }
-
-/** What a fight's step keeps in the say plan: the step's count in this turn (its key's), what's been done this turn, and the fight as it stood when the step was asked for. */
-export interface CombatPlan { k: number; done: CombatDone[]; fighters: CombatFighter[]; over?: { outcome: CombatOutcome; why: string }; pending?: CombatNewcomer[] }
 
 /** A turn's suggested lines (v5-design §3.4): one think, POST /v1/turns/suggest, for its k-th ask (from 1). */
 export interface SuggestPlan { step: "suggest"; game: string; scene: string; turn: string; n: number; ask: number }

@@ -9,14 +9,16 @@ import { actorOf, Refused, type Actor, type TxCtx } from "../context.ts";
 import { gameRow, playerRow, type PlayerRow } from "../rows.ts";
 import { mapRowsOf, walkerOf, writeExplore } from "../map/rows.ts";
 import { nothingLeft } from "./options.ts";
-import { liveFightOf, play, type FightRow } from "./rows.ts";
+import { boardOfRow, liveFightOf, play, type FightRow } from "./rows.ts";
+import { pickUpAfterFight } from "../story/fight.ts";
+import { townFightOver } from "../map/fight.ts";
 import type { Skirmish } from "./skirmish.ts";
 import { afterAct, autoTurn, endTurn, playersTurn, step } from "./turns.ts";
 
 /** What the map's other moves are refused with while a fight is on: it's the fight first. */
 export const FIGHT_ON = "(There's a fight on: see it through first.)";
-/** And once it's over, until the player goes back to the map. */
-export const FIGHT_OVER = "(The fight's over: out goes back to the map.)";
+/** And once it's over, until the player goes back (to the scene it broke out in, or to the map). */
+export const FIGHT_OVER = "(The fight's over: out goes back.)";
 /** hurry on the player's own turn. */
 export const HURRY_MINE = "(It's your turn already: there's nothing to hurry.)";
 
@@ -142,8 +144,9 @@ function onTheirTurn(tx: TxCtx, fight: FightRow, act: (s: Skirmish) => string | 
 }
 
 /**
- * Out, once the fight's over: it's done, and the player is back on the map where they were, the
- * fight's end what the map last said (and in its log), as a scene's end is.
+ * Out, once the fight's over: it's done. A scene's fight goes back to its scene, which picks up from
+ * how it went (story/fight.ts); one that broke out on the map leaves its people as it left them; and
+ * the player is back on the map, the fight's end what the map last said (and in its log).
  */
 function goBack(tx: TxCtx, actor: Actor, fight: FightRow): void {
   const player = actor.id === undefined ? undefined : (tx.db.player.id.find(actor.id) ?? undefined);
@@ -151,7 +154,14 @@ function goBack(tx: TxCtx, actor: Actor, fight: FightRow): void {
   if (fight.playerId !== player.id) throw new Refused(refusal("not_controller", { name: playerRow(tx, fight.playerId).name }));
   if (fight.status === "on") throw new Refused(refusal("not_now", { text: FIGHT_ON }));
   tx.db.fight.id.update({ ...fight, status: "done", rev: fight.rev + 1 });
-  tellTheMap(tx, player, fight);
+  const board = boardOfRow(fight);
+  if (board.scene) {
+    pickUpAfterFight(tx, fight);
+    tx.log(`[fight] game ${fight.gameId}: ${fight.title} done (${fight.outcome ?? "?"}), back to the scene`);
+    return;
+  }
+  if (board.town) townFightOver(tx, player, fight);
+  else tellTheMap(tx, player, fight);
   tx.log(`[fight] game ${fight.gameId}: ${fight.title} done (${fight.outcome ?? "?"}), back to the map`);
 }
 

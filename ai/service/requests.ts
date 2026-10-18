@@ -103,9 +103,9 @@ const NEEDS: Record<Step, Need[]> = {
   suggest: [...SCENE, ["offered (the scene's last set)", r => isList(r, "offered")]],
   remember: [...SCENE, REVIEWED],
   boundary: [...SCENE, ...BOUNDARY],
-  combat: [
+  sides: [
     ...TURN,
-    ["combat { state, fighters, whose, done } (the fight as it stands)", r => isText(r, "combat.whose") && isList(r, "combat.fighters") && isList(r, "combat.done") && isList(r, "combat.state.order")],
+    ["sides { why, against, with, pending } (who's on which side, and who's to pick)", r => isText(r, "sides.why") && isList(r, "sides.against") && isList(r, "sides.with") && isList(r, "sides.pending")],
   ],
   look: [["things [{ key, name }] (what to invent a look for, at least one)", r => isList(r, "things") && (at(r, "things") as unknown[]).length > 0 && (at(r, "things") as Array<{ key?: unknown; name?: unknown }>).every(t => typeof t?.key === "string" && typeof t.name === "string")]],
 };

@@ -4,7 +4,7 @@
   "kind": "scene",
   "id": "toll",
   "title": "The Crakes' toll",
-  "description": "The zoo's fight in the conversation (docs/combat-gm.md): the Crake brothers have the ring's gate and want a shilling each to let you out. Pay, talk them down, or fight: if it comes to blows the GM rolls for initiative and narrates every turn, the dice deciding what lands.",
+  "description": "The zoo's fight breaking out in a scene (docs/combat-gm.md): the Crake brothers have the ring's gate and want a shilling each to let you out. Pay, talk them down, or fight: if it comes to blows the GM rolls for initiative, everyone takes a side, and it's fought on the board, the scene picking up from how it went.",
   "lore": [],
   "place": "toll",
   "time": "afternoon",

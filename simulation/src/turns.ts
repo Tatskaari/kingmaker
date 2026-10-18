@@ -38,7 +38,8 @@ export function latestTurnOf(tx: TxCtx, scene: SceneRow): TurnRow | undefined {
 export function finishTurn(tx: TxCtx, sceneId: bigint, turnId: bigint): void {
   updateTurn(tx, turnId, { phase: "done", endedAt: tx.now, note: undefined });
   const scene = updateScene(tx, sceneId, { turnId: undefined });
-  if (scene.status !== "ended") startQueued(tx, scene);
+  // A scene at its fight takes no line until the fight is over and the scene has picked up after it (story/fight.ts).
+  if (scene.status !== "ended" && scene.status !== "fighting") startQueued(tx, scene);
 }
 
 /** A line said while the last turn finished: its turn starts now, with the lease and its think. */

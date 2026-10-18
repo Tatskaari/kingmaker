@@ -20,7 +20,7 @@ export interface FightActions {
   move(m: MapMove): Promise<Rejection | undefined>;
   /** One of the fight's own acts (fight_turn): dash, dodge, disengage, end_turn, yield, leave, auto, hurry. */
   turn(act: FightAct): Promise<Rejection | undefined>;
-  /** Back to the map, once it's over (walk out). */
+  /** Back, once it's over (walk out): to the scene it broke out in, or to the map. */
   out(): Promise<Rejection | undefined>;
   /** Back to the title, the game kept. */
   quit(): void;
@@ -304,7 +304,7 @@ export class FightModel {
     void this.act("end_turn");
   }
 
-  /** Back to the map, once it's over and played. */
+  /** Back, once it's over and played: to the scene it broke out in, or to the map. */
   async out(): Promise<void> {
     if (this.view.status === "on" || this.view.watching) return;
     const refused = await this.actions.out();

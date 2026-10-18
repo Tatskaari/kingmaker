@@ -74,7 +74,7 @@ export interface FakeOptions {
   toolCalls?: Record<string, Array<Pick<ToolCall, "name" | "args">>>;
   /** The two-part GM's mouthpiece: a check it calls on every reply but an opening or a closing (its five outcomes the fake's), and a closing that waits. */
   mouthpiece?: { check?: { skill: string; dc: number }; holds?: boolean; fight?: { on: string; foes: string[]; allies?: string[]; flee?: string[] } };
-  /** The combat GM's picks (pick_sides) for whoever has no side: by id, else they run. */
+  /** The GM's picks (pick_sides) for whoever a fight breaking out left with no side: by id, else they run. */
   sides?: Record<string, "with_player" | "against_player" | "flee">;
   /** The two-part GM's co-GM: still (no moves), the endings it walks to (the first the scene has, or a discovery: a talk's `told`; else its first good one, but in a talk none), and roles it sets every turn. */
   coGm?: { still?: boolean; endings?: string[]; roles?: Record<string, { status: string; mental_state: string; conversation_role: string }> };
@@ -120,7 +120,7 @@ export function fakeFetch(options: FakeOptions = {}): FakeFetch {
     }
     if (url !== "https://openrouter.ai/api/v1/responses") return json({ error: { message: `the fake OpenRouter doesn't answer ${url}` } }, 404);
     if (body.tools?.some(t => t.name === "move_scene")) return json(coGmRound(body, options.coGm ?? {}));
-    if (body.tools?.some(t => t.name === "end_combat" || t.name === "pick_sides")) return json(combatRound(body, options.sides ?? {}));
+    if (body.tools?.some(t => t.name === "pick_sides")) return json(sidesRound(body, options.sides ?? {}));
     const looped = body.tools?.[0] && options.toolCalls?.[body.tools[0].name];
     if (looped) return json(toolRound(looped, body.input ?? []));
     const format = body.text?.format;
@@ -201,34 +201,15 @@ function spoken(narration: string, schema: Schema, input: NonNullable<Request["i
 }
 
 /**
- * The combat GM's round (ai/gm/combat.ts), read off its fight note: once the fight is over, end_combat
- * with the outcome the note gives; otherwise, on whoever's turn it is, a move towards their target,
- * then an attack on it, then the turn's end (the other side's target is the player; the player's
- * side's the first of the other side still standing). One call a round; the loop stops on each.
- * Whoever has no side yet gets one first (pick_sides): the options' `sides`, else they run.
+ * The sides a fight's people take (ai/gm/sides.ts), read off its note: each one listed gets the
+ * options' `sides` for them, else they run. One call, which the loop stops on.
  */
-function combatRound(body: Request, sides: NonNullable<FakeOptions["sides"]>): unknown {
+function sidesRound(body: Request, sides: NonNullable<FakeOptions["sides"]>): unknown {
   const note = body.input?.filter(m => m.role === "system").at(-1)?.content ?? "";
-  const call = (name: string, args: Record<string, unknown>) => ({ status: "completed", output: [{ type: "function_call", call_id: "call_1", name, arguments: JSON.stringify(args) }], usage: { input_tokens: 400, output_tokens: 40, cost: 0.0003 } });
-  const picking = /## Before the next turn: who's on which side\n[^\n]*\n((?:- .*(?:\n|$))+)/.exec(note);
-  if (picking) {
-    const ids = [...picking[1]!.matchAll(/^- .*? \[([^\]]+)\]/gm)].map(m => m[1]!);
-    return call("pick_sides", { sides: ids.map(id => ({ id, side: sides[id] ?? "flee" })), narration: "Everyone else takes a side, or a door." });
-  }
-  const over = /## The fight is over[\s\S]*?\(outcome (\w+)\)/.exec(note);
-  if (over) return call("end_combat", { outcome: over[1], narration: "And it's over: the last of them goes down." });
-  const fighters = [...note.matchAll(/^- (.+?) \[([^\]]+)\](, with the player|, against the player)?, initiative -?\d+: (.*)$/gm)].map(m => ({ name: m[1]!, id: m[2]!, foe: m[3] === ", against the player", state: m[4]!, now: m[4]!.includes("◀ their turn now") }));
-  const whose = fighters.find(f => f.now);
-  const standing = (f: { state: string }) => !/^(fled|gave up|down)/.test(f.state);
-  const target = whose?.foe ? "player" : fighters.find(f => f.foe && standing(f))?.id;
-  const done = /## This turn so far\n([\s\S]*)$/.exec(note)?.[1]?.split("\n").filter(l => /^\d+\. /.test(l)).length ?? 0;
-  // Beside the target already (the note's "From: … beside them"), there's no closing in: a move to them is refused.
-  const label = target === "player" ? "you" : fighters.find(f => f.id === target)?.name.split(" (")[0];
-  const beside = !!label && whose?.state.includes(`${label} beside them`);
-  const attacked = /perform_action attack/.test(note.split("## This turn so far")[1] ?? "");
-  if (!whose || !target || done >= 2 || attacked) return call("end_turn", { narration: `${whose?.name ?? "They"} steps back, breathing hard.` });
-  if (done === 0 && !beside) return call("move_towards", { target, narration: `${whose.name} closes in.` });
-  return call("perform_action", { action: "attack", target, narration: `${whose.name} swings.` });
+  const listed = /## A fight is breaking out[\s\S]*?\n((?:- .*(?:\n|$))+)/.exec(note);
+  const ids = [...(listed?.[1] ?? "").matchAll(/^- .*? \[([^\]]+)\]/gm)].map(m => m[1]!);
+  const args = { sides: ids.map(id => ({ id, side: sides[id] ?? "flee" })), narration: "Everyone else takes a side, or a door." };
+  return { status: "completed", output: [{ type: "function_call", call_id: "call_1", name: "pick_sides", arguments: JSON.stringify(args) }], usage: { input_tokens: 400, output_tokens: 40, cost: 0.0003 } };
 }
 
 /** A route as the co-GM's prep has it (routeLine's): its id, where it goes from and to, what it needs reached first, and whether the dice decide it. */

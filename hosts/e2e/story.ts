@@ -9,6 +9,7 @@ import { onTop } from "../dev/fake.ts";
 import { camel } from "../dev/gm-status.ts";
 import type { Stack } from "../dev/stack.ts";
 import type { Game } from "./creation.ts";
+import { fightUntil } from "./fight.ts";
 import { callLog, check, doneTurn, mapUntil, modelCalls, nextTurn, ok, restartAi, step, until, type Player } from "./kit.ts";
 
 /**
@@ -22,8 +23,9 @@ import { callLog, check, doneTurn, mapUntil, modelCalls, nextTurn, ok, restartAi
  * key); the next scene waits until the lead walks to it, the spectator's seat following, and its
  * co-GM is given the GM's notes on Kell, which the endings before it wrote; the Heron's fight (blades
  * out, an event with a fight: docs/combat-gm.md) breaks out when the co-GM's walk takes the scene
- * there, everyone else on the floor picking a side or running, and is fought in the conversation, a
- * line a turn, until the rules end it; the King's morning is a summons, opened in the boundary's own
+ * there, everyone else on the floor picking a side or running, and is fought on the board (the
+ * Heron's own map) to its end, the scene picking up after it with the GM's aftermath; the King's
+ * morning is a summons, opened in the boundary's own
  * commit; and its ending is The End.
  */
 
@@ -97,7 +99,7 @@ export async function theWholeStory(stack: Stack, root: string, lead: Player, b:
   check(`Kell and the player's character are one entity each, in the Rat's place now: ${entities.map(e => `${String(e.key)} in place ${String(e.place_id)}`).join(", ")}`,
     entities.length === 2 && entities.every(e => String(e.place_id) === String(ratPlace?.id)));
 
-  step("33. The Rat ended as the owner (end_scene), on to the Heron; the co-GM's walk to its fight, fought in the conversation");
+  step("33. The Rat ended as the owner (end_scene), on to the Heron; the co-GM's walk to its fight, fought on the board, and the aftermath");
   const ended = printed();
   check("the lead's end --exit hobb-talks (end_scene as the dev stack's owner) prints the way on", await verbs.end(lead.conn, "hobb-talks", ended.out) === 0);
   const between = ended.text.join("\n");
@@ -119,28 +121,38 @@ export async function theWholeStory(stack: Stack, root: string, lead: Player, b:
   const coGmSaw = modelInput(root, heronGame, "two-part.co-gm", keyOf(heronGame, 1, "settle"));
   check("the Heron's co-GM was given the GM's notes on Kell: her standing from the yard's ending, and that she was there when the Rat ended",
     coGmSaw.includes("# Notes on the people here (what's happened with them in play)") && /## Sergeant Agnes Kell \[kell\]\nStanding with the player: Friendly: The King's investigator made Prout's case properly\./.test(coGmSaw) && /The Drowned Rat(?:, as it)? ended/.test(coGmSaw));
-  const broken = await until(lead, "the fight to break out", 60_000, r => r.transcript.some(t => t.text.startsWith("Combat! In initiative order: ")) && r);
-  const started = broken.transcript.filter(t => t.turn === broke).map(t => t.text);
-  const order = started.find(t => t.startsWith("Combat! In initiative order: "))!;
-  check(`turn ${broke}: blades out broke out after the settle, its line-up in the order: "${order}"`, ["Kell", "Crake", "you"].every(w => order.includes(w)) && started.filter(t => t.startsWith("Initiative: ")).length >= 5);
-  check("everyone else on the floor picked a side or ran before the first turn", started.some(t => /^(Joining the fight|Running from it): /.test(t)));
-  check("the scene is live and no chapter is written: a fight is the scene's, not its end", broken.scene.status === "live" && !(await stack.sql(`SELECT * FROM chapter WHERE scene_id = ${heronGame.scene}`)).length);
-  await until(b, "B to see the fight", 10_000, r => r.transcript.some(t => t.text.startsWith("Combat! In initiative order: ")));
-  ok("B sees the fight");
-  // The player's turns, a line each, until the rules end it.
-  let fought = broken;
-  for (let i = 0; i < 20 && !fought.transcript.some(t => t.text.startsWith("The fight is over (")); i++) {
-    const n = nextTurn(lead);
-    check(`${lead.name}'s turn ${i + 1} in the fight: "(I hit Sallow with my staff)"`, (await lead.conn.say("(I hit Sallow with my staff)")) === undefined);
-    fought = await doneTurn(lead, n);
+  const broken = await until(lead, "the fight to break out", 60_000, r => r.scene.status === "fighting" && r);
+  const sides = broken.transcript.filter(t => t.turn === broke).map(t => t.text).find(t => t.startsWith("Roll for initiative! ")) ?? "";
+  check(`turn ${broke}: blades out broke out after the settle, its line-up on its sides: "${sides}"`, /Against you: [^.]*Crake/.test(sides) && sides.includes("Beside you: Sergeant Agnes Kell."));
+  check("everyone else on the floor picked a side or ran first (the GM's pick_sides, under the turn's sides key)",
+    /(Running from it|Keeping clear of it): /.test(sides) && callLog(root, game.uid).some(c => c.started && c.operation === "fight.sides" && c.key === keyOf(heronGame, broke, "sides")));
+  check("no chapter is written: a fight is the scene's, not its end", !(await stack.sql(`SELECT * FROM chapter WHERE scene_id = ${heronGame.scene}`)).length);
+  await until(b, "B to see the fight coming", 10_000, r => r.scene.status === "fighting" && r);
+  ok("B sees it coming");
+
+  check(`${lead.name}'s fight_it_out sets it out on the board`, (await lead.conn.act("fightItOut", {})) === undefined);
+  const board = await fightUntil(lead, "the Heron's fight on the board", 10_000, v => v.status === "on" && v);
+  const units = board.board.units;
+  check(`on the Heron's own map, the player's sheet kept, the scene's: ${board.title}, ${Object.keys(units).length} in it`,
+    board.map.id === "heron" && !!board.board.keep && board.board.scene === String(heronGame.scene) && ["sallow", "crake-1", "crake-2"].every(id => units[id]?.side === "enemy") && units["kell"]?.side === "ally");
+  // Fought to its end: the others' turns hurried, the player's played by the dice (auto).
+  for (let i = 0; i < 80; i++) {
+    const v = lead.conn.fight();
+    if (!v || v.status !== "on") break;
+    const refused = await lead.conn.act("fightTurn", { act: v.options ? "auto" : "hurry" });
+    if (refused && refused.code !== "not_now" && refused.code !== "not_your_turn") check(`the fight's move was made: ${refused.text}`, false);
+    await fightUntil(lead, "the fight to move on", 30_000, w => (w.status !== "on" || w.events.length > v.events.length) && w);
   }
-  const over = fought.transcript.find(t => t.text.startsWith("The fight is over ("));
-  check(`the fight is over by the rules: "${over?.text}"`, !!over);
+  const over = await fightUntil(lead, "the fight to end", 60_000, v => v.status === "over" && v);
+  check(`it ended (${over.outcome}) after ${over.round} rounds: "${over.result?.told ?? ""}"`, !!over.result?.told && over.events.at(-1)?.kind === "over");
+  const n = nextTurn(lead);
+  check("out (walk toward out) goes back to the scene", (await lead.conn.walk({ toward: "out" })) === undefined);
+  const after = await doneTurn(lead, n);
+  const lines = after.transcript.filter(t => t.turn === n).map(t => t.text);
+  check(`turn ${n}: how the fight went, once, then the GM's aftermath`, lines[0] === `The fight: ${over.result!.told}` && lines.filter(l => l.startsWith("The fight: ")).length === 1 && lines.length >= 2 && after.scene.status === "live");
+  check("the aftermath was asked as one (gm.aftermath, under the turn's open key)", modelCalls(root, game.uid, "gm.aftermath", keyOf(heronGame, n, "open")) === 1);
   const gm = gmFromRow(camel((await stack.sql(`SELECT * FROM gm_state WHERE scene_id = ${heronGame.scene}`))[0]) as GmRow);
-  check(`the scene went on to blades out and the fight is off the books: reached ${gm.reached.join(", ")}`, gm.reached.includes("fight") && !gm.combat && fought.scene.status !== "ended");
-  const steps = callLog(root, game.uid).filter(c => c.started && c.operation.startsWith("combat.")).map(c => c.key);
-  check(`every step of the fight (${steps.length}, the sides picked among them) had a key of its own, combat-<k> on its turn`, steps.length > 0 && new Set(steps).size === steps.length && steps.every(k => /:combat-\d+$/.test(k))
-    && callLog(root, game.uid).some(c => c.started && c.operation === "combat.sides"));
+  check(`the scene went on to blades out and the fight is off the books: reached ${gm.reached.join(", ")}`, gm.reached.includes("fight") && !gm.fight && gm.established.at(-1) === `The fight is over: ${over.result!.summary}`);
 
   step("34. A summons, then The End");
   await toTheEnding(lead, ["Whose grain is in these sacks?", "Sergeant, arrest him: he was caught with the King's grain."], "To the palace, then.", "Caught in the act", true);

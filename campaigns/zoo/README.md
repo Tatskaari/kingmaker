@@ -37,7 +37,7 @@ Its files:
 
 ### The Crakes' toll (`toll`)
 
-A fight in the conversation (docs/combat-gm.md): the Crake brothers have the ring's gate and want a shilling each to let you and Kell out. Pay, talk them down, or fight. If it comes to blows the GM rolls for initiative and narrates every turn, the dice deciding what lands, and the scene ends on how it went (talked out of it, paid, the Crakes beaten, beaten back). Open it as the ring is opened: `?zoo=toll`, `npm run play -- new --session <you> --zoo toll`, the title's zoo menu. It's played by the GM on real models (the fake GM never starts a fight). Its files are `scenes/toll.kmscene`, `places/toll.kmplace` and `maps/toll.kmmap`; the GM loop plays it as `--scene zoo/toll`, with its truth sheet in qa/loop/truth/toll.md.
+A fight breaking out in a scene (docs/combat-gm.md): the Crake brothers have the ring's gate and want a shilling each to let you and Kell out. Pay, talk them down, or fight. If it comes to blows the GM rolls for initiative, everyone takes a side (or runs), and To the fight sets it out on the board, the ring's own sand, as the ring fights one; once it's over, out goes back to the scene, the GM tells the aftermath, and the scene ends on how it went (talked out of it, paid, the Crakes beaten, beaten back). Open it as the ring is opened: `?zoo=toll`, `npm run play -- new --session <you> --zoo toll`, the title's zoo menu. It's played by the GM on real models (the fake GM never starts a fight). Its files are `scenes/toll.kmscene`, `places/toll.kmplace` and `maps/toll.kmmap`; the GM loop plays it as `--scene zoo/toll`, with its truth sheet in qa/loop/truth/toll.md.
 
 ## Making an exhibit
 

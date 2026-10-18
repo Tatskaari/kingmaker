@@ -25,7 +25,7 @@ const SELLSWORD = { campaign: "caerwyn", name: "Wren Ashdown", concept: "a sells
 const RING_DICE = 48;
 
 /** Resolves with what `test` finds in the player's fight, once it finds it; a Failed after `ms`. */
-function fightUntil<T>(p: Player, what: string, ms: number, test: (view: FightView) => T | undefined | null | false | 0): Promise<T> {
+export function fightUntil<T>(p: Player, what: string, ms: number, test: (view: FightView) => T | undefined | null | false | 0): Promise<T> {
   return new Promise((resolve, reject) => {
     const look = () => {
       const view = p.conn.fight();
@@ -64,7 +64,8 @@ export async function aFightInTheRing(stack: Stack, lead: Player, b: Player): Pr
 
   const mine = await fightUntil(lead, "the turn to come round to the player", 60_000, v => (theirs(v) || v.status !== "on") && v);
   check("the player's turn came, the fight still on", theirs(mine));
-  const turns = lead.events.filter(e => e.table === "fight_event" && e.op === "insert" && e.row.kind === "turn");
+  // This fight's own: the story's Heron was fought on the board before it (step 33), its turns hurried.
+  const turns = lead.events.filter(e => e.table === "fight_event" && e.op === "insert" && e.row.kind === "turn" && String(e.row.fightId) === first.id);
   const npcTurns = turns.filter(e => e.row.actor !== "player");
   note(`moments before the player's turn: ${mine.events.map(e => `${e.kind}${e.actor ? `:${e.actor}` : ""}`).join(", ")}`);
   for (const e of mine.events.filter(e => e.kind === "move")) check(`a move's path, a tile at a time: ${e.caption} (${(e.detail.path ?? []).map(t => `${t.x},${t.y}`).join(" ")})`, (e.detail.path ?? []).length > 0);

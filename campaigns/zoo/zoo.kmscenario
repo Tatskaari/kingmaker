@@ -4,7 +4,7 @@
   "kind": "scenario",
   "id": "zoo",
   "title": "The zoo",
-  "description": "Every feature of the game laid out to see and try, an exhibit at a time, kept apart from the story's games: the combat ring (a fight on the map, a turn at a time) and the Crakes' toll (a fight in the conversation, the GM narrating every turn).",
+  "description": "Every feature of the game laid out to see and try, an exhibit at a time, kept apart from the story's games: the combat ring (a fight on the map, a turn at a time) and the Crakes' toll (a scene the GM plays, where a fight breaks out onto the board).",
   "campaignVersion": "0.1.0",
   "firstScene": "ring",
   "startPlace": "ring",
@@ -86,7 +86,7 @@
     {
       "id": "toll",
       "title": "The Crakes' toll",
-      "description": "A fight in the conversation: the Crake brothers have the ring's gate and want a shilling each to let you and Kell out. Pay, talk them down, or fight: if it comes to blows the GM rolls for initiative and narrates every turn, with the dice deciding what lands.",
+      "description": "A fight breaking out in a scene: the Crake brothers have the ring's gate and want a shilling each to let you and Kell out. Pay, talk them down, or fight: if it comes to blows the GM rolls for initiative, everyone takes a side, and it's fought on the board, after which the scene picks up from how it went.",
       "scene": "toll"
     }
   ]

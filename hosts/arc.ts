@@ -188,10 +188,11 @@ async function played(verb: string, play: (out: verbs.Out) => Promise<number> | 
 
 /**
  * The flow from the yard to The End (flow.ts:40-73): end each scene through its exit, go to the lead,
- * fight the Heron's fight in the conversation, and observe The End. What each point showed, by check.
+ * fight the Heron's fight on the board, and observe The End. What each point showed, by check.
  * Lines are said only at the Heron: the fake co-GM's walk takes it to blades out on the third, the
- * fight breaks out after that line's settle, and the player's turns are a line each until the rules
- * end it, the scene going on after it; the co-GM's walk through every scene is the e2e's (step 31).
+ * fight breaks out after that line's settle, everyone takes a side, the player goes on to it (the
+ * card's To the fight) and it's fought on the Heron's own map by the dice to its end, then out, the
+ * scene going on after it with the GM's aftermath; the co-GM's walk through every scene is the e2e's (step 31).
  */
 async function theWayOn(conn: Connection): Promise<Map<number, string | undefined>> {
   const way = new Map<number, string | undefined>();
@@ -211,12 +212,15 @@ async function theWayOn(conn: Connection): Promise<Map<number, string | undefine
   way.set(10, heron.code === 0 && at("The Heron Warehouse") ? `"${heron.text.split("\n")[2]}"` : undefined);
 
   for (const line of ["I'll take that book off the desk.", "Someone's coming: the Master?", "Sallow, you're cornered."]) await played(`say ${line}`, out => verbs.say(conn, line, out, { settled: true }));
-  const order = conn.view()?.entries.find(e => e.text.startsWith("Combat! In initiative order: "))?.text;
-  way.set(11, order ? `"${order}"` : undefined);
-  way.set(12, order && order.includes("Sallow") && (order.match(/Crake/g) ?? []).length === 2 ? "Sallow and both Crakes in the order" : undefined);
-  const over = () => conn.view()?.entries.find(e => e.text.startsWith("The fight is over ("));
-  for (let i = 0; i < 20 && order && !over(); i++) await played("say (I lunge at Sallow with my rapier)", out => verbs.say(conn, "(I lunge at Sallow with my rapier)", out, { settled: true }));
-  way.set(13, over() && at("The Heron Warehouse") ? `"${over()!.text}", and the scene goes on` : undefined);
+  const sides = conn.view()?.entries.find(e => e.text.startsWith("Roll for initiative! "))?.text;
+  way.set(11, sides && conn.view()?.fighting ? `"${sides}"` : undefined);
+  const onBoard = await played("act --id fight (To the fight)", out => verbs.fight(conn, out));
+  const units = Object.values(conn.fight?.()?.board.units ?? {});
+  const foes = (id: string) => units.some(u => u.castId === id && u.side === "enemy");
+  way.set(12, onBoard.code === 0 && foes("sallow") && foes("crake-1") && foes("crake-2") ? `Sallow and both Crakes against the player on ${conn.fight!()!.map.id}'s board` : undefined);
+  await played("the fight seen through by the dice, then out", out => verbs.foughtOut(conn, out, { settled: true }));
+  const told = conn.view()?.entries.find(e => e.text.startsWith("The fight: "));
+  way.set(13, told && at("The Heron Warehouse") ? `"${told.text}", and the scene goes on` : undefined);
 
   const summons = await played("end --exit caught-in-the-act", out => verbs.end(conn, "caught-in-the-act", out));
   way.set(14, summons.code === 0 && at("The King's Morning") ? `${conn.view()!.title}, ${story()?.time}, with no go` : undefined);

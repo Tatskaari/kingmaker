@@ -219,8 +219,9 @@ const TwoPart = t.object("TwoPart", { roles: t.array(TwoPartRole), notes: t.arra
  * handed on (story-design §4.1), then a talk's own (town-design §3.1), then the
  * nodes the scene has reached and the two-part GM's own (M2: docs/two-part-design.md), each with a
  * default, so a scene from before them reads as one with none yet; the world bridge's before the
- * story's, as they stack, so a database of either migrates; then who came on by a fight's
- * reinforcements (`entered`, last, as a column added later must be).
+ * story's, as they stack, so a database of either migrates; then a fight that broke out in the
+ * scene (`fight`) and who came on by a fight's reinforcements (`entered`), last, as columns added later
+ * must be.
  */
 export const gmState = table({ name: "gm_state" }, {
   sceneId: t.u64().primaryKey(),
@@ -252,7 +253,7 @@ export const gmState = table({ name: "gm_state" }, {
   lead: t.option(t.string()).default(undefined),
   /** What the story still owes the player from scenes already over. */
   owed: t.array(OwedRow).default([]),
-  /** The combat exits already fought (the stand-in's). */
+  /** The combat exits already fought (on the board). */
   fought: t.array(t.string()).default([]),
   /** A talk's own: none in a scene of the story. */
   talk: t.option(TalkRow).default(undefined),
@@ -260,8 +261,8 @@ export const gmState = table({ name: "gm_state" }, {
   reached: t.array(t.string()).default([]),
   /** The two-part GM's: each person's role, the co-GM's notes by turn, the stage it moved to, a wind-down held once. None in a scene from before M2: nothing yet. */
   twoPart: t.option(TwoPart).default(undefined),
-  /** JSON: CombatState (shared/gm/combat.ts), a fight in the conversation in progress; "" when there's none (docs/combat-gm.md). */
-  combat: t.string().default(""),
+  /** JSON: SceneFight (shared/gm/fight.ts), a fight that broke out here, from the reply that rolled for initiative until it's over on the board; "" when there's none (docs/combat-gm.md). */
+  fight: t.string().default(""),
   /** Cast who came on by something other than their own beat: a fight's reinforcements (docs/combat-gm.md). None in a row from before it. */
   entered: t.array(t.string()).default([]),
 });

@@ -124,6 +124,10 @@ export interface FightBoard {
   zoo?: ZooFight;
   /** The setup's: when it happens, for the board's light (the zoo's ring in the afternoon); none, and a screen goes by its lights. */
   time?: TimeOfDay;
+  /** The setup's: the scene it broke out in (its row's id), which picks up from how it went once the player is out (docs/combat-gm.md). */
+  scene?: string;
+  /** The setup's: a fight that broke out on the town's map, whose people take how it went once the player is out. */
+  town?: boolean;
 }
 
 /** Which of the zoo's exhibits a fight was set out from, and with which line-up of foes (shared/zoo/exhibits.ts). */
@@ -160,6 +164,12 @@ export interface FightSetup {
   zoo?: ZooFight;
   /** When it happens (its scene's time of day), for the board's light. */
   time?: TimeOfDay;
+  /** The ways out, when they aren't the map's own exits (a place that's a region of a bigger map is left by its doorways: the granary yard's gate). */
+  exits?: Array<{ at: Tile2; label: string }>;
+  /** The scene it broke out in (its row's id): out goes back to it, and it picks up from how the fight went (docs/combat-gm.md). */
+  scene?: string;
+  /** It broke out on the town's map: out goes back to the map, its people as the fight left them. */
+  town?: boolean;
 }
 
 // ---------------------------------------------------------------------------------------------

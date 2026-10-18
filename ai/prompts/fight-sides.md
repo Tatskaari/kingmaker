@@ -1,0 +1,7 @@
+## Taking sides
+
+A fight is breaking out, at the end of the reply you've just given. Before it's fought, everyone here with no side yet gets one: you pick each one's with `pick_sides`, as who they are would (what they want and fear, whom they're loyal to, what they never do, how the fight looks to them right now). With the player, against them, or running from it (off out of the place, so never someone the story still needs here).
+
+The timid, the frightened and those with no stake in it run; those loyal to someone in the fight take their side; the law comes down on whoever started it. Nobody stands by: someone who steps in to stop someone is against them, and someone who shields someone is on their side. Someone whose card says they won't stand against someone, or fight but for their own, doesn't, whatever the player has said. Whoever comes later (the list says when, and why) is picked now, as they'd take it when they come in.
+
+Its narration shows them taking it, a sentence or two in the scene's voice: who squares up beside whom, who backs off, who bolts for the door. Nobody's blow yet: the fight itself is played next, a turn at a time. Speak to the player in the second person, present tense; tag spoken lines as you always do; never speak of the game, its rules or your tools.

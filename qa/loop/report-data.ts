@@ -137,11 +137,12 @@ const ratings = (games: GameStats[], which: string) => games.map(g => g.review?.
 export const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : undefined);
 
 /**
- * A fight in the conversation as the player saw it (docs/combat-gm.md), from the game's system
- * lines: the turn it broke out on and the player's line that brought it, the order, who joined,
- * ran or kept clear, who came, how many rounds, and how it ended (or that it hadn't).
+ * A fight as the player saw it in the scene (docs/combat-gm.md), from the game's system lines: the
+ * turn it broke out on and the player's line that brought it, who took which side (and who ran or
+ * kept clear), and once it was fought on the board and the scene picked up after it, the turn of
+ * that, how it went as the player was told it, and its rounds.
  */
-export interface FightSeen { from: number; line: string; order: string; sides: string[]; arrived: string[]; rounds: number; to?: number; ended?: string }
+export interface FightSeen { from: number; line: string; sides: string; to?: number; ended?: string; rounds?: number }
 
 /**
  * The fights of a game, and the violence outside them: each blow rolled with no fight on (the
@@ -155,17 +156,17 @@ export function fightsOf(entries: GameRecord["entries"]): { fights: FightSeen[];
   const lineOf = (turn: number) => entries.find(e => e.turn === turn && e.kind === "player")?.text ?? "";
   let on: FightSeen | undefined;
   for (const e of entries) {
-    if (e.kind === "system" && e.text.startsWith("Combat! In initiative order: ")) {
-      const [order, ...rest] = e.text.slice("Combat! In initiative order: ".length).split(/(?<=\.) (?=Running|Keeping)/);
-      on = { from: e.turn, line: lineOf(e.turn), order: order!.replace(/\.$/, ""), sides: rest, arrived: [], rounds: 1 };
+    if (e.kind === "system" && e.text.startsWith("Roll for initiative! ")) {
+      on = { from: e.turn, line: lineOf(e.turn), sides: e.text.slice("Roll for initiative! ".length) };
       fights.push(on);
       continue;
     }
-    if (on && e.kind === "system") {
-      if (/^(Joining the fight|Running from it|Keeping clear of it): /.test(e.text)) on.sides.push(e.text);
-      else if (e.text.startsWith("Arriving: ")) on.arrived.push(`${e.text.slice("Arriving: ".length).replace(/\.$/, "")} (round ${on.rounds})`);
-      else if (/^Round \d+\.$/.test(e.text)) on.rounds = Number(e.text.match(/\d+/)![0]);
-      else if (e.text.startsWith("The fight is over (")) { on.to = e.turn; on.ended = e.text.slice("The fight is over (".length).replace(/\)\.$/, ""); on = undefined; }
+    if (on && e.kind === "system" && e.text.startsWith("The fight: ")) {
+      const rounds = /It took (\d+) rounds?\.\s*$/.exec(e.text);
+      on.to = e.turn;
+      on.ended = e.text.slice("The fight: ".length);
+      if (rounds) on.rounds = Number(rounds[1]);
+      on = undefined;
       continue;
     }
     if (!on && e.kind === "roll" && / attack on /.test(e.text) && /^[^:]+: your attack on /.test(e.text)) blows.push({ turn: e.turn, line: lineOf(e.turn), roll: e.text });

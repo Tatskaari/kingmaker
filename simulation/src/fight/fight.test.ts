@@ -328,7 +328,7 @@ test("a fight's end: the last of them down is a victory, its moment and how it w
   assert.match(result.summary, /^A bandit went down\. The player ended the fight on \d+ of \d+ hit points\. It took 1 round\./);
   assert.match(result.told ?? "", /^A bandit went down\. You ended the fight on \d+ of \d+ hit points\. It took 1 round\./, "and told to the player as theirs");
   // The map's moves wait for out; out goes back to the map, the fight done and its end the map's words.
-  assert.match(host.as(wren).interact({ verb: "look" })?.text ?? "", /The fight's over: out goes back to the map/);
+  assert.match(host.as(wren).interact({ verb: "look" })?.text ?? "", /The fight's over: out goes back\./);
   assert.equal(host.as(wren).walk({ toward: "out" }), undefined);
   assert.equal(fightNow(host, game.id).status, "done");
   assert.match(host.db.explore.playerId.find(playerId)!.said, /^A test: A bandit went down\. You ended the fight/);

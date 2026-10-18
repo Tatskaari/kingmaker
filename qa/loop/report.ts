@@ -137,10 +137,10 @@ function fightTable(games: GameStats[], titles: Record<string, string>): string 
       ...seen.blows.map(b => `t${b.turn}: ${esc(b.roll.replace(/: \d+.*$/, ""))} <span class="faint">(«${esc(b.line.slice(0, 90))}»)</span>`),
       ...seen.calledOnly.map(t => `t${t}: "Roll for initiative!" with no fight after it`),
     ];
-    const fights = seen.fights.map(f => `<tr>${game}<td class="n">t${f.from}${f.to !== undefined ? `–${f.to}` : ""}</td><td class="w">«${esc(f.line.slice(0, 140))}»</td><td class="w">${esc(f.order)}${f.sides.length ? `<br><span class="faint">${esc(f.sides.join(" "))}</span>` : ""}</td><td>${esc(f.arrived.join("; ") || "–")}</td><td class="n">${f.rounds}</td><td>${esc(f.ended ?? "not over")}</td></tr>`);
-    return [...fights, ...(outside.length ? [`<tr>${game}<td colspan="6" class="w"><span class="faint">Outside a fight:</span> ${outside.join("; ")}</td></tr>`] : [])];
+    const fights = seen.fights.map(f => `<tr>${game}<td class="n">t${f.from}${f.to !== undefined ? `–${f.to}` : ""}</td><td class="w">«${esc(f.line.slice(0, 140))}»</td><td class="w">${esc(f.sides)}</td><td class="n">${f.rounds ?? "–"}</td><td class="w">${esc(f.ended ?? "not over")}</td></tr>`);
+    return [...fights, ...(outside.length ? [`<tr>${game}<td colspan="5" class="w"><span class="faint">Outside a fight:</span> ${outside.join("; ")}</td></tr>`] : [])];
   });
-  return `<div class="scroll"><table class="data"><thead><tr><th>Game</th><th>Persona</th><th>Scene</th><th class="n">Turns</th><th>What brought it</th><th>The order, and the sides</th><th>Who came</th><th class="n">Rounds</th><th>How it ended</th></tr></thead><tbody>${rows.join("\n")}</tbody></table></div>`;
+  return `<div class="scroll"><table class="data"><thead><tr><th>Game</th><th>Persona</th><th>Scene</th><th class="n">Turns</th><th>What brought it</th><th>The sides</th><th class="n">Rounds</th><th>How it went</th></tr></thead><tbody>${rows.join("\n")}</tbody></table></div>`;
 }
 
 function gameTable(games: GameStats[], titles: Record<string, string>): string {

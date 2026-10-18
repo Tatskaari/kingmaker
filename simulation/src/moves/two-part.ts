@@ -28,7 +28,7 @@ import { syncStage } from "../world/stage.ts";
 import { keysIn, lookForNew } from "./looks.ts";
 import type { Next } from "./move.ts";
 import type { SayPlan } from "./plans.ts";
-import { combatTurnPlan, companionsHere, startCombat } from "./combat.ts";
+import { breakOut, companionsHere } from "./fight.ts";
 import { atTurn, beforeReply, endScene, noteReply, resolveAct, type At } from "./say-commits.ts";
 import { suggestAfter } from "./suggest.ts";
 
@@ -60,8 +60,6 @@ export function twoPartStart(tx: TxCtx, scene: SceneRow, graph: Scene, gm: GmSta
     ...(gm.closing ? { windDown: { exit: gm.closing.exitId } } : {}),
   };
   const rules = first?.directives.length ? { rulesFirst: { directives: first.directives, down: first.down, shielded: first.shielded } } : {};
-  // A fight on (docs/combat-gm.md): the line is the player's turn in it, the GM's to play through its tools.
-  if (gm.combat && !gm.closing) { putGm(tx, scene.id, gm); return combatTurnPlan(tx, { scene, graph, gm }, { ...base, ...rules, step: "combat", windDown: false, outcome, lines: outcome.lines }); }
   // An act is the rules' even as the scene closes (QA round hobo1-1018: a greataxe brought down on Hobb in the Rat's closing reply, told with no dice).
   const forced = turn.mechanic ? JSON.parse(turn.mechanic) as Mechanic : undefined;
   const resolved = forced ? resolveAct(tx, { scene, graph, gm }, { n: turn.n, input: line, ...rules }, forced, outcome) : undefined;
@@ -139,14 +137,14 @@ export function afterTwoPartReply(tx: TxCtx, plan: SayPlan, answer: ReplyRespons
   if (shown) arrivalsShown(tx, at, plan.n, turnId);
   noteHeard(tx, at.scene, at.graph);
 
-  // The reply rolled for initiative (docs/combat-gm.md): the fight takes the scene's turns from here.
-  // One that breaks out as the scene closes (its closing reply) reopens it: the fight plays out, and the co-GM judges the ending again after it.
+  // The reply rolled for initiative (docs/combat-gm.md): everyone takes a side, and the scene is at its fight, fought on the board.
+  // One that breaks out as the scene closes (its closing reply) reopens it: the fight is fought, and the co-GM judges the ending again after it.
   const fights = answer.initiative && (!answer.initiative.on?.length || (!!spoken.check && answer.initiative.on.includes(spoken.check.band)));
   const called = !answer.initiative && at.scene.kind !== "talk" ? calledInWords(tx, at, spoken.text) : undefined;
   if ((answer.initiative && fights) || called) {
     const closing = plan.outcome?.windDown ? reopen(tx, at, plan.n) : undefined;
     const fighting: SayPlan = closing ? { ...plan, windDown: false, outcome: { ...plan.outcome!, windDown: undefined } } : plan;
-    const started = startCombat(tx, at, { ...fighting, lines: [...plan.lines, ...spoken.lines] }, called ?? answer.initiative!);
+    const started = breakOut(tx, at, { ...fighting, lines: [...plan.lines, ...spoken.lines] }, called ?? answer.initiative!, "reply");
     if (started) return started;
     if (closing) closeAgain(tx, at, closing);
   }
@@ -165,7 +163,7 @@ export function afterTwoPartReply(tx: TxCtx, plan: SayPlan, answer: ReplyRespons
  * roll_for_initiative set (QA round toll2-1018: a badly failed Intimidation's outcome called for it,
  * and nothing started, twice in two rounds): the fight it called. One of the scene's prep on offer
  * (fightsAhead) is that one, its line-up the sides; otherwise nobody's side is known, and the GM picks
- * everyone's before the first turn (pick_sides), the companion beside the player.
+ * everyone's before it's fought (pick_sides), the companion beside the player.
  */
 function calledInWords(tx: TxCtx, at: At, text: string): Initiative | undefined {
   if (!/roll for initiative!?\W*$/i.test(text.trim())) return undefined;
@@ -274,11 +272,11 @@ export function afterTwoPartSettle(tx: TxCtx, plan: SayPlan, answer: SettleRespo
   tx.log(`[scene ${at.scene.id} turn ${plan.n}] settled: ${staged.changes.length} changed, ${staged.problems.length} not done; the co-GM ${moved}${at.gm.closing ? `; closing on ${at.gm.closing.exitId}` : ""}`);
 
   // The co-GM took the scene into an event with a fight (the Heron's blades out) the reply didn't
-  // start: it breaks out now, with the event's line-up (docs/combat-gm.md). Not a second this turn.
-  const fight = tp.moved && !at.gm.closing && !at.gm.combat && !plan.combat ? at.graph.beats.find(b => b.id === tp.moved && b.fight) : undefined;
+  // start: it breaks out now, with the event's line-up (docs/combat-gm.md).
+  const fight = tp.moved && !at.gm.closing && !at.gm.fight ? at.graph.beats.find(b => b.id === tp.moved && b.fight) : undefined;
   if (fight) {
     delete tp.moved;
-    const started = startCombat(tx, at, plan, { foes: [], allies: [], why: fight.title }, "settle");
+    const started = breakOut(tx, at, plan, { foes: [], allies: [], why: fight.title }, "settle");
     if (started) return started;
     putGm(tx, at.scene.id, at.gm);
   }

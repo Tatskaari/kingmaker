@@ -91,7 +91,7 @@ export async function joinGame(game: Backend, id: bigint, out: Out): Promise<num
 export function observe(game: Backend, out: Out): number {
   const rows = game.home();
   if (!rows.seat) return games(game, out);
-  // A fight (M6) is what's on screen while it's on, and its end until the player goes back to the map.
+  // A fight (M6) is what's on screen while it's on, and its end until the player goes back (to its scene, or to the map).
   const onTheBoard = game.fight?.();
   if (onTheBoard) { out.print(boardText(game, onTheBoard)); return 0; }
   if (rows.seat.sceneId === undefined) {
@@ -381,13 +381,13 @@ async function zooAgain(game: Backend, fight: FightView, zoo: ZooFight, how: { a
  */
 async function fightAct(game: Backend, fight: FightView, id: string, out: Out, waiting: Waiting): Promise<number> {
   if (fight.watching) return said(out, refusal("not_controller", { name: fight.watching }));
-  if (id === "out") return await outOfTheFight(game, fight, out);
+  if (id === "out") return await outOfTheFight(game, fight, out, waiting);
   const zoo = zooFightOf(fight, game.home());
   const zooing = zooAct(id, zoo);
   if (zoo && zooing) return await zooAgain(game, fight, zoo, zooing, out, waiting);
   const move = isFightAct(id) ? undefined : moveOf(id);
   if (!isFightAct(id) && !move) {
-    out.print(`(There's no ${id} in the fight: ${fight.status === "on" ? "observe lists the actions (walk@x,y, attack@x,y, cast_<spell>@x,y, dash, end_turn…)" : "it's over, and out goes back to the map"}.)`);
+    out.print(`(There's no ${id} in the fight: ${fight.status === "on" ? "observe lists the actions (walk@x,y, attack@x,y, cast_<spell>@x,y, dash, end_turn…)" : `it's over, and out goes back to the ${fight.board.scene ? "scene" : "map"}`}.)`);
     return 1;
   }
   const seen = fight.events.length ? fight.events[fight.events.length - 1]!.seq : 0;
@@ -400,9 +400,14 @@ async function fightAct(game: Backend, fight: FightView, id: string, out: Out, w
   return 0;
 }
 
-/** Back to the map from a fight that's over (walk out): the map as observe prints it, with what the fight came to. */
-async function outOfTheFight(game: Backend, fight: FightView, out: Out): Promise<number> {
+/**
+ * Out of a fight that's over (walk out): a scene's fight goes back to its scene, which picks up from
+ * how it went (the fight's end in its transcript, then the GM's aftermath, its lines in), printed as
+ * for a line said; any other, back to the map, the map as observe prints it with what the fight came to.
+ */
+async function outOfTheFight(game: Backend, fight: FightView, out: Out, waiting: Waiting = {}): Promise<number> {
   if (fight.status === "on") return said(out, refusal("not_now", { text: "(There's a fight on: see it through first.)" }));
+  if (fight.board.scene) return await backToTheScene(game, out, waiting);
   const before = game.explore()?.acts;
   const refused = await game.walk({ toward: OUT });
   if (refused) return said(out, refused);
@@ -493,18 +498,47 @@ export async function go(game: Backend, out: Out, waiting: Waiting = {}): Promis
 }
 
 /**
- * The fight's stand-in (act --id fight): fought out, as won (fight_it_out); then the scene picking
- * up from it (the stand-in's line and how it went, as the simulation writes them in the scene, then
- * the GM's aftermath, its lines in), as for a line said.
+ * On to the scene's fight (act --id fight, the card's "To the fight": fight_it_out): set out on the
+ * board, the other side's turns played up to the player's (or to its end), the fight as observe
+ * prints it, every moment so far with it (docs/combat-gm.md).
  */
 export async function fight(game: Backend, out: Out, waiting: Waiting = {}): Promise<number> {
   const view = game.view();
   if (!view) return notInGame(out);
   if (!view.fighting) return said(out, refusal("no_fight"));
-  const seen = view.entries.length;
+  const before = game.fight?.()?.id;
   const refused = await game.act("fightItOut", {});
   if (refused) return said(out, refused);
 
+  const board = await fightWhen(game, v => v.id !== before && (myTurn(v) || v.status !== "on"), waiting.ms ?? TURN_MS);
+  out.print(boardText(game, board, board.events));
+  return 0;
+}
+
+/**
+ * A scene's fight seen through by the dice (auto on the player's turns, hurry on the others'), then
+ * out, back to the scene, which picks up from how it went: the GM loop's, until its testers play
+ * fights themselves. The fight's end as the board said it, then what the scene said after it.
+ */
+export async function foughtOut(game: Backend, out: Out, waiting: Waiting = {}): Promise<number> {
+  for (let i = 0; i < 200; i++) {
+    const view = game.fight?.();
+    if (!view || view.status !== "on") break;
+    const seen = view.events.length;
+    await game.act("fightTurn", { act: view.options ? "auto" : "hurry" });
+    await fightWhen(game, v => v.status !== "on" || v.events.length > seen, waiting.ms ?? TURN_MS).catch(() => undefined);
+  }
+  const over = game.fight?.();
+  if (!over || over.status === "on") return said(out, refusal("not_now", { text: "(The fight didn't end.)" }));
+  return await outOfTheFight(game, over, out, waiting);
+}
+
+/** Out of a scene's fight: back to it, its transcript's new lines (how the fight went, the GM's aftermath) printed as for a line said, once the aftermath is in. */
+async function backToTheScene(game: Backend, out: Out, waiting: Waiting): Promise<number> {
+  const before = game.view();
+  const seen = before?.entries.length ?? 0;
+  const refused = await game.walk({ toward: OUT });
+  if (refused) return said(out, refused);
   const stream = streamTo(out, waiting);
   const picked = await viewWhen(game, v => !v.fighting && v.entries.length > seen && finished(v, waiting.settled ?? false), waiting.ms ?? TURN_MS, stream.see);
   stream.end(picked);

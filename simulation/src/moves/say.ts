@@ -1,5 +1,5 @@
 import type { Identity } from "spacetimedb";
-import type { ActResponse, CombatResponse, ReactionsResponse, ReplyResponse, SettleResponse } from "../../../shared/protocol/ai.ts";
+import type { ActResponse, ReactionsResponse, ReplyResponse, SettleResponse, SidesResponse } from "../../../shared/protocol/ai.ts";
 import { idText, playerSpeaker } from "../../../shared/protocol/keys.ts";
 import { MAX_LINE, refusal, type Refusal } from "../../../shared/protocol/refusals.ts";
 import { actorOf, runMove, type Actor, type TxCtx } from "../context.ts";
@@ -13,7 +13,7 @@ import { newTurn, queuedTurnOf } from "../turns.ts";
 import type { Move } from "./move.ts";
 import { seenOf } from "./open-scene.ts";
 import type { SayPlan } from "./plans.ts";
-import { afterCombat } from "./combat.ts";
+import { afterSides } from "./fight.ts";
 import { afterAct, afterReactions } from "./say-commits.ts";
 import { afterTwoPartReply, afterTwoPartSettle, twoPartStart } from "./two-part.ts";
 
@@ -57,7 +57,7 @@ export const say: Move<{ text: string }, SayPlan> = {
     if (plan.step === "act") return afterAct(tx, plan, answer as ActResponse);
     if (plan.step === "reactions") return afterReactions(tx, plan, answer as ReactionsResponse);
     if (plan.step === "reply") return afterTwoPartReply(tx, plan, answer as ReplyResponse);
-    if (plan.step === "combat") return afterCombat(tx, plan, answer as CombatResponse);
+    if (plan.step === "sides") return afterSides(tx, plan, answer as SidesResponse);
     return afterTwoPartSettle(tx, plan, answer as SettleResponse);
   },
 };

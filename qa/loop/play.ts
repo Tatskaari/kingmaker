@@ -191,7 +191,7 @@ async function handedOnOf(record: GameRecord, deps: PlayDeps): Promise<HandedOn 
 
 /**
  * A line played: said, its turn waited out (patiently: the GM busy, the in-flight cap, a turn that
- * failed), a fight it brings on fought out by the game's stand-in, then what answered it, as the
+ * failed), a fight it brings on fought out on the board by the dice, then what answered it, as the
  * player saw it, and where the game stands: the turn, or the scene's end, or the turn limit.
  */
 export async function say(config: LoopConfig, roundName: string, id: string, words: string, deps: PlayDeps): Promise<Played> {
@@ -268,7 +268,9 @@ async function playLine(conn: Backend, seen: Seen, words: string, record: GameRe
   const turn = newTurn(seen.view(), lines);
   if (turn === undefined) return { refused: out.printed.trim() || `(The line wasn't said: the game answered ${code}.)`, turn: -1 };
 
-  if (conn.view()?.fighting) await patiently(conn, () => verbs.fight(conn, QUIET, SETTLED), carryTurnOn, patience);
+  // A fight it brings on is set out on the board and seen through by the dice, then the scene picks up after it (docs/combat-gm.md).
+  if (conn.view()?.fighting && !conn.fight?.()) await patiently(conn, () => verbs.fight(conn, QUIET, SETTLED), carryTurnOn, patience);
+  if (conn.fight?.()) await patiently(conn, () => verbs.foughtOut(conn, QUIET, SETTLED), carryTurnOn, patience);
   record.turns[String(turn)] = turnLog(words, at, deps.now(), patience.waits, seen.view());
   return { turn };
 }
