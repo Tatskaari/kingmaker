@@ -102,8 +102,10 @@ export function FightPlay({ fight: model }: { fight: FightModel; surface?: Surfa
     model.emit();
   };
 
-  const header = over ? `It's over: ${OUTCOME[view.outcome ?? ""] ?? "it's done"}.` : view.watching ? `Watching ${view.watching}'s fight` : mine ? "YOUR TURN" : turnUnit ? `${cap(turnUnit.id === board.pc ? "your" : possessive(turnUnit.name))} turn` : "";
-  const sideTitle = over ? " It's over " : mine ? " Your turn " : turnUnit ? ` ${cap(turnUnit.id === board.pc ? "Your" : possessive(turnUnit.name))} turn ` : " The fight ";
+  // Whose turn, by what this player calls them: "your" for the player's own, by name to a spectator.
+  const whose = turnUnit ? (turnUnit.id === board.pc && !view.watching ? "your" : possessive(turnUnit.name)) : "";
+  const header = over ? `It's over: ${OUTCOME[view.outcome ?? ""] ?? "it's done"}.` : mine ? "YOUR TURN" : whose ? `${cap(whose)} turn` : "";
+  const sideTitle = over ? " It's over " : mine ? " Your turn " : whose ? ` ${cap(whose)} turn ` : " The fight ";
   const hot = mine && !over;
 
   return <box width={width} height={height} flexDirection="column" backgroundColor={C.bg}>
@@ -255,6 +257,7 @@ function SidePanel({ model, play, header, inner, rows, mine, over, othersPlaying
   const line = (key: string, node: ReactNode) => out.push(<text key={key} height={1} flexShrink={0}>{node}</text>);
   line("head", <span fg={over ? C.title : mine ? C.lead : C.text} attributes={BOLD}>{truncate(mine ? `▶ ${header}` : header, inner)}</span>);
   line("round", <span fg={C.dim}>{truncate(`Round ${play.round} · ${view.place}`, inner)}</span>);
+  if (view.watching) line("watching", <span fg={C.dim} attributes={ITALIC}>{truncate(`Watching ${view.watching}'s fight`, inner)}</span>);
   if (me && !view.watching) {
     const g = hpGauge(me.hp, me.maxHp, Math.max(4, Math.min(12, inner - 12)), glyphSet());
     line("hp", <><span fg={C.dim}>{"HP   "}</span><span fg={g.color}>{g.filled}</span><span fg={C.faint}>{g.empty}</span><span fg={C.text}>{` ${me.hp}/${me.maxHp}`}</span></>);
@@ -314,9 +317,10 @@ function BottomLine({ model, play, width, mine, over, othersPlaying }: { model: 
   const aimed = model.aimed();
   if (model.aim && aimed) {
     const n = model.aim.entry.options.length;
-    const what = `${aimed.label}`;
-    const keys = ` · Enter or click${n > 1 ? " · Tab next" : ""} · Esc cancel`;
-    return <text flexShrink={0} height={1}><span fg={C.title} attributes={BOLD}>{truncate(what, width)}</span><span fg={C.dim}>{truncate(keys, Math.max(0, width - what.length))}</span></text>;
+    // The keys first in what's left of a narrow line: what it'll do is cut short before they are.
+    const keys = width >= 100 ? ` · Enter or click${n > 1 ? " · Tab next" : ""} · Esc cancel` : ` · Enter${n > 1 ? " · Tab next" : ""} · Esc`;
+    const what = truncate(aimed.label, Math.max(10, width - keys.length));
+    return <text flexShrink={0} height={1}><span fg={C.title} attributes={BOLD}>{what}</span><span fg={C.dim}>{truncate(keys, Math.max(0, width - what.length))}</span></text>;
   }
   const hover = model.hover;
   if (hover && !model.menu) {

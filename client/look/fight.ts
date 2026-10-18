@@ -129,11 +129,10 @@ export function blast(fx: Effects, from: Tile2, at: Tile2, tiles: Tile2[], eleme
   else { fx.effect("shockwave", { at: feetOf(at), radius, color }, when + ms * 0.5); fx.effect("flash", { at: feetOf(at), radius: radius / 2, color }, when + ms * 0.5); }
 }
 
-/** A hit landing: sparks in the damage's colour, a flash of light, and the number popping up and drifting off them (a critical's with a !). */
+/** A hit landing: sparks in the damage's colour and the number popping up and drifting off them (a critical's with a !, and more sparks); the one hit flickers as it lands (hitFlash). */
 export function struck(fx: Effects, unit: string, at: Tile2, amount: number, type: string | undefined, critical: boolean, when: number): void {
   const color = DAMAGE_COLOR[type ?? ""] ?? "#ff5a4a";
-  fx.effect("sparks", { at: feetOf(at), color, amount: critical ? 2 : 1 }, when);
-  fx.effect("flash", { at: feetOf(at), radius: 6, color: "#fff4d0" }, when);
+  fx.effect("sparks", { at: feetOf(at), color, amount: critical ? 2.5 : 1 }, when);
   fx.float({ id: unit }, `${amount}${critical ? "!" : ""}`, { damage: type ?? "bludgeoning" }, when);
 }
 
