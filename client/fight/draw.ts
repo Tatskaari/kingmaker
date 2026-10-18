@@ -8,6 +8,8 @@ import type { Picks, RenderOptions, Viewport } from "../map/render.ts";
 import { renderXray } from "../map/xray.ts";
 import type { StyledLine } from "../ui/types.ts";
 import type { FightModel } from "./model.ts";
+import type { PlayFrame } from "./player.ts";
+import { scriptOf } from "./script.ts";
 
 export interface DrawOptions {
   /** The clock (ms) the frame is of. */
@@ -38,7 +40,7 @@ export function drawFight(model: FightModel, size: Viewport, options: DrawOption
     const a = propActor(p, map.id, carrier?.at);
     if (a) actors.push(a);
   }
-  const marks = marksOf(model, play.turn, play.stances, options.t, play.fresh);
+  const marks = marksOf(model, play, options.t);
   const aimed = model.aimed();
   const pc = play.stances[board.pc]?.at ?? board.units[board.pc]!.at;
   const acting = play.playing?.event.actor ? play.stances[play.playing.event.actor]?.at : undefined;
@@ -60,13 +62,20 @@ export function drawFight(model: FightModel, size: Viewport, options: DrawOption
 
 /**
  * The board's tints: whose turn it is (their tile breathing gold, brightest as their turn begins);
- * on the player's turn, the tiles they can walk to (blue) and those a walk to would draw a swing
- * (rust); while aiming, how far it reaches (a faint ring), who it could be aimed at, and the aimed
- * area's tiles in its element's colour.
+ * a spell's area as it plays (its tiles lit in its element's colour from its beat to the blast's
+ * landing); on the player's turn, the tiles they can walk to (blue) and those a walk to would draw a
+ * swing (rust); while aiming, how far it reaches (a faint ring), who it could be aimed at, and the
+ * aimed area's tiles in its element's colour.
  */
-function marksOf(model: FightModel, turn: string, stances: Record<string, { at: Tile2 }>, t: number, fresh: number): NonNullable<RenderOptions["marks"]> {
+export function marksOf(model: FightModel, play: PlayFrame, t: number): NonNullable<RenderOptions["marks"]> {
+  const { turn, stances, fresh } = play;
   const out = new Map<string, { at: Tile2; color: string }>();
   const put = (at: Tile2, color: string) => out.set(`${at.x},${at.y}`, { at: { ...at }, color });
+  const playing = play.playing;
+  if (playing && playing.event.kind === "cast" && playing.event.detail.area?.length && !model.reduced) {
+    const area = scriptOf(playing.event).beats.find(b => b.kind === "area");
+    if (area && playing.elapsed >= area.t && playing.elapsed < area.t + area.ms + 450) for (const a of playing.event.detail.area) put(a, areaTint(playing.event.detail.element, true));
+  }
   const o = model.options;
   if (o && model.canAct() && !model.player.busy(t)) {
     if (model.aim) {
