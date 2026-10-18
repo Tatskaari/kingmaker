@@ -169,3 +169,13 @@ test("the mouthpiece probe's after: a move to show as this checkout writes it, i
   assert.equal(movedAgain(clerk, cart)("The rules' directive."), "The rules' directive.", "no move to show, nothing made again");
 });
 
+test("the mouthpiece probe's view: the player where the round's world had them, for what's in their reach there", () => {
+  const game = { player: { name: "Nim", concept: "a halfling cutpurse" }, entries: [] };
+  // The clerk with its place, as the campaign installs it.
+  const placed = { ...clerk, world: JSON.parse(readFileSync(join(CAMPAIGNS, "caerwyn", "places", "granary-yard.json"), "utf8")) } as typeof clerk;
+  const note = "## The world right now\nThe yard behind the King's Granary: the player is in the tally loft (above the yard, inside the granary).\nThe player carries: nothing.";
+  const view = mouthpieceView(placed, () => undefined, [], "7", 9, game, note);
+  assert.equal(view.world!.entities.player!.parent, "loft");
+  assert.match(twoPartNow(placed, view, []), /## In the player's reach here\nThe player is in the tally loft/);
+  assert.notEqual(mouthpieceView(placed, () => undefined, [], "7", 9, game, "").world!.entities.player!.parent, "loft", "where the place starts them, with no world in the note");
+});

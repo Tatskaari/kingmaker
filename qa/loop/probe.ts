@@ -348,6 +348,11 @@ export function mouthpieceView(scene: Scene, story: (id: string) => Scene | unde
     const cast = presentCast(scene, view).map(c => ({ id: c.id, name: c.name, ...(c.members ? { members: c.members } : {}) }));
     view.world = buildWorld(scene.id, scene.world, cast, view.player);
     joinWorld(view.world, cast, 0);
+    // The player in the area the round's world had them in ("…: the player is in the tally loft (…)."), for what's in their reach there.
+    const where = /: the player is in (.+)\.$/m.exec(note)?.[1];
+    const area = Object.values(view.world.entities).find(e => e.kind === "area" && e.name === where);
+    const me = view.world.entities.player;
+    if (area && me) { me.parent = area.id; delete me.at; }
   }
   return view;
 }

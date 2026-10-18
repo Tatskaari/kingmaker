@@ -9,7 +9,7 @@ import { enteringAt, isDiscovery, isEvent, limitOf, openRoutes, reachedOf, reach
 import { presentCast } from "../../shared/scene/graph.ts";
 import { heardIn, namedIn } from "../../shared/scene/names.ts";
 import { SKILLS, type Beat, type Character, type Exit, type Scene, type SceneRoute, type Skill } from "../../shared/scene/types.ts";
-import { worldView } from "../../shared/world/scene-world.ts";
+import { areaOf, worldView } from "../../shared/world/scene-world.ts";
 import { PHYSICS } from "../../shared/world/systems.ts";
 import { gmNotes } from "../docs/notes.ts";
 import { respond, type CallContext, type Message } from "../llm/openrouter.ts";
@@ -83,7 +83,7 @@ Only words said aloud get a tag. Words written or printed (a page, a sign, an or
 const SEEN = `## What the player sees and hears
 Your narration is what the player character sees and hears, and nothing they haven't seen or been told. Your prep, the co-GM's notes, the world and your directions are the truth behind the screen: play everyone truly from all of it, but narrate only what's in front of the player.
 - Names: until someone says a name aloud where the player can hear it (or the player reads it, or says it), the narration calls that person what the player would. The per-turn note lists who, and what to call them. Someone who knows a name may say it in a line: that's how the player hears it.
-- What's hidden: what's out of the player's sight (in a fist, a pocket or a lining, behind something, behind a door or up in a loft they haven't got into) and what people are keeping back stays out of the narration until the player finds it, or someone shows or tells them of it. Don't name it, say where it is or that it's still hidden, or confirm or deny it from where the player can't see it. A fist that stays shut is a shut fist. Someone's tell can show (eyes going to the water butt, a hand that won't open), never what the tell is about. The per-turn note lists what's hidden right now.
+- What's hidden: what's out of the player's sight (in a fist, a pocket or a lining, behind something, behind a door or up in a loft they haven't got into) and what people are keeping back stays out of the narration until the player finds it, or someone shows or tells them of it. Don't name it, say where it is or that it's still hidden, or confirm or deny it from where the player can't see it. A fist that stays shut is a shut fist. Someone's tell can show (eyes going to the water butt, a hand that won't open), never what the tell is about. The per-turn note lists what's hidden right now. But what a place itself holds, where your prep's path through it has no dice, is for whoever gets there: they see it as written, meaning and all, even where someone's secret has it too.
 - The player's words: in their turn, what's in brackets or between asterisks is what their character does or thinks, not what they say aloud. People see what they do, and never hear what they only think, or their reasons: nobody answers, repeats or quotes those.
 - Your notes stay behind the screen. The narration shows what people do and say, never the game's workings in its own words: what a move has or hasn't earned, which lever is the right one, what someone's rules are, what the player should do next. Not "The promise has found the fear.", "rather than taking the decision from you" or "The shilling has bought no permission."
 - What would win someone over (a promise that answers their fear, a fair hand, a kindness, the right proof) is yours to know from their card, and it shows only in how they behave: what they want, test or haggle over, what they won't do yet. Nobody states their own terms or price unasked, or says their card's words for what would open them ("ask nice and you can look", "sit in, play fair, and tell me what becomes of him"): the player finds out by trying. Show it instead: a hand dealt to them, a look at how they play, a question about what they want with him. Answering an offer the player has made, they can haggle, or say what they're afraid of.
@@ -401,7 +401,7 @@ export function twoPartNow(scene: Scene, view: TurnView, directive: string[]): s
     ...[talkNotes(scene, view)].filter((m): m is string => !!m),
     ...(playerNow(view) ? [playerNow(view)!] : []),
     ...(view.world ? [`## The world right now\nWhere everyone and everything is, and what state it's in (ids in brackets). Keep to it, since it's updated after every reply: people and things are where it says, and what's destroyed, burning or gone stays that way until the story changes it. Details it doesn't list are yours to invent, consistent with it. It's as things stood before the player's turn: what the player does in it (shutting a book and buttoning it into their coat, picking something up, crossing the room) has happened by your reply, and the world catches up after it. It's the truth behind the screen, not what the player has seen: of what people carry, the player sees what's out in the open (worn, in hand, held up), and of the rest (in a pocket, a fist, a lining, a box) they know only what they've seen or been told.\n${PHYSICS}\n\n${worldView(view.world)}`] : []),
-    ...[hiddenNote(scene, view), holdersNote(scene, view), namesNote(unheardOf(scene, view)), asidesNote(view), clockNote(scene, view)].filter((n): n is string => !!n),
+    ...[hiddenNote(scene, view), reachNote(scene, view), holdersNote(scene, view), namesNote(unheardOf(scene, view)), asidesNote(view), clockNote(scene, view)].filter((n): n is string => !!n),
     ...(directive.length ? [`## For this reply\n${directive.join("\n\n")}`] : []),
   ];
   return parts.join("\n\n");
@@ -446,6 +446,26 @@ export function hiddenNote(scene: Scene, view: TurnView): string | undefined {
     ...(tells.length ? [`What shows of it is their tells, now and then when the moment suits (not every reply), never what a tell is about: a shut fist stays a shut fist, and a glance goes towards a place, not to the hidden thing there.\n${tells.join("\n")}`] : []),
   ].join("\n");
 }
+
+/**
+ * The clues of the place the world has the player in (QA round qa3-1018: in all three clerk games
+ * the loft's docker's knot, "not a knot a clerk would know", came out as "a compact, practiced
+ * knot", once with "nothing about it identifies the hand that tied it" in answer to exactly the
+ * right question; Cob's secret has the knot too, so the hidden list kept it back, and the stage
+ * manager wrote the invention into the world): each discovery's path via that place whose earn is
+ * no dice, being there being what earns it. Its clue is the player's, as written and with what it
+ * means, whatever a card's secret says; what else is there takes what its path says.
+ */
+export function reachNote(scene: Scene, view: TurnView): string | undefined {
+  const here = view.world ? areaOf(view.world, "player") : undefined;
+  if (!here) return undefined;
+  const clues = scene.beats.flatMap(b => (b.paths ?? []).filter(p => (p.via === here.id || placeName(p.via) === placeName(here.name)) && /^No dice\b/i.test(p.earn.trim())).map(p => `- ${p.clue}`));
+  if (!clues.length) return undefined;
+  return `## In the player's reach here\nThe player is in ${here.name}, and your prep's paths say being here is all these take: they're the player's, with no check. When the player looks, say them as your prep has them, meaning and all (what a thing is, and whose hand or trade it shows): that's what's there to be seen, not a conclusion drawn for them, and they aren't held back because someone's secret has them too. What else is here still takes what its path says (a closer look, a check).\n${clues.join("\n")}`;
+}
+
+/** A place as a path or the world names it, to match one to the other: "the tally loft (above the yard, inside the granary)" is "tally loft". */
+const placeName = (name: string) => name.replace(/\([^)]*\)/g, "").trim().toLowerCase().replace(/^(?:the|a|an)\s+/, "").replace(/\s+/g, " ");
 
 /**
  * Who here holds a required discovery the player hasn't reached (a path of it via them), so a

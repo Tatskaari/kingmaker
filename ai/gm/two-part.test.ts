@@ -13,12 +13,14 @@ import { loadScene } from "../../shared/scene/load.ts";
 import { parseScene } from "../../shared/scene/document.ts";
 import { CONFIDED, talkSceneId, TOLD } from "../../shared/scene/talk.ts";
 import { talkScene } from "./talk.ts";
+import type { PlaceFile } from "../../shared/scene/files.ts";
 import type { Scene } from "../../shared/scene/types.ts";
+import { buildWorld } from "../../shared/world/scene-world.ts";
 import { fakeFetch, readPrep, walkTo, type FakeOptions } from "../llm/fake-openrouter.ts";
 import type { CallContext } from "../llm/openrouter.ts";
 import { CAERWYN, viewAt } from "./fixtures.ts";
 import { playerNow } from "./brief.ts";
-import { clockNote, closingDirective, coGm, coGmInput, coGmInstructions, companionsOf, deniesItself, firstSentence, inReach, intoBad, intoBetter, mouthpieceInput, mouthpieceInstructions, movedDirective, movedText, narrationSoFar, prepOf, pressureOffered, replySchema, routeLine, saidLast, setUpEarlier, speak, tellOf, twoPartNow, unsaidIn } from "./two-part.ts";
+import { clockNote, closingDirective, coGm, coGmInput, coGmInstructions, companionsOf, deniesItself, firstSentence, inReach, intoBad, intoBetter, mouthpieceInput, mouthpieceInstructions, movedDirective, movedText, narrationSoFar, prepOf, pressureOffered, reachNote, replySchema, routeLine, saidLast, setUpEarlier, speak, tellOf, twoPartNow, unsaidIn } from "./two-part.ts";
 import type { Story } from "./story.ts";
 import type { TurnView } from "./view.ts";
 
@@ -175,6 +177,24 @@ test("the per-turn note: what's hidden from the player right now: the world's th
   assert.equal(firstSentence("His night work, if asked: the Heron ('It's the King's grain, sir. Everyone knows.'). Tonight's a loading night."), "His night work, if asked: the Heron ('It's the King's grain, sir. Everyone knows.').");
   assert.equal(firstSentence("If Kell says so, he answers: 'He did, Sergeant. I am the proper channels.' Then he goes."), "If Kell says so, he answers: 'He did, Sergeant. I am the proper channels.'");
   assert.equal(firstSentence("Sallow's cane is a sword-cane. Nobody knows."), "Sallow's cane is a sword-cane.", "an apostrophe isn't a quote");
+});
+
+test("the per-turn note: what the place the player is in holds, with no dice, is theirs, as written and with what it means, whatever a secret says (QA round qa3-1018: the loft's docker's knot)", () => {
+  const into = (view: TurnView, area: string) => { const me = view.world!.entities.player!; me.parent = area; delete me.at; return view; };
+  const loft = into(yard({ turn: 9 }), "loft");
+  const reach = reachNote(clerk, loft)!;
+  assert.match(reach, /^## In the player's reach here\nThe player is in the tally loft \(above the yard, inside the granary\), and your prep's paths say being here is all these take: they're the player's, with no check\. When the player looks, say them as your prep has them, meaning and all \(what a thing is, and whose hand or trade it shows\)/);
+  assert.match(reach, /they aren't held back because someone's secret has them too\. What else is here still takes what its path says \(a closer look, a check\)\.\n- A smashed lantern and spilled ink by the tally desk, heel scuffs in the grain dust from the desk to the hoist door, and the hoist rope tied off on its cleat with a docker's knot, not a knot a clerk would know\.$/);
+  assert.doesNotMatch(reach, /Royal Granary Roll/, "the book's entries take a look at it and a check, as their path says");
+  assert.match(twoPartNow(clerk, loft, []), /## Hidden from the player right now\n[\s\S]*- Cob: [^\n]*docker's knot[\s\S]*\n\n## In the player's reach here\n/, "after the secret that has it too, which it overrides");
+  assert.equal(reachNote(clerk, yard()), undefined, "from the yard, nothing of the loft's");
+  // The Heron's counting-box holds two: the Master's bag of new pennies, and the true book over Scrope's shoulder.
+  const heron = sceneFile("heron-warehouse");
+  const box = viewAt(heron, heron.start, { turn: 5 });
+  box.world = buildWorld(heron.id, JSON.parse(readFileSync(join(CAERWYN, "places", "heron.json"), "utf8")) as PlaceFile, [], box.player);
+  assert.deepEqual(reachNote(heron, into(box, "counting-box"))!.split("\n").filter(l => l.startsWith("- ")).map(l => l.slice(0, 40)), ["- A bag of new heron pennies on the cler", "- The book itself, open under the lamp o"]);
+  // The rule the note applies, for whoever gets somewhere the reply takes them.
+  assert.match(mouthpieceInstructions(clerk, yard()), /The per-turn note lists what's hidden right now\. But what a place itself holds, where your prep's path through it has no dice, is for whoever gets there: they see it as written, meaning and all, even where someone's secret has it too\./);
 });
 
 test("the per-turn note: whoever's here whose name the player hasn't heard, with what to call them, in full and then the short way", () => {
