@@ -35,6 +35,10 @@ Its files:
 | `maps/ring.kmmap` | the ring's tiles (a floor of style `sand`, stone walls, the pillars as one-tile walls, the gate as the way out) and the region that lays the ring's place over it |
 | `builds.json`, `looks.json` | who a visitor can be, and how the cast are drawn |
 
+### The Crakes' toll (`toll`)
+
+A fight in the conversation (docs/combat-gm.md): the Crake brothers have the ring's gate and want a shilling each to let you and Kell out. Pay, talk them down, or fight. If it comes to blows the GM rolls for initiative and narrates every turn, the dice deciding what lands, and the scene ends on how it went (talked out of it, paid, the Crakes beaten, beaten back). Open it as the ring is opened: `?zoo=toll`, `npm run play -- new --session <you> --zoo toll`, the title's zoo menu. It's played by the GM on real models (the fake GM never starts a fight). Its files are `scenes/toll.kmscene`, `places/toll.kmplace` and `maps/toll.kmmap`; the GM loop plays it as `--scene zoo/toll`, with its truth sheet in qa/loop/truth/toll.md.
+
 ## Making an exhibit
 
 1. A map (`maps/<id>.kmmap`) with a region that plays the exhibit's scene and lays its place (`sceneId` and `worldOrigin`).
@@ -42,7 +46,7 @@ Its files:
 3. A scene (`scenes/<id>.kmscene`) whose cast are the people, each with a `statblock` (an SRD statblock, or one of the fight's own: `sword-cane-duellist`, `river-bruiser`, `lantern-boy`, `porter`) and a `weapon`, and the notes on how they behave.
 4. An entry in the scenario's `exhibits`: its `id`, `title`, `description`, `scene`, and for a fight its `fight` (`allies` and `foes`). List the scene, place and map in the scenario too.
 
-Then `npm run campaign -- check campaigns/zoo` holds it to its files (everyone in each line-up is in the cast with a statblock, started by the place on a tile of their own that a person can stand on, playing a role the AI knows), and the dev stack installs it as it starts (or `npm run install-campaign -- campaigns/zoo` into a running one); the page takes it from its build (`npm run build:web`). The scenario's `gm` is `none`: no GM plays the zoo's scenes, so the install gives the AI service none of its words (it serves one campaign at a time, the story's).
+Then `npm run campaign -- check campaigns/zoo` holds it to its files (everyone in each line-up is in the cast with a statblock, started by the place on a tile of their own that a person can stand on, playing a role the AI knows), and the dev stack installs it as it starts (or `npm run install-campaign -- campaigns/zoo` into a running one); the page takes it from its build (`npm run build:web`). The scenario's `gm` is `two-part`: the GM plays its scene exhibits (the toll), so the install gives the AI service its words too, beside the story's (each game reads its own campaign's lore).
 
 The authoring plugin edits the ring's map, place and scene as it does Caerwyn's, and keeps the scenario's `exhibits` as it is (it has no editor for them yet: edit them as JSON).
 

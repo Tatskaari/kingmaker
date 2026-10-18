@@ -115,6 +115,15 @@ test("a fight only some of a check's outcomes start (toll1-1018: a bluff failed 
   }
 });
 
+test("a reply that calls for initiative in its words with no roll_for_initiative (toll2-1018) starts the fight anyway: everyone here against the player but the companion, who's beside them", async () => {
+  const { host, wren, scene, script } = await openedGame(7, "fighter", { asIs: true });
+  script.then("reply", { entries: [{ speaker: "gm", kind: "narration", text: "Cob spits. Roll for initiative!" }], gm: {}, firstTextMs: 3, usage } satisfies ReplyResponse);
+  assert.equal(host.as(wren).say({ text: "You little thief." }), undefined);
+  await host.drain();
+  const combat = sceneNow(host, scene.id).gm.combat!;
+  assert.deepEqual(Object.fromEntries(combat.order.map(f => [f.id, f.side])), { player: "party", kell: "party", cob: "foes", moll: "foes" });
+});
+
 test("a fight that breaks out on the player's own blow (toll1-1018: a rapier run in at arm's length left the world's player 25 feet off) starts with them beside its target", async () => {
   const { line, asked, script } = await fight(closeAndHit);
   script.then("act", { mechanic: { kind: "attack", target: "cob" }, usage });
