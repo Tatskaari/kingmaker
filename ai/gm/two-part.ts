@@ -380,8 +380,8 @@ export function mouthpieceInstructions(scene: Scene, view: TurnView): string {
  * sat there a while (offered once: `offered`), the routes open now (a dice route with its check,
  * which the mouthpiece calls as the route says), what's settled (and in a talk, the GM's notes on
  * the companion: talk.ts talkNotes), the player's state, the world, what's hidden from the player
- * right now, the names they haven't heard, what in their turn they did or thought rather than said;
- * the reply's directives last.
+ * right now, the names they haven't heard, what in their turn they did or thought rather than said,
+ * and the clock when a sign of it is due; the reply's directives last.
  */
 export function twoPartNow(scene: Scene, view: TurnView, directive: string[]): string {
   const stage = stageOf(scene, view);
@@ -396,10 +396,27 @@ export function twoPartNow(scene: Scene, view: TurnView, directive: string[]): s
     ...[talkNotes(scene, view)].filter((m): m is string => !!m),
     ...(playerNow(view) ? [playerNow(view)!] : []),
     ...(view.world ? [`## The world right now\nWhere everyone and everything is, and what state it's in (ids in brackets). Keep to it, since it's updated after every reply: people and things are where it says, and what's destroyed, burning or gone stays that way until the story changes it. Details it doesn't list are yours to invent, consistent with it. It's as things stood before the player's turn: what the player does in it (shutting a book and buttoning it into their coat, picking something up, crossing the room) has happened by your reply, and the world catches up after it. It's the truth behind the screen, not what the player has seen: of what people carry, the player sees what's out in the open (worn, in hand, held up), and of the rest (in a pocket, a fist, a lining, a box) they know only what they've seen or been told.\n${PHYSICS}\n\n${worldView(view.world)}`] : []),
-    ...[hiddenNote(scene, view), holdersNote(scene, view), namesNote(unheardOf(scene, view)), asidesNote(view)].filter((n): n is string => !!n),
+    ...[hiddenNote(scene, view), holdersNote(scene, view), namesNote(unheardOf(scene, view)), asidesNote(view), clockNote(scene, view)].filter((n): n is string => !!n),
     ...(directive.length ? [`## For this reply\n${directive.join("\n\n")}`] : []),
   ];
   return parts.join("\n\n");
+}
+
+/**
+ * The scene's clock felt moving on, a sign at a time (QA round qa3-1018: noon and the dead-cart,
+ * and the Rat's eleventh bell, came with no sign of the morning or the night moving on since the
+ * opening, though the prep's clock says how they're felt): while an open cue's outer limit is
+ * running, every third reply into the scene and every reply from the one before a limit runs out,
+ * one new sign of it, in passing. Not at the opening, whose start says how the clock is first given.
+ */
+export function clockNote(scene: Scene, view: TurnView): string | undefined {
+  if (!scene.clock || view.closing || view.turn < 1) return undefined;
+  // The counts as this reply has them (limitOf reads them after the reply before: the next is this one).
+  const running = openRoutes(scene, view).flatMap(r => limitOf(r, view, view.turn - 1)?.counts ?? []).filter(c => c.next !== undefined && !c.stopped);
+  if (!running.length) return undefined;
+  const near = running.some(c => c.exchanges - c.next! <= 1);
+  if (view.turn % 3 !== 0 && !near) return undefined;
+  return `## The clock\n${scene.clock}\nShow it moving on in this reply by one sign, the next step of it: in passing (a clause or a line), never a sign already shown, and never the moment itself.`;
 }
 
 /**
@@ -640,13 +657,46 @@ export function narrationOf(raw: string): { text: string; done: boolean } | unde
  * corporal and his cart were simply in the lane, never seen coming. One the story has already
  * played (a role brought it about before the co-GM took its route) isn't played again: in QA round
  * qa1-1018 Arlo made his third challenge twice, once by his role and again when it was moved to.
+ * QA round qa3-1018 had events land abruptly or not at all: the Master's entrance, his climb and his
+ * look at the page crammed onto the tail of the player's bargain with the clerk, with the warning
+ * the player had posted Kell to give skipped, and twice the corporal and his constables simply
+ * there, never seen coming in. So the event is a beat of its own, opened on or given its own
+ * paragraph; what the player set up for it plays as they set it; and the reply ends on it, on what
+ * the newcomers do first, for the player to answer.
  */
 export function movedDirective(scene: Scene, view: TurnView): string | undefined {
   const moved = view.twoPart.moved;
   const stage = stageOf(scene, view);
   if (!moved || moved !== stage.id) return undefined;
   const arriving = enteringAt(scene, stage.id).map(c => c.called ?? c.name);
-  return `The scene has just moved on to "${stage.title}": ${stage.direction} Answer the player's turn first; then let it show in this reply${arriving.length ? `: ${arriving.join(" and ")} arrive${arriving.length === 1 ? "s" : ""} now, seen arriving` : ""}. If an earlier reply has already played it, it has happened: go on from it, and don't play it again.`;
+  const show = arriving.length
+    ? `${listOf(arriving)} ${arriving.length === 1 ? "comes" : "come"} in now, seen arriving even where the player's turn already speaks of them: by which way, how, and the first thing they do`
+    : "what the player sees and hears of it first";
+  const asked = setUpEarlier(view);
+  const setUp = asked.length
+    ? `The player set something up earlier: ${asked.join(" ")} If that was for this moment, it happens as they set it up, and whoever they asked does it`
+    : "If the player set something up for this moment (asked someone to watch for it or warn them, posted a lookout, agreed a signal, laid a trap), it happens as they set it up, and whoever they asked does it";
+  return `The scene has just moved on to "${stage.title}": ${stage.direction} This reply gives it a beat of its own, and ends on it: answer the player's turn first, briefly, if it needs an answer, then the event in a paragraph of its own, last (or open on it, when it's the answer); never folded into the end of something else. Show it happening: ${show}. ${setUp} (a whistle, a knock on the glass, a word at the door): the warning reaches the player first, while the newcomers are still coming, and the reply can stop on it, for the player to act on. Then stop, and leave the player to answer it: the rest of what it brings (what the newcomers came to do, everyone else's answer to it, the rest of the player's own business) is for the replies after. If an earlier reply has already played it, it has happened: go on from it, and don't play it again.`;
+}
+
+/** Words of the player's that ask to be warned or set a signal: "If the Master comes, I want to know", "warn me", "give a whistle". */
+const ASKS_WARNING = /\b(?:warn me|(?:give|send) (?:me )?(?:a |the )?(?:signal|whistle|shout|word)|(?:signal|whistle|shout|call out) (?:to me |for me )?(?:if|when)|tell me (?:if|when|the moment)|let me know|I want to know|if (?:he|she|they|anyone|anybody|someone|somebody|(?:the|a|an|your) [\w’'-]+) (?:comes?|shows?|arrives?|turns? up|appears?))\b/i;
+
+/**
+ * What the player set up earlier in the scene for someone to warn them (QA round qa3-1018: "If the
+ * Master comes, I want to know before he's through it", said to Kell at turn 2, and his entrance at
+ * turn 6 came with no word from her in the round or in nine tries of the directive's general
+ * words): each line of theirs that asks for it, the last two, up to the end of the sentence that
+ * does, quoted with its turn for the moved directive.
+ */
+export function setUpEarlier(view: TurnView): string[] {
+  const lines = sceneEntries(view).filter(e => e.kind === "player" && e.turn < view.turn && ASKS_WARNING.test(e.text));
+  return lines.slice(-2).map(e => {
+    const m = ASKS_WARNING.exec(e.text)!;
+    const end = e.text.slice(m.index).search(/[.!?)](?=\s|$)/);
+    const said = (end < 0 ? e.text : e.text.slice(0, m.index + end + 1)).trim();
+    return `(turn ${e.turn}) "${said.length > 240 ? `…${said.slice(-239)}` : said}"`;
+  });
 }
 
 /**

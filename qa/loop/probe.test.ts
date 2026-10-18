@@ -6,8 +6,9 @@ import { effectiveScene } from "../../shared/scene/graph.ts";
 import { loadScene } from "../../shared/scene/load.ts";
 import { CAMPAIGNS } from "./paths.ts";
 import { mouthpieceRules, twoPartNow } from "../../ai/gm/two-part.ts";
+import type { TurnView } from "../../ai/gm/view.ts";
 import { initialGm } from "../../shared/gm/state.ts";
-import { afterReply, asOpen, checkOf, mouthpieceRequest, mouthpieceView, partsOf, probeTurn, rolesAfter, splicedNote, stateBefore, swapped, transcriptOf, wasTaken, type LoggedCall } from "./probe.ts";
+import { afterReply, asOpen, checkOf, mouthpieceRequest, mouthpieceView, movedAgain, partsOf, probeTurn, rolesAfter, splicedNote, stateBefore, swapped, transcriptOf, wasTaken, type LoggedCall } from "./probe.ts";
 
 /** The co-GM's probe (qa/loop/probe.ts) on a round's call log, here a made-up one of the campaign's clerk. */
 
@@ -143,3 +144,16 @@ test("the mouthpiece's request on a round's turn: as the round sent it, and with
   assert.equal(after.mayHold, false);
   assert.throws(() => mouthpieceRequest(scene, () => undefined, logged, "7", 2, game, "after"), /no mouthpiece call on turn 2/);
 });
+
+// --- QA round qa3-1018's fixes
+
+test("the mouthpiece probe's after: a move to show as this checkout writes it, in place of the round's", () => {
+  const cart = { ...mouthpieceView(clerk, () => undefined, [], "7", 9, { player: { name: "Nim", concept: "a halfling cutpurse" }, entries: [] }, ""), reached: ["start", "cart-arrives"], beat: "cart-arrives" } as TurnView;
+  const directives = "The rules' directive.\n\nThe scene has just moved on to \"The dead-cart arrives\": Tull comes. Answer the player's turn first; then let it show in this reply: the corporal arrives now, seen arriving. If an earlier reply has already played it, it has happened: go on from it, and don't play it again.";
+  const again = movedAgain(clerk, cart)(directives);
+  assert.ok(again.startsWith("The rules' directive.\n\nThe scene has just moved on to \"The dead-cart arrives\": Corporal Tull arrives"));
+  assert.match(again, /This reply gives it a beat of its own, and ends on it[\s\S]*don't play it again\.$/);
+  assert.doesNotMatch(again, /Answer the player's turn first; then let it show/);
+  assert.equal(movedAgain(clerk, cart)("The rules' directive."), "The rules' directive.", "no move to show, nothing made again");
+});
+

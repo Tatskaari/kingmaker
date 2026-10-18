@@ -18,7 +18,7 @@ import { fakeFetch, readPrep, walkTo, type FakeOptions } from "../llm/fake-openr
 import type { CallContext } from "../llm/openrouter.ts";
 import { CAERWYN, viewAt } from "./fixtures.ts";
 import { playerNow } from "./brief.ts";
-import { closingDirective, coGm, coGmInput, coGmInstructions, companionsOf, deniesItself, firstSentence, inReach, intoBad, intoBetter, mouthpieceInput, mouthpieceInstructions, movedDirective, movedText, narrationSoFar, prepOf, pressureOffered, routeLine, saidLast, speak, tellOf, twoPartNow, unsaidIn } from "./two-part.ts";
+import { clockNote, closingDirective, coGm, coGmInput, coGmInstructions, companionsOf, deniesItself, firstSentence, inReach, intoBad, intoBetter, mouthpieceInput, mouthpieceInstructions, movedDirective, movedText, narrationSoFar, prepOf, pressureOffered, routeLine, saidLast, setUpEarlier, speak, tellOf, twoPartNow, unsaidIn } from "./two-part.ts";
 import type { Story } from "./story.ts";
 import type { TurnView } from "./view.ts";
 
@@ -82,12 +82,37 @@ test("the GM's earlier replies are as the player read them: the dice line and th
   assert.equal(answered, "You step closer. [Sergeant Agnes Kell] “Careful,” Kell says.\n\n🎲 Medicine check: 14 + 3 = 17 vs DC 12: success (cleanly).\n\nA thin cord mark crosses his throat.");
 });
 
-test("once the co-GM has moved the scene on, the next reply shows it, with whoever it brings on seen arriving", () => {
+test("once the co-GM has moved the scene on, the next reply gives it a beat of its own and ends on it, whoever it brings on seen arriving and what the player set up for it played as they set it (QA round qa3-1018)", () => {
   const view = yard({ reached: ["start", "cart-arrives"], beat: "cart-arrives" });
   assert.equal(movedDirective(clerk, view), undefined, "nothing to show until the co-GM has moved it");
   view.twoPart.moved = "cart-arrives";
-  assert.match(movedDirective(clerk, view)!, /moved on to "The dead-cart arrives"[\s\S]*the corporal with the dead-cart's order arrives now, seen arriving|moved on to "The dead-cart arrives"[\s\S]*arrives now, seen arriving/);
-  assert.match(movedDirective(clerk, view)!, /seen arriving\. If an earlier reply has already played it, it has happened: go on from it, and don't play it again\.$/, "a move the story had already played (Arlo's third challenge, qa1-1018 g08) isn't played twice");
+  const moved = movedDirective(clerk, view)!;
+  assert.match(moved, /^The scene has just moved on to "The dead-cart arrives": Corporal Tull arrives with the dead-cart/);
+  assert.match(moved, /This reply gives it a beat of its own, and ends on it: answer the player's turn first, briefly, if it needs an answer, then the event in a paragraph of its own, last \(or open on it, when it's the answer\); never folded into the end of something else\./);
+  assert.match(moved, /Show it happening: the corporal comes in now, seen arriving even where the player's turn already speaks of them: by which way, how, and the first thing they do\./);
+  assert.match(moved, /If the player set something up for this moment \(asked someone to watch for it or warn them, posted a lookout, agreed a signal, laid a trap\), it happens as they set it up, and whoever they asked does it \(a whistle, a knock on the glass, a word at the door\): the warning reaches the player first, while the newcomers are still coming/);
+  assert.match(moved, /Then stop, and leave the player to answer it: the rest of what it brings \(what the newcomers came to do, everyone else's answer to it, the rest of the player's own business\) is for the replies after\./);
+  assert.match(moved, /If an earlier reply has already played it, it has happened: go on from it, and don't play it again\.$/, "a move the story had already played (Arlo's third challenge, qa1-1018 g08) isn't played twice");
+  // What the player set up for it, in their words (g02 at the Heron: Kell posted at turn 2 to warn of the Master, who came at turn 6 with no word from her).
+  view.turn = 4;
+  view.transcript.push(
+    { turn: 2, scene: "hanged-clerk", speaker: "player", kind: "player", text: "(low, to Kell) Stay by the gate and watch the lane. If the corporal comes, I want to know before he's through it. (then, to the boy) Nice boots." },
+    { turn: 3, scene: "hanged-clerk", speaker: "player", kind: "player", text: "(I watch the loft door.) I warn you, lad, I'm patient." },
+  );
+  assert.match(movedDirective(clerk, view)!, /The player set something up earlier: \(turn 2\) "\(low, to Kell\) Stay by the gate and watch the lane\. If the corporal comes, I want to know before he's through it\." If that was for this moment, it happens as they set it up, and whoever they asked does it/);
+  assert.deepEqual(setUpEarlier(view), [`(turn 2) "(low, to Kell) Stay by the gate and watch the lane. If the corporal comes, I want to know before he's through it."`], "watching and warning someone off aren't asking to be warned");
+});
+
+test("the clock felt moving on, a sign at a time: every third reply while a cue's outer limit runs, and every reply from the one before it runs out; never at the opening, once nothing's running, or on a closing (QA round qa3-1018)", () => {
+  const due = (turn: number, extra: Partial<TurnView> = {}) => clockNote(clerk, yard({ turn, ...extra }));
+  assert.equal(due(0), undefined, "the opening gives the clock as its start says");
+  assert.deepEqual([1, 2, 4, 5, 7, 8, 10].map(t => due(t)), Array(7).fill(undefined));
+  assert.match(due(3)!, /^## The clock\nThe dead-cart is due at the noon bell\.[\s\S]*\nShow it moving on in this reply by one sign, the next step of it: in passing \(a clause or a line\), never a sign already shown, and never the moment itself\.$/);
+  assert.ok(due(6) && due(9) && due(11) && due(13), "every third, then from the reply before the cart's twelve runs out, overdue or not");
+  assert.equal(due(6, { reached: ["start", "cart-arrives"], beat: "cart-arrives" }), undefined, "the cart come, no cue is running");
+  assert.equal(due(6, { closing: { exitId: "murder-unknown", turn: 5 } }), undefined, "the scene closing");
+  assert.match(twoPartNow(clerk, yard({ turn: 3 }), ["Do the thing."]), /\n\n## The clock\n[\s\S]*\n\n## For this reply\nDo the thing\.$/, "last before the directives");
+  assert.doesNotMatch(twoPartNow(clerk, yard({ turn: 4 }), []), /## The clock/);
 });
 
 test("the prep in the design's order: the scene (its truth and clock, what locals know, the player), where it starts, the discoveries with their paths, the events, the endings; never the people, the old endings or the table rules", () => {

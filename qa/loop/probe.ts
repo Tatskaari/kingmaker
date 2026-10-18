@@ -1,13 +1,13 @@
 // New (the fixes from QA round qa1-1018): the two-part GM's co-GM replayed on a round's own games, with the code as it is now. QA round qa2-1018's fixes added a turn's reply asked again first (--reply), moves left out of the rebuilt bookkeeping (--drop) and the roles each try set; and its mouthpiece, as the round sent it and as this checkout would (--mouthpiece).
 import { titleCase } from "../../shared/dice.ts";
-import { closingDirective, coGm, mouthpieceRules, replySchema, routeLine, twoPartNow } from "../../ai/gm/two-part.ts";
+import { closingDirective, coGm, mouthpieceRules, movedDirective, replySchema, routeLine, twoPartNow } from "../../ai/gm/two-part.ts";
 import type { Story } from "../../ai/gm/story.ts";
 import type { TurnView } from "../../ai/gm/view.ts";
 import { respond, type CallContext, type Message } from "../../ai/llm/openrouter.ts";
 import { initialGm, type GmState, type TwoPartRole } from "../../shared/gm/state.ts";
 import { BANDS, BAND_NAME, bandOf, type Band } from "../../shared/gm/two-part.ts";
 import type { CoGmAnswer, TurnCheck } from "../../shared/protocol/ai.ts";
-import { openRoutes, reachedOf, takeRoute, type RouteOutcome } from "../../shared/scene/beats.ts";
+import { openRoutes, reachedOf, stageOf, takeRoute, type RouteOutcome } from "../../shared/scene/beats.ts";
 import { presentCast } from "../../shared/scene/graph.ts";
 import type { Scene, SceneRoute } from "../../shared/scene/types.ts";
 import { buildWorld, joinWorld } from "../../shared/world/scene-world.ts";
@@ -326,6 +326,11 @@ export function mouthpieceView(scene: Scene, story: (id: string) => Scene | unde
   return view;
 }
 
+/** A move to show as this checkout writes it, in place of the round's ("The scene has just moved on to …"), for the stage the rebuilt view is at (QA round qa3-1018's fixes rewrote it). */
+export function movedAgain(scene: Scene, view: TurnView): (directives: string) => string {
+  return directives => directives.replace(/The scene has just moved on to "[^"\n]*":[\s\S]*?don't play it again\./, round => movedDirective(scene, { ...view, twoPart: { ...view.twoPart, moved: stageOf(scene, view).id } }) ?? round);
+}
+
 /** A closing's directive as this checkout writes it, from the round's: its ending (by what's true there), whether it may wait, and the lines its last reply said. */
 export function closingAgain(scene: Scene): (directives: string) => string {
   return directives => directives.replace(/(^|\n)((?:This reply closes the scene|The scene is ending): [^\n]*)/, (all, before: string, directive: string) => {
@@ -351,7 +356,8 @@ export function mouthpieceRequest(scene: Scene, story: (id: string) => Scene | u
   const view = mouthpieceView(scene, story, calls, sceneRow, turn, game, note);
   const cut = logged.instructions.indexOf("\n\n## How to reply");
   const instructions = `${cut < 0 ? logged.instructions : logged.instructions.slice(0, cut)}\n\n${mouthpieceRules(scene, view)}`;
-  if (last >= 0) input[last] = { role: "system", content: splicedNote(note, twoPartNow(scene, view, []), closingAgain(scene)) };
+  const closing = closingAgain(scene), moved = movedAgain(scene, view);
+  if (last >= 0) input[last] = { role: "system", content: splicedNote(note, twoPartNow(scene, view, []), d => moved(closing(d))) };
   return { instructions, input, mayHold };
 }
 

@@ -90,7 +90,7 @@ export async function theCoGmSteers(stack: Stack, root: string, a: Player, game:
   await doneTurn(a, after);
   const shown = modelInput(root, game, "two-part.reply", keyOf(game, after, "reply"));
   const done = await gmOf(stack, game);
-  check("the reply after the move was told to show it, Tull seen arriving; shown, it's done with", /The scene has just moved on to "[^"]+": [\s\S]*arrives now, seen arriving/.test(shown) && done.twoPart.moved === undefined);
+  check("the reply after the move was told to show it, Tull seen arriving; shown, it's done with", /The scene has just moved on to "[^"]+": [\s\S]*comes in now, seen arriving/.test(shown) && done.twoPart.moved === undefined);
 }
 
 /**
