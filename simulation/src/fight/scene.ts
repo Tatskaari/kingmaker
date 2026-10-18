@@ -65,7 +65,8 @@ export function sceneFightSetup(tx: TxCtx, scene: SceneRow, graph: Scene, fight:
   const heard = { transcript: entriesOf(tx, scene.id) };
   const npcs = npcsOf(tx, scene.controllerId);
   const taken = new Set<string>();
-  const tileFor = (p: Point | undefined, near?: Tile2) => freeTile(board.tiles, p ? feetToTile(board.region, p) : near ?? board.region.rect, taken);
+  const area = partOf(board) ? { ...board.region.rect } : undefined;
+  const tileFor = (p: Point | undefined, near?: Tile2) => freeTile(board.tiles, p ? feetToTile(board.region, p) : near ?? board.region.rect, taken, area);
 
   const me = Object.values(world.entities).find(e => e.player);
   const start = tileFor(me ? positionOf(world, me.id) : undefined);
@@ -96,15 +97,15 @@ export function sceneFightSetup(tx: TxCtx, scene: SceneRow, graph: Scene, fight:
     const due = r.after + 1;
     const way = ways[0]?.at ?? start;
     const why = r.why.trim();
-    const who: Array<{ id: string; name: string; statblock?: string; weapon?: string }> = card
+    const who: Array<{ id: string; name: string; statblock?: string; weapon?: string; plural?: boolean }> = card
       ? [{ id: card.id, name: nameOf(graph, world, heard, card.id, card), ...(card.statblock ? { statblock: card.statblock } : {}), ...(card.weapon ? { weapon: card.weapon } : {}) },
         ...(card.members ?? []).map(m => ({ id: m.id, name: m.name, ...(m.statblock ? { statblock: m.statblock } : {}), ...(m.weapon ? { weapon: m.weapon } : {}) }))]
-      : [{ id: r.id, name: r.name ?? r.id, ...(r.statblock ? { statblock: r.statblock } : {}), ...(r.weapon ? { weapon: r.weapon } : {}) }];
+      : [{ id: r.id, name: r.name ?? r.id, ...(r.statblock ? { statblock: r.statblock } : {}), ...(r.weapon ? { weapon: r.weapon } : {}), ...(/[^s]s$/i.test((r.name ?? "").split(" ").slice(-1)[0] ?? "") ? { plural: true } : {}) }];
     for (const w of who) {
       combatants.push({
         id: w.id, castId: w.id, name: w.name, side: SIDE[side], role: side === "with" ? "ally" : !w.statblock || w.statblock === "commoner" ? "brawler" : "bruiser",
         ...(w.statblock ? { statblock: w.statblock } : {}), ...(w.weapon ? { weapon: w.weapon } : {}), ...(npcs[w.id] ? { engine: { ...npcs[w.id]! } } : {}),
-        at: { ...way }, due, ...(why ? { why } : {}),
+        at: { ...way }, due, ...(why ? { why } : {}), ...(w.plural ? { plural: true } : {}),
       });
     }
   }
@@ -119,6 +120,7 @@ export function sceneFightSetup(tx: TxCtx, scene: SceneRow, graph: Scene, fight:
     ...nonEmpty("dust", dust),
     ...nonEmpty("fuel", [...fuelOf(world, board.region), ...dust]),
     exits: ways,
+    ...(area ? { area } : {}),
     keep: true,
     scene: idText(scene.id),
     ...(graph.time ? { time: graph.time } : {}),
@@ -169,14 +171,17 @@ function roleOf(graph: Scene, who: Character, side: FightSide, against: Readonly
   return !who.statblock || who.statblock === "commoner" ? "brawler" : "bruiser";
 }
 
-/** The nearest tile to `want` that someone can stand on and nobody else has: a step round, then further. */
-function freeTile(map: TileMap, want: Tile2 | PlaceRegion["rect"], taken: Set<string>): Tile2 {
+/** Whether the place is a region of a bigger map (the granary yard on the town's), not the map itself. */
+const partOf = (board: SceneBoard) => board.region.rect.w * board.region.rect.h < 0.8 * board.tiles.width * board.tiles.height;
+
+/** The nearest tile to `want` that someone can stand on and nobody else has (in the place's area, when it's part of a bigger map): a step round, then further. */
+function freeTile(map: TileMap, want: Tile2 | PlaceRegion["rect"], taken: Set<string>, area?: PlaceRegion["rect"]): Tile2 {
   const first = "w" in want ? { x: want.x + Math.floor(want.w / 2), y: want.y + Math.floor(want.h / 2) } : want;
   const queue: Tile2[] = [{ x: Math.max(0, Math.min(map.width - 1, first.x)), y: Math.max(0, Math.min(map.height - 1, first.y)) }];
   const seen = new Set<string>([key(queue[0]!)]);
   for (let i = 0; i < queue.length && i < map.width * map.height; i++) {
     const t = queue[i]!;
-    if (!solid(map, t) && !taken.has(key(t)) && map.tiles[t.y]?.[t.x]?.terrain !== "water") { taken.add(key(t)); return t; }
+    if (!solid(map, t) && !taken.has(key(t)) && map.tiles[t.y]?.[t.x]?.terrain !== "water" && (!area || inRect(area, t))) { taken.add(key(t)); return t; }
     for (const n of neighbours(map, t)) if (!seen.has(key(n))) { seen.add(key(n)); queue.push(n); }
   }
   return queue[0]!;
@@ -191,7 +196,7 @@ function waysOut(board: SceneBoard): Array<{ at: Tile2; label: string }> {
   const { tiles: map, file, region } = board;
   const own = file.exits.filter(e => !solid(map, e.at)).map(e => ({ at: { ...e.at }, label: e.label }));
   const r = region.rect;
-  if (r.w * r.h >= 0.8 * map.width * map.height) return own;
+  if (!partOf(board)) return own;
   const out = new Map<string, Tile2>();
   for (let x = r.x; x < r.x + r.w; x++) {
     for (let y = r.y; y < r.y + r.h; y++) {

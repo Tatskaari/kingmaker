@@ -58,6 +58,8 @@ export interface Unit {
   why?: string;
   /** Running from it but never out of the place (one the story needs): they hide from it on the board. */
   stays?: boolean;
+  /** A group fought as one (the granary porters): its captions say "the porters swing". */
+  plural?: boolean;
 }
 
 export interface Prop {
@@ -136,6 +138,8 @@ export interface FightBoard {
   scene?: string;
   /** The setup's: a fight that broke out on the town's map, whose people take how it went once the player is out. */
   town?: boolean;
+  /** The setup's: the place's own tiles, when it's a region of a bigger map (the granary yard on the town's): the fight is fought in it, its ways out at its edge. */
+  area?: { x: number; y: number; w: number; h: number };
   // The GM on the board (a scene's fight, docs/combat-gm.md):
   /** The last moment the GM has told (or that a typed turn's own words covered). */
   told?: number;
@@ -187,6 +191,8 @@ export interface FightSetup {
   scene?: string;
   /** It broke out on the town's map: out goes back to the map, its people as the fight left them. */
   town?: boolean;
+  /** The place's own tiles, when it's a region of a bigger map: nobody goes beyond them but out by a way out (smoke7-1018: Old Wat, come in when the gate was taken, stood in the lane out of reach). */
+  area?: { x: number; y: number; w: number; h: number };
 }
 
 // ---------------------------------------------------------------------------------------------

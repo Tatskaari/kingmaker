@@ -101,6 +101,8 @@ export interface CombatantSetup {
   why?: string;
   /** Running from it but never out of the place (one the story needs): they hide from it on the board instead. */
   stays?: boolean;
+  /** A group fought as one (the granary porters). */
+  plural?: boolean;
 }
 
 export interface CombatSetup {

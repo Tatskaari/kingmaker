@@ -163,6 +163,8 @@ export class Skirmish {
   dustAt(t: Tile2): boolean { return this.G.dust.includes(key(t)); }
   hotAt(t: Tile2): boolean { return this.G.fire.some(k => steps(fromKey(k), t) <= 1); }
   exitAt(t: Tile2): { at: Tile2; label: string } | undefined { return this.G.exits.find(e => same(e.at, t)); }
+  /** In the place's own tiles (all the map's, when the place is the map). */
+  inArea(t: Tile2): boolean { const a = this.G.area; return !a || (t.x >= a.x && t.y >= a.y && t.x < a.x + a.w && t.y < a.y + a.h); }
   isTurnOf(u: Unit): boolean { return this.activeUnit()?.id === u.id; }
 
   combatant(u: Unit): EngineCombatant | undefined {
@@ -189,7 +191,7 @@ export class Skirmish {
   /** Walls and standing enemies block; friends and the fallen can be passed but not stopped on; fire is avoided. */
   pathRules(u: Unit, options: { avoidFire?: boolean; avoidDust?: boolean } = {}): PathRules {
     return {
-      blocked: t => { const o = this.occupant(t, u.id); return !!o && o.state === "fighting" && this.hostile(u, o); },
+      blocked: t => { if (!this.inArea(t) && !this.exitAt(t)) return true; const o = this.occupant(t, u.id); return !!o && o.state === "fighting" && this.hostile(u, o); },
       noStop: t => !!this.occupant(t, u.id),
       penalty: t => (options.avoidFire !== false && this.hotAt(t) ? 6 : 0) + (options.avoidDust && this.dustAt(t) ? 3 : 0),
     };
@@ -541,13 +543,18 @@ export class Skirmish {
     this.closeMoment();
   }
 
-  /** The nearest tile to `t` someone can stand on and nobody's on (t itself, if it is). */
+  /**
+   * The nearest tile to `t` someone can stand on and nobody's on (t itself, if it is), a walk away
+   * (never through a wall), in the place's area or on a way out of it (smoke7-1018: the gate taken,
+   * Old Wat came in in the lane, out of everyone's reach).
+   */
   private freeNear(t: Tile2): Tile2 {
     const queue: Tile2[] = [t];
     const seen = new Set<string>([key(t)]);
     for (let i = 0; i < queue.length && i < 400; i++) {
       const at = queue[i]!;
-      if (!solid(this.G.map, at) && !this.occupant(at)) return at;
+      if (solid(this.G.map, at)) continue;
+      if (!this.occupant(at) && (this.inArea(at) || this.exitAt(at))) return at;
       for (const n of neighbours(this.G.map, at)) if (!seen.has(key(n))) { seen.add(key(n)); queue.push(n); }
     }
     return t;

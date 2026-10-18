@@ -86,7 +86,7 @@ export function boardOf(t: Table, setup: FightSetup, map: TileMap, pc: { engineI
       id: c.id, name: c.name, called: c.side === "player" ? "you" : calledName(c.name), side: c.side, role: defaultRole(c), engineId, weapons,
       ...(weaponName ? { weaponName } : {}), at: { ...c.at }, hp: Math.max(0, ch.hp.current), maxHp: ch.hp.max, ac: sheet.ac.total, speed: speed ?? sheet.speeds["walk"] ?? 30,
       initiative: 0, state: c.due ? "coming" : ch.hp.current > 0 ? "fighting" : "down", conditions: ch.appliedConditions.map(a => a.conditionId),
-      ...(c.due ? { due: c.due, ...(c.why ? { why: c.why } : {}) } : {}), ...(c.stays ? { stays: true } : {}),
+      ...(c.due ? { due: c.due, ...(c.why ? { why: c.why } : {}) } : {}), ...(c.stays ? { stays: true } : {}), ...(c.plural ? { plural: true } : {}),
       ...(parry ? { parry: { bonus: parry, ready: true } } : {}),
       glyph: c.glyph ?? look?.glyph ?? GLYPHS[c.castId ?? c.id] ?? (c.side === "player" ? "@" : letter(c)),
       color: look?.fg ?? COLOURS[c.castId ?? c.id] ?? COLOURS[c.side]!, ...(c.castId ? { castId: c.castId } : {}),
@@ -125,7 +125,7 @@ export function boardOf(t: Table, setup: FightSetup, map: TileMap, pc: { engineI
     encounterId, units, order, active: enc.activeIndex, round: enc.round || 1,
     dust: (setup.dust ?? []).map(key), fire: [], fuel: (setup.fuel ?? []).map(key), props, exits, pc: player, flags: {}, place: setup.place,
     ...(setup.keep ? { keep: true } : {}), ...(setup.fast ? { fast: true } : {}), ...(setup.zoo ? { zoo: { ...setup.zoo } } : {}), ...(setup.time ? { time: setup.time } : {}),
-    ...(setup.scene ? { scene: setup.scene } : {}), ...(setup.town ? { town: true } : {}),
+    ...(setup.scene ? { scene: setup.scene } : {}), ...(setup.town ? { town: true } : {}), ...(setup.area ? { area: { ...setup.area } } : {}),
   };
   return { board, rolled };
 }

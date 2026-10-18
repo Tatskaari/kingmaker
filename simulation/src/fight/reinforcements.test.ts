@@ -108,6 +108,13 @@ test("the scene's reinforcements: the GM places them with everyone (told when th
     assert.ok(arrived, events(host, gameId).map(e => e.kind).join(", "));
     assert.equal(arrived.round, 3);
     assert.match(arrived.caption, /^The granary porters and .+ come (in through|into) .+\.$/);
+    assert.equal(board.units["porters"]!.plural, true, "a group, fought as one");
+    // Two come in at one way: one on it, the other in the yard beside it, never beyond its walls (smoke7-1018: Old Wat in the lane).
+    const a = board.area;
+    for (const id of ["porters", "tull"]) {
+      const at = board.units[id]!.at;
+      assert.ok(!a || (at.x >= a.x && at.y >= a.y && at.x < a.x + a.w && at.y < a.y + a.h) || board.exits.some(e => e.at.x === at.x && e.at.y === at.y), `${id} in the yard or on its way in: ${at.x},${at.y} (${JSON.stringify(a)})`);
+    }
     assert.doesNotMatch(arrived.caption, /through out of/i, "the board's edge is come into, not through");
     assert.ok(arrived.detail.lines.includes("The shouting carries round to the loading dock, and the porters come in at the gate."));
     assert.ok(arrived.detail.hits.some(h => h.unit === "porters" && h.was?.state === "coming" && h.state === "fighting"), "the screen sees them come on");

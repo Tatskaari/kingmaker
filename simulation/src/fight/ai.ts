@@ -321,7 +321,7 @@ function hide(s: Skirmish, u: Unit, memo: Memo): Step {
   let most = far(u.at);
   for (const [k, r] of explore(s.G.map, u.at, s.pathRules(u))) {
     const t = fromKey(k);
-    if (r.cost * FEET > s.movementLeft(u) || s.exitAt(t) || s.occupant(t, u.id)) continue;
+    if (r.cost * FEET > s.movementLeft(u) || s.exitAt(t) || !s.inArea(t) || s.occupant(t, u.id)) continue;
     if (far(t) > most) { best = t; most = far(t); }
   }
   if (!best) return { kind: "end" };

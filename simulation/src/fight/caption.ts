@@ -65,9 +65,9 @@ class Caption {
   get they(): string { return this.you ? "you" : "they"; }
   get their(): string { return this.you ? "your" : "their"; }
   /** A verb agreeing with the actor: "you swing", "the wolf swings". */
-  s(base: string, third = `${base}s`): string { return this.you ? base : third; }
+  s(base: string, third = `${base}s`): string { return this.you || this.actor?.plural ? base : third; }
   /** The same for anyone. */
-  private sFor(id: string, base: string, third = `${base}s`): string { return id === this.G.pc ? base : third; }
+  private sFor(id: string, base: string, third = `${base}s`): string { return id === this.G.pc || this.G.units[id]?.plural ? base : third; }
 
   start(): string {
     const order = (this.m.detail.initiative ?? []).map(r => this.name(r.unit));
