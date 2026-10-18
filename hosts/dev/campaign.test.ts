@@ -220,8 +220,8 @@ test("the clerk's lead reaches the player before the scene runs out: once the ca
   assert.deepEqual([wat.enters, wat.called], ["porters-break", "the old porter"]);
   assert.match(node(clerk, "porters-break").cast.wat, /^Cap off to the dead clerk, then straight to the Sarge, unasked/);
   assert.match(node(clerk, "hobb").paths.find((p: any) => p.via === "wat").earn, /^No dice: when the porters come in for their noon break, after the cart, he comes to the Sarge and tells it unasked/, "the porters' path has someone to give it");
-  assert.equal(node(clerk, "hobb").paths.find((p: any) => p.via === "kell").earn, "No dice: as soon as any description of him reaches her (his size, his bandaged hand, the Rat's arm-wrestling), she names him unasked and writes it down, and concludes nothing else.");
-  assert.match(node(clerk, "cart-arrives").cast.kell, /The moment any description of the big man reaches her \(his size, his bandaged hand, the Rat's arm-wrestling\), she names him unasked/, "and her note at the cart says so");
+  assert.equal(node(clerk, "hobb").paths.find((p: any) => p.via === "kell").earn, "No dice: as soon as any description of him reaches her (his size, his bandaged hand, the Rat's arm-wrestling), or at once if one already has, she names him unasked and writes it down, and concludes nothing else.");
+  assert.match(node(clerk, "cart-arrives").cast.kell, /If any description of the big man has reached her already, or the moment one does \(his size, his bandaged hand, the Rat's arm-wrestling\), she names him unasked/, "and her note at the cart says so, a description given before the cart too");
 });
 
 test("Kell signs Prout in once the case holds and the lead is in her notebook, writing down what she has until then and saying nothing aloud of what's missing (QA round qa3-1018's g05: she signed four turns before the lead, and the closing signed him again)", () => {

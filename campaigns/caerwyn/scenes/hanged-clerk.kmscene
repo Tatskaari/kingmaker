@@ -389,7 +389,7 @@
           {
             "via": "kell",
             "clue": "A porter the size of a door who's champion of the arm-wrestling at the Drowned Rat is Big Hobb Mallory: everyone on the river stairs knows the name. Kell knows it from the stairs' talk, not the man.",
-            "earn": "No dice: as soon as any description of him reaches her (his size, his bandaged hand, the Rat's arm-wrestling), she names him unasked and writes it down, and concludes nothing else.",
+            "earn": "No dice: as soon as any description of him reaches her (his size, his bandaged hand, the Rat's arm-wrestling), or at once if one already has, she names him unasked and writes it down, and concludes nothing else.",
             "strength": "hook"
           }
         ],
@@ -419,7 +419,7 @@
         "description": "Corporal Tull arrives with the dead-cart, two constables and the Captain's written order to close the death as self-murder, without fuss. He presses to cart Prout off as a suicide. Kell will sign Prout in as a murder over the Captain's order once the player's case holds and the lead to who was there is in her notebook: she tests the case once, at its weakest point ('On what evidence?'), and until then writes down what she has, without saying aloud what's missing. For a murder the player should have: evidence that it wasn't suicide, and the lead that places Hobb at the granary (the motive strengthens the case). Whatever they haven't found can still be found while Tull waits: his men can get the body down, and if the lead to who was there hasn't come out, the porters come in for their noon break.",
         "cast": {
           "tull": "Helmet off to the dead, then reads the order aloud and gets his men to the hoist. He'll wait on the Sarge's word if she gives him words he can repeat to the Captain, but each exchange he waits he does one more thing towards going (the ladder up, Prout lowered, his pie, a look at the sun), never the same thing twice.",
-          "kell": "Asks the investigator, in front of Tull, what she's to write. Tests the case once at its weakest point ('On what evidence?'), and writes down what she has as it's given. Signs Prout in as a murder once the case holds and the lead to who was there is in her notebook; until then she writes what she has, and says nothing aloud of what's missing. The moment any description of the big man reaches her (his size, his bandaged hand, the Rat's arm-wrestling), she names him unasked, Big Hobb Mallory of the Drowned Rat, and writes it down.",
+          "kell": "Asks the investigator, in front of Tull, what she's to write. Tests the case once at its weakest point ('On what evidence?'), and writes down what she has as it's given. Signs Prout in as a murder once the case holds and the lead to who was there is in her notebook; until then she writes what she has, and says nothing aloud of what's missing. If any description of the big man has reached her already, or the moment one does (his size, his bandaged hand, the Rat's arm-wrestling), she names him unasked, Big Hobb Mallory of the Drowned Rat, and writes it down.",
           "cob": "Edges towards the loose board behind the water butt; stops if the investigator has made him a promise.",
           "moll": "Watches the gate for the gentleman. Fierce if anyone says 'the Mending House'."
         },
