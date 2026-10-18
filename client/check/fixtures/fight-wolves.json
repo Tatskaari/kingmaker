@@ -1,0 +1,1766 @@
+{
+ "recorded": "node --no-warnings --import tsx hosts/fight-fixture.ts --ring wolves --build fighter --seed 3 --rounds 3",
+ "title": "The wolf run",
+ "place": "the Arena",
+ "map": {
+  "id": "zoo-wolves",
+  "name": "The wolf run",
+  "grid": [
+   "##############",
+   "#,,,,,,,,,,,,#",
+   "#,,,,,,,,,,,,#",
+   "#,,,,T,,,,,,,#",
+   "#,,,,,,,,,,,,#",
+   "#,,,,,,,,,,,,#",
+   "#,,,,,,,T,,,,#",
+   "#,,,,,,,,,,,,#",
+   "#,,,,,,,,,,,,#",
+   "#,,,,,,,,,,,,#",
+   "#,,,,,,,,,,,,#",
+   "######+#######"
+  ],
+  "legend": {
+   "#": {
+    "terrain": "wall",
+    "style": "timber",
+    "height": 2
+   },
+   ",": {
+    "terrain": "grass"
+   },
+   "T": {
+    "terrain": "tree"
+   },
+   "+": {
+    "terrain": "door",
+    "style": "timber",
+    "height": 2
+   }
+  },
+  "regions": [],
+  "exits": [
+   {
+    "at": {
+     "x": 6,
+     "y": 11
+    },
+    "to": {
+     "map": "zoo-wolves",
+     "at": {
+      "x": 6,
+      "y": 11
+     }
+    },
+    "label": "the gate"
+   }
+  ]
+ },
+ "frames": [
+  {
+   "label": "start",
+   "events": 2,
+   "fight": {
+    "status": "on",
+    "round": 1,
+    "turn": "wolf-3",
+    "order": [
+     "wolf-3",
+     "player",
+     "wolf-1",
+     "wolf-2"
+    ],
+    "board": "{\"encounterId\":\"01M51Z13K87FHF36143YP51PKK\",\"units\":{\"player\":{\"id\":\"player\",\"name\":\"Wren Ashdown\",\"called\":\"you\",\"side\":\"player\",\"role\":\"player\",\"engineId\":\"01M51Z12M076MWH5C2G1KPT413\",\"weapons\":[\"01M51Z12M00BEFYAHHMH468GFG\",\"01M51Z12M0513N6MH03WX7T88R\"],\"at\":{\"x\":4,\"y\":9},\"hp\":28,\"maxHp\":28,\"ac\":18,\"speed\":35,\"initiative\":10,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"@\",\"color\":\"#ffffff\",\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false}},\"wolf-1\":{\"id\":\"wolf-1\",\"name\":\"a grey wolf\",\"called\":\"a grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8HPSJHN0F9ASFQYFT\",\"weapons\":[\"01M51Z13K8DXY89T6CHFVDE87C\"],\"at\":{\"x\":3,\"y\":2},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":5,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\"},\"wolf-2\":{\"id\":\"wolf-2\",\"name\":\"a big grey wolf\",\"called\":\"a big grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8VFV58KXKZ5KTH55S\",\"weapons\":[\"01M51Z13K85M055ZSTE0GNJT21\"],\"at\":{\"x\":10,\"y\":2},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":3,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\"},\"wolf-3\":{\"id\":\"wolf-3\",\"name\":\"a lean grey wolf\",\"called\":\"a lean grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8TX6C8HC9DSR4VK9H\",\"weapons\":[\"01M51Z13K81BHQEZR03DCQW7F7\"],\"at\":{\"x\":9,\"y\":5},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":17,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"w\",\"color\":\"#e06666\"}},\"order\":[\"wolf-3\",\"player\",\"wolf-1\",\"wolf-2\"],\"active\":0,\"round\":1,\"dust\":[],\"fire\":[],\"fuel\":[],\"props\":{},\"exits\":[{\"at\":{\"x\":6,\"y\":11},\"label\":\"the gate\"}],\"pc\":\"player\",\"flags\":{},\"place\":\"the Arena\",\"begun\":\"1:0\"}",
+    "options": ""
+   }
+  },
+  {
+   "label": "step: wolf-3",
+   "events": 5,
+   "fight": {
+    "status": "on",
+    "round": 1,
+    "turn": "player",
+    "order": [
+     "wolf-3",
+     "player",
+     "wolf-1",
+     "wolf-2"
+    ],
+    "board": "{\"encounterId\":\"01M51Z13K87FHF36143YP51PKK\",\"units\":{\"player\":{\"id\":\"player\",\"name\":\"Wren Ashdown\",\"called\":\"you\",\"side\":\"player\",\"role\":\"player\",\"engineId\":\"01M51Z12M076MWH5C2G1KPT413\",\"weapons\":[\"01M51Z12M00BEFYAHHMH468GFG\",\"01M51Z12M0513N6MH03WX7T88R\"],\"at\":{\"x\":4,\"y\":9},\"hp\":28,\"maxHp\":28,\"ac\":18,\"speed\":35,\"initiative\":10,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"@\",\"color\":\"#ffffff\",\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false}},\"wolf-1\":{\"id\":\"wolf-1\",\"name\":\"a grey wolf\",\"called\":\"a grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8HPSJHN0F9ASFQYFT\",\"weapons\":[\"01M51Z13K8DXY89T6CHFVDE87C\"],\"at\":{\"x\":3,\"y\":2},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":5,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\"},\"wolf-2\":{\"id\":\"wolf-2\",\"name\":\"a big grey wolf\",\"called\":\"a big grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8VFV58KXKZ5KTH55S\",\"weapons\":[\"01M51Z13K85M055ZSTE0GNJT21\"],\"at\":{\"x\":10,\"y\":2},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":3,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\"},\"wolf-3\":{\"id\":\"wolf-3\",\"name\":\"a lean grey wolf\",\"called\":\"a lean grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8TX6C8HC9DSR4VK9H\",\"weapons\":[\"01M51Z13K81BHQEZR03DCQW7F7\"],\"at\":{\"x\":5,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":17,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"w\",\"color\":\"#e06666\"}},\"order\":[\"wolf-3\",\"player\",\"wolf-1\",\"wolf-2\"],\"active\":1,\"round\":1,\"dust\":[],\"fire\":[],\"fuel\":[],\"props\":{},\"exits\":[{\"at\":{\"x\":6,\"y\":11},\"label\":\"the gate\"}],\"pc\":\"player\",\"flags\":{},\"place\":\"the Arena\",\"begun\":\"1:1\"}",
+    "options": "{\"movementLeft\":35,\"speed\":35,\"actionUsed\":false,\"bonusActionUsed\":false,\"moves\":[{\"x\":5,\"y\":9},{\"x\":3,\"y\":9},{\"x\":4,\"y\":10},{\"x\":4,\"y\":8},{\"x\":5,\"y\":10},{\"x\":3,\"y\":10},{\"x\":3,\"y\":8},{\"x\":6,\"y\":9},{\"x\":6,\"y\":10},{\"x\":6,\"y\":8},{\"x\":2,\"y\":9},{\"x\":2,\"y\":10},{\"x\":2,\"y\":8},{\"x\":4,\"y\":7},{\"x\":5,\"y\":7},{\"x\":3,\"y\":7},{\"x\":6,\"y\":11},{\"x\":2,\"y\":7},{\"x\":7,\"y\":9},{\"x\":7,\"y\":10},{\"x\":7,\"y\":8},{\"x\":6,\"y\":7},{\"x\":7,\"y\":7},{\"x\":1,\"y\":9},{\"x\":1,\"y\":10},{\"x\":1,\"y\":8},{\"x\":1,\"y\":7},{\"x\":4,\"y\":6},{\"x\":5,\"y\":6},{\"x\":3,\"y\":6},{\"x\":6,\"y\":6},{\"x\":2,\"y\":6},{\"x\":1,\"y\":6},{\"x\":8,\"y\":9},{\"x\":8,\"y\":10},{\"x\":8,\"y\":8},{\"x\":8,\"y\":7},{\"x\":7,\"y\":6},{\"x\":4,\"y\":5},{\"x\":5,\"y\":5},{\"x\":3,\"y\":5},{\"x\":6,\"y\":5},{\"x\":2,\"y\":5},{\"x\":7,\"y\":5},{\"x\":1,\"y\":5},{\"x\":9,\"y\":9},{\"x\":9,\"y\":10},{\"x\":9,\"y\":8},{\"x\":9,\"y\":7},{\"x\":9,\"y\":6},{\"x\":8,\"y\":5},{\"x\":4,\"y\":4},{\"x\":5,\"y\":4},{\"x\":3,\"y\":4},{\"x\":6,\"y\":4},{\"x\":2,\"y\":4},{\"x\":7,\"y\":4},{\"x\":1,\"y\":4},{\"x\":8,\"y\":4},{\"x\":10,\"y\":9},{\"x\":10,\"y\":10},{\"x\":10,\"y\":8},{\"x\":10,\"y\":7},{\"x\":10,\"y\":6},{\"x\":9,\"y\":5},{\"x\":10,\"y\":5},{\"x\":9,\"y\":4},{\"x\":4,\"y\":3},{\"x\":3,\"y\":3},{\"x\":6,\"y\":3},{\"x\":2,\"y\":3},{\"x\":7,\"y\":3},{\"x\":1,\"y\":3},{\"x\":8,\"y\":3},{\"x\":9,\"y\":3},{\"x\":11,\"y\":9},{\"x\":11,\"y\":10},{\"x\":11,\"y\":8},{\"x\":11,\"y\":7},{\"x\":11,\"y\":6},{\"x\":11,\"y\":5},{\"x\":10,\"y\":4},{\"x\":11,\"y\":4},{\"x\":10,\"y\":3},{\"x\":4,\"y\":2},{\"x\":5,\"y\":2},{\"x\":2,\"y\":2},{\"x\":6,\"y\":2},{\"x\":7,\"y\":2},{\"x\":1,\"y\":2},{\"x\":8,\"y\":2},{\"x\":9,\"y\":2}],\"swings\":[{\"x\":3,\"y\":9},{\"x\":4,\"y\":10},{\"x\":5,\"y\":10},{\"x\":3,\"y\":10},{\"x\":3,\"y\":8},{\"x\":6,\"y\":10},{\"x\":2,\"y\":9},{\"x\":2,\"y\":10},{\"x\":2,\"y\":8},{\"x\":3,\"y\":7},{\"x\":6,\"y\":11},{\"x\":2,\"y\":7},{\"x\":7,\"y\":9},{\"x\":7,\"y\":10},{\"x\":7,\"y\":8},{\"x\":7,\"y\":7},{\"x\":1,\"y\":9},{\"x\":1,\"y\":10},{\"x\":1,\"y\":8},{\"x\":1,\"y\":7},{\"x\":4,\"y\":6},{\"x\":5,\"y\":6},{\"x\":3,\"y\":6},{\"x\":6,\"y\":6},{\"x\":2,\"y\":6},{\"x\":1,\"y\":6},{\"x\":8,\"y\":9},{\"x\":8,\"y\":10},{\"x\":8,\"y\":8},{\"x\":8,\"y\":7},{\"x\":7,\"y\":6},{\"x\":4,\"y\":5},{\"x\":5,\"y\":5},{\"x\":3,\"y\":5},{\"x\":6,\"y\":5},{\"x\":2,\"y\":5},{\"x\":7,\"y\":5},{\"x\":1,\"y\":5},{\"x\":9,\"y\":9},{\"x\":9,\"y\":10},{\"x\":9,\"y\":8},{\"x\":9,\"y\":7},{\"x\":9,\"y\":6},{\"x\":8,\"y\":5},{\"x\":4,\"y\":4},{\"x\":5,\"y\":4},{\"x\":3,\"y\":4},{\"x\":6,\"y\":4},{\"x\":2,\"y\":4},{\"x\":7,\"y\":4},{\"x\":1,\"y\":4},{\"x\":8,\"y\":4},{\"x\":10,\"y\":9},{\"x\":10,\"y\":10},{\"x\":10,\"y\":8},{\"x\":10,\"y\":7},{\"x\":10,\"y\":6},{\"x\":9,\"y\":5},{\"x\":10,\"y\":5},{\"x\":9,\"y\":4},{\"x\":4,\"y\":3},{\"x\":3,\"y\":3},{\"x\":6,\"y\":3},{\"x\":2,\"y\":3},{\"x\":7,\"y\":3},{\"x\":1,\"y\":3},{\"x\":8,\"y\":3},{\"x\":9,\"y\":3},{\"x\":11,\"y\":9},{\"x\":11,\"y\":10},{\"x\":11,\"y\":8},{\"x\":11,\"y\":7},{\"x\":11,\"y\":6},{\"x\":11,\"y\":5},{\"x\":10,\"y\":4},{\"x\":11,\"y\":4},{\"x\":10,\"y\":3},{\"x\":4,\"y\":2},{\"x\":5,\"y\":2},{\"x\":2,\"y\":2},{\"x\":6,\"y\":2},{\"x\":7,\"y\":2},{\"x\":1,\"y\":2},{\"x\":8,\"y\":2},{\"x\":9,\"y\":2}],\"actions\":[{\"id\":\"attack@3,2\",\"label\":\"Attack a grey wolf (Longbow +5; 35 ft)\",\"kind\":\"attack\",\"name\":\"Attack\",\"cost\":\"action\",\"at\":{\"x\":3,\"y\":2},\"target\":\"wolf-1\",\"range\":600},{\"id\":\"attack@10,2\",\"label\":\"Attack a big grey wolf (Longbow +5; half cover, 35 ft)\",\"kind\":\"attack\",\"name\":\"Attack\",\"cost\":\"action\",\"at\":{\"x\":10,\"y\":2},\"target\":\"wolf-2\",\"range\":600},{\"id\":\"attack@5,8\",\"label\":\"Attack a lean grey wolf (Longsword +5; 5 ft)\",\"kind\":\"attack\",\"name\":\"Attack\",\"cost\":\"action\",\"at\":{\"x\":5,\"y\":8},\"target\":\"wolf-3\",\"range\":5},{\"id\":\"shove@5,8\",\"label\":\"Shove a lean grey wolf over (they save, or they're down)\",\"kind\":\"attack\",\"name\":\"Shove\",\"cost\":\"action\",\"at\":{\"x\":5,\"y\":8},\"target\":\"wolf-3\",\"range\":5},{\"id\":\"grapple@5,8\",\"label\":\"Grab hold of a lean grey wolf (they save, or they're held)\",\"kind\":\"attack\",\"name\":\"Grab\",\"cost\":\"action\",\"at\":{\"x\":5,\"y\":8},\"target\":\"wolf-3\",\"range\":5},{\"id\":\"walk@4,3\",\"label\":\"Close in on a grey wolf (30 ft)\",\"kind\":\"move\",\"name\":\"Close in on a grey wolf\",\"cost\":\"move\",\"at\":{\"x\":4,\"y\":3},\"feet\":30},{\"id\":\"walk@9,3\",\"label\":\"Close in on a big grey wolf (30 ft)\",\"kind\":\"move\",\"name\":\"Close in on a big grey wolf\",\"cost\":\"move\",\"at\":{\"x\":9,\"y\":3},\"feet\":30},{\"id\":\"walk@11,9\",\"label\":\"Back off (35 ft; a swing at you unless you disengage first)\",\"kind\":\"move\",\"name\":\"Back off\",\"cost\":\"move\",\"at\":{\"x\":11,\"y\":9},\"feet\":35},{\"id\":\"walk@6,11\",\"label\":\"Make for the gate (10 ft)\",\"kind\":\"move\",\"name\":\"Make for the gate\",\"cost\":\"move\",\"at\":{\"x\":6,\"y\":11},\"feet\":10},{\"id\":\"dash\",\"label\":\"Dash (35 ft more movement this turn)\",\"kind\":\"turn\",\"name\":\"Dash\",\"cost\":\"action\"},{\"id\":\"dodge\",\"label\":\"Dodge (attacks on you have disadvantage until your next turn)\",\"kind\":\"turn\",\"name\":\"Dodge\",\"cost\":\"action\"},{\"id\":\"disengage\",\"label\":\"Disengage (no swings at you as you move away this turn)\",\"kind\":\"turn\",\"name\":\"Disengage\",\"cost\":\"action\"},{\"id\":\"auto\",\"label\":\"Let the dice decide (the AI plays your turn)\",\"kind\":\"turn\",\"name\":\"Let the dice decide\",\"cost\":\"free\"},{\"id\":\"yield\",\"label\":\"Yield (put your hands up: the fight is over)\",\"kind\":\"turn\",\"name\":\"Yield\",\"cost\":\"free\"},{\"id\":\"end_turn\",\"label\":\"End your turn\",\"kind\":\"turn\",\"name\":\"End your turn\",\"cost\":\"free\"}]}"
+   }
+  },
+  {
+   "label": "you: attack@3,2",
+   "events": 6,
+   "fight": {
+    "status": "on",
+    "round": 1,
+    "turn": "player",
+    "order": [
+     "wolf-3",
+     "player",
+     "wolf-1",
+     "wolf-2"
+    ],
+    "board": "{\"encounterId\":\"01M51Z13K87FHF36143YP51PKK\",\"units\":{\"player\":{\"id\":\"player\",\"name\":\"Wren Ashdown\",\"called\":\"you\",\"side\":\"player\",\"role\":\"player\",\"engineId\":\"01M51Z12M076MWH5C2G1KPT413\",\"weapons\":[\"01M51Z12M00BEFYAHHMH468GFG\",\"01M51Z12M0513N6MH03WX7T88R\"],\"at\":{\"x\":4,\"y\":9},\"hp\":28,\"maxHp\":28,\"ac\":18,\"speed\":35,\"initiative\":10,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"@\",\"color\":\"#ffffff\",\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false}},\"wolf-1\":{\"id\":\"wolf-1\",\"name\":\"a grey wolf\",\"called\":\"a grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8HPSJHN0F9ASFQYFT\",\"weapons\":[\"01M51Z13K8DXY89T6CHFVDE87C\"],\"at\":{\"x\":3,\"y\":2},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":5,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\"},\"wolf-2\":{\"id\":\"wolf-2\",\"name\":\"a big grey wolf\",\"called\":\"a big grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8VFV58KXKZ5KTH55S\",\"weapons\":[\"01M51Z13K85M055ZSTE0GNJT21\"],\"at\":{\"x\":10,\"y\":2},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":3,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\"},\"wolf-3\":{\"id\":\"wolf-3\",\"name\":\"a lean grey wolf\",\"called\":\"a lean grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8TX6C8HC9DSR4VK9H\",\"weapons\":[\"01M51Z13K81BHQEZR03DCQW7F7\"],\"at\":{\"x\":5,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":17,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"w\",\"color\":\"#e06666\"}},\"order\":[\"wolf-3\",\"player\",\"wolf-1\",\"wolf-2\"],\"active\":1,\"round\":1,\"dust\":[],\"fire\":[],\"fuel\":[],\"props\":{},\"exits\":[{\"at\":{\"x\":6,\"y\":11},\"label\":\"the gate\"}],\"pc\":\"player\",\"flags\":{},\"place\":\"the Arena\",\"begun\":\"1:1\"}",
+    "options": "{\"movementLeft\":35,\"speed\":35,\"actionUsed\":true,\"bonusActionUsed\":false,\"moves\":[{\"x\":5,\"y\":9},{\"x\":3,\"y\":9},{\"x\":4,\"y\":10},{\"x\":4,\"y\":8},{\"x\":5,\"y\":10},{\"x\":3,\"y\":10},{\"x\":3,\"y\":8},{\"x\":6,\"y\":9},{\"x\":6,\"y\":10},{\"x\":6,\"y\":8},{\"x\":2,\"y\":9},{\"x\":2,\"y\":10},{\"x\":2,\"y\":8},{\"x\":4,\"y\":7},{\"x\":5,\"y\":7},{\"x\":3,\"y\":7},{\"x\":6,\"y\":11},{\"x\":2,\"y\":7},{\"x\":7,\"y\":9},{\"x\":7,\"y\":10},{\"x\":7,\"y\":8},{\"x\":6,\"y\":7},{\"x\":7,\"y\":7},{\"x\":1,\"y\":9},{\"x\":1,\"y\":10},{\"x\":1,\"y\":8},{\"x\":1,\"y\":7},{\"x\":4,\"y\":6},{\"x\":5,\"y\":6},{\"x\":3,\"y\":6},{\"x\":6,\"y\":6},{\"x\":2,\"y\":6},{\"x\":1,\"y\":6},{\"x\":8,\"y\":9},{\"x\":8,\"y\":10},{\"x\":8,\"y\":8},{\"x\":8,\"y\":7},{\"x\":7,\"y\":6},{\"x\":4,\"y\":5},{\"x\":5,\"y\":5},{\"x\":3,\"y\":5},{\"x\":6,\"y\":5},{\"x\":2,\"y\":5},{\"x\":7,\"y\":5},{\"x\":1,\"y\":5},{\"x\":9,\"y\":9},{\"x\":9,\"y\":10},{\"x\":9,\"y\":8},{\"x\":9,\"y\":7},{\"x\":9,\"y\":6},{\"x\":8,\"y\":5},{\"x\":4,\"y\":4},{\"x\":5,\"y\":4},{\"x\":3,\"y\":4},{\"x\":6,\"y\":4},{\"x\":2,\"y\":4},{\"x\":7,\"y\":4},{\"x\":1,\"y\":4},{\"x\":8,\"y\":4},{\"x\":10,\"y\":9},{\"x\":10,\"y\":10},{\"x\":10,\"y\":8},{\"x\":10,\"y\":7},{\"x\":10,\"y\":6},{\"x\":9,\"y\":5},{\"x\":10,\"y\":5},{\"x\":9,\"y\":4},{\"x\":4,\"y\":3},{\"x\":3,\"y\":3},{\"x\":6,\"y\":3},{\"x\":2,\"y\":3},{\"x\":7,\"y\":3},{\"x\":1,\"y\":3},{\"x\":8,\"y\":3},{\"x\":9,\"y\":3},{\"x\":11,\"y\":9},{\"x\":11,\"y\":10},{\"x\":11,\"y\":8},{\"x\":11,\"y\":7},{\"x\":11,\"y\":6},{\"x\":11,\"y\":5},{\"x\":10,\"y\":4},{\"x\":11,\"y\":4},{\"x\":10,\"y\":3},{\"x\":4,\"y\":2},{\"x\":5,\"y\":2},{\"x\":2,\"y\":2},{\"x\":6,\"y\":2},{\"x\":7,\"y\":2},{\"x\":1,\"y\":2},{\"x\":8,\"y\":2},{\"x\":9,\"y\":2}],\"swings\":[{\"x\":3,\"y\":9},{\"x\":4,\"y\":10},{\"x\":5,\"y\":10},{\"x\":3,\"y\":10},{\"x\":3,\"y\":8},{\"x\":6,\"y\":10},{\"x\":2,\"y\":9},{\"x\":2,\"y\":10},{\"x\":2,\"y\":8},{\"x\":3,\"y\":7},{\"x\":6,\"y\":11},{\"x\":2,\"y\":7},{\"x\":7,\"y\":9},{\"x\":7,\"y\":10},{\"x\":7,\"y\":8},{\"x\":7,\"y\":7},{\"x\":1,\"y\":9},{\"x\":1,\"y\":10},{\"x\":1,\"y\":8},{\"x\":1,\"y\":7},{\"x\":4,\"y\":6},{\"x\":5,\"y\":6},{\"x\":3,\"y\":6},{\"x\":6,\"y\":6},{\"x\":2,\"y\":6},{\"x\":1,\"y\":6},{\"x\":8,\"y\":9},{\"x\":8,\"y\":10},{\"x\":8,\"y\":8},{\"x\":8,\"y\":7},{\"x\":7,\"y\":6},{\"x\":4,\"y\":5},{\"x\":5,\"y\":5},{\"x\":3,\"y\":5},{\"x\":6,\"y\":5},{\"x\":2,\"y\":5},{\"x\":7,\"y\":5},{\"x\":1,\"y\":5},{\"x\":9,\"y\":9},{\"x\":9,\"y\":10},{\"x\":9,\"y\":8},{\"x\":9,\"y\":7},{\"x\":9,\"y\":6},{\"x\":8,\"y\":5},{\"x\":4,\"y\":4},{\"x\":5,\"y\":4},{\"x\":3,\"y\":4},{\"x\":6,\"y\":4},{\"x\":2,\"y\":4},{\"x\":7,\"y\":4},{\"x\":1,\"y\":4},{\"x\":8,\"y\":4},{\"x\":10,\"y\":9},{\"x\":10,\"y\":10},{\"x\":10,\"y\":8},{\"x\":10,\"y\":7},{\"x\":10,\"y\":6},{\"x\":9,\"y\":5},{\"x\":10,\"y\":5},{\"x\":9,\"y\":4},{\"x\":4,\"y\":3},{\"x\":3,\"y\":3},{\"x\":6,\"y\":3},{\"x\":2,\"y\":3},{\"x\":7,\"y\":3},{\"x\":1,\"y\":3},{\"x\":8,\"y\":3},{\"x\":9,\"y\":3},{\"x\":11,\"y\":9},{\"x\":11,\"y\":10},{\"x\":11,\"y\":8},{\"x\":11,\"y\":7},{\"x\":11,\"y\":6},{\"x\":11,\"y\":5},{\"x\":10,\"y\":4},{\"x\":11,\"y\":4},{\"x\":10,\"y\":3},{\"x\":4,\"y\":2},{\"x\":5,\"y\":2},{\"x\":2,\"y\":2},{\"x\":6,\"y\":2},{\"x\":7,\"y\":2},{\"x\":1,\"y\":2},{\"x\":8,\"y\":2},{\"x\":9,\"y\":2}],\"actions\":[{\"id\":\"walk@4,3\",\"label\":\"Close in on a grey wolf (30 ft)\",\"kind\":\"move\",\"name\":\"Close in on a grey wolf\",\"cost\":\"move\",\"at\":{\"x\":4,\"y\":3},\"feet\":30},{\"id\":\"walk@9,3\",\"label\":\"Close in on a big grey wolf (30 ft)\",\"kind\":\"move\",\"name\":\"Close in on a big grey wolf\",\"cost\":\"move\",\"at\":{\"x\":9,\"y\":3},\"feet\":30},{\"id\":\"walk@11,9\",\"label\":\"Back off (35 ft; a swing at you unless you disengage first)\",\"kind\":\"move\",\"name\":\"Back off\",\"cost\":\"move\",\"at\":{\"x\":11,\"y\":9},\"feet\":35},{\"id\":\"walk@6,11\",\"label\":\"Make for the gate (10 ft)\",\"kind\":\"move\",\"name\":\"Make for the gate\",\"cost\":\"move\",\"at\":{\"x\":6,\"y\":11},\"feet\":10},{\"id\":\"auto\",\"label\":\"Let the dice decide (the AI plays your turn)\",\"kind\":\"turn\",\"name\":\"Let the dice decide\",\"cost\":\"free\"},{\"id\":\"yield\",\"label\":\"Yield (put your hands up: the fight is over)\",\"kind\":\"turn\",\"name\":\"Yield\",\"cost\":\"free\"},{\"id\":\"end_turn\",\"label\":\"End your turn\",\"kind\":\"turn\",\"name\":\"End your turn\",\"cost\":\"free\"}]}"
+   }
+  },
+  {
+   "label": "you: end_turn",
+   "events": 7,
+   "fight": {
+    "status": "on",
+    "round": 1,
+    "turn": "wolf-1",
+    "order": [
+     "wolf-3",
+     "player",
+     "wolf-1",
+     "wolf-2"
+    ],
+    "board": "{\"encounterId\":\"01M51Z13K87FHF36143YP51PKK\",\"units\":{\"player\":{\"id\":\"player\",\"name\":\"Wren Ashdown\",\"called\":\"you\",\"side\":\"player\",\"role\":\"player\",\"engineId\":\"01M51Z12M076MWH5C2G1KPT413\",\"weapons\":[\"01M51Z12M00BEFYAHHMH468GFG\",\"01M51Z12M0513N6MH03WX7T88R\"],\"at\":{\"x\":4,\"y\":9},\"hp\":28,\"maxHp\":28,\"ac\":18,\"speed\":35,\"initiative\":10,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"@\",\"color\":\"#ffffff\",\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false}},\"wolf-1\":{\"id\":\"wolf-1\",\"name\":\"a grey wolf\",\"called\":\"a grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8HPSJHN0F9ASFQYFT\",\"weapons\":[\"01M51Z13K8DXY89T6CHFVDE87C\"],\"at\":{\"x\":3,\"y\":2},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":5,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\"},\"wolf-2\":{\"id\":\"wolf-2\",\"name\":\"a big grey wolf\",\"called\":\"a big grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8VFV58KXKZ5KTH55S\",\"weapons\":[\"01M51Z13K85M055ZSTE0GNJT21\"],\"at\":{\"x\":10,\"y\":2},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":3,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\"},\"wolf-3\":{\"id\":\"wolf-3\",\"name\":\"a lean grey wolf\",\"called\":\"a lean grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8TX6C8HC9DSR4VK9H\",\"weapons\":[\"01M51Z13K81BHQEZR03DCQW7F7\"],\"at\":{\"x\":5,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":17,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"w\",\"color\":\"#e06666\"}},\"order\":[\"wolf-3\",\"player\",\"wolf-1\",\"wolf-2\"],\"active\":2,\"round\":1,\"dust\":[],\"fire\":[],\"fuel\":[],\"props\":{},\"exits\":[{\"at\":{\"x\":6,\"y\":11},\"label\":\"the gate\"}],\"pc\":\"player\",\"flags\":{},\"place\":\"the Arena\",\"begun\":\"1:2\"}",
+    "options": ""
+   }
+  },
+  {
+   "label": "step: wolf-1",
+   "events": 10,
+   "fight": {
+    "status": "on",
+    "round": 1,
+    "turn": "wolf-2",
+    "order": [
+     "wolf-3",
+     "player",
+     "wolf-1",
+     "wolf-2"
+    ],
+    "board": "{\"encounterId\":\"01M51Z13K87FHF36143YP51PKK\",\"units\":{\"player\":{\"id\":\"player\",\"name\":\"Wren Ashdown\",\"called\":\"you\",\"side\":\"player\",\"role\":\"player\",\"engineId\":\"01M51Z12M076MWH5C2G1KPT413\",\"weapons\":[\"01M51Z12M00BEFYAHHMH468GFG\",\"01M51Z12M0513N6MH03WX7T88R\"],\"at\":{\"x\":4,\"y\":9},\"hp\":28,\"maxHp\":28,\"ac\":18,\"speed\":35,\"initiative\":10,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"@\",\"color\":\"#ffffff\",\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false}},\"wolf-1\":{\"id\":\"wolf-1\",\"name\":\"a grey wolf\",\"called\":\"a grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8HPSJHN0F9ASFQYFT\",\"weapons\":[\"01M51Z13K8DXY89T6CHFVDE87C\"],\"at\":{\"x\":3,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":5,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\"},\"wolf-2\":{\"id\":\"wolf-2\",\"name\":\"a big grey wolf\",\"called\":\"a big grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8VFV58KXKZ5KTH55S\",\"weapons\":[\"01M51Z13K85M055ZSTE0GNJT21\"],\"at\":{\"x\":10,\"y\":2},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":3,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\"},\"wolf-3\":{\"id\":\"wolf-3\",\"name\":\"a lean grey wolf\",\"called\":\"a lean grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8TX6C8HC9DSR4VK9H\",\"weapons\":[\"01M51Z13K81BHQEZR03DCQW7F7\"],\"at\":{\"x\":5,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":17,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"w\",\"color\":\"#e06666\"}},\"order\":[\"wolf-3\",\"player\",\"wolf-1\",\"wolf-2\"],\"active\":3,\"round\":1,\"dust\":[],\"fire\":[],\"fuel\":[],\"props\":{},\"exits\":[{\"at\":{\"x\":6,\"y\":11},\"label\":\"the gate\"}],\"pc\":\"player\",\"flags\":{},\"place\":\"the Arena\",\"begun\":\"1:3\"}",
+    "options": ""
+   }
+  },
+  {
+   "label": "step: wolf-2",
+   "events": 13,
+   "fight": {
+    "status": "on",
+    "round": 2,
+    "turn": "wolf-3",
+    "order": [
+     "wolf-3",
+     "player",
+     "wolf-1",
+     "wolf-2"
+    ],
+    "board": "{\"encounterId\":\"01M51Z13K87FHF36143YP51PKK\",\"units\":{\"player\":{\"id\":\"player\",\"name\":\"Wren Ashdown\",\"called\":\"you\",\"side\":\"player\",\"role\":\"player\",\"engineId\":\"01M51Z12M076MWH5C2G1KPT413\",\"weapons\":[\"01M51Z12M00BEFYAHHMH468GFG\",\"01M51Z12M0513N6MH03WX7T88R\"],\"at\":{\"x\":4,\"y\":9},\"hp\":28,\"maxHp\":28,\"ac\":18,\"speed\":35,\"initiative\":10,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"@\",\"color\":\"#ffffff\",\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false}},\"wolf-1\":{\"id\":\"wolf-1\",\"name\":\"a grey wolf\",\"called\":\"a grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8HPSJHN0F9ASFQYFT\",\"weapons\":[\"01M51Z13K8DXY89T6CHFVDE87C\"],\"at\":{\"x\":3,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":5,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\"},\"wolf-2\":{\"id\":\"wolf-2\",\"name\":\"a big grey wolf\",\"called\":\"a big grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8VFV58KXKZ5KTH55S\",\"weapons\":[\"01M51Z13K85M055ZSTE0GNJT21\"],\"at\":{\"x\":4,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":3,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\"},\"wolf-3\":{\"id\":\"wolf-3\",\"name\":\"a lean grey wolf\",\"called\":\"a lean grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8TX6C8HC9DSR4VK9H\",\"weapons\":[\"01M51Z13K81BHQEZR03DCQW7F7\"],\"at\":{\"x\":5,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":17,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"w\",\"color\":\"#e06666\"}},\"order\":[\"wolf-3\",\"player\",\"wolf-1\",\"wolf-2\"],\"active\":0,\"round\":2,\"dust\":[],\"fire\":[],\"fuel\":[],\"props\":{},\"exits\":[{\"at\":{\"x\":6,\"y\":11},\"label\":\"the gate\"}],\"pc\":\"player\",\"flags\":{},\"place\":\"the Arena\",\"begun\":\"2:0\"}",
+    "options": ""
+   }
+  },
+  {
+   "label": "step: wolf-3",
+   "events": 15,
+   "fight": {
+    "status": "on",
+    "round": 2,
+    "turn": "player",
+    "order": [
+     "wolf-3",
+     "player",
+     "wolf-1",
+     "wolf-2"
+    ],
+    "board": "{\"encounterId\":\"01M51Z13K87FHF36143YP51PKK\",\"units\":{\"player\":{\"id\":\"player\",\"name\":\"Wren Ashdown\",\"called\":\"you\",\"side\":\"player\",\"role\":\"player\",\"engineId\":\"01M51Z12M076MWH5C2G1KPT413\",\"weapons\":[\"01M51Z12M00BEFYAHHMH468GFG\",\"01M51Z12M0513N6MH03WX7T88R\"],\"at\":{\"x\":4,\"y\":9},\"hp\":20,\"maxHp\":28,\"ac\":18,\"speed\":35,\"initiative\":10,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"@\",\"color\":\"#ffffff\",\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false},\"wounded\":true},\"wolf-1\":{\"id\":\"wolf-1\",\"name\":\"a grey wolf\",\"called\":\"a grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8HPSJHN0F9ASFQYFT\",\"weapons\":[\"01M51Z13K8DXY89T6CHFVDE87C\"],\"at\":{\"x\":3,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":5,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\"},\"wolf-2\":{\"id\":\"wolf-2\",\"name\":\"a big grey wolf\",\"called\":\"a big grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8VFV58KXKZ5KTH55S\",\"weapons\":[\"01M51Z13K85M055ZSTE0GNJT21\"],\"at\":{\"x\":4,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":3,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\"},\"wolf-3\":{\"id\":\"wolf-3\",\"name\":\"a lean grey wolf\",\"called\":\"a lean grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8TX6C8HC9DSR4VK9H\",\"weapons\":[\"01M51Z13K81BHQEZR03DCQW7F7\"],\"at\":{\"x\":5,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":17,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"w\",\"color\":\"#e06666\"}},\"order\":[\"wolf-3\",\"player\",\"wolf-1\",\"wolf-2\"],\"active\":1,\"round\":2,\"dust\":[],\"fire\":[],\"fuel\":[],\"props\":{},\"exits\":[{\"at\":{\"x\":6,\"y\":11},\"label\":\"the gate\"}],\"pc\":\"player\",\"flags\":{\"stood:player\":\"2:1\"},\"place\":\"the Arena\",\"begun\":\"2:1\"}",
+    "options": "{\"movementLeft\":18,\"speed\":35,\"actionUsed\":false,\"bonusActionUsed\":false,\"moves\":[{\"x\":5,\"y\":9},{\"x\":3,\"y\":9},{\"x\":4,\"y\":10},{\"x\":5,\"y\":10},{\"x\":3,\"y\":10},{\"x\":6,\"y\":9},{\"x\":6,\"y\":10},{\"x\":6,\"y\":8},{\"x\":2,\"y\":9},{\"x\":2,\"y\":10},{\"x\":2,\"y\":8},{\"x\":6,\"y\":11},{\"x\":7,\"y\":9},{\"x\":7,\"y\":10},{\"x\":7,\"y\":8},{\"x\":6,\"y\":7},{\"x\":7,\"y\":7},{\"x\":5,\"y\":7},{\"x\":1,\"y\":9},{\"x\":1,\"y\":10},{\"x\":1,\"y\":8},{\"x\":2,\"y\":7},{\"x\":3,\"y\":7},{\"x\":1,\"y\":7}],\"swings\":[{\"x\":5,\"y\":9},{\"x\":3,\"y\":9},{\"x\":4,\"y\":10},{\"x\":5,\"y\":10},{\"x\":3,\"y\":10},{\"x\":6,\"y\":9},{\"x\":6,\"y\":10},{\"x\":6,\"y\":8},{\"x\":2,\"y\":9},{\"x\":2,\"y\":10},{\"x\":2,\"y\":8},{\"x\":6,\"y\":11},{\"x\":7,\"y\":9},{\"x\":7,\"y\":10},{\"x\":7,\"y\":8},{\"x\":6,\"y\":7},{\"x\":7,\"y\":7},{\"x\":5,\"y\":7},{\"x\":1,\"y\":9},{\"x\":1,\"y\":10},{\"x\":1,\"y\":8},{\"x\":2,\"y\":7},{\"x\":3,\"y\":7},{\"x\":1,\"y\":7}],\"actions\":[{\"id\":\"attack@3,8\",\"label\":\"Attack a grey wolf (Longsword +5; 5 ft)\",\"kind\":\"attack\",\"name\":\"Attack\",\"cost\":\"action\",\"at\":{\"x\":3,\"y\":8},\"target\":\"wolf-1\",\"range\":5},{\"id\":\"attack@4,8\",\"label\":\"Attack a big grey wolf (Longsword +5; 5 ft)\",\"kind\":\"attack\",\"name\":\"Attack\",\"cost\":\"action\",\"at\":{\"x\":4,\"y\":8},\"target\":\"wolf-2\",\"range\":5},{\"id\":\"attack@5,8\",\"label\":\"Attack a lean grey wolf (Longsword +5; 5 ft)\",\"kind\":\"attack\",\"name\":\"Attack\",\"cost\":\"action\",\"at\":{\"x\":5,\"y\":8},\"target\":\"wolf-3\",\"range\":5},{\"id\":\"shove@3,8\",\"label\":\"Shove a grey wolf over (they save, or they're down)\",\"kind\":\"attack\",\"name\":\"Shove\",\"cost\":\"action\",\"at\":{\"x\":3,\"y\":8},\"target\":\"wolf-1\",\"range\":5},{\"id\":\"grapple@3,8\",\"label\":\"Grab hold of a grey wolf (they save, or they're held)\",\"kind\":\"attack\",\"name\":\"Grab\",\"cost\":\"action\",\"at\":{\"x\":3,\"y\":8},\"target\":\"wolf-1\",\"range\":5},{\"id\":\"shove@4,8\",\"label\":\"Shove a big grey wolf over (they save, or they're down)\",\"kind\":\"attack\",\"name\":\"Shove\",\"cost\":\"action\",\"at\":{\"x\":4,\"y\":8},\"target\":\"wolf-2\",\"range\":5},{\"id\":\"grapple@4,8\",\"label\":\"Grab hold of a big grey wolf (they save, or they're held)\",\"kind\":\"attack\",\"name\":\"Grab\",\"cost\":\"action\",\"at\":{\"x\":4,\"y\":8},\"target\":\"wolf-2\",\"range\":5},{\"id\":\"shove@5,8\",\"label\":\"Shove a lean grey wolf over (they save, or they're down)\",\"kind\":\"attack\",\"name\":\"Shove\",\"cost\":\"action\",\"at\":{\"x\":5,\"y\":8},\"target\":\"wolf-3\",\"range\":5},{\"id\":\"grapple@5,8\",\"label\":\"Grab hold of a lean grey wolf (they save, or they're held)\",\"kind\":\"attack\",\"name\":\"Grab\",\"cost\":\"action\",\"at\":{\"x\":5,\"y\":8},\"target\":\"wolf-3\",\"range\":5},{\"id\":\"walk@6,11\",\"label\":\"Back off (10 ft; a swing at you unless you disengage first)\",\"kind\":\"move\",\"name\":\"Back off\",\"cost\":\"move\",\"at\":{\"x\":6,\"y\":11},\"feet\":10},{\"id\":\"dash\",\"label\":\"Dash (35 ft more movement this turn)\",\"kind\":\"turn\",\"name\":\"Dash\",\"cost\":\"action\"},{\"id\":\"dodge\",\"label\":\"Dodge (attacks on you have disadvantage until your next turn)\",\"kind\":\"turn\",\"name\":\"Dodge\",\"cost\":\"action\"},{\"id\":\"disengage\",\"label\":\"Disengage (no swings at you as you move away this turn)\",\"kind\":\"turn\",\"name\":\"Disengage\",\"cost\":\"action\"},{\"id\":\"auto\",\"label\":\"Let the dice decide (the AI plays your turn)\",\"kind\":\"turn\",\"name\":\"Let the dice decide\",\"cost\":\"free\"},{\"id\":\"yield\",\"label\":\"Yield (put your hands up: the fight is over)\",\"kind\":\"turn\",\"name\":\"Yield\",\"cost\":\"free\"},{\"id\":\"end_turn\",\"label\":\"End your turn\",\"kind\":\"turn\",\"name\":\"End your turn\",\"cost\":\"free\"}]}"
+   }
+  },
+  {
+   "label": "you: attack@3,8",
+   "events": 16,
+   "fight": {
+    "status": "on",
+    "round": 2,
+    "turn": "player",
+    "order": [
+     "wolf-3",
+     "player",
+     "wolf-1",
+     "wolf-2"
+    ],
+    "board": "{\"encounterId\":\"01M51Z13K87FHF36143YP51PKK\",\"units\":{\"player\":{\"id\":\"player\",\"name\":\"Wren Ashdown\",\"called\":\"you\",\"side\":\"player\",\"role\":\"player\",\"engineId\":\"01M51Z12M076MWH5C2G1KPT413\",\"weapons\":[\"01M51Z12M00BEFYAHHMH468GFG\",\"01M51Z12M0513N6MH03WX7T88R\"],\"at\":{\"x\":4,\"y\":9},\"hp\":20,\"maxHp\":28,\"ac\":18,\"speed\":35,\"initiative\":10,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"@\",\"color\":\"#ffffff\",\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false},\"wounded\":true},\"wolf-1\":{\"id\":\"wolf-1\",\"name\":\"a grey wolf\",\"called\":\"a grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8HPSJHN0F9ASFQYFT\",\"weapons\":[\"01M51Z13K8DXY89T6CHFVDE87C\"],\"at\":{\"x\":3,\"y\":8},\"hp\":1,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":5,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\",\"wounded\":true},\"wolf-2\":{\"id\":\"wolf-2\",\"name\":\"a big grey wolf\",\"called\":\"a big grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8VFV58KXKZ5KTH55S\",\"weapons\":[\"01M51Z13K85M055ZSTE0GNJT21\"],\"at\":{\"x\":4,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":3,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\"},\"wolf-3\":{\"id\":\"wolf-3\",\"name\":\"a lean grey wolf\",\"called\":\"a lean grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8TX6C8HC9DSR4VK9H\",\"weapons\":[\"01M51Z13K81BHQEZR03DCQW7F7\"],\"at\":{\"x\":5,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":17,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"w\",\"color\":\"#e06666\"}},\"order\":[\"wolf-3\",\"player\",\"wolf-1\",\"wolf-2\"],\"active\":1,\"round\":2,\"dust\":[],\"fire\":[],\"fuel\":[],\"props\":{},\"exits\":[{\"at\":{\"x\":6,\"y\":11},\"label\":\"the gate\"}],\"pc\":\"player\",\"flags\":{\"stood:player\":\"2:1\"},\"place\":\"the Arena\",\"begun\":\"2:1\"}",
+    "options": "{\"movementLeft\":18,\"speed\":35,\"actionUsed\":true,\"bonusActionUsed\":false,\"moves\":[{\"x\":5,\"y\":9},{\"x\":3,\"y\":9},{\"x\":4,\"y\":10},{\"x\":5,\"y\":10},{\"x\":3,\"y\":10},{\"x\":6,\"y\":9},{\"x\":6,\"y\":10},{\"x\":6,\"y\":8},{\"x\":2,\"y\":9},{\"x\":2,\"y\":10},{\"x\":2,\"y\":8},{\"x\":6,\"y\":11},{\"x\":7,\"y\":9},{\"x\":7,\"y\":10},{\"x\":7,\"y\":8},{\"x\":6,\"y\":7},{\"x\":7,\"y\":7},{\"x\":5,\"y\":7},{\"x\":1,\"y\":9},{\"x\":1,\"y\":10},{\"x\":1,\"y\":8},{\"x\":2,\"y\":7},{\"x\":3,\"y\":7},{\"x\":1,\"y\":7}],\"swings\":[{\"x\":5,\"y\":9},{\"x\":3,\"y\":9},{\"x\":4,\"y\":10},{\"x\":5,\"y\":10},{\"x\":3,\"y\":10},{\"x\":6,\"y\":9},{\"x\":6,\"y\":10},{\"x\":6,\"y\":8},{\"x\":2,\"y\":9},{\"x\":2,\"y\":10},{\"x\":2,\"y\":8},{\"x\":6,\"y\":11},{\"x\":7,\"y\":9},{\"x\":7,\"y\":10},{\"x\":7,\"y\":8},{\"x\":6,\"y\":7},{\"x\":7,\"y\":7},{\"x\":5,\"y\":7},{\"x\":1,\"y\":9},{\"x\":1,\"y\":10},{\"x\":1,\"y\":8},{\"x\":2,\"y\":7},{\"x\":3,\"y\":7},{\"x\":1,\"y\":7}],\"actions\":[{\"id\":\"walk@6,11\",\"label\":\"Back off (10 ft; a swing at you unless you disengage first)\",\"kind\":\"move\",\"name\":\"Back off\",\"cost\":\"move\",\"at\":{\"x\":6,\"y\":11},\"feet\":10},{\"id\":\"auto\",\"label\":\"Let the dice decide (the AI plays your turn)\",\"kind\":\"turn\",\"name\":\"Let the dice decide\",\"cost\":\"free\"},{\"id\":\"yield\",\"label\":\"Yield (put your hands up: the fight is over)\",\"kind\":\"turn\",\"name\":\"Yield\",\"cost\":\"free\"},{\"id\":\"end_turn\",\"label\":\"End your turn\",\"kind\":\"turn\",\"name\":\"End your turn\",\"cost\":\"free\"}]}"
+   }
+  },
+  {
+   "label": "you: end_turn",
+   "events": 17,
+   "fight": {
+    "status": "on",
+    "round": 2,
+    "turn": "wolf-1",
+    "order": [
+     "wolf-3",
+     "player",
+     "wolf-1",
+     "wolf-2"
+    ],
+    "board": "{\"encounterId\":\"01M51Z13K87FHF36143YP51PKK\",\"units\":{\"player\":{\"id\":\"player\",\"name\":\"Wren Ashdown\",\"called\":\"you\",\"side\":\"player\",\"role\":\"player\",\"engineId\":\"01M51Z12M076MWH5C2G1KPT413\",\"weapons\":[\"01M51Z12M00BEFYAHHMH468GFG\",\"01M51Z12M0513N6MH03WX7T88R\"],\"at\":{\"x\":4,\"y\":9},\"hp\":20,\"maxHp\":28,\"ac\":18,\"speed\":35,\"initiative\":10,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"@\",\"color\":\"#ffffff\",\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false},\"wounded\":true},\"wolf-1\":{\"id\":\"wolf-1\",\"name\":\"a grey wolf\",\"called\":\"a grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8HPSJHN0F9ASFQYFT\",\"weapons\":[\"01M51Z13K8DXY89T6CHFVDE87C\"],\"at\":{\"x\":3,\"y\":8},\"hp\":1,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":5,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\",\"wounded\":true},\"wolf-2\":{\"id\":\"wolf-2\",\"name\":\"a big grey wolf\",\"called\":\"a big grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8VFV58KXKZ5KTH55S\",\"weapons\":[\"01M51Z13K85M055ZSTE0GNJT21\"],\"at\":{\"x\":4,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":3,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\"},\"wolf-3\":{\"id\":\"wolf-3\",\"name\":\"a lean grey wolf\",\"called\":\"a lean grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8TX6C8HC9DSR4VK9H\",\"weapons\":[\"01M51Z13K81BHQEZR03DCQW7F7\"],\"at\":{\"x\":5,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":17,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"w\",\"color\":\"#e06666\"}},\"order\":[\"wolf-3\",\"player\",\"wolf-1\",\"wolf-2\"],\"active\":2,\"round\":2,\"dust\":[],\"fire\":[],\"fuel\":[],\"props\":{},\"exits\":[{\"at\":{\"x\":6,\"y\":11},\"label\":\"the gate\"}],\"pc\":\"player\",\"flags\":{\"stood:player\":\"2:1\"},\"place\":\"the Arena\",\"begun\":\"2:2\"}",
+    "options": ""
+   }
+  },
+  {
+   "label": "step: wolf-1",
+   "events": 19,
+   "fight": {
+    "status": "on",
+    "round": 2,
+    "turn": "wolf-2",
+    "order": [
+     "wolf-3",
+     "player",
+     "wolf-1",
+     "wolf-2"
+    ],
+    "board": "{\"encounterId\":\"01M51Z13K87FHF36143YP51PKK\",\"units\":{\"player\":{\"id\":\"player\",\"name\":\"Wren Ashdown\",\"called\":\"you\",\"side\":\"player\",\"role\":\"player\",\"engineId\":\"01M51Z12M076MWH5C2G1KPT413\",\"weapons\":[\"01M51Z12M00BEFYAHHMH468GFG\",\"01M51Z12M0513N6MH03WX7T88R\"],\"at\":{\"x\":4,\"y\":9},\"hp\":20,\"maxHp\":28,\"ac\":18,\"speed\":35,\"initiative\":10,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"@\",\"color\":\"#ffffff\",\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false},\"wounded\":true},\"wolf-1\":{\"id\":\"wolf-1\",\"name\":\"a grey wolf\",\"called\":\"a grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8HPSJHN0F9ASFQYFT\",\"weapons\":[\"01M51Z13K8DXY89T6CHFVDE87C\"],\"at\":{\"x\":3,\"y\":8},\"hp\":1,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":5,\"state\":\"surrendered\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\",\"wounded\":true},\"wolf-2\":{\"id\":\"wolf-2\",\"name\":\"a big grey wolf\",\"called\":\"a big grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8VFV58KXKZ5KTH55S\",\"weapons\":[\"01M51Z13K85M055ZSTE0GNJT21\"],\"at\":{\"x\":4,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":3,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\"},\"wolf-3\":{\"id\":\"wolf-3\",\"name\":\"a lean grey wolf\",\"called\":\"a lean grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8TX6C8HC9DSR4VK9H\",\"weapons\":[\"01M51Z13K81BHQEZR03DCQW7F7\"],\"at\":{\"x\":5,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":17,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"w\",\"color\":\"#e06666\"}},\"order\":[\"wolf-3\",\"player\",\"wolf-1\",\"wolf-2\"],\"active\":3,\"round\":2,\"dust\":[],\"fire\":[],\"fuel\":[],\"props\":{},\"exits\":[{\"at\":{\"x\":6,\"y\":11},\"label\":\"the gate\"}],\"pc\":\"player\",\"flags\":{\"stood:player\":\"2:1\",\"last_out\":\"yielded\"},\"place\":\"the Arena\",\"begun\":\"2:3\"}",
+    "options": ""
+   }
+  },
+  {
+   "label": "step: wolf-2",
+   "events": 21,
+   "fight": {
+    "status": "on",
+    "round": 3,
+    "turn": "wolf-3",
+    "order": [
+     "wolf-3",
+     "player",
+     "wolf-1",
+     "wolf-2"
+    ],
+    "board": "{\"encounterId\":\"01M51Z13K87FHF36143YP51PKK\",\"units\":{\"player\":{\"id\":\"player\",\"name\":\"Wren Ashdown\",\"called\":\"you\",\"side\":\"player\",\"role\":\"player\",\"engineId\":\"01M51Z12M076MWH5C2G1KPT413\",\"weapons\":[\"01M51Z12M00BEFYAHHMH468GFG\",\"01M51Z12M0513N6MH03WX7T88R\"],\"at\":{\"x\":4,\"y\":9},\"hp\":16,\"maxHp\":28,\"ac\":18,\"speed\":35,\"initiative\":10,\"state\":\"fighting\",\"conditions\":[\"prone\"],\"glyph\":\"@\",\"color\":\"#ffffff\",\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false},\"wounded\":true},\"wolf-1\":{\"id\":\"wolf-1\",\"name\":\"a grey wolf\",\"called\":\"a grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8HPSJHN0F9ASFQYFT\",\"weapons\":[\"01M51Z13K8DXY89T6CHFVDE87C\"],\"at\":{\"x\":3,\"y\":8},\"hp\":1,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":5,\"state\":\"surrendered\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\",\"wounded\":true},\"wolf-2\":{\"id\":\"wolf-2\",\"name\":\"a big grey wolf\",\"called\":\"a big grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8VFV58KXKZ5KTH55S\",\"weapons\":[\"01M51Z13K85M055ZSTE0GNJT21\"],\"at\":{\"x\":4,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":3,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\"},\"wolf-3\":{\"id\":\"wolf-3\",\"name\":\"a lean grey wolf\",\"called\":\"a lean grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8TX6C8HC9DSR4VK9H\",\"weapons\":[\"01M51Z13K81BHQEZR03DCQW7F7\"],\"at\":{\"x\":5,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":17,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"w\",\"color\":\"#e06666\"}},\"order\":[\"wolf-3\",\"player\",\"wolf-1\",\"wolf-2\"],\"active\":0,\"round\":3,\"dust\":[],\"fire\":[],\"fuel\":[],\"props\":{},\"exits\":[{\"at\":{\"x\":6,\"y\":11},\"label\":\"the gate\"}],\"pc\":\"player\",\"flags\":{\"stood:player\":\"2:1\",\"last_out\":\"yielded\"},\"place\":\"the Arena\",\"begun\":\"3:0\"}",
+    "options": ""
+   }
+  },
+  {
+   "label": "step: wolf-3",
+   "events": 23,
+   "fight": {
+    "status": "on",
+    "round": 3,
+    "turn": "player",
+    "order": [
+     "wolf-3",
+     "player",
+     "wolf-1",
+     "wolf-2"
+    ],
+    "board": "{\"encounterId\":\"01M51Z13K87FHF36143YP51PKK\",\"units\":{\"player\":{\"id\":\"player\",\"name\":\"Wren Ashdown\",\"called\":\"you\",\"side\":\"player\",\"role\":\"player\",\"engineId\":\"01M51Z12M076MWH5C2G1KPT413\",\"weapons\":[\"01M51Z12M00BEFYAHHMH468GFG\",\"01M51Z12M0513N6MH03WX7T88R\"],\"at\":{\"x\":4,\"y\":9},\"hp\":8,\"maxHp\":28,\"ac\":18,\"speed\":35,\"initiative\":10,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"@\",\"color\":\"#ffffff\",\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false},\"wounded\":true},\"wolf-1\":{\"id\":\"wolf-1\",\"name\":\"a grey wolf\",\"called\":\"a grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8HPSJHN0F9ASFQYFT\",\"weapons\":[\"01M51Z13K8DXY89T6CHFVDE87C\"],\"at\":{\"x\":3,\"y\":8},\"hp\":1,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":5,\"state\":\"surrendered\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\",\"wounded\":true},\"wolf-2\":{\"id\":\"wolf-2\",\"name\":\"a big grey wolf\",\"called\":\"a big grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8VFV58KXKZ5KTH55S\",\"weapons\":[\"01M51Z13K85M055ZSTE0GNJT21\"],\"at\":{\"x\":4,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":3,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\"},\"wolf-3\":{\"id\":\"wolf-3\",\"name\":\"a lean grey wolf\",\"called\":\"a lean grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8TX6C8HC9DSR4VK9H\",\"weapons\":[\"01M51Z13K81BHQEZR03DCQW7F7\"],\"at\":{\"x\":5,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":17,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"w\",\"color\":\"#e06666\"}},\"order\":[\"wolf-3\",\"player\",\"wolf-1\",\"wolf-2\"],\"active\":1,\"round\":3,\"dust\":[],\"fire\":[],\"fuel\":[],\"props\":{},\"exits\":[{\"at\":{\"x\":6,\"y\":11},\"label\":\"the gate\"}],\"pc\":\"player\",\"flags\":{\"stood:player\":\"3:1\",\"last_out\":\"yielded\"},\"place\":\"the Arena\",\"begun\":\"3:1\"}",
+    "options": "{\"movementLeft\":18,\"speed\":35,\"actionUsed\":false,\"bonusActionUsed\":false,\"moves\":[{\"x\":5,\"y\":9},{\"x\":3,\"y\":9},{\"x\":4,\"y\":10},{\"x\":5,\"y\":10},{\"x\":3,\"y\":10},{\"x\":6,\"y\":9},{\"x\":6,\"y\":10},{\"x\":6,\"y\":8},{\"x\":2,\"y\":9},{\"x\":2,\"y\":10},{\"x\":2,\"y\":8},{\"x\":6,\"y\":11},{\"x\":3,\"y\":7},{\"x\":4,\"y\":7},{\"x\":2,\"y\":7},{\"x\":7,\"y\":9},{\"x\":7,\"y\":10},{\"x\":7,\"y\":8},{\"x\":6,\"y\":7},{\"x\":7,\"y\":7},{\"x\":5,\"y\":7},{\"x\":1,\"y\":9},{\"x\":1,\"y\":10},{\"x\":1,\"y\":8},{\"x\":1,\"y\":7},{\"x\":3,\"y\":6},{\"x\":4,\"y\":6},{\"x\":2,\"y\":6},{\"x\":5,\"y\":6},{\"x\":1,\"y\":6}],\"swings\":[{\"x\":3,\"y\":9},{\"x\":4,\"y\":10},{\"x\":5,\"y\":10},{\"x\":3,\"y\":10},{\"x\":6,\"y\":9},{\"x\":6,\"y\":10},{\"x\":6,\"y\":8},{\"x\":2,\"y\":9},{\"x\":2,\"y\":10},{\"x\":2,\"y\":8},{\"x\":6,\"y\":11},{\"x\":3,\"y\":7},{\"x\":4,\"y\":7},{\"x\":2,\"y\":7},{\"x\":7,\"y\":9},{\"x\":7,\"y\":10},{\"x\":7,\"y\":8},{\"x\":6,\"y\":7},{\"x\":7,\"y\":7},{\"x\":5,\"y\":7},{\"x\":1,\"y\":9},{\"x\":1,\"y\":10},{\"x\":1,\"y\":8},{\"x\":1,\"y\":7},{\"x\":3,\"y\":6},{\"x\":4,\"y\":6},{\"x\":2,\"y\":6},{\"x\":5,\"y\":6},{\"x\":1,\"y\":6}],\"actions\":[{\"id\":\"attack@4,8\",\"label\":\"Attack a big grey wolf (Longsword +5; 5 ft)\",\"kind\":\"attack\",\"name\":\"Attack\",\"cost\":\"action\",\"at\":{\"x\":4,\"y\":8},\"target\":\"wolf-2\",\"range\":5},{\"id\":\"attack@5,8\",\"label\":\"Attack a lean grey wolf (Longsword +5; 5 ft)\",\"kind\":\"attack\",\"name\":\"Attack\",\"cost\":\"action\",\"at\":{\"x\":5,\"y\":8},\"target\":\"wolf-3\",\"range\":5},{\"id\":\"shove@4,8\",\"label\":\"Shove a big grey wolf over (they save, or they're down)\",\"kind\":\"attack\",\"name\":\"Shove\",\"cost\":\"action\",\"at\":{\"x\":4,\"y\":8},\"target\":\"wolf-2\",\"range\":5},{\"id\":\"grapple@4,8\",\"label\":\"Grab hold of a big grey wolf (they save, or they're held)\",\"kind\":\"attack\",\"name\":\"Grab\",\"cost\":\"action\",\"at\":{\"x\":4,\"y\":8},\"target\":\"wolf-2\",\"range\":5},{\"id\":\"shove@5,8\",\"label\":\"Shove a lean grey wolf over (they save, or they're down)\",\"kind\":\"attack\",\"name\":\"Shove\",\"cost\":\"action\",\"at\":{\"x\":5,\"y\":8},\"target\":\"wolf-3\",\"range\":5},{\"id\":\"grapple@5,8\",\"label\":\"Grab hold of a lean grey wolf (they save, or they're held)\",\"kind\":\"attack\",\"name\":\"Grab\",\"cost\":\"action\",\"at\":{\"x\":5,\"y\":8},\"target\":\"wolf-3\",\"range\":5},{\"id\":\"walk@6,11\",\"label\":\"Back off (10 ft; a swing at you unless you disengage first)\",\"kind\":\"move\",\"name\":\"Back off\",\"cost\":\"move\",\"at\":{\"x\":6,\"y\":11},\"feet\":10},{\"id\":\"dash\",\"label\":\"Dash (35 ft more movement this turn)\",\"kind\":\"turn\",\"name\":\"Dash\",\"cost\":\"action\"},{\"id\":\"dodge\",\"label\":\"Dodge (attacks on you have disadvantage until your next turn)\",\"kind\":\"turn\",\"name\":\"Dodge\",\"cost\":\"action\"},{\"id\":\"disengage\",\"label\":\"Disengage (no swings at you as you move away this turn)\",\"kind\":\"turn\",\"name\":\"Disengage\",\"cost\":\"action\"},{\"id\":\"auto\",\"label\":\"Let the dice decide (the AI plays your turn)\",\"kind\":\"turn\",\"name\":\"Let the dice decide\",\"cost\":\"free\"},{\"id\":\"yield\",\"label\":\"Yield (put your hands up: the fight is over)\",\"kind\":\"turn\",\"name\":\"Yield\",\"cost\":\"free\"},{\"id\":\"end_turn\",\"label\":\"End your turn\",\"kind\":\"turn\",\"name\":\"End your turn\",\"cost\":\"free\"}]}"
+   }
+  },
+  {
+   "label": "you: attack@4,8",
+   "events": 24,
+   "fight": {
+    "status": "on",
+    "round": 3,
+    "turn": "player",
+    "order": [
+     "wolf-3",
+     "player",
+     "wolf-1",
+     "wolf-2"
+    ],
+    "board": "{\"encounterId\":\"01M51Z13K87FHF36143YP51PKK\",\"units\":{\"player\":{\"id\":\"player\",\"name\":\"Wren Ashdown\",\"called\":\"you\",\"side\":\"player\",\"role\":\"player\",\"engineId\":\"01M51Z12M076MWH5C2G1KPT413\",\"weapons\":[\"01M51Z12M00BEFYAHHMH468GFG\",\"01M51Z12M0513N6MH03WX7T88R\"],\"at\":{\"x\":4,\"y\":9},\"hp\":8,\"maxHp\":28,\"ac\":18,\"speed\":35,\"initiative\":10,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"@\",\"color\":\"#ffffff\",\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false},\"wounded\":true},\"wolf-1\":{\"id\":\"wolf-1\",\"name\":\"a grey wolf\",\"called\":\"a grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8HPSJHN0F9ASFQYFT\",\"weapons\":[\"01M51Z13K8DXY89T6CHFVDE87C\"],\"at\":{\"x\":3,\"y\":8},\"hp\":1,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":5,\"state\":\"surrendered\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\",\"wounded\":true},\"wolf-2\":{\"id\":\"wolf-2\",\"name\":\"a big grey wolf\",\"called\":\"a big grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8VFV58KXKZ5KTH55S\",\"weapons\":[\"01M51Z13K85M055ZSTE0GNJT21\"],\"at\":{\"x\":4,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":3,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\"},\"wolf-3\":{\"id\":\"wolf-3\",\"name\":\"a lean grey wolf\",\"called\":\"a lean grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8TX6C8HC9DSR4VK9H\",\"weapons\":[\"01M51Z13K81BHQEZR03DCQW7F7\"],\"at\":{\"x\":5,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":17,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"w\",\"color\":\"#e06666\"}},\"order\":[\"wolf-3\",\"player\",\"wolf-1\",\"wolf-2\"],\"active\":1,\"round\":3,\"dust\":[],\"fire\":[],\"fuel\":[],\"props\":{},\"exits\":[{\"at\":{\"x\":6,\"y\":11},\"label\":\"the gate\"}],\"pc\":\"player\",\"flags\":{\"stood:player\":\"3:1\",\"last_out\":\"yielded\"},\"place\":\"the Arena\",\"begun\":\"3:1\"}",
+    "options": "{\"movementLeft\":18,\"speed\":35,\"actionUsed\":true,\"bonusActionUsed\":false,\"moves\":[{\"x\":5,\"y\":9},{\"x\":3,\"y\":9},{\"x\":4,\"y\":10},{\"x\":5,\"y\":10},{\"x\":3,\"y\":10},{\"x\":6,\"y\":9},{\"x\":6,\"y\":10},{\"x\":6,\"y\":8},{\"x\":2,\"y\":9},{\"x\":2,\"y\":10},{\"x\":2,\"y\":8},{\"x\":6,\"y\":11},{\"x\":3,\"y\":7},{\"x\":4,\"y\":7},{\"x\":2,\"y\":7},{\"x\":7,\"y\":9},{\"x\":7,\"y\":10},{\"x\":7,\"y\":8},{\"x\":6,\"y\":7},{\"x\":7,\"y\":7},{\"x\":5,\"y\":7},{\"x\":1,\"y\":9},{\"x\":1,\"y\":10},{\"x\":1,\"y\":8},{\"x\":1,\"y\":7},{\"x\":3,\"y\":6},{\"x\":4,\"y\":6},{\"x\":2,\"y\":6},{\"x\":5,\"y\":6},{\"x\":1,\"y\":6}],\"swings\":[{\"x\":3,\"y\":9},{\"x\":4,\"y\":10},{\"x\":5,\"y\":10},{\"x\":3,\"y\":10},{\"x\":6,\"y\":9},{\"x\":6,\"y\":10},{\"x\":6,\"y\":8},{\"x\":2,\"y\":9},{\"x\":2,\"y\":10},{\"x\":2,\"y\":8},{\"x\":6,\"y\":11},{\"x\":3,\"y\":7},{\"x\":4,\"y\":7},{\"x\":2,\"y\":7},{\"x\":7,\"y\":9},{\"x\":7,\"y\":10},{\"x\":7,\"y\":8},{\"x\":6,\"y\":7},{\"x\":7,\"y\":7},{\"x\":5,\"y\":7},{\"x\":1,\"y\":9},{\"x\":1,\"y\":10},{\"x\":1,\"y\":8},{\"x\":1,\"y\":7},{\"x\":3,\"y\":6},{\"x\":4,\"y\":6},{\"x\":2,\"y\":6},{\"x\":5,\"y\":6},{\"x\":1,\"y\":6}],\"actions\":[{\"id\":\"walk@6,11\",\"label\":\"Back off (10 ft; a swing at you unless you disengage first)\",\"kind\":\"move\",\"name\":\"Back off\",\"cost\":\"move\",\"at\":{\"x\":6,\"y\":11},\"feet\":10},{\"id\":\"auto\",\"label\":\"Let the dice decide (the AI plays your turn)\",\"kind\":\"turn\",\"name\":\"Let the dice decide\",\"cost\":\"free\"},{\"id\":\"yield\",\"label\":\"Yield (put your hands up: the fight is over)\",\"kind\":\"turn\",\"name\":\"Yield\",\"cost\":\"free\"},{\"id\":\"end_turn\",\"label\":\"End your turn\",\"kind\":\"turn\",\"name\":\"End your turn\",\"cost\":\"free\"}]}"
+   }
+  },
+  {
+   "label": "you: end_turn",
+   "events": 25,
+   "fight": {
+    "status": "on",
+    "round": 3,
+    "turn": "wolf-2",
+    "order": [
+     "wolf-3",
+     "player",
+     "wolf-1",
+     "wolf-2"
+    ],
+    "board": "{\"encounterId\":\"01M51Z13K87FHF36143YP51PKK\",\"units\":{\"player\":{\"id\":\"player\",\"name\":\"Wren Ashdown\",\"called\":\"you\",\"side\":\"player\",\"role\":\"player\",\"engineId\":\"01M51Z12M076MWH5C2G1KPT413\",\"weapons\":[\"01M51Z12M00BEFYAHHMH468GFG\",\"01M51Z12M0513N6MH03WX7T88R\"],\"at\":{\"x\":4,\"y\":9},\"hp\":8,\"maxHp\":28,\"ac\":18,\"speed\":35,\"initiative\":10,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"@\",\"color\":\"#ffffff\",\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false},\"wounded\":true},\"wolf-1\":{\"id\":\"wolf-1\",\"name\":\"a grey wolf\",\"called\":\"a grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8HPSJHN0F9ASFQYFT\",\"weapons\":[\"01M51Z13K8DXY89T6CHFVDE87C\"],\"at\":{\"x\":3,\"y\":8},\"hp\":1,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":5,\"state\":\"surrendered\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\",\"wounded\":true},\"wolf-2\":{\"id\":\"wolf-2\",\"name\":\"a big grey wolf\",\"called\":\"a big grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8VFV58KXKZ5KTH55S\",\"weapons\":[\"01M51Z13K85M055ZSTE0GNJT21\"],\"at\":{\"x\":4,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":3,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\"},\"wolf-3\":{\"id\":\"wolf-3\",\"name\":\"a lean grey wolf\",\"called\":\"a lean grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8TX6C8HC9DSR4VK9H\",\"weapons\":[\"01M51Z13K81BHQEZR03DCQW7F7\"],\"at\":{\"x\":5,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":17,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"w\",\"color\":\"#e06666\"}},\"order\":[\"wolf-3\",\"player\",\"wolf-1\",\"wolf-2\"],\"active\":3,\"round\":3,\"dust\":[],\"fire\":[],\"fuel\":[],\"props\":{},\"exits\":[{\"at\":{\"x\":6,\"y\":11},\"label\":\"the gate\"}],\"pc\":\"player\",\"flags\":{\"stood:player\":\"3:1\",\"last_out\":\"yielded\"},\"place\":\"the Arena\",\"begun\":\"3:3\"}",
+    "options": ""
+   }
+  },
+  {
+   "label": "step: wolf-2",
+   "events": 27,
+   "fight": {
+    "status": "on",
+    "round": 4,
+    "turn": "wolf-3",
+    "order": [
+     "wolf-3",
+     "player",
+     "wolf-1",
+     "wolf-2"
+    ],
+    "board": "{\"encounterId\":\"01M51Z13K87FHF36143YP51PKK\",\"units\":{\"player\":{\"id\":\"player\",\"name\":\"Wren Ashdown\",\"called\":\"you\",\"side\":\"player\",\"role\":\"player\",\"engineId\":\"01M51Z12M076MWH5C2G1KPT413\",\"weapons\":[\"01M51Z12M00BEFYAHHMH468GFG\",\"01M51Z12M0513N6MH03WX7T88R\"],\"at\":{\"x\":4,\"y\":9},\"hp\":3,\"maxHp\":28,\"ac\":18,\"speed\":35,\"initiative\":10,\"state\":\"fighting\",\"conditions\":[\"prone\"],\"glyph\":\"@\",\"color\":\"#ffffff\",\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false},\"wounded\":true},\"wolf-1\":{\"id\":\"wolf-1\",\"name\":\"a grey wolf\",\"called\":\"a grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8HPSJHN0F9ASFQYFT\",\"weapons\":[\"01M51Z13K8DXY89T6CHFVDE87C\"],\"at\":{\"x\":3,\"y\":8},\"hp\":1,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":5,\"state\":\"surrendered\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\",\"wounded\":true},\"wolf-2\":{\"id\":\"wolf-2\",\"name\":\"a big grey wolf\",\"called\":\"a big grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8VFV58KXKZ5KTH55S\",\"weapons\":[\"01M51Z13K85M055ZSTE0GNJT21\"],\"at\":{\"x\":4,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":3,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\"},\"wolf-3\":{\"id\":\"wolf-3\",\"name\":\"a lean grey wolf\",\"called\":\"a lean grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8TX6C8HC9DSR4VK9H\",\"weapons\":[\"01M51Z13K81BHQEZR03DCQW7F7\"],\"at\":{\"x\":5,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":17,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"w\",\"color\":\"#e06666\"}},\"order\":[\"wolf-3\",\"player\",\"wolf-1\",\"wolf-2\"],\"active\":0,\"round\":4,\"dust\":[],\"fire\":[],\"fuel\":[],\"props\":{},\"exits\":[{\"at\":{\"x\":6,\"y\":11},\"label\":\"the gate\"}],\"pc\":\"player\",\"flags\":{\"stood:player\":\"3:1\",\"last_out\":\"yielded\"},\"place\":\"the Arena\",\"begun\":\"4:0\"}",
+    "options": ""
+   }
+  },
+  {
+   "label": "step: wolf-3",
+   "events": 29,
+   "fight": {
+    "status": "on",
+    "round": 4,
+    "turn": "player",
+    "order": [
+     "wolf-3",
+     "player",
+     "wolf-1",
+     "wolf-2"
+    ],
+    "board": "{\"encounterId\":\"01M51Z13K87FHF36143YP51PKK\",\"units\":{\"player\":{\"id\":\"player\",\"name\":\"Wren Ashdown\",\"called\":\"you\",\"side\":\"player\",\"role\":\"player\",\"engineId\":\"01M51Z12M076MWH5C2G1KPT413\",\"weapons\":[\"01M51Z12M00BEFYAHHMH468GFG\",\"01M51Z12M0513N6MH03WX7T88R\"],\"at\":{\"x\":4,\"y\":9},\"hp\":3,\"maxHp\":28,\"ac\":18,\"speed\":35,\"initiative\":10,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"@\",\"color\":\"#ffffff\",\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false},\"wounded\":true},\"wolf-1\":{\"id\":\"wolf-1\",\"name\":\"a grey wolf\",\"called\":\"a grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8HPSJHN0F9ASFQYFT\",\"weapons\":[\"01M51Z13K8DXY89T6CHFVDE87C\"],\"at\":{\"x\":3,\"y\":8},\"hp\":1,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":5,\"state\":\"surrendered\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\",\"wounded\":true},\"wolf-2\":{\"id\":\"wolf-2\",\"name\":\"a big grey wolf\",\"called\":\"a big grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8VFV58KXKZ5KTH55S\",\"weapons\":[\"01M51Z13K85M055ZSTE0GNJT21\"],\"at\":{\"x\":4,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":3,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\"},\"wolf-3\":{\"id\":\"wolf-3\",\"name\":\"a lean grey wolf\",\"called\":\"a lean grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8TX6C8HC9DSR4VK9H\",\"weapons\":[\"01M51Z13K81BHQEZR03DCQW7F7\"],\"at\":{\"x\":5,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":17,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"w\",\"color\":\"#e06666\"}},\"order\":[\"wolf-3\",\"player\",\"wolf-1\",\"wolf-2\"],\"active\":1,\"round\":4,\"dust\":[],\"fire\":[],\"fuel\":[],\"props\":{},\"exits\":[{\"at\":{\"x\":6,\"y\":11},\"label\":\"the gate\"}],\"pc\":\"player\",\"flags\":{\"stood:player\":\"4:1\",\"last_out\":\"yielded\"},\"place\":\"the Arena\",\"begun\":\"4:1\"}",
+    "options": "{\"movementLeft\":18,\"speed\":35,\"actionUsed\":false,\"bonusActionUsed\":false,\"moves\":[{\"x\":5,\"y\":9},{\"x\":3,\"y\":9},{\"x\":4,\"y\":10},{\"x\":5,\"y\":10},{\"x\":3,\"y\":10},{\"x\":6,\"y\":9},{\"x\":6,\"y\":10},{\"x\":6,\"y\":8},{\"x\":2,\"y\":9},{\"x\":2,\"y\":10},{\"x\":2,\"y\":8},{\"x\":6,\"y\":11},{\"x\":3,\"y\":7},{\"x\":4,\"y\":7},{\"x\":2,\"y\":7},{\"x\":7,\"y\":9},{\"x\":7,\"y\":10},{\"x\":7,\"y\":8},{\"x\":6,\"y\":7},{\"x\":7,\"y\":7},{\"x\":5,\"y\":7},{\"x\":1,\"y\":9},{\"x\":1,\"y\":10},{\"x\":1,\"y\":8},{\"x\":1,\"y\":7},{\"x\":3,\"y\":6},{\"x\":4,\"y\":6},{\"x\":2,\"y\":6},{\"x\":5,\"y\":6},{\"x\":1,\"y\":6}],\"swings\":[{\"x\":3,\"y\":9},{\"x\":4,\"y\":10},{\"x\":5,\"y\":10},{\"x\":3,\"y\":10},{\"x\":6,\"y\":9},{\"x\":6,\"y\":10},{\"x\":6,\"y\":8},{\"x\":2,\"y\":9},{\"x\":2,\"y\":10},{\"x\":2,\"y\":8},{\"x\":6,\"y\":11},{\"x\":3,\"y\":7},{\"x\":4,\"y\":7},{\"x\":2,\"y\":7},{\"x\":7,\"y\":9},{\"x\":7,\"y\":10},{\"x\":7,\"y\":8},{\"x\":6,\"y\":7},{\"x\":7,\"y\":7},{\"x\":5,\"y\":7},{\"x\":1,\"y\":9},{\"x\":1,\"y\":10},{\"x\":1,\"y\":8},{\"x\":1,\"y\":7},{\"x\":3,\"y\":6},{\"x\":4,\"y\":6},{\"x\":2,\"y\":6},{\"x\":5,\"y\":6},{\"x\":1,\"y\":6}],\"actions\":[{\"id\":\"attack@4,8\",\"label\":\"Attack a big grey wolf (Longsword +5; 5 ft)\",\"kind\":\"attack\",\"name\":\"Attack\",\"cost\":\"action\",\"at\":{\"x\":4,\"y\":8},\"target\":\"wolf-2\",\"range\":5},{\"id\":\"attack@5,8\",\"label\":\"Attack a lean grey wolf (Longsword +5; 5 ft)\",\"kind\":\"attack\",\"name\":\"Attack\",\"cost\":\"action\",\"at\":{\"x\":5,\"y\":8},\"target\":\"wolf-3\",\"range\":5},{\"id\":\"shove@4,8\",\"label\":\"Shove a big grey wolf over (they save, or they're down)\",\"kind\":\"attack\",\"name\":\"Shove\",\"cost\":\"action\",\"at\":{\"x\":4,\"y\":8},\"target\":\"wolf-2\",\"range\":5},{\"id\":\"grapple@4,8\",\"label\":\"Grab hold of a big grey wolf (they save, or they're held)\",\"kind\":\"attack\",\"name\":\"Grab\",\"cost\":\"action\",\"at\":{\"x\":4,\"y\":8},\"target\":\"wolf-2\",\"range\":5},{\"id\":\"shove@5,8\",\"label\":\"Shove a lean grey wolf over (they save, or they're down)\",\"kind\":\"attack\",\"name\":\"Shove\",\"cost\":\"action\",\"at\":{\"x\":5,\"y\":8},\"target\":\"wolf-3\",\"range\":5},{\"id\":\"grapple@5,8\",\"label\":\"Grab hold of a lean grey wolf (they save, or they're held)\",\"kind\":\"attack\",\"name\":\"Grab\",\"cost\":\"action\",\"at\":{\"x\":5,\"y\":8},\"target\":\"wolf-3\",\"range\":5},{\"id\":\"walk@6,11\",\"label\":\"Back off (10 ft; a swing at you unless you disengage first)\",\"kind\":\"move\",\"name\":\"Back off\",\"cost\":\"move\",\"at\":{\"x\":6,\"y\":11},\"feet\":10},{\"id\":\"dash\",\"label\":\"Dash (35 ft more movement this turn)\",\"kind\":\"turn\",\"name\":\"Dash\",\"cost\":\"action\"},{\"id\":\"dodge\",\"label\":\"Dodge (attacks on you have disadvantage until your next turn)\",\"kind\":\"turn\",\"name\":\"Dodge\",\"cost\":\"action\"},{\"id\":\"disengage\",\"label\":\"Disengage (no swings at you as you move away this turn)\",\"kind\":\"turn\",\"name\":\"Disengage\",\"cost\":\"action\"},{\"id\":\"auto\",\"label\":\"Let the dice decide (the AI plays your turn)\",\"kind\":\"turn\",\"name\":\"Let the dice decide\",\"cost\":\"free\"},{\"id\":\"yield\",\"label\":\"Yield (put your hands up: the fight is over)\",\"kind\":\"turn\",\"name\":\"Yield\",\"cost\":\"free\"},{\"id\":\"end_turn\",\"label\":\"End your turn\",\"kind\":\"turn\",\"name\":\"End your turn\",\"cost\":\"free\"}]}"
+   }
+  },
+  {
+   "label": "you: auto",
+   "events": 31,
+   "fight": {
+    "status": "on",
+    "round": 5,
+    "turn": "wolf-3",
+    "order": [
+     "wolf-3",
+     "player",
+     "wolf-1",
+     "wolf-2"
+    ],
+    "board": "{\"encounterId\":\"01M51Z13K87FHF36143YP51PKK\",\"units\":{\"player\":{\"id\":\"player\",\"name\":\"Wren Ashdown\",\"called\":\"you\",\"side\":\"player\",\"role\":\"player\",\"engineId\":\"01M51Z12M076MWH5C2G1KPT413\",\"weapons\":[\"01M51Z12M00BEFYAHHMH468GFG\",\"01M51Z12M0513N6MH03WX7T88R\"],\"at\":{\"x\":4,\"y\":9},\"hp\":3,\"maxHp\":28,\"ac\":18,\"speed\":35,\"initiative\":10,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"@\",\"color\":\"#ffffff\",\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false},\"wounded\":true},\"wolf-1\":{\"id\":\"wolf-1\",\"name\":\"a grey wolf\",\"called\":\"a grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8HPSJHN0F9ASFQYFT\",\"weapons\":[\"01M51Z13K8DXY89T6CHFVDE87C\"],\"at\":{\"x\":3,\"y\":8},\"hp\":1,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":5,\"state\":\"surrendered\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\",\"wounded\":true},\"wolf-2\":{\"id\":\"wolf-2\",\"name\":\"a big grey wolf\",\"called\":\"a big grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8VFV58KXKZ5KTH55S\",\"weapons\":[\"01M51Z13K85M055ZSTE0GNJT21\"],\"at\":{\"x\":4,\"y\":8},\"hp\":0,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":3,\"state\":\"down\",\"conditions\":[\"unconscious\"],\"glyph\":\"W\",\"color\":\"#e06666\",\"wounded\":true},\"wolf-3\":{\"id\":\"wolf-3\",\"name\":\"a lean grey wolf\",\"called\":\"a lean grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8TX6C8HC9DSR4VK9H\",\"weapons\":[\"01M51Z13K81BHQEZR03DCQW7F7\"],\"at\":{\"x\":5,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":17,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"w\",\"color\":\"#e06666\"}},\"order\":[\"wolf-3\",\"player\",\"wolf-1\",\"wolf-2\"],\"active\":0,\"round\":5,\"dust\":[],\"fire\":[],\"fuel\":[],\"props\":{},\"exits\":[{\"at\":{\"x\":6,\"y\":11},\"label\":\"the gate\"}],\"pc\":\"player\",\"flags\":{\"stood:player\":\"4:1\",\"last_out\":\"beaten\"},\"place\":\"the Arena\",\"begun\":\"5:0\"}",
+    "options": ""
+   }
+  },
+  {
+   "label": "step: wolf-3",
+   "events": 34,
+   "fight": {
+    "status": "on",
+    "round": 5,
+    "turn": "player",
+    "order": [
+     "wolf-3",
+     "player",
+     "wolf-1",
+     "wolf-2"
+    ],
+    "board": "{\"encounterId\":\"01M51Z13K87FHF36143YP51PKK\",\"units\":{\"player\":{\"id\":\"player\",\"name\":\"Wren Ashdown\",\"called\":\"you\",\"side\":\"player\",\"role\":\"player\",\"engineId\":\"01M51Z12M076MWH5C2G1KPT413\",\"weapons\":[\"01M51Z12M00BEFYAHHMH468GFG\",\"01M51Z12M0513N6MH03WX7T88R\"],\"at\":{\"x\":4,\"y\":9},\"hp\":3,\"maxHp\":28,\"ac\":18,\"speed\":35,\"initiative\":10,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"@\",\"color\":\"#ffffff\",\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false},\"wounded\":true},\"wolf-1\":{\"id\":\"wolf-1\",\"name\":\"a grey wolf\",\"called\":\"a grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8HPSJHN0F9ASFQYFT\",\"weapons\":[\"01M51Z13K8DXY89T6CHFVDE87C\"],\"at\":{\"x\":3,\"y\":8},\"hp\":1,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":5,\"state\":\"surrendered\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\",\"wounded\":true},\"wolf-2\":{\"id\":\"wolf-2\",\"name\":\"a big grey wolf\",\"called\":\"a big grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8VFV58KXKZ5KTH55S\",\"weapons\":[\"01M51Z13K85M055ZSTE0GNJT21\"],\"at\":{\"x\":4,\"y\":8},\"hp\":0,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":3,\"state\":\"down\",\"conditions\":[\"unconscious\"],\"glyph\":\"W\",\"color\":\"#e06666\",\"wounded\":true},\"wolf-3\":{\"id\":\"wolf-3\",\"name\":\"a lean grey wolf\",\"called\":\"a lean grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8TX6C8HC9DSR4VK9H\",\"weapons\":[\"01M51Z13K81BHQEZR03DCQW7F7\"],\"at\":{\"x\":5,\"y\":8},\"hp\":11,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":17,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"w\",\"color\":\"#e06666\"}},\"order\":[\"wolf-3\",\"player\",\"wolf-1\",\"wolf-2\"],\"active\":1,\"round\":5,\"dust\":[],\"fire\":[],\"fuel\":[],\"props\":{},\"exits\":[{\"at\":{\"x\":6,\"y\":11},\"label\":\"the gate\"}],\"pc\":\"player\",\"flags\":{\"stood:player\":\"4:1\",\"last_out\":\"beaten\",\"nerve:alone:wolf-3\":\"held\"},\"place\":\"the Arena\",\"begun\":\"5:1\"}",
+    "options": "{\"movementLeft\":35,\"speed\":35,\"actionUsed\":false,\"bonusActionUsed\":false,\"moves\":[{\"x\":5,\"y\":9},{\"x\":3,\"y\":9},{\"x\":4,\"y\":10},{\"x\":5,\"y\":10},{\"x\":3,\"y\":10},{\"x\":6,\"y\":9},{\"x\":6,\"y\":10},{\"x\":6,\"y\":8},{\"x\":2,\"y\":9},{\"x\":2,\"y\":10},{\"x\":2,\"y\":8},{\"x\":4,\"y\":7},{\"x\":5,\"y\":7},{\"x\":3,\"y\":7},{\"x\":6,\"y\":11},{\"x\":2,\"y\":7},{\"x\":7,\"y\":9},{\"x\":7,\"y\":10},{\"x\":7,\"y\":8},{\"x\":6,\"y\":7},{\"x\":7,\"y\":7},{\"x\":1,\"y\":9},{\"x\":1,\"y\":10},{\"x\":1,\"y\":8},{\"x\":1,\"y\":7},{\"x\":4,\"y\":6},{\"x\":5,\"y\":6},{\"x\":3,\"y\":6},{\"x\":6,\"y\":6},{\"x\":2,\"y\":6},{\"x\":1,\"y\":6},{\"x\":8,\"y\":9},{\"x\":8,\"y\":10},{\"x\":8,\"y\":8},{\"x\":8,\"y\":7},{\"x\":7,\"y\":6},{\"x\":4,\"y\":5},{\"x\":5,\"y\":5},{\"x\":3,\"y\":5},{\"x\":6,\"y\":5},{\"x\":2,\"y\":5},{\"x\":7,\"y\":5},{\"x\":1,\"y\":5},{\"x\":9,\"y\":9},{\"x\":9,\"y\":10},{\"x\":9,\"y\":8},{\"x\":9,\"y\":7},{\"x\":9,\"y\":6},{\"x\":8,\"y\":5},{\"x\":4,\"y\":4},{\"x\":5,\"y\":4},{\"x\":3,\"y\":4},{\"x\":6,\"y\":4},{\"x\":2,\"y\":4},{\"x\":7,\"y\":4},{\"x\":1,\"y\":4},{\"x\":8,\"y\":4},{\"x\":10,\"y\":9},{\"x\":10,\"y\":10},{\"x\":10,\"y\":8},{\"x\":10,\"y\":7},{\"x\":10,\"y\":6},{\"x\":9,\"y\":5},{\"x\":10,\"y\":5},{\"x\":9,\"y\":4},{\"x\":4,\"y\":3},{\"x\":3,\"y\":3},{\"x\":6,\"y\":3},{\"x\":2,\"y\":3},{\"x\":7,\"y\":3},{\"x\":1,\"y\":3},{\"x\":8,\"y\":3},{\"x\":9,\"y\":3},{\"x\":11,\"y\":9},{\"x\":11,\"y\":10},{\"x\":11,\"y\":8},{\"x\":11,\"y\":7},{\"x\":11,\"y\":6},{\"x\":11,\"y\":5},{\"x\":10,\"y\":4},{\"x\":11,\"y\":4},{\"x\":10,\"y\":3},{\"x\":4,\"y\":2},{\"x\":5,\"y\":2},{\"x\":3,\"y\":2},{\"x\":2,\"y\":2},{\"x\":6,\"y\":2},{\"x\":7,\"y\":2},{\"x\":1,\"y\":2},{\"x\":8,\"y\":2},{\"x\":9,\"y\":2},{\"x\":10,\"y\":2}],\"swings\":[{\"x\":3,\"y\":9},{\"x\":4,\"y\":10},{\"x\":5,\"y\":10},{\"x\":3,\"y\":10},{\"x\":6,\"y\":10},{\"x\":2,\"y\":9},{\"x\":2,\"y\":10},{\"x\":2,\"y\":8},{\"x\":3,\"y\":7},{\"x\":6,\"y\":11},{\"x\":2,\"y\":7},{\"x\":7,\"y\":9},{\"x\":7,\"y\":10},{\"x\":7,\"y\":8},{\"x\":7,\"y\":7},{\"x\":1,\"y\":9},{\"x\":1,\"y\":10},{\"x\":1,\"y\":8},{\"x\":1,\"y\":7},{\"x\":4,\"y\":6},{\"x\":5,\"y\":6},{\"x\":3,\"y\":6},{\"x\":6,\"y\":6},{\"x\":2,\"y\":6},{\"x\":1,\"y\":6},{\"x\":8,\"y\":9},{\"x\":8,\"y\":10},{\"x\":8,\"y\":8},{\"x\":8,\"y\":7},{\"x\":7,\"y\":6},{\"x\":4,\"y\":5},{\"x\":5,\"y\":5},{\"x\":3,\"y\":5},{\"x\":6,\"y\":5},{\"x\":2,\"y\":5},{\"x\":7,\"y\":5},{\"x\":1,\"y\":5},{\"x\":9,\"y\":9},{\"x\":9,\"y\":10},{\"x\":9,\"y\":8},{\"x\":9,\"y\":7},{\"x\":9,\"y\":6},{\"x\":8,\"y\":5},{\"x\":4,\"y\":4},{\"x\":5,\"y\":4},{\"x\":3,\"y\":4},{\"x\":6,\"y\":4},{\"x\":2,\"y\":4},{\"x\":7,\"y\":4},{\"x\":1,\"y\":4},{\"x\":8,\"y\":4},{\"x\":10,\"y\":9},{\"x\":10,\"y\":10},{\"x\":10,\"y\":8},{\"x\":10,\"y\":7},{\"x\":10,\"y\":6},{\"x\":9,\"y\":5},{\"x\":10,\"y\":5},{\"x\":9,\"y\":4},{\"x\":4,\"y\":3},{\"x\":3,\"y\":3},{\"x\":6,\"y\":3},{\"x\":2,\"y\":3},{\"x\":7,\"y\":3},{\"x\":1,\"y\":3},{\"x\":8,\"y\":3},{\"x\":9,\"y\":3},{\"x\":11,\"y\":9},{\"x\":11,\"y\":10},{\"x\":11,\"y\":8},{\"x\":11,\"y\":7},{\"x\":11,\"y\":6},{\"x\":11,\"y\":5},{\"x\":10,\"y\":4},{\"x\":11,\"y\":4},{\"x\":10,\"y\":3},{\"x\":4,\"y\":2},{\"x\":5,\"y\":2},{\"x\":3,\"y\":2},{\"x\":2,\"y\":2},{\"x\":6,\"y\":2},{\"x\":7,\"y\":2},{\"x\":1,\"y\":2},{\"x\":8,\"y\":2},{\"x\":9,\"y\":2},{\"x\":10,\"y\":2}],\"actions\":[{\"id\":\"attack@5,8\",\"label\":\"Attack a lean grey wolf (Longsword +5; 5 ft)\",\"kind\":\"attack\",\"name\":\"Attack\",\"cost\":\"action\",\"at\":{\"x\":5,\"y\":8},\"target\":\"wolf-3\",\"range\":5},{\"id\":\"shove@5,8\",\"label\":\"Shove a lean grey wolf over (they save, or they're down)\",\"kind\":\"attack\",\"name\":\"Shove\",\"cost\":\"action\",\"at\":{\"x\":5,\"y\":8},\"target\":\"wolf-3\",\"range\":5},{\"id\":\"grapple@5,8\",\"label\":\"Grab hold of a lean grey wolf (they save, or they're held)\",\"kind\":\"attack\",\"name\":\"Grab\",\"cost\":\"action\",\"at\":{\"x\":5,\"y\":8},\"target\":\"wolf-3\",\"range\":5},{\"id\":\"walk@11,9\",\"label\":\"Back off (35 ft; a swing at you unless you disengage first)\",\"kind\":\"move\",\"name\":\"Back off\",\"cost\":\"move\",\"at\":{\"x\":11,\"y\":9},\"feet\":35},{\"id\":\"walk@6,11\",\"label\":\"Make for the gate (10 ft)\",\"kind\":\"move\",\"name\":\"Make for the gate\",\"cost\":\"move\",\"at\":{\"x\":6,\"y\":11},\"feet\":10},{\"id\":\"dash\",\"label\":\"Dash (35 ft more movement this turn)\",\"kind\":\"turn\",\"name\":\"Dash\",\"cost\":\"action\"},{\"id\":\"dodge\",\"label\":\"Dodge (attacks on you have disadvantage until your next turn)\",\"kind\":\"turn\",\"name\":\"Dodge\",\"cost\":\"action\"},{\"id\":\"disengage\",\"label\":\"Disengage (no swings at you as you move away this turn)\",\"kind\":\"turn\",\"name\":\"Disengage\",\"cost\":\"action\"},{\"id\":\"auto\",\"label\":\"Let the dice decide (the AI plays your turn)\",\"kind\":\"turn\",\"name\":\"Let the dice decide\",\"cost\":\"free\"},{\"id\":\"yield\",\"label\":\"Yield (put your hands up: the fight is over)\",\"kind\":\"turn\",\"name\":\"Yield\",\"cost\":\"free\"},{\"id\":\"end_turn\",\"label\":\"End your turn\",\"kind\":\"turn\",\"name\":\"End your turn\",\"cost\":\"free\"}]}"
+   }
+  },
+  {
+   "label": "you: auto",
+   "events": 36,
+   "fight": {
+    "status": "on",
+    "round": 6,
+    "turn": "wolf-3",
+    "order": [
+     "wolf-3",
+     "player",
+     "wolf-1",
+     "wolf-2"
+    ],
+    "board": "{\"encounterId\":\"01M51Z13K87FHF36143YP51PKK\",\"units\":{\"player\":{\"id\":\"player\",\"name\":\"Wren Ashdown\",\"called\":\"you\",\"side\":\"player\",\"role\":\"player\",\"engineId\":\"01M51Z12M076MWH5C2G1KPT413\",\"weapons\":[\"01M51Z12M00BEFYAHHMH468GFG\",\"01M51Z12M0513N6MH03WX7T88R\"],\"at\":{\"x\":4,\"y\":9},\"hp\":3,\"maxHp\":28,\"ac\":18,\"speed\":35,\"initiative\":10,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"@\",\"color\":\"#ffffff\",\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false},\"wounded\":true},\"wolf-1\":{\"id\":\"wolf-1\",\"name\":\"a grey wolf\",\"called\":\"a grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8HPSJHN0F9ASFQYFT\",\"weapons\":[\"01M51Z13K8DXY89T6CHFVDE87C\"],\"at\":{\"x\":3,\"y\":8},\"hp\":1,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":5,\"state\":\"surrendered\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\",\"wounded\":true},\"wolf-2\":{\"id\":\"wolf-2\",\"name\":\"a big grey wolf\",\"called\":\"a big grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8VFV58KXKZ5KTH55S\",\"weapons\":[\"01M51Z13K85M055ZSTE0GNJT21\"],\"at\":{\"x\":4,\"y\":8},\"hp\":0,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":3,\"state\":\"down\",\"conditions\":[\"unconscious\"],\"glyph\":\"W\",\"color\":\"#e06666\",\"wounded\":true},\"wolf-3\":{\"id\":\"wolf-3\",\"name\":\"a lean grey wolf\",\"called\":\"a lean grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8TX6C8HC9DSR4VK9H\",\"weapons\":[\"01M51Z13K81BHQEZR03DCQW7F7\"],\"at\":{\"x\":5,\"y\":8},\"hp\":4,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":17,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"w\",\"color\":\"#e06666\",\"wounded\":true}},\"order\":[\"wolf-3\",\"player\",\"wolf-1\",\"wolf-2\"],\"active\":0,\"round\":6,\"dust\":[],\"fire\":[],\"fuel\":[],\"props\":{},\"exits\":[{\"at\":{\"x\":6,\"y\":11},\"label\":\"the gate\"}],\"pc\":\"player\",\"flags\":{\"stood:player\":\"4:1\",\"last_out\":\"beaten\",\"nerve:alone:wolf-3\":\"held\"},\"place\":\"the Arena\",\"begun\":\"6:0\"}",
+    "options": ""
+   }
+  },
+  {
+   "label": "step: wolf-3",
+   "events": 38,
+   "fight": {
+    "status": "on",
+    "round": 6,
+    "turn": "player",
+    "order": [
+     "wolf-3",
+     "player",
+     "wolf-1",
+     "wolf-2"
+    ],
+    "board": "{\"encounterId\":\"01M51Z13K87FHF36143YP51PKK\",\"units\":{\"player\":{\"id\":\"player\",\"name\":\"Wren Ashdown\",\"called\":\"you\",\"side\":\"player\",\"role\":\"player\",\"engineId\":\"01M51Z12M076MWH5C2G1KPT413\",\"weapons\":[\"01M51Z12M00BEFYAHHMH468GFG\",\"01M51Z12M0513N6MH03WX7T88R\"],\"at\":{\"x\":4,\"y\":9},\"hp\":3,\"maxHp\":28,\"ac\":18,\"speed\":35,\"initiative\":10,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"@\",\"color\":\"#ffffff\",\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false},\"wounded\":true},\"wolf-1\":{\"id\":\"wolf-1\",\"name\":\"a grey wolf\",\"called\":\"a grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8HPSJHN0F9ASFQYFT\",\"weapons\":[\"01M51Z13K8DXY89T6CHFVDE87C\"],\"at\":{\"x\":3,\"y\":8},\"hp\":1,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":5,\"state\":\"surrendered\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\",\"wounded\":true},\"wolf-2\":{\"id\":\"wolf-2\",\"name\":\"a big grey wolf\",\"called\":\"a big grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8VFV58KXKZ5KTH55S\",\"weapons\":[\"01M51Z13K85M055ZSTE0GNJT21\"],\"at\":{\"x\":4,\"y\":8},\"hp\":0,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":3,\"state\":\"down\",\"conditions\":[\"unconscious\"],\"glyph\":\"W\",\"color\":\"#e06666\",\"wounded\":true},\"wolf-3\":{\"id\":\"wolf-3\",\"name\":\"a lean grey wolf\",\"called\":\"a lean grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8TX6C8HC9DSR4VK9H\",\"weapons\":[\"01M51Z13K81BHQEZR03DCQW7F7\"],\"at\":{\"x\":5,\"y\":8},\"hp\":4,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":17,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"w\",\"color\":\"#e06666\",\"wounded\":true}},\"order\":[\"wolf-3\",\"player\",\"wolf-1\",\"wolf-2\"],\"active\":1,\"round\":6,\"dust\":[],\"fire\":[],\"fuel\":[],\"props\":{},\"exits\":[{\"at\":{\"x\":6,\"y\":11},\"label\":\"the gate\"}],\"pc\":\"player\",\"flags\":{\"stood:player\":\"4:1\",\"last_out\":\"beaten\",\"nerve:alone:wolf-3\":\"held\"},\"place\":\"the Arena\",\"begun\":\"6:1\"}",
+    "options": "{\"movementLeft\":35,\"speed\":35,\"actionUsed\":false,\"bonusActionUsed\":false,\"moves\":[{\"x\":5,\"y\":9},{\"x\":3,\"y\":9},{\"x\":4,\"y\":10},{\"x\":5,\"y\":10},{\"x\":3,\"y\":10},{\"x\":6,\"y\":9},{\"x\":6,\"y\":10},{\"x\":6,\"y\":8},{\"x\":2,\"y\":9},{\"x\":2,\"y\":10},{\"x\":2,\"y\":8},{\"x\":4,\"y\":7},{\"x\":5,\"y\":7},{\"x\":3,\"y\":7},{\"x\":6,\"y\":11},{\"x\":2,\"y\":7},{\"x\":7,\"y\":9},{\"x\":7,\"y\":10},{\"x\":7,\"y\":8},{\"x\":6,\"y\":7},{\"x\":7,\"y\":7},{\"x\":1,\"y\":9},{\"x\":1,\"y\":10},{\"x\":1,\"y\":8},{\"x\":1,\"y\":7},{\"x\":4,\"y\":6},{\"x\":5,\"y\":6},{\"x\":3,\"y\":6},{\"x\":6,\"y\":6},{\"x\":2,\"y\":6},{\"x\":1,\"y\":6},{\"x\":8,\"y\":9},{\"x\":8,\"y\":10},{\"x\":8,\"y\":8},{\"x\":8,\"y\":7},{\"x\":7,\"y\":6},{\"x\":4,\"y\":5},{\"x\":5,\"y\":5},{\"x\":3,\"y\":5},{\"x\":6,\"y\":5},{\"x\":2,\"y\":5},{\"x\":7,\"y\":5},{\"x\":1,\"y\":5},{\"x\":9,\"y\":9},{\"x\":9,\"y\":10},{\"x\":9,\"y\":8},{\"x\":9,\"y\":7},{\"x\":9,\"y\":6},{\"x\":8,\"y\":5},{\"x\":4,\"y\":4},{\"x\":5,\"y\":4},{\"x\":3,\"y\":4},{\"x\":6,\"y\":4},{\"x\":2,\"y\":4},{\"x\":7,\"y\":4},{\"x\":1,\"y\":4},{\"x\":8,\"y\":4},{\"x\":10,\"y\":9},{\"x\":10,\"y\":10},{\"x\":10,\"y\":8},{\"x\":10,\"y\":7},{\"x\":10,\"y\":6},{\"x\":9,\"y\":5},{\"x\":10,\"y\":5},{\"x\":9,\"y\":4},{\"x\":4,\"y\":3},{\"x\":3,\"y\":3},{\"x\":6,\"y\":3},{\"x\":2,\"y\":3},{\"x\":7,\"y\":3},{\"x\":1,\"y\":3},{\"x\":8,\"y\":3},{\"x\":9,\"y\":3},{\"x\":11,\"y\":9},{\"x\":11,\"y\":10},{\"x\":11,\"y\":8},{\"x\":11,\"y\":7},{\"x\":11,\"y\":6},{\"x\":11,\"y\":5},{\"x\":10,\"y\":4},{\"x\":11,\"y\":4},{\"x\":10,\"y\":3},{\"x\":4,\"y\":2},{\"x\":5,\"y\":2},{\"x\":3,\"y\":2},{\"x\":2,\"y\":2},{\"x\":6,\"y\":2},{\"x\":7,\"y\":2},{\"x\":1,\"y\":2},{\"x\":8,\"y\":2},{\"x\":9,\"y\":2},{\"x\":10,\"y\":2}],\"swings\":[{\"x\":3,\"y\":9},{\"x\":4,\"y\":10},{\"x\":5,\"y\":10},{\"x\":3,\"y\":10},{\"x\":6,\"y\":10},{\"x\":2,\"y\":9},{\"x\":2,\"y\":10},{\"x\":2,\"y\":8},{\"x\":3,\"y\":7},{\"x\":6,\"y\":11},{\"x\":2,\"y\":7},{\"x\":7,\"y\":9},{\"x\":7,\"y\":10},{\"x\":7,\"y\":8},{\"x\":7,\"y\":7},{\"x\":1,\"y\":9},{\"x\":1,\"y\":10},{\"x\":1,\"y\":8},{\"x\":1,\"y\":7},{\"x\":4,\"y\":6},{\"x\":5,\"y\":6},{\"x\":3,\"y\":6},{\"x\":6,\"y\":6},{\"x\":2,\"y\":6},{\"x\":1,\"y\":6},{\"x\":8,\"y\":9},{\"x\":8,\"y\":10},{\"x\":8,\"y\":8},{\"x\":8,\"y\":7},{\"x\":7,\"y\":6},{\"x\":4,\"y\":5},{\"x\":5,\"y\":5},{\"x\":3,\"y\":5},{\"x\":6,\"y\":5},{\"x\":2,\"y\":5},{\"x\":7,\"y\":5},{\"x\":1,\"y\":5},{\"x\":9,\"y\":9},{\"x\":9,\"y\":10},{\"x\":9,\"y\":8},{\"x\":9,\"y\":7},{\"x\":9,\"y\":6},{\"x\":8,\"y\":5},{\"x\":4,\"y\":4},{\"x\":5,\"y\":4},{\"x\":3,\"y\":4},{\"x\":6,\"y\":4},{\"x\":2,\"y\":4},{\"x\":7,\"y\":4},{\"x\":1,\"y\":4},{\"x\":8,\"y\":4},{\"x\":10,\"y\":9},{\"x\":10,\"y\":10},{\"x\":10,\"y\":8},{\"x\":10,\"y\":7},{\"x\":10,\"y\":6},{\"x\":9,\"y\":5},{\"x\":10,\"y\":5},{\"x\":9,\"y\":4},{\"x\":4,\"y\":3},{\"x\":3,\"y\":3},{\"x\":6,\"y\":3},{\"x\":2,\"y\":3},{\"x\":7,\"y\":3},{\"x\":1,\"y\":3},{\"x\":8,\"y\":3},{\"x\":9,\"y\":3},{\"x\":11,\"y\":9},{\"x\":11,\"y\":10},{\"x\":11,\"y\":8},{\"x\":11,\"y\":7},{\"x\":11,\"y\":6},{\"x\":11,\"y\":5},{\"x\":10,\"y\":4},{\"x\":11,\"y\":4},{\"x\":10,\"y\":3},{\"x\":4,\"y\":2},{\"x\":5,\"y\":2},{\"x\":3,\"y\":2},{\"x\":2,\"y\":2},{\"x\":6,\"y\":2},{\"x\":7,\"y\":2},{\"x\":1,\"y\":2},{\"x\":8,\"y\":2},{\"x\":9,\"y\":2},{\"x\":10,\"y\":2}],\"actions\":[{\"id\":\"attack@5,8\",\"label\":\"Attack a lean grey wolf (Longsword +5; 5 ft)\",\"kind\":\"attack\",\"name\":\"Attack\",\"cost\":\"action\",\"at\":{\"x\":5,\"y\":8},\"target\":\"wolf-3\",\"range\":5},{\"id\":\"shove@5,8\",\"label\":\"Shove a lean grey wolf over (they save, or they're down)\",\"kind\":\"attack\",\"name\":\"Shove\",\"cost\":\"action\",\"at\":{\"x\":5,\"y\":8},\"target\":\"wolf-3\",\"range\":5},{\"id\":\"grapple@5,8\",\"label\":\"Grab hold of a lean grey wolf (they save, or they're held)\",\"kind\":\"attack\",\"name\":\"Grab\",\"cost\":\"action\",\"at\":{\"x\":5,\"y\":8},\"target\":\"wolf-3\",\"range\":5},{\"id\":\"walk@11,9\",\"label\":\"Back off (35 ft; a swing at you unless you disengage first)\",\"kind\":\"move\",\"name\":\"Back off\",\"cost\":\"move\",\"at\":{\"x\":11,\"y\":9},\"feet\":35},{\"id\":\"walk@6,11\",\"label\":\"Make for the gate (10 ft)\",\"kind\":\"move\",\"name\":\"Make for the gate\",\"cost\":\"move\",\"at\":{\"x\":6,\"y\":11},\"feet\":10},{\"id\":\"dash\",\"label\":\"Dash (35 ft more movement this turn)\",\"kind\":\"turn\",\"name\":\"Dash\",\"cost\":\"action\"},{\"id\":\"dodge\",\"label\":\"Dodge (attacks on you have disadvantage until your next turn)\",\"kind\":\"turn\",\"name\":\"Dodge\",\"cost\":\"action\"},{\"id\":\"disengage\",\"label\":\"Disengage (no swings at you as you move away this turn)\",\"kind\":\"turn\",\"name\":\"Disengage\",\"cost\":\"action\"},{\"id\":\"auto\",\"label\":\"Let the dice decide (the AI plays your turn)\",\"kind\":\"turn\",\"name\":\"Let the dice decide\",\"cost\":\"free\"},{\"id\":\"yield\",\"label\":\"Yield (put your hands up: the fight is over)\",\"kind\":\"turn\",\"name\":\"Yield\",\"cost\":\"free\"},{\"id\":\"end_turn\",\"label\":\"End your turn\",\"kind\":\"turn\",\"name\":\"End your turn\",\"cost\":\"free\"}]}"
+   }
+  },
+  {
+   "label": "you: auto",
+   "events": 40,
+   "fight": {
+    "status": "over",
+    "outcome": "victory",
+    "round": 6,
+    "turn": "",
+    "order": [
+     "wolf-3",
+     "player",
+     "wolf-1",
+     "wolf-2"
+    ],
+    "board": "{\"encounterId\":\"01M51Z13K87FHF36143YP51PKK\",\"units\":{\"player\":{\"id\":\"player\",\"name\":\"Wren Ashdown\",\"called\":\"you\",\"side\":\"player\",\"role\":\"player\",\"engineId\":\"01M51Z12M076MWH5C2G1KPT413\",\"weapons\":[\"01M51Z12M00BEFYAHHMH468GFG\",\"01M51Z12M0513N6MH03WX7T88R\"],\"at\":{\"x\":4,\"y\":9},\"hp\":3,\"maxHp\":28,\"ac\":18,\"speed\":35,\"initiative\":10,\"state\":\"fighting\",\"conditions\":[],\"glyph\":\"@\",\"color\":\"#ffffff\",\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false},\"wounded\":true},\"wolf-1\":{\"id\":\"wolf-1\",\"name\":\"a grey wolf\",\"called\":\"a grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8HPSJHN0F9ASFQYFT\",\"weapons\":[\"01M51Z13K8DXY89T6CHFVDE87C\"],\"at\":{\"x\":3,\"y\":8},\"hp\":1,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":5,\"state\":\"surrendered\",\"conditions\":[],\"glyph\":\"W\",\"color\":\"#e06666\",\"wounded\":true},\"wolf-2\":{\"id\":\"wolf-2\",\"name\":\"a big grey wolf\",\"called\":\"a big grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8VFV58KXKZ5KTH55S\",\"weapons\":[\"01M51Z13K85M055ZSTE0GNJT21\"],\"at\":{\"x\":4,\"y\":8},\"hp\":0,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":3,\"state\":\"down\",\"conditions\":[\"unconscious\"],\"glyph\":\"W\",\"color\":\"#e06666\",\"wounded\":true},\"wolf-3\":{\"id\":\"wolf-3\",\"name\":\"a lean grey wolf\",\"called\":\"a lean grey wolf\",\"side\":\"enemy\",\"role\":\"bruiser\",\"engineId\":\"01M51Z13K8TX6C8HC9DSR4VK9H\",\"weapons\":[\"01M51Z13K81BHQEZR03DCQW7F7\"],\"at\":{\"x\":5,\"y\":8},\"hp\":0,\"maxHp\":11,\"ac\":12,\"speed\":40,\"initiative\":17,\"state\":\"down\",\"conditions\":[\"unconscious\"],\"glyph\":\"w\",\"color\":\"#e06666\",\"wounded\":true}},\"order\":[\"wolf-3\",\"player\",\"wolf-1\",\"wolf-2\"],\"active\":1,\"round\":6,\"dust\":[],\"fire\":[],\"fuel\":[],\"props\":{},\"exits\":[{\"at\":{\"x\":6,\"y\":11},\"label\":\"the gate\"}],\"pc\":\"player\",\"flags\":{\"stood:player\":\"4:1\",\"last_out\":\"beaten\",\"nerve:alone:wolf-3\":\"held\"},\"place\":\"the Arena\",\"begun\":\"6:1\",\"outcome\":\"victory\"}",
+    "options": "",
+    "result": "{\"outcome\":\"victory\",\"summary\":\"A big grey wolf and a lean grey wolf went down; a grey wolf gave up. The player ended the fight on 3 of 28 hit points. It took 6 rounds.\",\"casualties\":[{\"id\":\"wolf-1\",\"name\":\"a grey wolf\",\"state\":\"surrendered\"},{\"id\":\"wolf-2\",\"name\":\"a big grey wolf\",\"state\":\"down\"},{\"id\":\"wolf-3\",\"name\":\"a lean grey wolf\",\"state\":\"down\"}],\"rounds\":6,\"flags\":{},\"positions\":{\"player\":{\"x\":4,\"y\":9},\"wolf-1\":{\"x\":3,\"y\":8},\"wolf-2\":{\"x\":4,\"y\":8},\"wolf-3\":{\"x\":5,\"y\":8}}}"
+   }
+  }
+ ],
+ "events": [
+  {
+   "seq": 1,
+   "round": 1,
+   "turn": "wolf-3",
+   "kind": "start",
+   "caption": "Roll for initiative! A lean grey wolf goes first, then you, a grey wolf and a big grey wolf.",
+   "detail": {
+    "rolls": [],
+    "hits": [],
+    "lines": [
+     "Roll for initiative!",
+     "Initiative: a lean grey wolf 15 +2 = 17; you 9 +1 = 10; a grey wolf 3 +2 = 5; a big grey wolf 1 +2 = 3"
+    ],
+    "initiative": [
+     {
+      "unit": "wolf-3",
+      "d20": 15,
+      "modifier": 2,
+      "total": 17
+     },
+     {
+      "unit": "player",
+      "d20": 9,
+      "modifier": 1,
+      "total": 10
+     },
+     {
+      "unit": "wolf-1",
+      "d20": 3,
+      "modifier": 2,
+      "total": 5
+     },
+     {
+      "unit": "wolf-2",
+      "d20": 1,
+      "modifier": 2,
+      "total": 3
+     }
+    ]
+   }
+  },
+  {
+   "seq": 2,
+   "round": 1,
+   "turn": "wolf-3",
+   "kind": "turn",
+   "actor": "wolf-3",
+   "caption": "Round 1: a lean grey wolf's turn.",
+   "detail": {
+    "rolls": [],
+    "hits": [],
+    "lines": []
+   }
+  },
+  {
+   "seq": 3,
+   "round": 1,
+   "turn": "wolf-3",
+   "kind": "move",
+   "actor": "wolf-3",
+   "caption": "A lean grey wolf closes in on you, 20 ft.",
+   "detail": {
+    "rolls": [],
+    "hits": [],
+    "lines": [],
+    "from": {
+     "x": 9,
+     "y": 5
+    },
+    "path": [
+     {
+      "x": 8,
+      "y": 5
+     },
+     {
+      "x": 7,
+      "y": 6
+     },
+     {
+      "x": 6,
+      "y": 7
+     },
+     {
+      "x": 5,
+      "y": 8
+     }
+    ]
+   }
+  },
+  {
+   "seq": 4,
+   "round": 1,
+   "turn": "wolf-3",
+   "kind": "attack",
+   "actor": "wolf-3",
+   "target": "player",
+   "caption": "A lean grey wolf snaps at you, and misses.",
+   "detail": {
+    "rolls": [
+     {
+      "by": "wolf-3",
+      "target": "player",
+      "with": "Wolf Bite",
+      "d20": [
+       4
+      ],
+      "bonus": 4,
+      "total": 8,
+      "ac": 18,
+      "hit": false,
+      "critical": false
+     }
+    ],
+    "hits": [],
+    "lines": [
+     "Wolf Bite: a lean grey wolf's attack on you: 4 +4 = 8 vs AC 18: miss"
+    ],
+    "target": "player",
+    "at": {
+     "x": 4,
+     "y": 9
+    },
+    "with": "Wolf Bite"
+   }
+  },
+  {
+   "seq": 5,
+   "round": 1,
+   "turn": "player",
+   "kind": "turn",
+   "actor": "player",
+   "caption": "Round 1: your turn.",
+   "detail": {
+    "rolls": [],
+    "hits": [],
+    "lines": []
+   }
+  },
+  {
+   "seq": 6,
+   "round": 1,
+   "turn": "player",
+   "kind": "attack",
+   "actor": "player",
+   "target": "wolf-1",
+   "caption": "You shoot at a grey wolf, and miss.",
+   "detail": {
+    "rolls": [
+     {
+      "by": "player",
+      "target": "wolf-1",
+      "with": "Longbow",
+      "d20": [
+       20,
+       2
+      ],
+      "bonus": 5,
+      "total": 7,
+      "ac": 12,
+      "hit": false,
+      "critical": false,
+      "advantage": "disadvantage"
+     }
+    ],
+    "hits": [],
+    "lines": [
+     "Longbow: your attack on a grey wolf: 20/2 (disadvantage) +5 = 7 vs AC 12: miss"
+    ],
+    "target": "wolf-1",
+    "at": {
+     "x": 3,
+     "y": 2
+    },
+    "with": "Longbow"
+   }
+  },
+  {
+   "seq": 7,
+   "round": 1,
+   "turn": "wolf-1",
+   "kind": "turn",
+   "actor": "wolf-1",
+   "caption": "Round 1: a grey wolf's turn.",
+   "detail": {
+    "rolls": [],
+    "hits": [],
+    "lines": []
+   }
+  },
+  {
+   "seq": 8,
+   "round": 1,
+   "turn": "wolf-1",
+   "kind": "move",
+   "actor": "wolf-1",
+   "caption": "A grey wolf closes in on you, 30 ft.",
+   "detail": {
+    "rolls": [],
+    "hits": [],
+    "lines": [],
+    "from": {
+     "x": 3,
+     "y": 2
+    },
+    "path": [
+     {
+      "x": 3,
+      "y": 3
+     },
+     {
+      "x": 3,
+      "y": 4
+     },
+     {
+      "x": 3,
+      "y": 5
+     },
+     {
+      "x": 3,
+      "y": 6
+     },
+     {
+      "x": 3,
+      "y": 7
+     },
+     {
+      "x": 3,
+      "y": 8
+     }
+    ]
+   }
+  },
+  {
+   "seq": 9,
+   "round": 1,
+   "turn": "wolf-1",
+   "kind": "attack",
+   "actor": "wolf-1",
+   "target": "player",
+   "caption": "A grey wolf snaps at you, and misses.",
+   "detail": {
+    "rolls": [
+     {
+      "by": "wolf-1",
+      "target": "player",
+      "with": "Wolf Bite",
+      "d20": [
+       11,
+       11
+      ],
+      "bonus": 4,
+      "total": 15,
+      "ac": 18,
+      "hit": false,
+      "critical": false,
+      "advantage": "advantage"
+     }
+    ],
+    "hits": [],
+    "lines": [
+     "Wolf Bite: a grey wolf's attack on you: 11/11 (advantage) +4 = 15 vs AC 18: miss"
+    ],
+    "target": "player",
+    "at": {
+     "x": 4,
+     "y": 9
+    },
+    "with": "Wolf Bite"
+   }
+  },
+  {
+   "seq": 10,
+   "round": 1,
+   "turn": "wolf-2",
+   "kind": "turn",
+   "actor": "wolf-2",
+   "caption": "Round 1: a big grey wolf's turn.",
+   "detail": {
+    "rolls": [],
+    "hits": [],
+    "lines": []
+   }
+  },
+  {
+   "seq": 11,
+   "round": 1,
+   "turn": "wolf-2",
+   "kind": "move",
+   "actor": "wolf-2",
+   "caption": "A big grey wolf closes in on you, 30 ft.",
+   "detail": {
+    "rolls": [],
+    "hits": [],
+    "lines": [],
+    "from": {
+     "x": 10,
+     "y": 2
+    },
+    "path": [
+     {
+      "x": 9,
+      "y": 3
+     },
+     {
+      "x": 8,
+      "y": 4
+     },
+     {
+      "x": 7,
+      "y": 5
+     },
+     {
+      "x": 6,
+      "y": 6
+     },
+     {
+      "x": 5,
+      "y": 7
+     },
+     {
+      "x": 4,
+      "y": 8
+     }
+    ]
+   }
+  },
+  {
+   "seq": 12,
+   "round": 1,
+   "turn": "wolf-2",
+   "kind": "attack",
+   "actor": "wolf-2",
+   "target": "player",
+   "caption": "A big grey wolf snaps at you, and misses.",
+   "detail": {
+    "rolls": [
+     {
+      "by": "wolf-2",
+      "target": "player",
+      "with": "Wolf Bite",
+      "d20": [
+       5,
+       5
+      ],
+      "bonus": 4,
+      "total": 9,
+      "ac": 18,
+      "hit": false,
+      "critical": false,
+      "advantage": "advantage"
+     }
+    ],
+    "hits": [],
+    "lines": [
+     "Wolf Bite: a big grey wolf's attack on you: 5/5 (advantage) +4 = 9 vs AC 18: miss"
+    ],
+    "target": "player",
+    "at": {
+     "x": 4,
+     "y": 9
+    },
+    "with": "Wolf Bite"
+   }
+  },
+  {
+   "seq": 13,
+   "round": 2,
+   "turn": "wolf-3",
+   "kind": "turn",
+   "actor": "wolf-3",
+   "caption": "Round 2: a lean grey wolf's turn.",
+   "detail": {
+    "rolls": [],
+    "hits": [],
+    "lines": []
+   }
+  },
+  {
+   "seq": 14,
+   "round": 2,
+   "turn": "wolf-3",
+   "kind": "attack",
+   "actor": "wolf-3",
+   "target": "player",
+   "caption": "A lean grey wolf bites you: 8 damage.",
+   "detail": {
+    "rolls": [
+     {
+      "by": "wolf-3",
+      "target": "player",
+      "with": "Wolf Bite",
+      "d20": [
+       18,
+       10
+      ],
+      "bonus": 4,
+      "total": 22,
+      "ac": 18,
+      "hit": true,
+      "critical": false,
+      "advantage": "advantage"
+     }
+    ],
+    "hits": [
+     {
+      "unit": "player",
+      "damage": [
+       {
+        "amount": 8,
+        "type": "piercing"
+       }
+      ],
+      "healed": 0,
+      "hp": 20,
+      "maxHp": 28,
+      "state": "fighting",
+      "fell": false,
+      "gained": [
+       "prone"
+      ],
+      "lost": [],
+      "was": {
+       "hp": 28,
+       "state": "fighting",
+       "at": {
+        "x": 4,
+        "y": 9
+       }
+      }
+     }
+    ],
+    "lines": [
+     "Wolf Bite: a lean grey wolf's attack on you: 18/10 (advantage) +4 = 22 vs AC 18: hit",
+     "Damage: 1d6+2 (6+2) piercing",
+     "You take 8 piercing damage (HP 20/28)",
+     "You are prone"
+    ],
+    "target": "player",
+    "at": {
+     "x": 4,
+     "y": 9
+    },
+    "with": "Wolf Bite"
+   }
+  },
+  {
+   "seq": 15,
+   "round": 2,
+   "turn": "player",
+   "kind": "turn",
+   "actor": "player",
+   "caption": "Round 2: your turn.",
+   "detail": {
+    "rolls": [],
+    "hits": [
+     {
+      "unit": "player",
+      "damage": [],
+      "healed": 0,
+      "hp": 20,
+      "maxHp": 28,
+      "state": "fighting",
+      "fell": false,
+      "gained": [],
+      "lost": [
+       "prone"
+      ],
+      "was": {
+       "hp": 20,
+       "state": "fighting",
+       "at": {
+        "x": 4,
+        "y": 9
+       }
+      }
+     }
+    ],
+    "lines": [
+     "You get up off the floor: that's half your movement."
+    ]
+   }
+  },
+  {
+   "seq": 16,
+   "round": 2,
+   "turn": "player",
+   "kind": "attack",
+   "actor": "player",
+   "target": "wolf-1",
+   "caption": "You swing at a grey wolf: 10 damage.",
+   "detail": {
+    "rolls": [
+     {
+      "by": "player",
+      "target": "wolf-1",
+      "with": "Longsword",
+      "d20": [
+       13
+      ],
+      "bonus": 5,
+      "total": 18,
+      "ac": 12,
+      "hit": true,
+      "critical": false
+     }
+    ],
+    "hits": [
+     {
+      "unit": "wolf-1",
+      "damage": [
+       {
+        "amount": 10,
+        "type": "slashing"
+       }
+      ],
+      "healed": 0,
+      "hp": 1,
+      "maxHp": 11,
+      "state": "fighting",
+      "fell": false,
+      "gained": [],
+      "lost": [],
+      "was": {
+       "hp": 11,
+       "state": "fighting",
+       "at": {
+        "x": 3,
+        "y": 8
+       }
+      }
+     }
+    ],
+    "lines": [
+     "Longsword: your attack on a grey wolf: 13 +5 = 18 vs AC 12: hit",
+     "Damage: 1d8+3 (7+3) slashing",
+     "A grey wolf takes 10 slashing damage (HP 1/11)"
+    ],
+    "target": "wolf-1",
+    "at": {
+     "x": 3,
+     "y": 8
+    },
+    "with": "Longsword"
+   }
+  },
+  {
+   "seq": 17,
+   "round": 2,
+   "turn": "wolf-1",
+   "kind": "turn",
+   "actor": "wolf-1",
+   "caption": "Round 2: a grey wolf's turn.",
+   "detail": {
+    "rolls": [],
+    "hits": [],
+    "lines": []
+   }
+  },
+  {
+   "seq": 18,
+   "round": 2,
+   "turn": "wolf-1",
+   "kind": "yield",
+   "actor": "wolf-1",
+   "caption": "A grey wolf puts their hands up.",
+   "detail": {
+    "rolls": [],
+    "hits": [
+     {
+      "unit": "wolf-1",
+      "damage": [],
+      "healed": 0,
+      "hp": 1,
+      "maxHp": 11,
+      "state": "surrendered",
+      "fell": false,
+      "gained": [],
+      "lost": [],
+      "was": {
+       "hp": 1,
+       "state": "fighting",
+       "at": {
+        "x": 3,
+        "y": 8
+       }
+      }
+     }
+    ],
+    "lines": [
+     "A grey wolf drops the wolf bite and puts both hands up, slowly, where everyone can see them."
+    ]
+   }
+  },
+  {
+   "seq": 19,
+   "round": 2,
+   "turn": "wolf-2",
+   "kind": "turn",
+   "actor": "wolf-2",
+   "caption": "Round 2: a big grey wolf's turn.",
+   "detail": {
+    "rolls": [],
+    "hits": [],
+    "lines": []
+   }
+  },
+  {
+   "seq": 20,
+   "round": 2,
+   "turn": "wolf-2",
+   "kind": "attack",
+   "actor": "wolf-2",
+   "target": "player",
+   "caption": "A big grey wolf bites you: 4 damage.",
+   "detail": {
+    "rolls": [
+     {
+      "by": "wolf-2",
+      "target": "player",
+      "with": "Wolf Bite",
+      "d20": [
+       17,
+       7
+      ],
+      "bonus": 4,
+      "total": 21,
+      "ac": 18,
+      "hit": true,
+      "critical": false,
+      "advantage": "advantage"
+     }
+    ],
+    "hits": [
+     {
+      "unit": "player",
+      "damage": [
+       {
+        "amount": 4,
+        "type": "piercing"
+       }
+      ],
+      "healed": 0,
+      "hp": 16,
+      "maxHp": 28,
+      "state": "fighting",
+      "fell": false,
+      "gained": [
+       "prone"
+      ],
+      "lost": [],
+      "was": {
+       "hp": 20,
+       "state": "fighting",
+       "at": {
+        "x": 4,
+        "y": 9
+       }
+      }
+     }
+    ],
+    "lines": [
+     "Wolf Bite: a big grey wolf's attack on you: 17/7 (advantage) +4 = 21 vs AC 18: hit",
+     "Damage: 1d6+2 (2+2) piercing",
+     "You take 4 piercing damage (HP 16/28)",
+     "You are prone"
+    ],
+    "target": "player",
+    "at": {
+     "x": 4,
+     "y": 9
+    },
+    "with": "Wolf Bite"
+   }
+  },
+  {
+   "seq": 21,
+   "round": 3,
+   "turn": "wolf-3",
+   "kind": "turn",
+   "actor": "wolf-3",
+   "caption": "Round 3: a lean grey wolf's turn.",
+   "detail": {
+    "rolls": [],
+    "hits": [],
+    "lines": []
+   }
+  },
+  {
+   "seq": 22,
+   "round": 3,
+   "turn": "wolf-3",
+   "kind": "attack",
+   "actor": "wolf-3",
+   "target": "player",
+   "caption": "A lean grey wolf bites you: 8 damage.",
+   "detail": {
+    "rolls": [
+     {
+      "by": "wolf-3",
+      "target": "player",
+      "with": "Wolf Bite",
+      "d20": [
+       17,
+       5
+      ],
+      "bonus": 4,
+      "total": 21,
+      "ac": 18,
+      "hit": true,
+      "critical": false,
+      "advantage": "advantage"
+     }
+    ],
+    "hits": [
+     {
+      "unit": "player",
+      "damage": [
+       {
+        "amount": 8,
+        "type": "piercing"
+       }
+      ],
+      "healed": 0,
+      "hp": 8,
+      "maxHp": 28,
+      "state": "fighting",
+      "fell": false,
+      "gained": [],
+      "lost": [],
+      "was": {
+       "hp": 16,
+       "state": "fighting",
+       "at": {
+        "x": 4,
+        "y": 9
+       }
+      }
+     }
+    ],
+    "lines": [
+     "Wolf Bite: a lean grey wolf's attack on you: 17/5 (advantage) +4 = 21 vs AC 18: hit",
+     "Damage: 1d6+2 (6+2) piercing",
+     "You take 8 piercing damage (HP 8/28)",
+     "You are prone"
+    ],
+    "target": "player",
+    "at": {
+     "x": 4,
+     "y": 9
+    },
+    "with": "Wolf Bite"
+   }
+  },
+  {
+   "seq": 23,
+   "round": 3,
+   "turn": "player",
+   "kind": "turn",
+   "actor": "player",
+   "caption": "Round 3: your turn.",
+   "detail": {
+    "rolls": [],
+    "hits": [
+     {
+      "unit": "player",
+      "damage": [],
+      "healed": 0,
+      "hp": 8,
+      "maxHp": 28,
+      "state": "fighting",
+      "fell": false,
+      "gained": [],
+      "lost": [
+       "prone"
+      ],
+      "was": {
+       "hp": 8,
+       "state": "fighting",
+       "at": {
+        "x": 4,
+        "y": 9
+       }
+      }
+     }
+    ],
+    "lines": [
+     "You get up off the floor: that's half your movement."
+    ]
+   }
+  },
+  {
+   "seq": 24,
+   "round": 3,
+   "turn": "player",
+   "kind": "attack",
+   "actor": "player",
+   "target": "wolf-2",
+   "caption": "You swing at a big grey wolf, and miss.",
+   "detail": {
+    "rolls": [
+     {
+      "by": "player",
+      "target": "wolf-2",
+      "with": "Longsword",
+      "d20": [
+       3
+      ],
+      "bonus": 5,
+      "total": 8,
+      "ac": 12,
+      "hit": false,
+      "critical": false
+     }
+    ],
+    "hits": [],
+    "lines": [
+     "Longsword: your attack on a big grey wolf: 3 +5 = 8 vs AC 12: miss"
+    ],
+    "target": "wolf-2",
+    "at": {
+     "x": 4,
+     "y": 8
+    },
+    "with": "Longsword"
+   }
+  },
+  {
+   "seq": 25,
+   "round": 3,
+   "turn": "wolf-2",
+   "kind": "turn",
+   "actor": "wolf-2",
+   "caption": "Round 3: a big grey wolf's turn.",
+   "detail": {
+    "rolls": [],
+    "hits": [],
+    "lines": []
+   }
+  },
+  {
+   "seq": 26,
+   "round": 3,
+   "turn": "wolf-2",
+   "kind": "attack",
+   "actor": "wolf-2",
+   "target": "player",
+   "caption": "A big grey wolf bites you: 5 damage.",
+   "detail": {
+    "rolls": [
+     {
+      "by": "wolf-2",
+      "target": "player",
+      "with": "Wolf Bite",
+      "d20": [
+       9,
+       17
+      ],
+      "bonus": 4,
+      "total": 21,
+      "ac": 18,
+      "hit": true,
+      "critical": false,
+      "advantage": "advantage"
+     }
+    ],
+    "hits": [
+     {
+      "unit": "player",
+      "damage": [
+       {
+        "amount": 5,
+        "type": "piercing"
+       }
+      ],
+      "healed": 0,
+      "hp": 3,
+      "maxHp": 28,
+      "state": "fighting",
+      "fell": false,
+      "gained": [
+       "prone"
+      ],
+      "lost": [],
+      "was": {
+       "hp": 8,
+       "state": "fighting",
+       "at": {
+        "x": 4,
+        "y": 9
+       }
+      }
+     }
+    ],
+    "lines": [
+     "Wolf Bite: a big grey wolf's attack on you: 9/17 (advantage) +4 = 21 vs AC 18: hit",
+     "Damage: 1d6+2 (3+2) piercing",
+     "You take 5 piercing damage (HP 3/28)",
+     "You are prone"
+    ],
+    "target": "player",
+    "at": {
+     "x": 4,
+     "y": 9
+    },
+    "with": "Wolf Bite"
+   }
+  },
+  {
+   "seq": 27,
+   "round": 4,
+   "turn": "wolf-3",
+   "kind": "turn",
+   "actor": "wolf-3",
+   "caption": "Round 4: a lean grey wolf's turn.",
+   "detail": {
+    "rolls": [],
+    "hits": [],
+    "lines": []
+   }
+  },
+  {
+   "seq": 28,
+   "round": 4,
+   "turn": "wolf-3",
+   "kind": "attack",
+   "actor": "wolf-3",
+   "target": "player",
+   "caption": "A lean grey wolf snaps at you, and misses.",
+   "detail": {
+    "rolls": [
+     {
+      "by": "wolf-3",
+      "target": "player",
+      "with": "Wolf Bite",
+      "d20": [
+       4,
+       5
+      ],
+      "bonus": 4,
+      "total": 9,
+      "ac": 18,
+      "hit": false,
+      "critical": false,
+      "advantage": "advantage"
+     }
+    ],
+    "hits": [],
+    "lines": [
+     "Wolf Bite: a lean grey wolf's attack on you: 4/5 (advantage) +4 = 9 vs AC 18: miss"
+    ],
+    "target": "player",
+    "at": {
+     "x": 4,
+     "y": 9
+    },
+    "with": "Wolf Bite"
+   }
+  },
+  {
+   "seq": 29,
+   "round": 4,
+   "turn": "player",
+   "kind": "turn",
+   "actor": "player",
+   "caption": "Round 4: your turn.",
+   "detail": {
+    "rolls": [],
+    "hits": [
+     {
+      "unit": "player",
+      "damage": [],
+      "healed": 0,
+      "hp": 3,
+      "maxHp": 28,
+      "state": "fighting",
+      "fell": false,
+      "gained": [],
+      "lost": [
+       "prone"
+      ],
+      "was": {
+       "hp": 3,
+       "state": "fighting",
+       "at": {
+        "x": 4,
+        "y": 9
+       }
+      }
+     }
+    ],
+    "lines": [
+     "You get up off the floor: that's half your movement."
+    ]
+   }
+  },
+  {
+   "seq": 30,
+   "round": 4,
+   "turn": "player",
+   "kind": "attack",
+   "actor": "player",
+   "target": "wolf-2",
+   "caption": "You swing at a big grey wolf: a critical hit, 11 damage! A big grey wolf goes down.",
+   "detail": {
+    "rolls": [
+     {
+      "by": "player",
+      "target": "wolf-2",
+      "with": "Longsword",
+      "d20": [
+       20
+      ],
+      "bonus": 5,
+      "total": 25,
+      "ac": 12,
+      "hit": true,
+      "critical": true
+     }
+    ],
+    "hits": [
+     {
+      "unit": "wolf-2",
+      "damage": [
+       {
+        "amount": 11,
+        "type": "slashing"
+       }
+      ],
+      "healed": 0,
+      "hp": 0,
+      "maxHp": 11,
+      "state": "down",
+      "fell": true,
+      "gained": [
+       "unconscious"
+      ],
+      "lost": [],
+      "was": {
+       "hp": 11,
+       "state": "fighting",
+       "at": {
+        "x": 4,
+        "y": 8
+       }
+      }
+     }
+    ],
+    "lines": [
+     "Longsword: your attack on a big grey wolf: 20 +5 = 25 vs AC 12: critical hit!",
+     "Damage: 2d8+3 (4+4+3) slashing",
+     "A big grey wolf takes 11 slashing damage (HP 0/11)",
+     "A big grey wolf drops like a sack."
+    ],
+    "target": "wolf-2",
+    "at": {
+     "x": 4,
+     "y": 8
+    },
+    "with": "Longsword"
+   }
+  },
+  {
+   "seq": 31,
+   "round": 5,
+   "turn": "wolf-3",
+   "kind": "turn",
+   "actor": "wolf-3",
+   "caption": "Round 5: a lean grey wolf's turn.",
+   "detail": {
+    "rolls": [],
+    "hits": [],
+    "lines": []
+   }
+  },
+  {
+   "seq": 32,
+   "round": 5,
+   "turn": "wolf-3",
+   "kind": "nerve",
+   "actor": "wolf-3",
+   "caption": "A lean grey wolf looks at a big grey wolf on the floor: the nerve holds.",
+   "detail": {
+    "rolls": [],
+    "hits": [],
+    "lines": [
+     "A lean grey wolf looks at a big grey wolf on the floor.",
+     "A lean grey wolf's nerve: 11 +1 = 12 vs DC 10: it holds"
+    ]
+   }
+  },
+  {
+   "seq": 33,
+   "round": 5,
+   "turn": "wolf-3",
+   "kind": "attack",
+   "actor": "wolf-3",
+   "target": "player",
+   "caption": "A lean grey wolf snaps at you, and misses.",
+   "detail": {
+    "rolls": [
+     {
+      "by": "wolf-3",
+      "target": "player",
+      "with": "Wolf Bite",
+      "d20": [
+       11
+      ],
+      "bonus": 4,
+      "total": 15,
+      "ac": 18,
+      "hit": false,
+      "critical": false
+     }
+    ],
+    "hits": [],
+    "lines": [
+     "Wolf Bite: a lean grey wolf's attack on you: 11 +4 = 15 vs AC 18: miss"
+    ],
+    "target": "player",
+    "at": {
+     "x": 4,
+     "y": 9
+    },
+    "with": "Wolf Bite"
+   }
+  },
+  {
+   "seq": 34,
+   "round": 5,
+   "turn": "player",
+   "kind": "turn",
+   "actor": "player",
+   "caption": "Round 5: your turn.",
+   "detail": {
+    "rolls": [],
+    "hits": [],
+    "lines": []
+   }
+  },
+  {
+   "seq": 35,
+   "round": 5,
+   "turn": "player",
+   "kind": "attack",
+   "actor": "player",
+   "target": "wolf-3",
+   "caption": "You swing at a lean grey wolf: 7 damage.",
+   "detail": {
+    "rolls": [
+     {
+      "by": "player",
+      "target": "wolf-3",
+      "with": "Longsword",
+      "d20": [
+       16
+      ],
+      "bonus": 5,
+      "total": 21,
+      "ac": 12,
+      "hit": true,
+      "critical": false
+     }
+    ],
+    "hits": [
+     {
+      "unit": "wolf-3",
+      "damage": [
+       {
+        "amount": 7,
+        "type": "slashing"
+       }
+      ],
+      "healed": 0,
+      "hp": 4,
+      "maxHp": 11,
+      "state": "fighting",
+      "fell": false,
+      "gained": [],
+      "lost": [],
+      "was": {
+       "hp": 11,
+       "state": "fighting",
+       "at": {
+        "x": 5,
+        "y": 8
+       }
+      }
+     }
+    ],
+    "lines": [
+     "Longsword: your attack on a lean grey wolf: 16 +5 = 21 vs AC 12: hit",
+     "Damage: 1d8+3 (4+3) slashing",
+     "A lean grey wolf takes 7 slashing damage (HP 4/11)"
+    ],
+    "target": "wolf-3",
+    "at": {
+     "x": 5,
+     "y": 8
+    },
+    "with": "Longsword"
+   }
+  },
+  {
+   "seq": 36,
+   "round": 6,
+   "turn": "wolf-3",
+   "kind": "turn",
+   "actor": "wolf-3",
+   "caption": "Round 6: a lean grey wolf's turn.",
+   "detail": {
+    "rolls": [],
+    "hits": [],
+    "lines": []
+   }
+  },
+  {
+   "seq": 37,
+   "round": 6,
+   "turn": "wolf-3",
+   "kind": "attack",
+   "actor": "wolf-3",
+   "target": "player",
+   "caption": "A lean grey wolf snaps at you, and misses.",
+   "detail": {
+    "rolls": [
+     {
+      "by": "wolf-3",
+      "target": "player",
+      "with": "Wolf Bite",
+      "d20": [
+       12
+      ],
+      "bonus": 4,
+      "total": 16,
+      "ac": 18,
+      "hit": false,
+      "critical": false
+     }
+    ],
+    "hits": [],
+    "lines": [
+     "Wolf Bite: a lean grey wolf's attack on you: 12 +4 = 16 vs AC 18: miss"
+    ],
+    "target": "player",
+    "at": {
+     "x": 4,
+     "y": 9
+    },
+    "with": "Wolf Bite"
+   }
+  },
+  {
+   "seq": 38,
+   "round": 6,
+   "turn": "player",
+   "kind": "turn",
+   "actor": "player",
+   "caption": "Round 6: your turn.",
+   "detail": {
+    "rolls": [],
+    "hits": [],
+    "lines": []
+   }
+  },
+  {
+   "seq": 39,
+   "round": 6,
+   "turn": "player",
+   "kind": "attack",
+   "actor": "player",
+   "target": "wolf-3",
+   "caption": "You swing at a lean grey wolf: 8 damage. A lean grey wolf goes down.",
+   "detail": {
+    "rolls": [
+     {
+      "by": "player",
+      "target": "wolf-3",
+      "with": "Longsword",
+      "d20": [
+       17
+      ],
+      "bonus": 5,
+      "total": 22,
+      "ac": 12,
+      "hit": true,
+      "critical": false
+     }
+    ],
+    "hits": [
+     {
+      "unit": "wolf-3",
+      "damage": [
+       {
+        "amount": 8,
+        "type": "slashing"
+       }
+      ],
+      "healed": 0,
+      "hp": 0,
+      "maxHp": 11,
+      "state": "down",
+      "fell": true,
+      "gained": [
+       "unconscious"
+      ],
+      "lost": [],
+      "was": {
+       "hp": 4,
+       "state": "fighting",
+       "at": {
+        "x": 5,
+        "y": 8
+       }
+      }
+     }
+    ],
+    "lines": [
+     "Longsword: your attack on a lean grey wolf: 17 +5 = 22 vs AC 12: hit",
+     "Damage: 1d8+3 (5+3) slashing",
+     "A lean grey wolf takes 8 slashing damage (HP 0/11)",
+     "A lean grey wolf goes down and stays there."
+    ],
+    "target": "wolf-3",
+    "at": {
+     "x": 5,
+     "y": 8
+    },
+    "with": "Longsword"
+   }
+  },
+  {
+   "seq": 40,
+   "round": 6,
+   "turn": "player",
+   "kind": "over",
+   "caption": "It's over: you won.",
+   "detail": {
+    "rolls": [],
+    "hits": [],
+    "lines": [
+     "And then it's quiet, except for somebody's teeth chattering."
+    ],
+    "outcome": "victory"
+   }
+  }
+ ]
+}
