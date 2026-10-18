@@ -255,6 +255,14 @@ interface Route {
     onFailure?: string;
     /** Fact ids settled when it's taken. */
     establishes?: string[];
+    /**
+     * A cue's outer limit: its moment comes by then, whatever is happening. Each count is so many
+     * exchanges from the scene's start, or from when the beat `after` was reached, and it stops
+     * once a beat of `until` is reached; whichever count runs out first is the limit (the eleventh
+     * bell: 15 exchanges into the scene, or 8 after Arlo's challenge). Say it in the condition's
+     * words too. Only a cue's counts, and every cue of a story scene has one.
+     */
+    limit?: Array<{ exchanges: number; after?: string; until?: string[] }>;
   };
 }
 ```
@@ -272,6 +280,7 @@ interface Route {
 
   The start is always reached, so its routes are open all scene long. That's how discoveries happen in any order, and how a last-resort ending stays available. Once an ending is reached, nothing is open: the scene is closing.
 - **Taking a route.** A route with dice is taken on its check's outcome: a success goes to its target, a failure to its `onFailure` or nowhere (the scene stays where it is, and the route stays open to try again). A route without dice can't fail: it's taken once its condition has happened.
+- **A cue's outer limit.** A count runs from the opening (reply 0), or from the reply after its `after` beat was reached (an event shows in the next reply). After each reply the co-GM is told, for each open cue, which exchange of each count the next reply would be, and once the next reply reaches a count still running, the cue is overdue: the co-GM takes its route, and the next reply shows it. So "15 exchanges into the scene" rings in reply 15, and "8 after Arlo's challenge", whose challenge showed in reply 7, rings in reply 15 too.
 - **The stage.** The latest reached of the start and the event beats. Its `cast` notes are the co-GM's suggested roles, and its `pressure` is what the world does when the scene stalls.
 - **The targets.** The discoveries not yet reached, each with its paths. The GM steers towards them through the people's roles.
 - **Facts.** A reached beat's and a taken route's `establishes` are settled (a dice route's on a success). The GM is told their sentences, and the endings' effects test them.
@@ -291,6 +300,7 @@ The game's code for this is shared by the simulation and the AI service: [shared
 - A revelation is never locked behind one roll: at least one route into each discovery has no dice.
 - Endings that need evidence say so in `requires`, not only in prose: in a scene with a `required` discovery, every route into a `good` ending requires at least one beat, and each required discovery is required by at least one of them.
 - Every `enters` names an event beat, every `cast` note is for someone in the cast, and every `onFailure` names a node.
+- A cue's outer limit counts whole exchanges, from and until beats: its counts' `after` and `until` name beats of the scene (none counts from the start).
 - An ending with `next` names a scene of the campaign.
 - A beat's carried `things` are things of its place, or carried by another scene of the campaign (Prout's page comes into the Rat in Cob's boot).
 - Effects only use the ops the story knows (quest, flag, attitude, remember, journal, follow, promise, startFight, and the world's ops), their `if`/`unless` name facts, and the people, quests and things they name exist (the cast, campaign.json's quests, the place's areas and things, and what the story carries between scenes). A combat ending's `startFight` is recorded for when fights are built: keep it.

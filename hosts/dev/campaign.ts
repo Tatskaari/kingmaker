@@ -166,6 +166,8 @@ function sceneProblems(key: string, doc: SceneDocument, files: CampaignFiles, pa
     if (nodes.get(e.source)?.data.kind === "exit") p(`route ${e.id} leaves an ending (${e.source})`);
     for (const r of e.data.requires ?? []) if (nodes.get(r)?.data.kind !== "beat") p(`route ${e.id} requires ${r}, which isn't a beat`);
     if (!e.data.condition.trim() && !isDiscovery(nodes.get(e.target)!)) p(`route ${e.id} has no condition, and only a route into a discovery may go without`);
+    // A cue's outer limit counts from and until beats (from the start when it names none).
+    for (const count of e.data.limit ?? []) for (const id of [...(count.after ? [count.after] : []), ...(count.until ?? [])]) if (nodes.get(id)?.data.kind !== "beat") p(`route ${e.id}'s outer limit counts from or until ${id}, which isn't a beat`);
   }
 
   // The discoveries: a revelation and two paths, three for one that's required (one free of dice); a way in that's no roll.

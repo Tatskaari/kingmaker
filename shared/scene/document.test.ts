@@ -50,6 +50,19 @@ test("a file that isn't a scene says why, naming where", () => {
   assert.deepEqual(problemsOf(d => { delete (d.cast[0] as Partial<SceneDocument["cast"][number]>).whyHere; }), ["cast[0] (kell) has no whyHere"]);
 });
 
+test("a cue's outer limit: each count a whole number of exchanges, after and until nodes of the scene; the runtime keeps a cue's, and only a cue's", () => {
+  assert.deepEqual(problemsOf(d => { d.edges[3]!.data.limit = [{ exchanges: 0 }, { exchanges: 4, after: "nowhere", until: ["murder", "elsewhere"] }]; }), [
+    "edges[3] (cart-comes)'s limit[0] has no whole number of exchanges",
+    'edges[3] (cart-comes)\'s limit[1] counts after "nowhere", which isn\'t a node of the scene',
+    "edges[3] (cart-comes)'s limit[1] counts until elsewhere, which isn't a node of the scene",
+  ]);
+  assert.deepEqual(problemsOf(d => { (d.edges[3]!.data as { limit: unknown }).limit = { exchanges: 12 }; }), ["edges[3] (cart-comes)'s limit isn't a list of { exchanges, after?, until? }"]);
+  assert.deepEqual(sceneOf(clerk()).routes.find(r => r.id === "cart-comes")!.limit, [{ exchanges: 12 }], "the noon bell: twelve exchanges into the scene");
+  const outcome = clerk();
+  outcome.edges[4]!.data.limit = [{ exchanges: 3 }];
+  assert.equal(sceneOf(outcome).routes.find(r => r.id === "signed-murder")!.limit, undefined, "an outcome route's limit is nothing in play");
+});
+
 test("its error's message names the file and the first problems, and how many more", () => {
   const e = (() => { try { sceneDocumentOf({ ...clerk(), format: "other", title: 1, hook: 2, setting: 3, premise: 4 }, "hanged-clerk.kmscene"); } catch (error) { return error as SceneFormatError; } })()!;
   assert.equal(e.problems.length, 5);
