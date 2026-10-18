@@ -928,7 +928,7 @@
       "data": {
         "kind": "exit",
         "title": "Hobb goes to work",
-        "description": "Hobb has gone, or goes at the bell, to his night's work at the Heron without telling the player all he knows (or anything at all), and the player has left the Rat too: on his heels to follow him down to the wharves, or ahead of him, knowing where he's going, to wait in the dark.",
+        "description": "Hobb has gone, or goes at the bell, to his night's work at the Heron without having told the player the heart of what he knows (his part in the loft, who his master is, where he works), or anything at all, and the player has left the Rat too: on his heels to follow him down to the wharves, or ahead of him, knowing where he's going, to wait in the dark.",
         "closing": "Close on Hobb's broad back going down the river stairs towards the wharves, his lantern swinging, and the player at the top of the steps in the dark (or, if they went ahead, the wharves below and his lantern coming down).",
         "result": "mixed",
         "exitKind": "leave",
@@ -1452,7 +1452,7 @@
       "type": "smoothstep",
       "label": "Let him go to work",
       "data": {
-        "condition": "The player is done at the Rat: they leave with what Hobb told them (his part in the loft, his master, the Heron), letting him go to his night's work keeping his head down, or the bell has rung and he goes, without having him taken in.",
+        "condition": "The player is done at the Rat: they leave with what Hobb told them (his part in the loft, his master, the Heron), letting him go to his night's work keeping his head down, or the bell has rung and he goes, without having him taken in, whether or not they follow him down to the wharves.",
         "phase": "outcome",
         "requires": [
           "the-master",
@@ -1539,7 +1539,7 @@
       "type": "smoothstep",
       "label": "After him",
       "data": {
-        "condition": "Hobb has gone out to his night's work at the bell without having told what he knows (or all of it), and the player goes out after him, to follow him down to the wharves.",
+        "condition": "Hobb has gone out to his night's work at the bell without having told the player the heart of it himself (his part in the loft, who his master is, where he works), and the player goes out after him, to follow him down to the wharves. (A Hobb who has told it and goes at the bell, followed or not, is [let-him-go], or [their-man-inside] if he has agreed to let them in.)",
         "phase": "outcome",
         "skill": "",
         "dc": 12
@@ -1552,7 +1552,7 @@
       "type": "smoothstep",
       "label": "Off after the lead",
       "data": {
-        "condition": "The player leaves the Rat without Hobb's story (or all of it), knowing where he works: walking out to wait for him on the stairs or at the wharves, or letting him go at the bell and going after the lead.",
+        "condition": "The player leaves the Rat knowing where Hobb works, without his having told them the heart of it himself (his part in the loft, who his master is, where he works): walking out to wait for him on the stairs or at the wharves, or letting him go at the bell and going after the lead. (A player Hobb has told it to who leaves, following him or not, is [let-him-go], or [their-man-inside] if he has agreed to let them in.)",
         "phase": "outcome",
         "requires": [
           "the-heron"
