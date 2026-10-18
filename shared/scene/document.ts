@@ -43,7 +43,7 @@ export interface SceneDocument {
   premise: string;
   /** What really happened, behind the screen: never said outright, it comes out through the beats' paths. */
   truth: string;
-  /** What happens if the player dawdles (the dead-cart at noon): the pressure, and its outer limit. */
+  /** What happens if the player dawdles (the dead-cart at noon): the pressure, its outer limit, and how it's felt coming, a step nearer each exchange and never the same sign twice (Hep's count falls each time she calls it). */
   clock?: string;
   /** Tempting things that don't exist or can't work here, so the GM can say "no, but" honestly. */
   limits?: string[];
@@ -189,7 +189,7 @@ export interface Path {
   via: string;
   /** What's there to find or hear, concretely. */
   clue: string;
-  /** What earns it: free to a look, a kindness, a promise, getting up there, a roll. Say when it's free. */
+  /** What earns it: free to a look, a kindness, a promise, getting up there, a roll. An approach that needs no dice says so up front ("No dice: free to anyone who looks up"); where the path's check is for another approach, the free ones come first and the roll after them. */
   earn: string;
   /** What it amounts to as evidence. */
   strength: typeof STRENGTHS[number];
@@ -234,6 +234,9 @@ export interface Route {
     /**
      * What has to have happened in the story to take it, in prose.
      * Into a discovery it may be empty: the route is taken when the revelation has landed.
+     * Into a bad or mixed ending that could be true at the same moment as a good one's, say it gives way to
+     * that one, by its id ("...: that's [let-him-go]"); a cue into an ending says what has it no longer needed
+     * ("Not needed once ...").
      */
     condition: string;
     /**
