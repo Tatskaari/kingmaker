@@ -19,4 +19,6 @@ export type SceneHost={
   openLore:(path:string)=>Promise<void>;
   /** Open another scene of the campaign, by its id. */
   openScene:(id:string)=>Promise<void>;
+  /** Open a place of the campaign (places/<key>.kmplace), by its key. */
+  openPlace?:(key:string)=>Promise<void>;
 };

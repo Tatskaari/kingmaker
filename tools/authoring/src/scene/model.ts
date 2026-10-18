@@ -7,6 +7,7 @@ import type {Skill} from '../../../../shared/scene/types.ts';
 import {SLUG,sceneRuleProblems,sceneStoryProblems} from '../../../../shared/scene/rules.ts';
 import type {ProblemAt,SceneContext,SceneProblem} from '../../../../shared/scene/rules.ts';
 import {optionalList,optionalText,slugOf,uniqueId,withKey} from '../campaign/json.ts';
+import type {PlaceFile} from '../../../../shared/scene/files.ts';
 
 export {EXIT_KINDS,RESULTS,SKILLS,STRENGTHS,SLUG,isBeat,isDiscovery,isEnding,isStart,optionalList,optionalText,slugOf,uniqueId,withKey};
 export type {BeatData,CastMember,EndingData,NodeData,Path,ProblemAt,Route,SceneContext,SceneDocument,SceneNode,SceneProblem,Skill,StartData};
@@ -290,4 +291,40 @@ export function problemsOf(key:string,doc:SceneDocument,context:SceneContext):Pr
   if(shape.length)return shape.map(message=>({message,at:{kind:'scene'}}));
   const ids=new Set([...context.scenes,...(context.talk?[context.talk]:[]),...context.others.map(other=>other.id),doc.id]);
   return [...sceneRuleProblems(key,doc,context),...sceneStoryProblems(doc,ids)];
+}
+
+// ---------------------------------------------------------------------------------------------
+// Warnings: what the game takes as it is but the author should look at, which the campaign check doesn't refuse.
+
+/** A path's via, as words to match: no case, no leading article, nothing in brackets, one space between words. */
+const words=(text:string)=>text.toLowerCase().replace(/\([^)]*\)/g,' ').replace(/[’]/g,"'").replace(/\s+/g,' ').trim().replace(/^(the|a|an) /,'');
+
+/**
+ * Whether a via names someone or something the scene has: one of the cast (by id, name, what they're
+ * called or also known as), or a thing or a part of the scene's place (by id or name). Words, not
+ * case or a leading article: "the tally loft" names the loft, "The Tally Loft (above the yard)".
+ */
+export function viaNames(via:string,doc:SceneDocument,place:PlaceFile|undefined):boolean{
+  const v=words(via);
+  if(!v)return true;
+  const names=[
+    ...doc.cast.flatMap(member=>[member.id,member.name,member.called??'',...(member.aka??[])]),
+    ...(place?[...place.things.flatMap(thing=>[thing.id,thing.name]),...place.areas.flatMap(area=>[area.id,area.name])]:[]),
+  ];
+  return names.some(name=>name&&words(name)===v);
+}
+
+/**
+ * The warnings for a scene: each discovery's path whose via, of more than one word, names neither one
+ * of the cast nor a thing (or part) of its place. The game reads a via as words, so it isn't refused;
+ * but the GM is told the clue is with something the scene doesn't have. (A via of one word is a cast
+ * id, which the rules hold it to.) A scene with no place of the campaign's has nothing to check.
+ */
+export function viaWarnings(doc:SceneDocument,place:PlaceFile|undefined):Problem[]{
+  if(!place)return [];
+  return doc.nodes.filter(isBeat).flatMap(node=>(node.data.paths??[]).flatMap((path,i)=>{
+    const via=path.via.trim();
+    if(!via.includes(' ')||viaNames(via,doc,place))return [];
+    return [{message:`discovery ${node.id}'s path ${i+1} is via “${via}”, which is neither one of the cast nor a thing of ${place.key}`,at:{kind:'node' as const,id:node.id}}];
+  }));
 }

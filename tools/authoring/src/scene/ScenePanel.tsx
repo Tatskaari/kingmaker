@@ -11,7 +11,7 @@ import {addFact,optionalList,optionalText,removeFact,setSceneField,settlersOf,sl
 const TIMES=['morning','afternoon','evening','night','next-morning'];
 
 export function ScenePanel(){
-  const {doc,edit,campaign,loreNames,openLore,pickLore}=useScene();
+  const {doc,edit,campaign,loreNames,openLore,pickLore,place,openPlace}=useScene();
   const set=(key:string,value:unknown)=>edit(scene=>setSceneField(scene,key,value));
   const text=(key:'clock'|'overtaken')=>doc[key]??'';
   const list=(key:'limits'|'known'|'background'|'assumes')=>doc[key]??[];
@@ -36,6 +36,11 @@ export function ScenePanel(){
         <SelectField label="Rest" field="rest" hint="A rest before it." value={doc.rest??''} options={[{value:'',label:'None'},{value:'short',label:'Short'},{value:'long',label:'Long'}]} onChange={value=>set('rest',optionalText(value))}/>
       </div>
       <SelectField label="Place" field="place" hint="The place's world (places/<key>.kmplace): its areas, things and who stands where." value={doc.place??''} options={[{value:'',label:'None'},...places]} onChange={value=>set('place',optionalText(value))}/>
+      {place&&<details className="place-things" data-field="place.things">
+        <summary>{place.name}: its things <span className="count">{place.things.length}</span></summary>
+        <ul>{place.things.map(thing=><li key={thing.id}><b>{thing.name}</b> <code>{thing.id}</code><small>{thing.at?` at ${thing.at[0]}, ${thing.at[1]} ft`:` in ${thing.in}`}</small></li>)}</ul>
+        <button type="button" className="text-button" onClick={()=>openPlace(place.key)}>Open the place</button>
+      </details>}
       <Checkbox label="Interlude" field="interlude" hint="Downtime between scenes, standing in for the map: the story skips it." checked={!!doc.interlude} onChange={checked=>set('interlude',checked?true:undefined)}/>
       <Checkbox label="Milestone" field="milestone" checked={!!doc.milestone} onChange={checked=>set('milestone',checked?true:undefined)}/>
     </Section>

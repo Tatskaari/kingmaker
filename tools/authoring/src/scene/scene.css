@@ -158,3 +158,15 @@
 @media(max-width:900px){:is(.km-scene,.km-forms) .scene-inspector{width:300px;flex-basis:300px}}
 @media(max-width:650px){:is(.km-scene,.km-forms) .scene-inspector{position:absolute;right:0;top:35px;bottom:0;z-index:12;box-shadow:-8px 0 20px #0002}}
 
+/* M4: a path's via that names nothing the scene has, the warnings, and the place's things. */
+:is(.km-scene,.km-forms) .via-warning {font-size:11px;line-height:1.5;color:var(--text-warning,#d5ae6b);margin:-4px 0 8px}
+:is(.km-scene,.km-forms) .warnings-head {margin-top:16px}
+:is(.km-scene,.km-forms) .warnings {list-style:none;padding:0;margin:6px 0}
+:is(.km-scene,.km-forms) .warning {display:flex;align-items:flex-start;gap:8px;width:100%;text-align:left;padding:8px 6px;border-bottom:1px solid var(--km-line);color:var(--text-warning,#d5ae6b)}
+:is(.km-scene,.km-forms) .warning span {display:flex;flex-direction:column;gap:2px}
+:is(.km-scene,.km-forms) .warning b {font-weight:500;color:var(--km-text)}
+:is(.km-scene,.km-forms) .warning small {font-size:10px;color:var(--km-muted)}
+:is(.km-scene,.km-forms) .place-things {margin:4px 0 10px;font-size:12px}
+:is(.km-scene,.km-forms) .place-things summary {cursor:pointer;padding:4px 0}
+:is(.km-scene,.km-forms) .place-things ul {padding-left:16px;margin:4px 0;max-height:220px;overflow:auto}
+:is(.km-scene,.km-forms) .place-things small {color:var(--km-muted);font-size:10px}

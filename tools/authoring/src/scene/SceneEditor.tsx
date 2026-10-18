@@ -13,7 +13,7 @@ import {CastPanel} from './CastPanel.tsx';
 import {EditSession} from './fields.tsx';
 import {ConnectionInspector,KIND_LABELS,NodeInspector} from './inspectors.tsx';
 import type {SceneHost} from './host.ts';
-import {addNode,addRoute,connectionId,connectionsOf,isEnding,isStart,nodeKind,problemsOf,removeNodes,removeRoutes,shapeOf,slugOf,titleOf,uniqueId} from './model.ts';
+import {addNode,addRoute,connectionId,connectionsOf,isEnding,isStart,nodeKind,problemsOf,removeNodes,removeRoutes,shapeOf,slugOf,titleOf,uniqueId,viaWarnings} from './model.ts';
 import type {Connection,NewNodeKind,NodeKind,Problem,ProblemAt,SceneDocument,SceneNode} from './model.ts';
 import {ProblemsPanel} from './ProblemsPanel.tsx';
 import {ScenePanel} from './ScenePanel.tsx';
@@ -116,6 +116,7 @@ function SceneEditor({initial,host}:{initial:SceneDocument;host:SceneHost}){
     ...(campaign&&!campaign.error&&!isListed(campaign,key)?[`${key} isn't one of the scenario's scenes (${campaign.scenario?.split('/').at(-1)??'its .kmscenario'}), so the game doesn't install it yet: list it there to play it.`]:[]),
   ];
   const place=useMemo(()=>doc.place?campaign?.places.find(candidate=>candidate.key===doc.place):undefined,[doc.place,campaign]);
+  const warnings=useMemo<Problem[]>(()=>campaign?viaWarnings(deferred,place):[],[deferred,place,campaign]);
   const loreNames=useMemo(()=>new Map((campaign?.lore??[]).map(note=>[note.path,note.name])),[campaign]);
   const selectedNode=selected?.kind==='node'?doc.nodes.find(node=>node.id===selected.id):undefined;
   const selectedConnection=selected?.kind==='connection'?connections.find(connection=>connection.id===selected.id):undefined;
@@ -143,6 +144,7 @@ function SceneEditor({initial,host}:{initial:SceneDocument;host:SceneHost}){
   const ask=(request:Confirmation)=>{confirmFocus.current=(shell.current?.ownerDocument.activeElement as HTMLElement|null)??null;setConfirmation(request)};
   const openLore=(path:string)=>void host.openLore(path).catch(error=>setToast(error instanceof Error?error.message:String(error)));
   const openScene=(id:string)=>void host.openScene(id).catch(error=>setToast(error instanceof Error?error.message:String(error)));
+  const openPlace=(key:string)=>void (host.openPlace?.(key)??Promise.reject(new Error('This host can\'t open a place.'))).catch(error=>setToast(error instanceof Error?error.message:String(error)));
 
   // ---- The graph's own edits: nodes added, moved, connected and deleted ----
   const connect=(source:string,target:string)=>{
@@ -216,7 +218,7 @@ function SceneEditor({initial,host}:{initial:SceneDocument;host:SceneHost}){
   });
 
   // ---- What the panels share ----
-  const api:SceneApi={doc,campaign,place,loreNames,edit,openLore,openScene,
+  const api:SceneApi={doc,campaign,place,loreNames,edit,openLore,openScene,openPlace,
     pickLore:request=>setLorePicker(request),confirm:ask,showNode,showRoute,showCast,
     connectFrom:id=>{setExpanded(false);setConnecting(id)},editingRoute,setEditingRoute};
 
@@ -249,7 +251,7 @@ function SceneEditor({initial,host}:{initial:SceneDocument;host:SceneHost}){
   const body=()=>{
     if(tab==='scene')return <ScenePanel/>;
     if(tab==='cast')return <CastPanel open={castOpen} onOpen={setCastOpen}/>;
-    if(tab==='problems')return <ProblemsPanel doc={doc} problems={problems} notes={notes} onGo={go}/>;
+    if(tab==='problems')return <ProblemsPanel doc={doc} problems={problems} warnings={warnings} notes={notes} onGo={go}/>;
     if(modalOpen)return <p className="muted">Editing in the larger editor.</p>;
     if(selectedNode)return <NodeInspector key={selectedNode.id} node={selectedNode}/>;
     if(selectedConnection)return <ConnectionInspector key={selectedConnection.id} connection={selectedConnection}/>;
@@ -265,7 +267,7 @@ function SceneEditor({initial,host}:{initial:SceneDocument;host:SceneHost}){
           <button className="primary" onClick={()=>setDialog('add')}><Plus size={16}/>Add node<kbd>A</kbd></button>
         </div>
         <div className="toolbar">
-          <div><button onClick={()=>{setTab('problems');setInspector(true)}} className={problems.length?'has-problems':''}>{campaign?`${problems.length} problem${problems.length===1?'':'s'}`:'Checking…'}</button></div>
+          <div><button onClick={()=>{setTab('problems');setInspector(true)}} className={problems.length?'has-problems':''}>{campaign?`${problems.length} problem${problems.length===1?'':'s'}${warnings.length?` · ${warnings.length} warning${warnings.length===1?'':'s'}`:''}`:'Checking…'}</button></div>
           <div><button title="Undo (Ctrl Z)" disabled={!history.length} onClick={undo}><Undo2 size={16}/></button><button title="Redo (Ctrl Shift Z)" disabled={!future.length} onClick={redo}><Redo2 size={16}/></button><button title="Fit graph (F)" onClick={fit}><Maximize size={16}/></button><button title="Toggle the inspector" onClick={()=>setInspector(!inspector)}><BookOpen size={16}/></button></div>
         </div>
         <div className="graph-canvas" ref={canvas}>

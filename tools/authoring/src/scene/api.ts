@@ -21,6 +21,8 @@ export type SceneApi={
   edit:(change:(doc:SceneDocument)=>SceneDocument)=>void;
   openLore:(path:string)=>void;
   openScene:(id:string)=>void;
+  /** Open the campaign's place by its key (places/<key>.kmplace). */
+  openPlace:(key:string)=>void;
   pickLore:(request:LoreRequest)=>void;
   confirm:(confirmation:Confirmation)=>void;
   /** Show a node, a connection (by a route of it) or a person of the cast in the inspector. */

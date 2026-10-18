@@ -7,7 +7,7 @@ import {Checkbox,Checklist,LoreLinks,NumberField,SelectField,TextArea,TextField}
 import type {Option} from './fields.tsx';
 import {EffectsEditor} from './effects.tsx';
 import type {EffectChoices,EffectData} from './effects.tsx';
-import {EXIT_KINDS,ORDER,RESULTS,SKILLS,STRENGTHS,addRoute,isBeat,isDiscovery,isEnding,isStart,moveRoutes,nodeKind,optionalList,optionalText,removeNodes,removeRoutes,setArrival,setNodeField,setRouteField,titleOf,updateNode,updateRoute,withKey} from './model.ts';
+import {EXIT_KINDS,ORDER,RESULTS,SKILLS,STRENGTHS,addRoute,isBeat,isDiscovery,isEnding,isStart,moveRoutes,nodeKind,optionalList,optionalText,removeNodes,removeRoutes,setArrival,setNodeField,setRouteField,titleOf,updateNode,updateRoute,viaNames,withKey} from './model.ts';
 import type {BeatData,Connection,EndingData,NodeKind,Path,Route,SceneDocument,SceneNode,StartData} from './model.ts';
 
 export const KIND_LABELS:Record<NodeKind,string>={start:'Start',discovery:'Discovery',event:'Event',ending:'Ending'};
@@ -162,8 +162,8 @@ function PathsEditor({node,paths}:{node:SceneNode<BeatData>;paths:Path[]}){
   }));
   const vias=useMemo(()=>[
     ...doc.cast.map(member=>({value:member.id,label:member.name})),
-    ...(place?.things??[]).map(thing=>({value:thing.name,label:`a thing of ${place!.name}`})),
-    ...(place?.areas??[]).map(area=>({value:area.name,label:`a part of ${place!.name}`})),
+    ...(place?.things??[]).map(thing=>({value:thing.name,label:`a thing of ${place!.name} (${thing.id})`})),
+    ...(place?.areas??[]).map(area=>({value:area.name,label:`a part of ${place!.name} (${area.id})`})),
   ],[doc.cast,place]);
   const required=!!node.data.required;
   return <fieldset className="paths" data-field="paths">
@@ -175,6 +175,8 @@ function PathsEditor({node,paths}:{node:SceneNode<BeatData>;paths:Path[]}){
         <button type="button" title="Remove path" aria-label={`Remove path ${index+1}`} onClick={()=>setPaths(paths.filter((_,i)=>i!==index))}><Trash2 size={13}/></button>
       </header>
       <TextField label="Via" list={listId} hint="A cast id, or a thing or place in a few words (“the body”)." value={path.via} onChange={value=>setPath(index,'via',value)}/>
+      {vias.length>0&&<SelectField label="Pick via" field="via.pick" hint={place?`From the cast and ${place.name}'s things and parts.`:'From the cast (the scene has no place of the campaign\'s).'} value="" options={[{value:'',label:'Choose…'},...vias.map(via=>({value:via.value,label:`${via.value}: ${via.label}`}))]} onChange={value=>{if(value)setPath(index,'via',value)}}/>}
+      {place&&path.via.trim().includes(' ')&&!viaNames(path.via,doc,place)&&<p className="via-warning" role="note">Neither one of the cast nor a thing of {place.name}: the GM is told the clue is with something the scene hasn't got. Pick one, or keep it as words.</p>}
       <TextArea label="Clue" rows={2} hint="What's there to find or hear, concretely." value={path.clue} onChange={value=>setPath(index,'clue',value)}/>
       <TextArea label="Earn" rows={2} hint="What earns it: free to a look, a kindness, a promise, a roll. Say when it's free." value={path.earn} onChange={value=>setPath(index,'earn',value)}/>
       <SelectField label="Strength" value={path.strength} options={STRENGTHS.map(strength=>({value:strength,label:strength}))} onChange={value=>setPath(index,'strength',value)}/>

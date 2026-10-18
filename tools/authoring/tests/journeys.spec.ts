@@ -341,3 +341,30 @@ test('a connection\'s routes move to other ends together, ids kept, merging with
   await expect(page.locator('.react-flow__edge-text').filter({hasText:'2 routes'})).toHaveCount(1);
   expect(route(await saved(page),'case-lost').target).toBe('suspicious');
 });
+
+test('a clue path\'s via picked from its scene\'s place\'s things, and one naming something the scene hasn\'t got a warning in the problems panel',async({page})=>{
+  const path=clerkPath;
+  await expect(page.getByRole('tab',{name:/^Problems/})).toHaveText(/^Problems0$/);
+  await expect(page.locator('.toolbar')).toContainText('0 problems · 3 warnings');
+  await page.getByRole('tab',{name:/^Problems/}).click();
+  const panel=page.locator('.scene-inspector .inspector-body');
+  await expect(panel.locator('.warning')).toHaveText([/murder's path 1 is via “the body”/,/murder's path 2 is via “the body”/,/hobb's path 3 is via “the porters at the far gate”/]);
+  await expect(panel.locator('.problem')).toHaveCount(0);
+  // A warning takes you to its discovery; the path's via picked from the yard's things.
+  await panel.locator('.warning').first().click();
+  const first=page.locator('.node-inspector[data-node="murder"] article.path').first();
+  await expect(first.locator('.via-warning')).toBeVisible();
+  await first.getByLabel('Pick via',{exact:true}).selectOption('Wendell Prout\'s body');
+  await expect(first.getByLabel('Via',{exact:true})).toHaveValue('Wendell Prout\'s body');
+  await expect(first.locator('.via-warning')).toHaveCount(0);
+  const scene=await saved(page,path);
+  expect(scene.nodes.find((n:any)=>n.id==='murder').data.paths[0].via).toBe('Wendell Prout\'s body');
+  await expect(page.locator('.toolbar')).toContainText('0 problems · 2 warnings');
+  // The scene's panel shows its place's things, and opens the place.
+  await page.getByRole('tab',{name:'Scene'}).click();
+  const things=page.locator('[data-field="place.things"]');
+  await things.locator('summary').click();
+  await expect(things.locator('li')).toHaveCount(JSON.parse(await readFile(new URL('places/granary-yard.kmplace',CAMPAIGN),'utf8')).things.length);
+  await things.getByRole('button',{name:'Open the place'}).click();
+  await expect(page.locator('.file-path')).toHaveText('places/granary-yard.kmplace');
+});

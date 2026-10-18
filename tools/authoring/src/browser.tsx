@@ -68,6 +68,7 @@ function Harness(){
     subscribe:listener=>{listeners.add(listener);return()=>{listeners.delete(listener)}},
     openLore:path=>openFile(lorePathOf(root,path)),
     openScene:id=>openFile(scenePathOf(root,id)),
+    openPlace:key=>openFile(`${root}places/${key}.kmplace`),
   }},[activePath]);
   const fileHost:MigrationHost=useMemo(()=>({
     filePath:activePath,

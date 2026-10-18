@@ -234,6 +234,7 @@ export class KingmakerFileView extends TextFileView {
       subscribe: listener => this.plugin.subscribeDocuments(() => { if (revision === this.revision && this.file) listener(); }),
       openLore: lore => this.plugin.openVaultFile(lorePathOf(root, lore), path),
       openScene: id => this.plugin.openVaultFile(scenePathOf(root, id), path),
+      openPlace: key => this.plugin.openVaultFile(`${root}places/${key}.kmplace`, path),
     };
   }
 
