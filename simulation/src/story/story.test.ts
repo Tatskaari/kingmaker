@@ -5,7 +5,7 @@ import { installArgsOf } from "../../../shared/scene/files.ts";
 import { getGm, putGm } from "../gm/rows.ts";
 import type { MemoryHost } from "../host/memory.ts";
 import { all, caerwynPack, crossedTo, hostWithCampaign, http, identity, openedGame, sceneNow } from "../host/testing.ts";
-import { FIGHT_NOT_PLAYED, FIGHT_SUMMARY, STANDIN_LINE } from "./words.ts";
+import { FIGHT_NOT_PLAYED, FIGHT_SUMMARY } from "./words.ts";
 
 /**
  * The story between scenes (story-design §4.3, package B's done-when), on the memory host with the AI
@@ -470,7 +470,7 @@ test("the Heron's fight goes fighting, fight_it_out picks it up, its next ending
   assert.equal(host.as(wren).fightItOut(), undefined);
   let now = sceneNow(host, heron.id);
   assert.deepEqual([now.scene.status, now.scene.exitKey, now.scene.turns], ["live", undefined, now.turns.at(-1)!.n]);
-  assert.deepEqual(now.lines.slice(-2).map(l => [l.text, l.kind]), [[STANDIN_LINE, "system"], [`The fight: ${FIGHT_SUMMARY}`, "system"]]);
+  assert.deepEqual(now.lines.slice(-2).map(l => [l.text, l.kind]), [["Scene ends: Roll for initiative", "system"], [`The fight: ${FIGHT_SUMMARY}`, "system"]], "how it went, said once (QA round qa3-1018's g04 read it twice)");
   assert.deepEqual([now.gm.fought, now.gm.ended, now.gm.established.at(-1)], [["fight"], undefined, `The fight is over: ${FIGHT_SUMMARY}`]);
   assert.equal(byGame(host.db.journal, gameId).at(-1)!.text, FIGHT_NOT_PLAYED);
   assert.deepEqual([now.turns.at(-1)!.phase, now.scene.turnId], ["replying", now.turns.at(-1)!.id]);

@@ -120,7 +120,7 @@ export async function theWholeStory(stack: Stack, root: string, lead: Player, b:
   check("the lead fights it out (fight_it_out)", (await lead.conn.act("fightItOut", {})) === undefined);
   const after = await until(lead, "the Heron to pick up after the fight", 60_000, r => r.scene.status === "live" && r.turns.some(t => t.n === n + 1 && t.phase === "done") && r);
   const lines = after.transcript.filter(t => t.turn === n + 1).sort((x, y) => x.seq - y.seq).map(t => t.text);
-  check(`turn ${n + 1}: the stand-in's line, how the fight went, then the GM's aftermath`, lines[0]!.startsWith("Steel, dust and lantern light") && lines[1] === "The fight: After a short, ugly fight the Crakes went down and Sallow surrendered, very politely." && lines.length >= 3);
+  check(`turn ${n + 1}: how the fight went, once, then the GM's aftermath`, lines[0] === "The fight: After a short, ugly fight the Crakes went down and Sallow surrendered, very politely." && !lines.some(l => l.startsWith("Steel, dust and lantern light")) && lines.length >= 2);
   check("the aftermath was asked as one (gm.aftermath, under the turn's open key)", modelCalls(root, game.uid, "gm.aftermath", keyOf(heronGame, n + 1, "open")) === 1);
   const gm = gmFromRow(camel((await stack.sql(`SELECT * FROM gm_state WHERE scene_id = ${heronGame.scene}`))[0]) as GmRow);
   check(`the fight is on the record: fought ${gm.fought.join()}, "${gm.established.find(e => e.startsWith("The fight is over"))?.slice(0, 40)}…", the notebook's line`,
