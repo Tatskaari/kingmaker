@@ -20,10 +20,10 @@ test("while the GM has the floor, the draft so far and no turn for the player", 
   assert.match(text, /PHASE: replying \(the GM has the floor\)$/);
 });
 
-test("while the GM considers a risky act before the reply: PHASE: considering, and the GM has the floor", () => {
-  const text = viewText({ ...YARD, entries: [...YARD.entries, { turn: 3, speaker: "player:1", kind: "player", text: "(I lift the paper from his boot)" }], phase: "considering", turn: 3, mayType: false });
+test("a line said and waiting its turn: PHASE: queued, and the GM has the floor", () => {
+  const text = viewText({ ...YARD, entries: [...YARD.entries, { turn: 3, speaker: "player:1", kind: "player", text: "(I lift the paper from his boot)" }], phase: "queued", turn: 3, mayType: false });
 
-  assert.match(text, /> \(I lift the paper from his boot\)\n\nPHASE: considering \(the GM has the floor\)$/);
+  assert.match(text, /> \(I lift the paper from his boot\)\n\nPHASE: queued \(the GM has the floor\)$/);
 });
 
 test("a turn waiting on the AI service says so; a failed one says why and what to do", () => {

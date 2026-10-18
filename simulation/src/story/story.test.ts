@@ -42,26 +42,26 @@ const endLine = (host: MemoryHost, exit: string) => host.logs.find(l => l.starts
 // ---------------------------------------------------------------------------------------------
 // The scene's end, and what it writes.
 
-test("each of the hanged clerk's endings writes its quest, flag, attitude, journal and follower rows, and logs the rest", async () => {
-  const expected: Record<string, { quests: Array<[string, string, string, string | undefined]>; flag: string; attitudes: Array<[string, string]>; journal: string[]; recorded: string }> = {
+test("each of the hanged clerk's endings writes its quest, flag, attitude, journal and follower rows, does what its world operations say, and logs the rest", async () => {
+  const expected: Record<string, { quests: Array<[string, string, string, string | undefined]>; flag: string; attitudes: Array<[string, string]>; journal: string[]; recorded: string; world: string[] }> = {
     "case-made": {
       quests: [["hanged-clerk", "The Hanged Clerk", "complete", undefined], ["purveyors-man", "The Purveyor's Man", "active", undefined]],
       flag: "murder, Sallow named", attitudes: [["kell", "friendly"]],
-      journal: ["Wendell Prout didn't hang himself. The trail leads to Master Sallow of the Royal Purveyor's office."], recorded: "remember kell; give ledger-page",
+      journal: ["Wendell Prout didn't hang himself. The trail leads to Master Sallow of the Royal Purveyor's office."], recorded: "remember kell", world: ["give ledger-page"],
     },
     "open-case": {
       quests: [["hanged-clerk", "The Hanged Clerk", "active", "murder_unnamed"]], flag: "murder, unnamed", attitudes: [],
-      journal: ["Prout was murdered. The watch has it down as persons unknown."], recorded: "remember kell; give ledger-page",
+      journal: ["Prout was murdered. The watch has it down as persons unknown."], recorded: "remember kell", world: ["give ledger-page"],
     },
     "wrong-man": {
       quests: [["hanged-clerk", "The Hanged Clerk", "failed", undefined]], flag: "murder, blamed on a granary child", attitudes: [["cob", "hostile"], ["kell", "unfriendly"], ["moll", "hostile"]],
-      journal: ["We had one of the granary kids taken in for the clerk's murder. The sergeant thinks we're wrong."], recorded: "remove cob; remove moll; remember kell",
+      journal: ["We had one of the granary kids taken in for the clerk's murder. The sergeant thinks we're wrong."], recorded: "remember kell", world: ["remove cob", "remove moll"],
     },
     "closed-suicide": {
       quests: [["hanged-clerk", "The Hanged Clerk", "failed", undefined]], flag: "suicide", attitudes: [["kell", "wary"]],
-      journal: ["The clerk behind the granary was filed as a suicide."], recorded: "nothing",
+      journal: ["The clerk behind the granary was filed as a suicide."], recorded: "nothing", world: [],
     },
-    "walked-away": { quests: [["hanged-clerk", "The Hanged Clerk", "failed", undefined]], flag: "suicide", attitudes: [["kell", "wary"]], journal: [], recorded: "remember kell" },
+    "walked-away": { quests: [["hanged-clerk", "The Hanged Clerk", "failed", undefined]], flag: "suicide", attitudes: [["kell", "wary"]], journal: [], recorded: "remember kell", world: [] },
   };
 
   for (const [exit, want] of Object.entries(expected)) {
@@ -79,6 +79,14 @@ test("each of the hanged clerk's endings writes its quest, flag, attitude, journ
     const line = endLine(host, exit);
     assert.ok(line?.includes(`· recorded: ${want.recorded}`), `${exit}: the log line records the rest: ${line}`);
     assert.ok(line?.startsWith(`[end hanged-clerk ${exit}] forced: applied:`), String(line));
+    for (const op of want.world) assert.ok(line!.split(" · ")[0]!.includes(op), `${exit}: ${op} applied: ${line}`);
+    assert.ok(!line!.includes("not done"), String(line));
+
+    // What its world operations say is so in the yard's rows: the page in the player's keeping, out of the boot; the children gone.
+    const pc = entityByKey(host, gameId, `pc:${player.id}`)!;
+    const page = entityByKey(host, gameId, "granary-yard/ledger-page")!;
+    assert.equal(page.parentId === pc.id, want.world.includes("give ledger-page"), `${exit}: the page is ${want.world.includes("give ledger-page") ? "" : "not "}the player's`);
+    for (const who of ["cob", "moll"]) assert.equal(entityByKey(host, gameId, who)!.gone, want.world.includes(`remove ${who}`), `${exit}: ${who} ${want.world.includes(`remove ${who}`) ? "is" : "isn't"} gone`);
   }
 });
 
@@ -91,11 +99,17 @@ test("an effect is kept only when its facts hold: wrong-man with Moll taken in, 
     ["kell", "unfriendly", "Made to arrest a child for murder on no evidence."],
     ["moll", "hostile", "Taken in for a murder they didn't do, on the player's word."],
   ]);
-  assert.ok(endLine(host, "wrong-man")!.includes("· recorded: remove moll; remove cob; remember kell · afterwards: 1 changed"), String(endLine(host, "wrong-man")));
+  const line = endLine(host, "wrong-man")!;
+  assert.ok(line.includes("applied: follow kell; remove moll; attitude moll hostile; attitude cob hostile; remove cob;"), line);
+  assert.ok(line.includes("· recorded: remember kell · afterwards: 1 changed"), line);
+  // Each taken off the yard as the operation that held says: Moll to the cells, Cob gone to ground.
+  const noted = (who: string) => { const e = entityByKey(host, gameId, who)!; return [e.gone, host.db.narrative.entityId.find(e.id)!.notes.at(-1)!.text]; };
+  assert.deepEqual([noted("moll"), noted("cob")], [[true, "the watch-house cells"], [true, "gone to ground somewhere in the granary quarter"]]);
 
   const other = await game();
   other.end("open-case");
   assert.ok(endLine(other.host, "open-case")!.includes("· recorded: remember kell ·"), "no page read, no page given");
+  assert.equal(entityByKey(other.host, other.gameId, "granary-yard/ledger-page")!.parentId, entityByKey(other.host, other.gameId, "granary-yard/boots")!.id, "the page is still in the boot");
 });
 
 test("the end: Scene ends, the chapter, afterwards (Prout's body taken away), and the boundary queued with the scene as it ended", async () => {
@@ -280,6 +294,136 @@ test("walk: refused before and during; then the Rat opens with the player, what 
 });
 
 // ---------------------------------------------------------------------------------------------
+// What the endings hand over, on into the next scenes.
+
+/** The Rat's facts, as the campaign's own Rat has them. */
+const RAT = caerwynPack().scenes.find(s => s.id === "drowned-rat")!;
+
+test("what an ending hands over goes on with the player: the yard's page into the Rat and on, the Heron's true book into the King's morning", async () => {
+  const { host, wren, player, scene, gameId, end, establish, sceneOf } = await game();
+  const go = async () => { assert.equal(host.as(wren).walk({ toward: "lead" }), undefined); await host.drain(); };
+  const pc = entityByKey(host, gameId, `pc:${player.id}`)!;
+  const theirs = (placeId: bigint) => [...host.db.entity.placeId.filter(placeId)].filter(e => e.parentId === pc.id).map(e => e.key);
+
+  establish(scene.id, fact("page-read"));
+  end("open-case");
+  assert.ok(theirs(scene.placeId).includes("granary-yard/ledger-page"), "open-case gives the page once it's been read");
+  await host.drain();
+  await go();
+  const rat = sceneOf("drowned-rat")!;
+  assert.ok(theirs(rat.placeId).includes("drowned-rat/ledger-page"), `the page goes on with them into the Rat: ${theirs(rat.placeId).join(", ")}`);
+
+  // The Rat's own give of the page (onEnd, once it's out) finds it in their hands already: done, nothing moved.
+  establish(rat.id, RAT.facts!["page-out"]!);
+  end("hobb-talks");
+  assert.ok(host.logs.find(l => l.startsWith("[end drowned-rat hobb-talks]"))!.includes("give ledger-page"));
+  await host.drain();
+  await go();
+  const heron = sceneOf("heron-warehouse")!;
+  const book = entityByKey(host, gameId, "heron/true-book")!;
+  assert.notEqual(book.parentId, pc.id, "the true book is on Scrope's desk");
+
+  end("proof-taken");
+  assert.equal(host.db.entity.id.find(book.id)!.parentId, pc.id, "proof-taken puts the true book in their hands");
+  await host.drain();
+  const king = sceneOf("kings-morning")!;
+  assert.equal(king.status, "live", "the summons opens at once");
+  const carried = theirs(king.placeId);
+  for (const key of ["dressing-room/ledger-page", "dressing-room/true-book", "dressing-room/pennies"]) assert.ok(carried.includes(key), `${key} in the King's morning: ${carried.join(", ")}`);
+  assert.deepEqual(theirs(heron.placeId), [], "nothing of theirs left at the Heron");
+});
+
+test("caught in the act, the true book goes with Sallow as evidence, as its words say, unless the player has it in hand", async () => {
+  const HERON = caerwynPack().scenes.find(s => s.id === "heron-warehouse")!;
+  const caught = async (inHand: boolean) => {
+    const { host, wren, player, gameId, end, establish, sceneOf } = await game();
+    const go = async () => { assert.equal(host.as(wren).walk({ toward: "lead" }), undefined); await host.drain(); };
+    end("open-case");
+    await host.drain();
+    await go();
+    end("hobb-talks");
+    await host.drain();
+    await go();
+    if (inHand) establish(sceneOf("heron-warehouse")!.id, HERON.facts!["book-in-hand"]!);
+    end("caught-in-the-act");
+    const book = entityByKey(host, gameId, "heron/true-book")!;
+    const note = host.db.narrative.entityId.find(book.id)!.notes.at(-1)?.text;
+    const out = { gone: book.gone, theirs: book.parentId === entityByKey(host, gameId, `pc:${player.id}`)!.id, note, journal: byGame(host.db.journal, gameId).at(-1)!.text };
+    await host.drain();
+    return { ...out, king: [...host.db.entity.placeId.filter(sceneOf("kings-morning")!.placeId)].some(e => e.key.endsWith("true-book")) };
+  };
+  assert.deepEqual(await caught(false), { gone: true, theirs: false, note: "evidence: gone with Master Sallow to the watch-house", journal: "The true book went with him as evidence: every 'lost' wagon, initialled J.S.", king: false });
+  const kept = await caught(true);
+  assert.deepEqual([kept.gone, kept.theirs, kept.king, kept.journal], [false, true, true, "We caught Sallow at the Heron with the King's grain, and Kell arrested him."], "in her hands, she keeps it, into the King's morning");
+});
+
+test("an ending's world operation on something that isn't in its world isn't done, and nothing is handed over in its place", async () => {
+  const { host, wren, player, gameId, end, establish, sceneOf } = await game();
+  end("open-case");
+  await host.drain();
+  assert.equal(host.as(wren).walk({ toward: "lead" }), undefined);
+  await host.drain();
+
+  // Nobody read the page in the yard and the story owed the Rat nothing, so it's still in the boot in the yard: the Rat's give of it has nothing to give.
+  const rat = sceneOf("drowned-rat")!;
+  establish(rat.id, RAT.facts!["page-out"]!);
+  const pc = entityByKey(host, gameId, `pc:${player.id}`)!;
+  const before = [...host.db.entity.placeId.filter(rat.placeId)].filter(e => e.parentId === pc.id).map(e => e.key);
+  end("hobb-talks");
+  const line = host.logs.find(l => l.startsWith("[end drowned-rat hobb-talks]"))!;
+  assert.ok(line.includes("· not done: give ledger-page (nothing here is ledger-page)"), line);
+  assert.ok(line.split(" · ")[0]!.includes("remove hobb"), "the rest of its world operations are done");
+  assert.deepEqual([...host.db.entity.placeId.filter(rat.placeId)].filter(e => e.parentId === pc.id).map(e => e.key), before, "nothing new in their hands");
+  assert.equal(entityByKey(host, gameId, "granary-yard/ledger-page")!.parentId, entityByKey(host, gameId, "granary-yard/boots")!.id, "the page where it was");
+  assert.equal(entityByKey(host, gameId, "hobb")!.gone, true, "Hobb's gone from the Rat");
+});
+
+test("Hobb's token, handed over in the Rat, is in the player's keeping in the Heron's world, and Hobb is there as the Heron has him", async () => {
+  const { host, script, wren, player, gameId, end, sceneOf } = await game();
+  const go = async () => { assert.equal(host.as(wren).walk({ toward: "lead" }), undefined); await host.drain(); };
+  end("open-case");
+  await host.drain();
+  await go();
+  const pc = entityByKey(host, gameId, `pc:${player.id}`)!;
+  const token = entityByKey(host, gameId, "drowned-rat/heron-token")!;
+  assert.equal(token.parentId, entityByKey(host, gameId, "hobb")!.id, "round Hobb's neck");
+
+  // He gives it up when asked: the stage manager hands it over, as it would after the reply.
+  const give = { op: "give" as const, what: "drowned-rat/heron-token", to: `pc:${player.id}`, how: "", name: "", kind: "", text: "", add: [], remove: [] };
+  script.then("settle", { ops: [give], coGm: { roles: {}, moves: [], log: [] }, usage: { calls: 0, costUsd: 0, byOperation: {} } });
+  assert.equal(host.as(wren).say({ text: "How does a body get in, Hobb? Give me your token." }), undefined);
+  await host.drain();
+  assert.equal(host.db.entity.id.find(token.id)!.parentId, pc.id, "in her hands in the Rat");
+
+  end("hobb-talks");
+  assert.equal(host.db.entity.id.find(token.id)!.parentId, pc.id, "Hobb goes to his night's work; the token stays with her");
+  await host.drain();
+  await go();
+  const heron = sceneOf("heron-warehouse")!;
+  assert.deepEqual([host.db.entity.id.find(token.id)!.key, host.db.entity.id.find(token.id)!.placeId, host.db.entity.id.find(token.id)!.parentId], ["heron/heron-token", heron.placeId, pc.id]);
+  const hobb = entityByKey(host, gameId, "hobb")!;
+  assert.deepEqual([hobb.placeId, hobb.gone], [heron.placeId, false], "Hobb on the Heron's hoist, as its place puts him");
+});
+
+test("a thorough end (the GM loop's, for a scene it skips) takes what each discovery it reaches is in, and leaves what isn't in its world", async () => {
+  const { host, wren, player, gameId, end } = await game();
+  end("open-case");
+  await host.drain();
+  assert.equal(host.as(wren).walk({ toward: "lead" }), undefined);
+  await host.drain();
+  const pc = entityByKey(host, gameId, `pc:${player.id}`)!;
+
+  // The page stayed in the boot in the yard (nobody read it, the story owed the Rat nothing): Hobb's token is here to take, the page isn't.
+  assert.equal(host.as(host.owner).endScene({ game: gameId, exit: "hobb-talks", thorough: true }), undefined);
+  const line = host.logs.find(l => l.startsWith("[end drowned-rat] thorough:"))!;
+  assert.match(line, /reached the-loft, the-master, the-heron, way-out, prouts-page; taken: heron-token; left: ledger-page \(nothing here is ledger-page\)$/);
+  assert.equal(entityByKey(host, gameId, "drowned-rat/heron-token")!.parentId, pc.id, "the token in her hands");
+  assert.equal(entityByKey(host, gameId, "granary-yard/ledger-page")!.parentId, entityByKey(host, gameId, "granary-yard/boots")!.id, "the page where it was");
+  assert.ok(host.logs.find(l => l.startsWith("[end drowned-rat hobb-talks]"))!.includes("not done: give ledger-page (nothing here is ledger-page)"), "nor does the Rat's own give of it find it");
+  assert.match(host.db.sheet.playerId.find(player.id)!.pockets, /heron token/, "the sheet's pockets have it");
+});
+
+// ---------------------------------------------------------------------------------------------
 // On through the arc: the Heron's fight, the King's summons, The End.
 
 test("the Heron's fight goes fighting, fight_it_out picks it up, its next ending crosses to the King's morning, which opens at once; the King's ending is The End", async () => {
@@ -356,7 +500,7 @@ test("end_scene: the owner's only; no scene, no such exit (the endings listed), 
   assert.match(none!.text, /^\(There's no ending called nowhere here: there's case-made \(The case is made\), .* and own-ending \(An ending of their own\)\.\)$/);
   assert.match(end("")!.text, /^\(The endings here: case-made/);
 
-  script.then("decide", () => new Promise(() => {}));
+  script.then("reply", () => new Promise(() => {}));
   host.as(wren).say({ text: "Who found him?" });
   void host.drain();
   await new Promise(resolve => setImmediate(resolve));

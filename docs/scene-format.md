@@ -48,7 +48,7 @@ interface SceneDocument {
   premise: string;
   /** What really happened, behind the screen: never said outright, it comes out through the beats' paths. */
   truth: string;
-  /** What happens if the player dawdles (the dead-cart at noon): the pressure, and its outer limit. */
+  /** What happens if the player dawdles (the dead-cart at noon): the pressure, its outer limit, and how it's felt coming, a step nearer each exchange and never the same sign twice (Hep's count falls each time she calls it). */
   clock?: string;
   /** Tempting things that don't exist or can't work here, so the GM can say "no, but" honestly. */
   limits?: string[];
@@ -191,7 +191,7 @@ interface Path {
   via: string;
   /** What's there to find or hear, concretely. */
   clue: string;
-  /** What earns it: free to a look, a kindness, a promise, getting up there, a roll. Say when it's free. */
+  /** What earns it: free to a look, a kindness, a promise, getting up there, a roll. An approach that needs no dice says so up front ("No dice: free to anyone who looks up"); where the path's check is for another approach, the free ones come first and the roll after them. */
   earn: string;
   /** What it amounts to as evidence. */
   strength: "hook" | "suggestive" | "strong" | "proof";
@@ -235,6 +235,9 @@ interface Route {
     /**
      * What has to have happened in the story to take it, in prose.
      * Into a discovery it may be empty: the route is taken when the revelation has landed.
+     * Into a bad or mixed ending that could be true at the same moment as a good one's, say it gives way to
+     * that one, by its id ("...: that's [let-him-go]"); a cue into an ending says what has it no longer needed
+     * ("Not needed once ...").
      */
     condition: string;
     /**
@@ -255,6 +258,16 @@ interface Route {
     onFailure?: string;
     /** Fact ids settled when it's taken. */
     establishes?: string[];
+    /**
+     * A cue's outer limit: its moment comes by then, whatever else is happening (an ending
+     * reached comes first, and a cue into a bad ending waits on a good or mixed one under way).
+     * Each count is so many exchanges from the scene's start, or from when the beat `after` was
+     * reached, and it stops once a beat of `until` is reached; whichever count runs out first is
+     * the limit (the eleventh bell: 15 exchanges into the scene, or 8 after Arlo's challenge). Say
+     * it in the condition's words too. Only a cue's counts; give every cue one (each of Caerwyn's
+     * has one).
+     */
+    limit?: Array<{ exchanges: number; after?: string; until?: string[] }>;
   };
 }
 ```
@@ -272,10 +285,12 @@ interface Route {
 
   The start is always reached, so its routes are open all scene long. That's how discoveries happen in any order, and how a last-resort ending stays available. Once an ending is reached, nothing is open: the scene is closing.
 - **Taking a route.** A route with dice is taken on its check's outcome: a success goes to its target, a failure to its `onFailure` or nowhere (the scene stays where it is, and the route stays open to try again). A route without dice can't fail: it's taken once its condition has happened.
+- **A cue's outer limit.** A count runs from the opening (reply 0), or from the reply after its `after` beat was reached (an event shows in the next reply). After each reply the co-GM is told, for each open cue, which exchange of each count the next reply would be, and once the next reply reaches a count still running, the cue is overdue: the co-GM takes its route, and the next reply shows it, unless its condition says it's no longer needed (the Heron's second bell isn't, once Kell is arresting the Master). So "15 exchanges into the scene" rings in reply 15, and "8 after Arlo's challenge", whose challenge showed in reply 7, rings in reply 15 too. Two replies before, it's due soon, and can be felt coming in someone's role. Endings come first: an ending whose condition has happened is taken ahead of any cue, overdue or not. And a cue into a `bad` ending (the time running out on the player) waits while a `good` or `mixed` ending's condition has happened or the player is in the middle of bringing one about (an arrest made but not yet secured): that plays out first. Its first move in a turn while such an ending is open is held, with those endings' conditions put to the co-GM, and taken if it moves it again.
 - **The stage.** The latest reached of the start and the event beats. Its `cast` notes are the co-GM's suggested roles, and its `pressure` is what the world does when the scene stalls.
 - **The targets.** The discoveries not yet reached, each with its paths. The GM steers towards them through the people's roles.
 - **Facts.** A reached beat's and a taken route's `establishes` are settled (a dice route's on a success). The GM is told their sentences, and the endings' effects test them.
-- **Carried beats.** A beat with `carry` that the scene ends without is owed to the player by the story, as the campaign's essentials were before. One the scene reaches is owed no more.
+- **Carried beats.** A beat with `carry` that the scene ends without is owed to the player by the story, as the campaign's essentials were before. One the scene reaches is owed no more. While it's owed, its `things` go on with whoever holds them into the next scene that can hold it (the page in Cob's boot); a scene ended for QA (`thorough`) takes the things of the discoveries it reaches into the player's hands.
+- **Effects.** As the scene ends, `onEnd`'s effects and then the ending's apply, each when its facts hold (`if` all established, `unless` none). The story's (quest, flag, attitude, journal, follow) write the story. The world's (give, remove, move, create, note…) change the scene's place as the stage manager's do: a give puts the thing in the player's keeping (`$player`) or a person's, and a remove takes someone or something off the place. They name things by their ids in the place, and one whose thing isn't there isn't done (the game logs it). What the player holds then goes on with them into the next scene. `remember`, `promise` and a combat ending's `startFight` are recorded.
 
 The game's code for this is shared by the simulation and the AI service: [shared/scene/document.ts](../shared/scene/document.ts) parses a file (its shape and what it refers to; the install refuses a file that isn't one), [load.ts](../shared/scene/load.ts) makes the runtime's Scene from it, and [beats.ts](../shared/scene/beats.ts) has the semantics above (`reachedOf`, `stageOf`, `targetsOf`, `openRoutes`, `takeRoute`).
 
@@ -291,7 +306,8 @@ The game's code for this is shared by the simulation and the AI service: [shared
 - A revelation is never locked behind one roll: at least one route into each discovery has no dice.
 - Endings that need evidence say so in `requires`, not only in prose: in a scene with a `required` discovery, every route into a `good` ending requires at least one beat, and each required discovery is required by at least one of them.
 - Every `enters` names an event beat, every `cast` note is for someone in the cast, and every `onFailure` names a node.
+- A cue's outer limit counts whole exchanges, from and until beats: its counts' `after` and `until` name beats of the scene (none counts from the start).
 - An ending with `next` names a scene of the campaign.
 - A beat's carried `things` are things of its place, or carried by another scene of the campaign (Prout's page comes into the Rat in Cob's boot).
 - Effects only use the ops the story knows (quest, flag, attitude, remember, journal, follow, promise, startFight, and the world's ops), their `if`/`unless` name facts, and the people, quests and things they name exist (the cast, campaign.json's quests, the place's areas and things, and what the story carries between scenes). None is one that would do nothing: a world op says what it acts on (`what`; a `create`, the `name` of what it makes), and a flag has a name. A combat ending's `startFight` is recorded for when fights are built: keep it.
-- The talk template (`kind: "scene"` with `companion`) is checked by the talk's own rules: its `companion` is `{companion}` and its first cast entry the companion's (`{companion}`, named `{name}`); it has an event beat `told` and an ending `goodbye`, and no place; and everyone the story has walk with the player has a lore entry to talk from. In the game, a talk's ways into `goodbye` are the player's attempt, judged before the reply from either beat, and its way into `told` is the talk's own, worded for each talk from what it may bring out: the template's route there stands for it in the file.
+- The talk template (`kind: "scene"` with `companion`) is checked by the talk's own rules: its `companion` is `{companion}` and its first cast entry the companion's (`{companion}`, named `{name}`); its start has their opening role (a `cast` note for `{companion}`); it has a discovery `told` and an ending `goodbye` with a route into it from the start, and no place; and everyone the story has walk with the player has a lore entry to talk from. In the game a talk plays on the two-part GM, as a scene does: each talk's prep fills `told` with the one thing the companion might confide this time (its revelation, and its paths: how it shows before it comes out, and what brings it out), or drops it with its way in when there's nothing to confide; the co-GM takes the way into `told` once it has come out, and the way into `goodbye` when the player says goodbye in their own words, which ends the talk with that reply; and the goodbye said in so many words (the talk's last choice) is taken before the reply, which is the talk's closing.

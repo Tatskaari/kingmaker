@@ -3,10 +3,9 @@ import { join, relative, sep } from "node:path";
 import type { CreationWorld } from "../../shared/creation/types.ts";
 import { inBounds, isStructure, mapOf, tileAt, type MapDef } from "../../shared/map/tiles.ts";
 import type { TileMap } from "../../shared/map/types.ts";
-import { isBeat, isDiscovery, isEnding, shapeProblems, type SceneDocument } from "../../shared/scene/document.ts";
+import { isBeat, isEnding, shapeProblems, type SceneDocument } from "../../shared/scene/document.ts";
 import type { BuildsFile, CampaignPack, LooksFile, PlaceFile } from "../../shared/scene/files.ts";
-import { sceneRuleProblems, sceneStoryProblems, type SceneContext } from "../../shared/scene/rules.ts";
-import { TOLD } from "../../shared/scene/talk.ts";
+import { sceneRuleProblems, sceneStoryProblems, talkTemplateProblems, type SceneContext } from "../../shared/scene/rules.ts";
 import { VOCABULARY, vocabularyOf } from "../../ai/gm/story.ts";
 import { packOf, scenePath, type CampaignFiles } from "./pack.ts";
 import { vocabularyProblems } from "./vocabulary.ts";
@@ -146,10 +145,10 @@ function sceneProblems(key: string, doc: SceneDocument, files: CampaignFiles, pa
 }
 
 /**
- * The talk template (campaign.json's `talk`, town-design §3.6), held to the talk's own rules: a scene
- * whose companion is `{companion}`, its first cast entry whoever walks with the player (`{companion}`,
- * named `{name}`), with the event beat the one thing they were keeping back moves the talk to (TOLD),
- * the ending walking on ends it at (goodbye) and no place of its own; and everyone the story has walk
+ * The talk template (campaign.json's `talk`, town-design §3.6), held to the talk's own rules: the
+ * template's (shared/scene/rules.ts talkTemplateProblems, which the plugin runs too: its companion
+ * `{companion}` and first cast entry, its start's opening role for them, the discovery TOLD, the
+ * ending GOODBYE with a way into it from the start, and no place); and everyone the story has walk
  * with the player (a `follow` effect) has a lore entry to be themselves from (the AI service builds
  * their talks from it: a talk with someone who hasn't is refused).
  */
@@ -158,14 +157,8 @@ function talkProblems(pack: CampaignPack, files: CampaignFiles): string[] {
   if (key === undefined) return [];
   const template = pack.scenes.find(scene => scene.id === key);
   if (!template) return files[scenePath(key)] === undefined ? [`campaign.json: its talk template ${scenePath(key)} isn't there`] : [];
-  const at = scenePath(key), problems: string[] = [];
-  if (template.companion !== "{companion}") problems.push(`${at}: the talk template's companion is ${JSON.stringify(template.companion)}, not "{companion}"`);
-  const [first] = template.cast;
-  if (first?.id !== "{companion}" || first.name !== "{name}") problems.push(`${at}: the talk template's first cast entry isn't the companion's ({companion}, named {name})`);
-  const told = template.nodes.find(n => n.id === TOLD);
-  if (!told || !isBeat(told) || isDiscovery(told)) problems.push(`${at}: the talk template has no event beat ${TOLD} (where the one thing they keep back takes the talk once it's told)`);
-  if (!template.nodes.some(n => n.id === GOODBYE && isEnding(n))) problems.push(`${at}: the talk template has no ending ${GOODBYE} (where walking on ends a talk)`);
-  if (template.place !== undefined) problems.push(`${at}: the talk template has a place (a talk is wherever the player stopped)`);
+  const at = scenePath(key);
+  const problems = talkTemplateProblems(template).map(problem => `${at}: ${problem.message}`);
   const followers = new Set(pack.scenes.flatMap(scene => [...(scene.onEnd ?? []), ...scene.nodes.filter(isEnding).flatMap(n => n.data.effects ?? [])])
     .flatMap(e => (e.op === "follow" ? [e.who] : [])));
   const entries = new Set(Object.entries(files).filter(([path]) => path.startsWith("lore/") && path.endsWith("/private.md"))
@@ -173,9 +166,6 @@ function talkProblems(pack: CampaignPack, files: CampaignFiles): string[] {
   for (const who of followers) if (!entries.has(who)) problems.push(`${at}: ${who} walks with the player, but has no lore entry to talk from (a private.md with character: ${who})`);
   return problems;
 }
-
-/** The ending a talk ends at when the player walks on (simulation/src/map/talk.ts walkOn). */
-const GOODBYE = "goodbye";
 
 /**
  * The story between scenes (story-design §4.6): where the story goes when a scene is overtaken is a

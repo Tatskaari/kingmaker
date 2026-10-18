@@ -521,6 +521,43 @@ test('a route\'s requires, roll and facts, each with [+ Add …]; and an ending\
   await problems(page,2);
 });
 
+test('a cue\'s outer limit: its counts, each from the start or a beat and until beats, added, changed and taken out',async({page})=>{
+  await select(page,'cart-arrives');
+  await inspector(page).locator('[data-field="routes"] button').filter({hasText:'The noon bell'}).click();
+  const routeCard=await editRoute(page,'cart-comes');
+  const limit=routeCard.locator('section[data-field="limit"]');
+  const first=limit.getByRole('article',{name:'Count 1'});
+  await expect(first.getByLabel('Exchanges',{exact:true})).toHaveValue('12');
+  await expect(first.getByLabel('Counted from',{exact:true})).toHaveValue('');
+  await first.getByLabel('Exchanges',{exact:true}).fill('10');
+  await expect.poll(async()=>route(await saved(page),'cart-comes').data.limit).toEqual([{exchanges:10}]);
+  // A second count, after a beat and until another: whichever runs out first.
+  await limit.getByRole('button',{name:'Add count'}).click();
+  const second=limit.getByRole('article',{name:'Count 2'});
+  await second.getByLabel('Counted from',{exact:true}).selectOption('murder');
+  await pick(second.locator('[data-field="until"]'),'Add beat',/^Hobb was spotted at the scene \(hobb\)/);
+  await expect.poll(async()=>route(await saved(page),'cart-comes').data.limit).toEqual([{exchanges:10},{exchanges:8,after:'murder',until:['hobb']}]);
+  await expect(routeCard.locator('.way-badges')).toContainText('By 10 exchanges in, or 8 exchanges after The victim was murdered (until Hobb was spotted at the scene)');
+  // Taken out a part at a time, then whole; one undo brings it back.
+  await second.getByRole('button',{name:'Remove Hobb was spotted at the scene'}).click();
+  await limit.getByRole('button',{name:'Remove count 2'}).click();
+  await expect.poll(async()=>route(await saved(page),'cart-comes').data.limit).toEqual([{exchanges:10}]);
+  await routeCard.getByRole('button',{name:'Remove outer limit'}).click();
+  await expect.poll(async()=>'limit' in route(await saved(page),'cart-comes').data).toBe(false);
+  await undo(page);
+  await expect.poll(async()=>route(await saved(page),'cart-comes').data.limit).toEqual([{exchanges:10}]);
+  await routeCard.getByRole('button',{name:'Remove outer limit'}).click();
+  await routeCard.getByRole('button',{name:'Add an outer limit'}).click();
+  await expect.poll(async()=>route(await saved(page),'cart-comes').data.limit).toEqual([{exchanges:8}]);
+  expect(Object.keys(route(await saved(page),'cart-comes').data)).toEqual(['condition','phase','skill','dc','limit']);
+  // An outcome has none to add.
+  await select(page,'murder-unknown');
+  await inspector(page).locator('.way-in').filter({hasText:'Signed in as murder'}).click();
+  const outcome=await editRoute(page,'signed-murder');
+  await expect(outcome.getByRole('button',{name:'Add an outer limit'})).toHaveCount(0);
+  await problems(page,0);
+});
+
 test('an effect\'s conditions are picked from the facts, or a new fact made there and then',async({page})=>{
   await select(page,'failed');
   const effects=inspector(page).locator('fieldset.effects');

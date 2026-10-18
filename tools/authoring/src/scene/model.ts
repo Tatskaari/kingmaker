@@ -1,14 +1,14 @@
 // The plugin's model of a scene file: the game's own format (docs/scene-format.md, .kmscene version 2),
 // read with the game's parse and held to the game's rules (shared/scene), edited as the plain JSON it is.
 import {EXIT_KINDS,RESULTS,STRENGTHS,isBeat,isDiscovery,isEnding,isStart,parseScene,shapeProblems} from '../../../../shared/scene/document.ts';
-import type {BeatData,CastMember,EndingData,NodeData,Path,Route,SceneDocument,SceneNode,StartData} from '../../../../shared/scene/document.ts';
+import type {BeatData,CastMember,EndingData,NodeData,OuterLimit,Path,Route,SceneDocument,SceneNode,StartData} from '../../../../shared/scene/document.ts';
 import {SKILLS} from '../../../../shared/scene/types.ts';
 import type {Skill} from '../../../../shared/scene/types.ts';
-import {SLUG,sceneRuleProblems,sceneStoryProblems} from '../../../../shared/scene/rules.ts';
+import {SLUG,sceneRuleProblems,sceneStoryProblems,talkTemplateProblems} from '../../../../shared/scene/rules.ts';
 import type {ProblemAt,SceneContext,SceneProblem} from '../../../../shared/scene/rules.ts';
 
 export {EXIT_KINDS,RESULTS,SKILLS,STRENGTHS,SLUG,isBeat,isDiscovery,isEnding,isStart};
-export type {BeatData,CastMember,EndingData,NodeData,Path,ProblemAt,Route,SceneContext,SceneDocument,SceneNode,SceneProblem,Skill,StartData};
+export type {BeatData,CastMember,EndingData,NodeData,OuterLimit,Path,ProblemAt,Route,SceneContext,SceneDocument,SceneNode,SceneProblem,Skill,StartData};
 
 /**
  * A scene file is the game's: the plugin opens it with the game's parse (shared/scene/document.ts),
@@ -54,7 +54,8 @@ export const ORDER={
   start:['kind','title','description','cast','lore'],
   beat:['kind','title','description','revelation','paths','required','cast','pressure','establishes','carry','lore'],
   exit:['kind','title','description','closing','result','exitKind','next','effects','lore'],
-  route:['condition','phase','requires','skill','dc','onFailure','establishes'],
+  route:['condition','phase','requires','skill','dc','onFailure','establishes','limit'],
+  limit:['exchanges','after','until'],
   path:['via','clue','earn','strength','check'],
   check:['skill','dc'],
   carry:['unlocks','later','things'],
@@ -262,7 +263,8 @@ export function addSiblingRoute(doc:SceneDocument,like:Route):{doc:SceneDocument
 
 /**
  * Nodes taken out, with every route to or from them, and what named them: a route's requires and its
- * onFailure, and who entered at one. The start stays: a scene has exactly one.
+ * onFailure, a cue's outer limit counting from or until one, and who entered at one. The start stays:
+ * a scene has exactly one.
  */
 export function removeNodes(doc:SceneDocument,ids:Iterable<string>):SceneDocument{
   const gone=new Set([...ids].filter(id=>!doc.nodes.some(node=>node.id===id&&isStart(node))));
@@ -271,6 +273,7 @@ export function removeNodes(doc:SceneDocument,ids:Iterable<string>):SceneDocumen
     let data=route.data;
     if(data.requires?.some(id=>gone.has(id)))data=withKey(data,'requires',optionalList(data.requires.filter(id=>!gone.has(id))),ORDER.route);
     if(data.onFailure!==undefined&&gone.has(data.onFailure))data=withKey(data,'onFailure',undefined,ORDER.route);
+    data=withLimitChanged(data,id=>gone.has(id)?undefined:id);
     return data===route.data?route:{...route,data};
   });
   const cast=doc.cast.map(member=>member.enters!==undefined&&gone.has(member.enters)?withKey(member,'enters',undefined,ORDER.cast):member);
@@ -442,7 +445,7 @@ export function idProblem(id:string,taken:Iterable<string>,current?:string):stri
   return undefined;
 }
 
-/** A node's id changed, and everything naming it: the routes' ends, what they require and where they fail to, and who arrives there. */
+/** A node's id changed, and everything naming it: the routes' ends, what they require and where they fail to, what a cue's outer limit counts from and until, and who arrives there. */
 export function renameNode(doc:SceneDocument,from:string,to:string):SceneDocument{
   if(from===to||!doc.nodes.some(node=>node.id===from))return doc;
   const swap=(id:string)=>id===from?to:id;
@@ -453,11 +456,41 @@ export function renameNode(doc:SceneDocument,from:string,to:string):SceneDocumen
     let data=next.data;
     if(data.requires?.includes(from))data=withKey(data,'requires',data.requires.map(swap),ORDER.route);
     if(data.onFailure===from)data=withKey(data,'onFailure',to,ORDER.route);
+    data=withLimitChanged(data,swap);
     return data===next.data?next:{...next,data};
   });
   const cast=doc.cast.map(member=>member.enters===from?withKey(member,'enters',to,ORDER.cast):member);
   return {...doc,nodes,edges,cast};
 }
+
+/**
+ * A route's data with its outer limit's beats changed by `change`: a beat's new id, or undefined when
+ * it's gone (or no longer a beat). A count after one that's gone goes (it counted from something that
+ * can't happen now), and one gone from a count's until leaves it (a count left with none runs until it
+ * runs out); a limit left with no count goes. The same data comes back when nothing changes.
+ */
+export function withLimitChanged(data:Route['data'],change:(id:string)=>string|undefined):Route['data']{
+  const limit=data.limit;
+  if(!limit)return data;
+  const counts=limit.flatMap((count):OuterLimit[]=>{
+    let next=count;
+    if(count.after!==undefined){
+      const after=change(count.after);
+      if(after===undefined)return [];
+      if(after!==count.after)next=withKey(next,'after',after,ORDER.limit);
+    }
+    if(count.until){
+      const until=count.until.flatMap(id=>{const to=change(id);return to===undefined?[]:[to]});
+      if(until.length!==count.until.length||until.some((id,i)=>id!==count.until![i]))next=withKey(next,'until',optionalList(until),ORDER.limit);
+    }
+    return [next];
+  });
+  if(counts.length===limit.length&&counts.every((count,i)=>count===limit[i]))return data;
+  return withKey(data,'limit',optionalList(counts),ORDER.route);
+}
+
+/** The routes whose outer limit counts from or until a node. */
+export const countingFrom=(doc:SceneDocument,id:string):Route[]=>doc.edges.filter(route=>route.data.limit?.some(count=>count.after===id||count.until?.includes(id)));
 
 /** A route's id changed: nothing else in the file names a route (the co-GM moves the scene by it, and game state keys on it). */
 export function renameRoute(doc:SceneDocument,from:string,to:string):SceneDocument{
@@ -541,8 +574,9 @@ const ENDING_ONLY=['closing','result','exitKind','next','effects'];
  * A beat made an ending: what only a beat has goes (its revelation, paths and required mark, its
  * conversation roles and pressure, the facts it settles, what the story carries), and it's a good
  * progress ending with no closing yet, as a new one is. No route leaves an ending, so its routes out
- * go; a route that required it requires it no more (only a beat is required), and whoever arrived there
- * is here from the start. Its title, description, lore and its routes in stay.
+ * go; a route that required it requires it no more (only a beat is required), a cue's outer limit
+ * counts from and until it no more (only a beat is counted from), and whoever arrived there is here
+ * from the start. Its title, description, lore and its routes in stay.
  */
 export function makeEnding(doc:SceneDocument,id:string):SceneDocument{
   const node=doc.nodes.find(other=>other.id===id);
@@ -554,8 +588,10 @@ export function makeEnding(doc:SceneDocument,id:string):SceneDocument{
     return ending;
   });
   const edges=next.edges.filter(route=>route.source!==id).map(route=>{
-    if(!route.data.requires?.includes(id))return route;
-    return {...route,data:withKey(route.data,'requires',optionalList(route.data.requires.filter(other=>other!==id)),ORDER.route)};
+    let data=route.data;
+    if(data.requires?.includes(id))data=withKey(data,'requires',optionalList(data.requires.filter(other=>other!==id)),ORDER.route);
+    data=withLimitChanged(data,other=>other===id?undefined:other);
+    return data===route.data?route:{...route,data};
   });
   return {...next,edges,cast:next.cast.map(member=>member.enters===id?withKey(member,'enters',undefined,ORDER.cast):member)};
 }
@@ -602,9 +638,11 @@ export function kindLosses(doc:SceneDocument,id:string,kind:NewNodeKind):string[
   if(kind==='event')return revelation.filter(Boolean);
   if(kind==='discovery')return [...stage,arrivals].filter(Boolean);
   const out=doc.edges.filter(route=>route.source===id).length,requiring=doc.edges.filter(route=>route.data.requires?.includes(id)).length;
+  const counting=countingFrom(doc,id).filter(route=>route.source!==id).length;
   return [...revelation,...stage,arrivals,
     d.establishes?.length?`the ${count(d.establishes.length,'fact')} it settles`:'',d.carry?'what the story carries of it':'',
-    out?`its ${count(out,'route')} out (no route leaves an ending)`:'',requiring?`what ${count(requiring,'route')} require${requiring===1?'s':''} of it`:''].filter(Boolean);
+    out?`its ${count(out,'route')} out (no route leaves an ending)`:'',requiring?`what ${count(requiring,'route')} require${requiring===1?'s':''} of it`:'',
+    counting?`how ${count(counting,'cue')} count${counting===1?'s':''} from or until it`:''].filter(Boolean);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -638,11 +676,12 @@ export type Problem=SceneProblem;
 /**
  * What the campaign check would say of this scene (`key`: its file's name), each problem with where it
  * is: its shape first (the editor never saves a scene the game can't load, so normally none), then
- * the format's rules and where the story goes from it.
+ * the format's rules, the talk's own when it's the campaign's talk template, and where the story goes
+ * from it.
  */
 export function problemsOf(key:string,doc:SceneDocument,context:SceneContext):Problem[]{
   const shape=shapeOf(doc);
   if(shape.length)return shape.map(message=>({message,at:{kind:'scene'}}));
   const ids=new Set([...context.scenes,...(context.talk?[context.talk]:[]),...context.others.map(other=>other.id),doc.id]);
-  return [...sceneRuleProblems(key,doc,context),...sceneStoryProblems(doc,ids)];
+  return [...sceneRuleProblems(key,doc,context),...(key===context.talk?talkTemplateProblems(doc):[]),...sceneStoryProblems(doc,ids)];
 }

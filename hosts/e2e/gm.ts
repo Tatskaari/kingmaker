@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { FakeOptions } from "../../ai/llm/fake-openrouter.ts";
 import type { SceneRows } from "../../client/scene/rows.ts";
@@ -11,15 +11,15 @@ import type { Game } from "./creation.ts";
 import { callLog, check, doneTurn, Failed, mapUntil, nextTurn, note, ok, restartAi, seconds, step, turnOf, until, type Player } from "./kit.ts";
 
 /**
- * The e2e's steps for the GM (full-gm-design §4.4, two-part-design.md), after V1's: a memory kept, the
- * co-GM steering the scene (its roles and its moves), and a risky act the mouthpiece calls a check on.
- * On the fake model with fake.json's quiet answers for the full GM (the attention filter flags only
- * what was witnessed, the memories agent saves one memory for Kell), the co-GM kept still unless a
- * step's recipe moves it, each step's recipe on top of them (onTop), so its own choices keep the quiet
- * ones. (Until M2: the old co-GM's review merged at a turn's start, a ruling before the reply and the
- * plain check when it was too slow, and walking out of the place on an ending of the player's own,
- * step 25: the two-part GM has none of them. The memory brought back went with them, since the
- * two-part GM reads no memories: a talk does, step 39.)
+ * The e2e's steps for the GM (full-gm-design §4.4, two-part-design.md), after V1's: a memory kept (the
+ * GM's notes on Kell), the co-GM steering the scene (its roles and its moves), and a risky act the
+ * mouthpiece calls a check on. On the fake model with fake.json's quiet answers for the full GM (the
+ * attention filter flags only what someone saw the player do, the notes review adds a line to Kell's
+ * notes), the co-GM kept still unless a step's recipe moves it, each step's recipe on top of them
+ * (onTop), so its own choices keep the quiet ones. (Until M2: the old co-GM's review merged at a
+ * turn's start, a ruling before the reply and the plain check when it was too slow, and walking out
+ * of the place on an ending of the player's own, step 25: the two-part GM has none of them. The
+ * notes are brought back by the co-GM in a later scene, step 33, and by a talk, step 39.)
  */
 
 /** Step 20 left $10 in today's ledger, so the AI service keeps its ceiling raised from here on. */
@@ -35,9 +35,9 @@ const MOLL = { status: "On the yard wall, heels drumming", mental_state: "Itchin
  */
 const STEERING: FakeOptions = { coGm: { endings: ["murder-unknown"], roles: { moll: MOLL } } };
 
-/** 22. A memory, kept: the review after a line writes Kell's note into the game's docs. */
+/** 22. A memory, kept: the review after a line brings the GM's notes on Kell up to date in the game's docs. */
 export async function aMemory(stack: Stack, root: string, a: Player, fake: FakeOptions): Promise<Game> {
-  step("22. A memory, kept");
+  step("22. A memory, kept: the GM's notes on Kell");
   await restartAi(stack, fake, RAISED);
   const game = await aNewGame(stack, a);
   const n = nextTurn(a);
@@ -46,12 +46,11 @@ export async function aMemory(stack: Stack, root: string, a: Player, fake: FakeO
 
   const review = await eventually(`turn ${n}'s memory review`, 20_000, () => reviewsOf(root, game).find(r => r.turn === n));
   const changes = review.reviews.flatMap(r => r.changes ?? []);
-  check(`the memory review of turn ${n} flagged ${review.flags.join(", ") || "nothing"}, and saved: ${changes.join("; ")}`, review.flags.includes("witnessed") && changes.some(c => /kell/i.test(c)));
-  const dir = join(root, "ai", "games", game.uid, "docs", "Cast", "Sergeant Agnes Kell", "memories");
-  const notes = existsSync(dir) ? readdirSync(dir).filter(f => /^[0-9a-f]{8}\.md$/.test(f)) : [];
-  const index = existsSync(join(dir, "index.md")) ? readFileSync(join(dir, "index.md"), "utf8") : "";
-  check(`Kell's note is in the game's docs (${notes.join(", ") || "none"}), linked from her index`, notes.length === 1 && index.includes(`(${notes[0]})`) && index.includes("What the investigator did"));
-  check("the note is in her words", readFileSync(join(dir, notes[0]!), "utf8").includes("I watched what the King’s investigator did"));
+  check(`the memory review of turn ${n} flagged ${review.flags.join(", ") || "nothing"}, and noted: ${changes.join("; ")}`, review.flags.includes("seen") && changes.some(c => c.startsWith("note kell seen: added")));
+  const kell = join(root, "ai", "games", game.uid, "docs", "Cast", "Sergeant Agnes Kell");
+  const notes = existsSync(join(kell, "notes.md")) ? readFileSync(join(kell, "notes.md"), "utf8") : "";
+  check("Kell's notes are in the game's docs, the GM's, in the third person under what she's seen the player do", notes.includes('visibility: "gm"') && /## Seen the player do\n- Watched everything the King’s investigator did in the yard/.test(notes));
+  check("one note, no memories beside it", !existsSync(join(kell, "memories")));
   return game;
 }
 
@@ -96,8 +95,8 @@ export async function theCoGmSteers(stack: Stack, root: string, a: Player, game:
 
 /**
  * 24. A risky act the GM calls a check on (the mouthpiece's recipe: Sleight of Hand, DC 12, on every
- * reply but an opening or a closing): both clients see the turn go replying, settling, done (no
- * deciding or considering), and its rows: the narration setting it up, the dice line (rolled by the
+ * reply but an opening or a closing): both clients see the turn go replying, settling, done, and
+ * its rows: the narration setting it up, the dice line (rolled by the
  * simulation from the game's dice, through the rules engine on the player's sheet) with how far it
  * made or missed it, and the outcome that came up; the co-GM is told how it went. (Until M2 the old
  * pipeline ruled on the act before the reply, and rolled a plain check when the ruling was too slow.)
@@ -116,7 +115,7 @@ export async function aRiskyCheck(stack: Stack, root: string, a: Player, b: Play
   await until(b, `B to see turn ${n} done`, 10_000, r => turnOf(r, n)?.phase === "done");
   for (const [p, i] of [[a, from.a], [b, from.b]] as const) {
     const phases = phasesOf(p, i, game, n);
-    check(`${p.name} saw turn ${n} go ${phases.join(", ")}`, phases.slice(-3).join() === "replying,settling,done" && !phases.includes("deciding") && !phases.includes("considering"));
+    check(`${p.name} saw turn ${n} go ${phases.join(", ")}`, phases.slice(-3).join() === "replying,settling,done");
   }
   const lines = linesOf(rows, n);
   const dice = lines.find(l => l.kind === "roll")?.text ?? "";

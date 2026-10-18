@@ -50,6 +50,19 @@ test("a file that isn't a scene says why, naming where", () => {
   assert.deepEqual(problemsOf(d => { delete (d.cast[0] as Partial<SceneDocument["cast"][number]>).whyHere; }), ["cast[0] (kell) has no whyHere"]);
 });
 
+test("a cue's outer limit: each count a whole number of exchanges, after and until nodes of the scene; the runtime keeps a cue's, and only a cue's", () => {
+  assert.deepEqual(problemsOf(d => { d.edges[3]!.data.limit = [{ exchanges: 0 }, { exchanges: 4, after: "nowhere", until: ["murder", "elsewhere"] }]; }), [
+    "edges[3] (cart-comes)'s limit[0] has no whole number of exchanges",
+    'edges[3] (cart-comes)\'s limit[1] counts after "nowhere", which isn\'t a node of the scene',
+    "edges[3] (cart-comes)'s limit[1] counts until elsewhere, which isn't a node of the scene",
+  ]);
+  assert.deepEqual(problemsOf(d => { (d.edges[3]!.data as { limit: unknown }).limit = { exchanges: 12 }; }), ["edges[3] (cart-comes)'s limit isn't a list of { exchanges, after?, until? }"]);
+  assert.deepEqual(sceneOf(clerk()).routes.find(r => r.id === "cart-comes")!.limit, [{ exchanges: 12 }], "the noon bell: twelve exchanges into the scene");
+  const outcome = clerk();
+  outcome.edges[4]!.data.limit = [{ exchanges: 3 }];
+  assert.equal(sceneOf(outcome).routes.find(r => r.id === "signed-murder")!.limit, undefined, "an outcome route's limit is nothing in play");
+});
+
 test("its error's message names the file and the first problems, and how many more", () => {
   const e = (() => { try { sceneDocumentOf({ ...clerk(), format: "other", title: 1, hook: 2, setting: 3, premise: 4 }, "hanged-clerk.kmscene"); } catch (error) { return error as SceneFormatError; } })()!;
   assert.equal(e.problems.length, 5);
@@ -95,7 +108,7 @@ test("the runtime's Scene: the start and the beats with the routes that leave th
   assert.deepEqual(validateScene(scene), []);
 });
 
-test("a dice route is an attempt with its check, its facts settled on success; a talk's ways into its ending are anytime attempts", () => {
+test("a dice route is an attempt with its check, its facts settled on success", () => {
   const d = clerk();
   d.edges[4]!.data = { ...d.edges[4]!.data, skill: "persuasion", dc: 14, onFailure: "suspicious", establishes: ["motive-known"] };
   const signed = sceneOf(d).beats[4]!.transitions[0]!;
@@ -104,8 +117,4 @@ test("a dice route is an attempt with its check, its facts settled on success; a
     skill: "persuasion", dc: 14, success: undefined, failure: undefined, onSuccess: "murder-unknown", onFailure: "suspicious",
     establishes: { success: [d.facts!["motive-known"]] },
   });
-
-  const talk = sceneOf({ ...clerk(), companion: "kell" });
-  assert.deepEqual(talk.anytime?.map(t => [t.id, t.on, t.to]), [["signed-murder", "attempt", "murder-unknown"], ["signed-suicide", "attempt", "suspicious"], ["case-lost", "attempt", "failed"]]);
-  assert.deepEqual(talk.beats.map(b => b.transitions.length), [4, 0, 0, 0, 0], "the ways into the discoveries and the cue stay where they leave from");
 });

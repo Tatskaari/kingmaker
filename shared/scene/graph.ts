@@ -1,6 +1,6 @@
-// Copied from the prototype's src/runtime/brief.ts:22-106, 344-389 and director.ts:54-58 at 44c6d4a; they read GmState's fields (not the session's), and effectiveScene's .at(-1) and leftBehind's findLast are ES2021. candidatesOf is engine.ts:1061-1069 (chainScene's candidates), pure over a lookup.
+// Copied from the prototype's src/runtime/brief.ts:22-106, 344-389 and director.ts:54-58 at 44c6d4a; they read GmState's fields (not the session's), and effectiveScene's .at(-1) and findLast are ES2021 (leftBehind, the old co-GM's, went with it). candidatesOf is engine.ts:1061-1069 (chainScene's candidates), pure over a lookup.
 
-import type { GmState, PathStep, ScenePatch } from "../gm/state.ts";
+import type { GmState, ScenePatch } from "../gm/state.ts";
 import type { Beat, Character, Scene, Transition } from "./types.ts";
 
 /**
@@ -39,17 +39,26 @@ export function withImprovisedEnding(scene: Scene): Scene {
  * The authored scene as play has it: what the co-GM has added during play, and what the boundary
  * brought over from earlier scenes. An essential the scene preps for if the player missed it
  * earlier (`missed`) is the scene's only once the boundary has brought it over, and a route that
- * brings an essential the scene hasn't got (or is a way towards one) isn't there.
+ * brings an essential the scene hasn't got (or is a way towards one) isn't there. A talk's prep
+ * fills its discovery for this talk (`fill`: the one thing the companion might confide, and the ways
+ * it can come out), or, with nothing to confide, the discovery isn't this talk's (`drop`: the node
+ * goes, with every route into and out of it).
  */
 export function effectiveScene(authored: Scene, patches: ScenePatch[]): Scene {
   const scene = withImprovisedEnding(authored);
   const brought = patches.flatMap(p => (p.essential ? [p.essential] : []));
   if (!patches.length && !scene.essentials?.some(e => e.missed)) return scene;
   // The scene's own essentials, and what the boundary brought (in place of the scene's prep for it).
-  const essentials = [...(scene.essentials ?? []).filter(e => !e.missed && !brought.some(b => b.id === e.id)), ...brought];
+  const dropped = new Set(patches.flatMap(p => (p.drop ? [p.drop] : [])));
+  const essentials = [...(scene.essentials ?? []).filter(e => !e.missed && !brought.some(b => b.id === e.id) && !dropped.has(e.id)), ...brought];
   const has = new Set(essentials.map(e => e.id));
-  const live = (t: Transition) => [t.essential, t.towards].every(e => !e || has.has(e));
-  const beats = scene.beats.map(b => ({ ...b, transitions: b.transitions.filter(live) }));
+  const kept = (t: Transition) => ![t.to, t.check?.onSuccess].some(to => !!to && dropped.has(to));
+  const live = (t: Transition) => [t.essential, t.towards].every(e => !e || has.has(e)) && kept(t);
+  const beats = scene.beats.filter(b => !dropped.has(b.id)).map(b => {
+    const fill = findLast(patches, p => p.fill?.id === b.id)?.fill;
+    return { ...b, transitions: b.transitions.filter(live), ...(fill ? { revelation: fill.revelation, paths: fill.paths.map(p => ({ ...p, ...(p.check ? { check: { ...p.check } } : {}) })) } : {}) };
+  });
+  const routes = dropped.size ? (scene.routes ?? []).filter(r => !dropped.has(r.source) && !dropped.has(r.target)) : scene.routes;
   for (const patch of patches) {
     if (patch.beat && !beats.some(b => b.id === patch.beat!.id)) beats.push({ ...patch.beat, transitions: [...patch.beat.transitions] });
   }
@@ -70,7 +79,7 @@ export function effectiveScene(authored: Scene, patches: ScenePatch[]): Scene {
   const closed = patches.filter(p => p.close).map(p => p.close!);
   for (const b of beats) if (closed.length) b.transitions = b.transitions.filter(t => !closed.some(c => c.beat === b.id && c.id === t.id));
   const open = closed.length ? anytime.filter(t => !closed.some(c => c.beat === "*" && c.id === t.id)) : anytime;
-  return { ...scene, beats, anytime: open, cast, ...(scene.essentials || brought.length ? { essentials } : {}) };
+  return { ...scene, beats, anytime: open, cast, routes, ...(scene.essentials || brought.length ? { essentials } : {}) };
 }
 
 export function currentBeat(scene: Scene, state: Pick<GmState, "beat">): Beat {
@@ -113,40 +122,14 @@ export function spentHere(state: Pick<GmState, "beat" | "path">): Set<string> {
 }
 
 /**
- * Has the scene left this beat, and has something been settled since (a fact established)? Then
- * going back there would undo it: the Rat's confession beat, left for "Hobb rises to go to work",
- * where the only way out for him was "without telling what he knows".
- */
-export function leftBehind(state: Pick<GmState, "beat" | "path" | "established">, beat: string): boolean {
-  if (beat === state.beat) return false;
-  const left = findLast<PathStep>(state.path, p => p.from === beat && p.to !== beat);
-  return left?.known !== undefined && state.established.length > left.known;
-}
-
-/** The co-GM's routes (its improvised ones, and its bridging beats'), by id. */
-function coGmRoutes(state: Pick<GmState, "patches">): Set<string> {
-  return new Set(state.patches.flatMap(p => [...(p.transition ? [p.transition.transition.id] : []), ...(p.beat?.transitions.map(t => t.id) ?? [])]));
-}
-
-/** A co-GM route back to a beat the scene left before something was settled: it can't undo that. */
-const undoes = (state: Pick<GmState, "beat" | "path" | "established">, t: Transition) => [t.to, t.check?.onSuccess, t.check?.onFailure].some(to => !!to && leftBehind(state, to));
-
-/**
  * The routes to offer now: not one already achieved here, nor one that brings (or is a way towards)
- * what the player has already come across, nor one of the co-GM's that would take the scene back
- * past what's settled.
+ * what the player has already come across. (Nor, until the old co-GM went, one of its routes that
+ * would take the scene back past what's settled: leftBehind.)
  */
-export function openRoutes(transitions: Transition[], state: Pick<GmState, "beat" | "path" | "established" | "landed" | "patches">): Transition[] {
+export function openRoutes(transitions: Transition[], state: Pick<GmState, "beat" | "path" | "landed">): Transition[] {
   const spent = spentHere(state);
-  const coGm = coGmRoutes(state);
   const found = (e?: string) => !!e && !!state.landed?.includes(e);
-  return transitions.filter(t => !spent.has(t.id) && !found(t.essential) && !found(t.towards) && !(coGm.has(t.id) && undoes(state, t)));
-}
-
-/** Does taking this transition (on success, for a check) end the scene? */
-export function endsScene(scene: Scene, t: Transition): boolean {
-  const target = t.check ? t.check.onSuccess : t.to;
-  return scene.exits.some(e => e.id === target);
+  return transitions.filter(t => !spent.has(t.id) && !found(t.essential) && !found(t.towards));
 }
 
 /** What candidatesOf reads of a scene: its id, its exits' ways on, and whether it's an interlude or may be overtaken. */

@@ -35,7 +35,7 @@ export function SceneView(){
       <TextArea label="Setting" field="setting" rows={5} hint="Where and when, in sensory detail." value={doc.setting} onChange={value=>set('setting',value)}/>
       <TextArea label="Premise" field="premise" rows={2} hint="The dramatic question the scene answers, in a line." value={doc.premise} onChange={value=>set('premise',value)}/>
       <TextArea label="Truth" field="truth" rows={6} hint="What really happened: never said outright, it comes out through the discoveries' paths." value={doc.truth} onChange={value=>set('truth',value)}/>
-      <TextArea label="Clock" field="clock" rows={3} hint="What happens if the player dawdles: the pressure, and its outer limit." value={doc.clock??''} onChange={value=>set('clock',optionalText(value))}/>
+      <TextArea label="Clock" field="clock" rows={3} hint="What happens if the player dawdles: the pressure, its outer limit, and how it's felt coming, a step nearer each exchange and never the same sign twice." value={doc.clock??''} onChange={value=>set('clock',optionalText(value))}/>
     </Group>
     <Group title="When and where" anchor="scene-when" field="when">
       <div className="field-row">

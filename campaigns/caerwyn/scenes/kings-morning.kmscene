@@ -18,7 +18,7 @@
   "setting": "Early morning on the day of the Centennial Assembly, in the King's dressing room in the palace: a warm, cluttered room off the long gallery, all wardrobes, mirrors and a fire, where King Aldren is being got into his procession robes (purple, ermine, a great deal of both) by two valets with pins in their mouths. Marshal Garran Holt stands by the door with his pocket watch open in his palm. Through the tall windows the city is roaring awake: bells, a band tuning up, bunting everywhere, and in the courtyard below the delegations forming up under their banners (Nine Furrows wheat-sheaves, Saltmere salt-gulls, Kläggenheim axes) with the Purveyor's grain cart, garlanded, waiting to walk fourth 'for the people's confidence', and along the route people who've come to shout 'lost to goblins!' at it (bread is threepence this morning). On a side table, a tea tray: the King takes his tea very seriously. The procession leaves at the ninth bell, in about half an hour. Whatever the King decides in this room, happens: the palace guard is the Marshal's, and the Marshal is the King's.",
   "premise": "What does King Aldren do with the truth on the morning of his Assembly, and do the promises the investigator made along the way hold?",
   "truth": "Master Josiah Sallow, under-purveyor for grain, has been writing the King's grain wagons off in the Royal Granary Roll as 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor', and selling the grain downriver through the Heron warehouse, where Mister Scrope keeps the true book with Sallow's initials on every page; asked, it's condemned grain lawfully sold, on an order of sale in his own hand. Wendell Prout found out. A week before he died he wrote to the King asking for an audience about 'irregularities in the Roll', and the King put the letter on his after-the-Assembly pile, where it still is. Three days before, he asked Sergeant Kell how a clerk reports false entries, and she sent him to the palace. The day before the eve he wrote to the Royal Purveyor, whose letters Sallow opens. That night, in the tally loft, Sallow struck him with his cane and strangled him with a cord while Big Hobb Mallory held his arms, and had Hobb hoist him up as a suicide; at first light he paid a granary girl a crown to say she'd seen him jump, and asked the Watch Captain to close it without fuss. Everyone Prout went to failed him the same way, and neither the King nor Kell knows the other's part. This morning Sallow means to walk fourth in the procession beside his garlanded grain cart, and to offer the King what he wants to hear: that he'll look into any irregularities himself, after the Assembly. He never admits the murder, but he can't bear to be thought careless: get his arrangements wrong in front of him and he corrects the record. The Marshal, who resents him for meddling with the order of procession and takes him for nothing worse than a climber, has the order to take him written and in his coat if the night gave him anything to act on, and is waiting for the King's word. How the night ended decides the rest: whether Sallow is in a cell or in the gallery, and what the investigator can put in the King's hands.",
-  "clock": "The procession leaves at the ninth bell, about half an hour from the start, and the King goes with it. The Marshal calls the minutes aloud, fewer each time. At the bell the King goes down and decides on the stairs, on what he's been given: whatever he hasn't been given waits until after the Assembly.",
+  "clock": "The procession leaves at the ninth bell, about half an hour from the start, and the King goes with it. The Marshal calls the minutes aloud, fewer each time, about two fewer an exchange (twenty-eight at the start, fifteen about eight exchanges in, five about twelve): a number he has called is never called again. At the bell the King goes down and decides on the stairs, on what he's been given: whatever he hasn't been given waits until after the Assembly.",
   "limits": [
     "Leaving the palace or putting the King off until later: the procession goes at the ninth bell and the King goes with it. This half hour is the investigator's chance.",
     "Undoing what happened last night: whatever the night ended with is how things stand this morning.",
@@ -55,7 +55,7 @@
         "An arrest inside the palace, or of an officer of the Crown not caught in the act, is the Marshal's to make on the King's word. The Assizes sit after the Assembly."
       ],
       "secrets": [
-        "Shows: he knows a little too much about Prout's last week ('He'd asked to see me, you know'), and stops, and pours tea nobody asked for. Torn: owning up makes him the King who looked away, in front of the people he asked to look for him. Opens: someone else owning up first (Kell, about her own part), or the investigator asking him straight why he chose them. First: 'He wrote to me.'",
+        "Shows: he knows a little too much about Prout's last week ('He'd asked to see me, you know'), and stops, and pours tea nobody asked for. Torn: owning up makes him the King who looked away, in front of the people he asked to look for him. Opens, with no dice: someone else owning up first (Kell, about her own part), or the investigator asking him straight why he chose them. First: 'He wrote to me.'",
         "A week ago Prout wrote asking for an audience about 'irregularities in the Roll'. The King put the letter on the after-the-Assembly pile, where it still is. He's ashamed of it, and it's why he asked for the investigator."
       ],
       "attitude": "Kind, curious and evasive: he hears everything, sympathises sincerely, and looks for a reason to put the hard part off until after the Assembly. What moves him: proof he can hold (the true book, Prout's page, a sworn confession, a sergeant's sworn record), someone willing to stand behind it in public so it isn't his alone, a way to do it that doesn't stop the procession, and being reminded of Prout as a person. Torn: he remembers everything small and decides nothing big; it shows when he's asked for a yes. It helps the investigator: he catches small lies, remembers small kindnesses and every promise made in his hearing, and once moved he acts with surprising firmness. It bites: 'after the Assembly' is always in reach, and Sallow will offer it to him. Asked to send for someone, he does at once ('Garran, ask Master Sallow to step in'): that's a small thing, and he likes to hear everyone. Ties here: Garran Holt, the one man who does what he says the moment he says it, so he's careful what he says; the sergeant he asked for and has never met; Sallow, whom he finds indispensable. He remembers who helped him, and how they take their tea.",
@@ -90,7 +90,7 @@
       "attitude": "Impatient, correct and fair: he'll act at once on the King's word, and not a moment before. Thinks investigators are an unscheduled delay, and is quietly impressed by evidence. Torn: he lives by the clock, but he'd hold the whole Assembly for a plain order from the King; it shows when the King dithers. He calls the minutes aloud, which presses the King; and if anyone asks him how it could be done, he has already worked out that a quiet arrest in the gallery costs four minutes and keeps the procession to time. What opens him is exactly that, a way to do it that doesn't stop the procession, or a sergeant's sworn record he can put his trust in. Ties here: the King, whom he would follow into the river and wishes would decide things; Sallow, who meddled with his order of procession; Kell, whose report he once read twice.",
       "limits": "He won't move a step before the King's word, and acts on it the moment it's plain: no argument, flattery or appeal to the clock moves him first. He gives no opinion on the case, only times and quantities, and never says aloud that he wishes the King would decide things. He takes Master Sallow for a meddler and a climber, nothing worse, until he's shown otherwise.",
       "roles": {
-        "characterise": "Ramrod straight by the door, his watch open in his palm, calling the minutes aloud at the worst moments ('Twenty-two minutes, Majesty'). 'Investigator', with faint disapproval at the word.",
+        "characterise": "Ramrod straight by the door, his watch open in his palm, calling the minutes aloud at the worst moments, fewer each time ('Twenty-two minutes, Majesty'). 'Investigator', with faint disapproval at the word.",
         "inconsistency": "A man who lives by the clock, who keeps touching his coat pocket and looks at the King as if he's waiting for something other than the time. Goes very still when evidence is put on the table, and says nothing about it. Looks twice at the sergeant when her name is said.",
         "hooks": "'On whose word, Majesty?', of nobody in particular. The order of procession, and who had it changed (Master Sallow asked the King, not him). Asked how it could be done: four minutes, in the long gallery."
       },
@@ -136,7 +136,7 @@
         "The King signs nothing that might upset anyone, and the feast, the grain and the office's goodwill all run through Sallow this week: he has made himself someone it would upset the King to lose."
       ],
       "secrets": [
-        "Shows: more lavender, more politeness, and 'Majesty' at every turn. Opens: nothing makes him admit the murder; but get his arrangements wrong in front of him ('lost to goblins, was it? Careless of somebody') and he corrects the record before he can stop himself, in front of the King.",
+        "Shows: more lavender, more politeness, and 'Majesty' at every turn. Opens: nothing makes him admit the murder; but get his arrangements wrong in front of him ('lost to goblins, was it? Careless of somebody') and he corrects the record before he can stop himself, in front of the King, with no dice.",
         "Everything about Prout and the Heron. He'll admit nothing; he'll offer to 'look into irregularities' after the Assembly, blame the Saltmere factor, the porter or the Captain, and remind the King who is feeding the Assembly."
       ],
       "attitude": "Here only if he's free this morning: if the night put him in a cell, or he fled, he isn't here at all. If he's free, he's in the gallery outside with the Purveyor's party (and if he knows the true book left the Heron, he's been at the palace since before dawn with the order of sale and a story about intruders), and comes in when sent for, or when he hears his name called: courteous, superior, papers first, then the King's interest, then the Assembly. He talks to the King and the Marshal and never to the investigator or the sergeant, who are furniture. In front of the King and proof, the courtesy cracks; if he's to be taken, he goes politely, asking for his rank to be respected.",
@@ -177,7 +177,7 @@
         "description": "This scene ends the story. The investigator reports to King Aldren in his dressing room half an hour before the Assembly procession, with whatever the night left them holding, and the King decides what to do about it before the ninth bell, or doesn't. It's a persuasion scene: the King wants to do right by Wendell Prout, and would very much rather do it after the Assembly. What moves him, his own part in Prout's last week, what the night's promises cost and Master Sallow's pride are discoveries for play, not opening exposition.\n\nOpening situation:\n- The player has slept, or not, and has been brought up the back stairs, with Kell at their side unless the night ruled it out. King Aldren is half into his procession robes with two valets pinning him; Marshal Holt stands by the door with his pocket watch open in his palm; the tea tray is on the side table; through the tall windows the city is roaring awake, and the Purveyor's grain cart waits in garlands in the courtyard below.\n- Things stand as the night left them: what the player carries (Prout's page, the true book), what Kell saw, heard and wrote down, whether Master Sallow is in the watch-house cells or free in the long gallery outside with the Purveyor's party, where Hobb is, and what was promised to whom. What happened before this scene wins over anything here.\n- The procession leaves at the ninth bell, and the King goes with it. The Marshal calls the minutes aloud: there's time to make the case, but none to waste.\n\nSuggested ways in:\n- Tell it. The King listens properly, asks small exact questions he already knows the answers to, and takes it as a man who knew Prout: the cord, the hoist and the page in the boot hit him personally. Let the player tell it their way, in their own order; don't summarise it for them or ask leading questions.\n- Show what they carry. Whatever the player puts in the King's hands, he holds and reads, and then asks who will stand behind it.\n- Ask him to act, and watch him reach for 'after the Assembly'. His hesitation, the Marshal's 'On whose word, Majesty?' and Kell's notebook show what would move him.\n- Have Master Sallow in, if he's free: the King grants it at once ('Garran, ask Master Sallow to step in'). In front of the King, Sallow's weak spot is his pride in his arrangements.\n- Speak for the people they met (Hobb, the children, the Heron's people, whoever was promised what): the King takes it seriously, and asks what they'd have him do.\n- Ask the King why he chose them for this, or let Kell say what she came to say: the King has his own part in Prout's last week, and one confession invites another.\n\nPlay the King as kind, curious and evasive: he hears everything, sympathises sincerely and looks for a reason to wait, and gives way to proof he can hold and someone standing behind it in front of him. He's a door, not a wall: every ask gets a real answer (yes, no, or not today, and why), and once he's moved he acts with a firmness that surprises everyone, himself included. The Marshal keeps time, out loud, at the worst moments, and moves the moment the King's word is plain, not before. Kell answers the King exactly, swears to what she saw and heard when he asks who will, and tells him herself, once, that Prout came to her first. It's the investigator's report: nobody makes it for them.\n\nAn opening image to use or adapt: the King dismisses the valets with a look, says how Wendell Prout took his tea (milk in first, one sugar, the cup warmed: he was particular) as if it were the most important thing in the world, and asks the investigator what they found. End on that question.\n\nThese are example openings, not a required sequence. Follow whatever person, thing or approach the player engages with, and let the discoveries come out in any order.",
         "cast": {
           "king": "Characterise: dismisses the valets with a look, says how Wendell Prout took his tea as if it were the most important thing in the world, and asks the investigator what they found. Then listens, cup in hand, and asks small exact questions. Nothing about any letter.",
-          "holt": "Characterise: by the door with his watch open, calling the minutes aloud whenever the talk wanders ('Twenty-eight minutes, Majesty'). If the Heron burned or its barge sank in the night, he asks the investigator about it, in times and quantities, before the King can.",
+          "holt": "Characterise: by the door with his watch open, calling the minutes aloud whenever the talk wanders, fewer each time ('Twenty-eight minutes, Majesty' at first). If the Heron burned or its barge sank in the night, he asks the investigator about it, in times and quantities, before the King can.",
           "kell": "Characterise: at the investigator's shoulder, still and watching hands, with her notebook open at the granary yard and her thumb in the page. Answers the King exactly when he asks her something; otherwise it's the investigator's report."
         },
         "lore": [
@@ -201,19 +201,19 @@
           {
             "via": "king",
             "clue": "His hesitation, out loud. Asked for a yes, he reaches for 'after the Assembly' and doesn't quite get there; he looks at the Marshal's watch, then at whatever the investigator is holding, and says what he'd need: 'If only there were something one could hold... and someone who'd say so, in front of us.'",
-            "earn": "Free, the first time the player asks him to act, or tells it with nothing to show.",
+            "earn": "No dice: free, the first time the player asks him to act, or tells it with nothing to show.",
             "strength": "strong"
           },
           {
             "via": "holt",
             "clue": "'On whose word, Majesty?', of nobody in particular, when the King wavers. Asked how it could be done: a quiet arrest in the long gallery, before the Purveyor's party goes down, costs four minutes and keeps the procession to time; on the King's word, and not before.",
-            "earn": "The question is free when the King wavers. The four minutes are for anyone who asks the Marshal how it could be done.",
+            "earn": "No dice: the question is free when the King wavers, and the four minutes are for anyone who asks the Marshal how it could be done.",
             "strength": "strong"
           },
           {
             "via": "kell",
             "clue": "What a sergeant's sworn record is: what she saw and heard herself, sworn there and then, is evidence anywhere in the kingdom, and she'll swear to it in front of anyone, the King included. 'I can swear to what I saw and heard, Majesty. Not to what I didn't.'",
-            "earn": "Asking her what would stand up, or what she can swear to; or the King asking who will swear.",
+            "earn": "No dice: asking her what would stand up, or what she can swear to; or the King asking who will swear.",
             "strength": "strong"
           },
           {
@@ -252,7 +252,7 @@
           {
             "via": "king",
             "clue": "'He'd asked to see me, you know.' He stops, and pours tea nobody asked for.",
-            "earn": "Free, once, when Prout's last week comes up.",
+            "earn": "No dice: free, once, when Prout's last week comes up.",
             "strength": "hook"
           },
           {
@@ -268,13 +268,13 @@
           {
             "via": "kell",
             "clue": "Her own part, told to the King once in her own words: three days before he died, Prout came to her desk to ask how a clerk reports false entries in the King's rolls, and whether the watch could arrest a gentleman of the Purveyor's office, and she sent him to the palace, the proper channel. 'I should have listened.' The King puts his cup down.",
-            "earn": "Free: she tells the King at the first moment Prout's last days bear on things (it's what she came to say), or when the investigator gives her the floor. One confession invites another.",
+            "earn": "No dice: she tells the King at the first moment Prout's last days bear on things (it's what she came to say), or when the investigator gives her the floor. One confession invites another.",
             "strength": "strong"
           },
           {
             "via": "king",
             "clue": "'He wrote to me.' A week before he died, asking for an audience about 'irregularities in the Roll'. 'I put it on the pile. I meant to see him after the Assembly.'",
-            "earn": "Asking him straight why he chose the investigator for this, or someone else owning up first (Kell, about sending Prout to the palace).",
+            "earn": "No dice: asking him straight why he chose the investigator for this, or someone else owning up first (Kell, about sending Prout to the palace).",
             "strength": "strong"
           }
         ],
@@ -300,25 +300,25 @@
           {
             "via": "kell",
             "clue": "The law, from her notebook: a man who'd hang alongside the guilty can sometimes swear for the Crown instead; it isn't hers or the investigator's to promise but the King's, at the Assizes, and she'll speak for it. Then what was promised in her hearing, by whom and to whom, in the words of the record. A witness promised to be kept out of it is 'a witness', even to the King: 'Witness: name withheld, as promised.'",
-            "earn": "Free, once, when a promise made in her hearing bears on what the King is deciding, or when anyone asks what was promised.",
+            "earn": "No dice: free, once, when a promise made in her hearing bears on what the King is deciding, or when anyone asks what was promised.",
             "strength": "strong"
           },
           {
             "via": "king",
             "clue": "He asks what the investigator would have him do with the people they've told him of: the big porter who held Wendell's arms, the Heron's people, the granary children (he asks their names: he remembers children by name). He answers each honestly, as a king: yes, no, or not today, and why. What he promises in this room, he keeps.",
-            "earn": "Free when the player speaks for anyone, names a witness, or tells him what they promised.",
+            "earn": "No dice: free when the player speaks for anyone, names a witness, or tells him what they promised.",
             "strength": "strong"
           },
           {
             "via": "sallow",
             "clue": "If a witness is named in his hearing (the big porter, a granary child, the Heron's clerk), he dabs his lavender and looks at the floor a moment, and the Marshal sees it.",
-            "earn": "Free, if he's in the room when a witness is named.",
+            "earn": "No dice: free, if he's in the room when a witness is named.",
             "strength": "suggestive"
           },
           {
             "via": "holt",
             "clue": "How it would be done, in times and quantities: a man who swears for the Crown can be held by the palace guard until the Assizes, out of anyone's reach, and so can anyone he fears for. It costs a sergeant of the guard and an hour, on the King's word.",
-            "earn": "Asking the Marshal how a promise could be kept.",
+            "earn": "No dice: asking the Marshal how a promise could be kept.",
             "strength": "suggestive"
           }
         ],
@@ -393,13 +393,13 @@
           {
             "via": "sallow",
             "clue": "His pride. Get his arrangements wrong to his face ('Lost to goblins, was it? Careless of somebody'; the page in Prout's boot all along; the Heron's count, the true book or the order of procession got wrong) and he corrects the record, in detail, before he can stop himself: 'Nothing has ever been lost on my roads through carelessness. Only through goblins.' If Kell says she sent Prout to the palace, the proper channel, he may answer her, the only time he does: 'And he went through them, Sergeant. I am the proper channels.' He hears himself a moment too late; so does the King.",
-            "earn": "Free, no dice: his pride answers before his sense does.",
+            "earn": "No dice: his pride answers before his sense does.",
             "strength": "strong"
           },
           {
             "via": "sallow",
             "clue": "Offered a way to look competent instead (to assist the inquiry, to expose the Saltmere factor's irregularities), he gives up the factor, the Heron and the Captain in more detail than an honest under-purveyor could know.",
-            "earn": "Free, for an offer that flatters him: he takes it as his due.",
+            "earn": "No dice: free, for an offer that flatters him (he takes it as his due).",
             "strength": "strong"
           },
           {
@@ -425,13 +425,13 @@
           {
             "via": "kell",
             "clue": "Her notebook contradicts him: when he says something an entry contradicts (where he was at noon on the eve, the Captain's order closing Prout 'at the request of Master J. Sallow', the girl and the crown), she says so, once, and reads the entry. And she knows him: the gentleman with the silver-topped cane she saw at the Purveyor's flour wagons at noon on the eve, with a big dock-man nursing a bandaged right hand at his elbow, who called him 'Master'.",
-            "earn": "Free, once, when he says something her notebook contradicts, or when the player asks her whether she knows him.",
+            "earn": "No dice: free, once, when he says something her notebook contradicts, or when the player asks her whether she knows him.",
             "strength": "strong"
           },
           {
             "via": "king",
             "clue": "The King's small exact questions, the ones he asks everyone and already knows the answers to (how many wagons the office lost this quarter, since Wendell brought him the accounts every quarter-day; where the condemned grain was sold; who asked the Captain to close the clerk's death without fuss, once he's been told): Sallow tells a small lie, and the King catches it and puts his cup down.",
-            "earn": "Free when the player leaves the King room to ask, or asks him to.",
+            "earn": "No dice: free when the player leaves the King room to ask, or asks him to.",
             "strength": "strong"
           }
         ],
@@ -696,10 +696,15 @@
       "type": "smoothstep",
       "label": "Master Sallow steps in",
       "data": {
-        "condition": "Only while Master Sallow is free this morning (not in a cell, not fled). The player asks for him to be made to explain himself in front of the King ('call him in', 'ask him where the grain went'), or says his name where the gallery can hear; or the King sends for him of his own accord, once he has heard a case against an officer of the Crown (he likes to hear everyone); or Sallow comes in by himself, to have the King's ear before the investigator has finished. No dice: the King grants it at once ('Garran, ask Master Sallow to step in'). The outer limit: if he's free and hasn't been in by the time the Marshal calls fifteen minutes, he knocks and comes in to pay his respects before the procession, and to offer to look into any irregularities himself, after the Assembly.",
+        "condition": "Only while Master Sallow is free this morning (not in a cell, not fled). The player asks for him to be made to explain himself in front of the King ('call him in', 'ask him where the grain went'), or says his name where the gallery can hear; or the King sends for him of his own accord, once he has heard a case against an officer of the Crown (he likes to hear everyone); or Sallow comes in by himself, to have the King's ear before the investigator has finished. No dice: the King grants it at once ('Garran, ask Master Sallow to step in'). The outer limit: if he's free and hasn't been in by the time the Marshal calls fifteen minutes (about eight exchanges into the scene), he knocks and comes in to pay his respects before the procession, and to offer to look into any irregularities himself, after the Assembly.",
         "phase": "cue",
         "skill": "",
-        "dc": 12
+        "dc": 12,
+        "limit": [
+          {
+            "exchanges": 8
+          }
+        ]
       }
     },
     {
@@ -722,10 +727,18 @@
       "type": "smoothstep",
       "label": "What's to be done",
       "data": {
-        "condition": "The player has told the King what they found (who killed Prout, and why) and shown or named what proof they have, in their own way, and asks him for something: to act today, to arrest or charge Sallow, to set the record straight, to keep a promise. Or they've been talking a good while (about four exchanges) without coming to the point. If Sallow is in the room, he has his say first (his own route). The outer limit: the Marshal calls five minutes, and the King asks, gently, what he is to do.",
+        "condition": "The player has told the King what they found (who killed Prout, and why) and shown or named what proof they have, in their own way, and asks him for something: to act today, to arrest or charge Sallow, to set the record straight, to keep a promise. Or they've been talking a good while (about four exchanges) without coming to the point. If Sallow is in the room, he has his say first (his own route). The outer limit: the Marshal calls five minutes (about twelve exchanges into the scene, unless Sallow is in the room, when his own route has it), and the King asks, gently, what he is to do.",
         "phase": "cue",
         "skill": "",
-        "dc": 12
+        "dc": 12,
+        "limit": [
+          {
+            "exchanges": 12,
+            "until": [
+              "face-to-face"
+            ]
+          }
+        ]
       }
     },
     {
@@ -738,7 +751,13 @@
         "condition": "Sallow has been in the room a good while (about four exchanges) and answered for himself, giving himself away or not, or the player has finished with him: the Marshal calls the time, and the King turns back to the investigator to ask what he is to do.",
         "phase": "cue",
         "skill": "",
-        "dc": 12
+        "dc": 12,
+        "limit": [
+          {
+            "exchanges": 4,
+            "after": "face-to-face"
+          }
+        ]
       }
     },
     {
@@ -780,7 +799,7 @@
       "type": "smoothstep",
       "label": "After the Assembly",
       "data": {
-        "condition": "The King has put it off for good: the ninth bell has rung and he has gone down to the procession with it to be looked into after the Assembly, or the player has accepted that and let it rest. (The King reaching for 'after the Assembly', or saying it while the player is still pressing or still has something to put to him, isn't this: that's his dilemma, not his decision.)",
+        "condition": "The King has put it off for good: the ninth bell has rung and he has gone down to the procession with it to be looked into after the Assembly, or the player has accepted that and let it rest. (The King reaching for 'after the Assembly', or saying it while the player is still pressing or still has something to put to him, isn't this: that's his dilemma, not his decision.) Nor is it once the player has given him what moves him (something he can hold, and someone standing behind it in front of him): then he decides on the stairs to act, and that's [king-acts], bell or no bell.",
         "phase": "outcome",
         "skill": "",
         "dc": 12
@@ -793,7 +812,7 @@
       "type": "smoothstep",
       "label": "Last resort",
       "data": {
-        "condition": "Last resort only: the player has made a scene the King can't overlook (drawn steel or struck a blow in the dressing room, at Master Sallow or anyone; threatened the King; shouted it from the windows to the delegations or the crowd), or has walked out on the King before telling him what they found. Not for a hard question, a rude word or an accusation: those the King hears out.",
+        "condition": "Last resort only: the player has made a scene the King can't overlook (drawn steel or struck a blow in the dressing room, at Master Sallow or anyone; threatened the King; shouted it from the windows to the delegations or the crowd), or has walked out on the King before telling him what they found. Not for a hard question, a rude word or an accusation: those the King hears out. (Once the King has given his word to act, that's [king-acts]: what follows is its closing.)",
         "phase": "outcome",
         "skill": "",
         "dc": 12

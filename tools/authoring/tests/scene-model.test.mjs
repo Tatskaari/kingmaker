@@ -281,6 +281,36 @@ test('a node changes kind, a beat to an ending and back, losing what the new kin
   assert.deepEqual(Object.keys(nodeOf(changeKind(marked,'failed','discovery'),'failed').data),['kind','title','description','revelation','paths','lore','tone']);
 });
 
+test('a cue\'s outer limit follows the beats it counts from and until: renamed, taken out, made an ending; a new one goes where the format puts it',async()=>{
+  const open=async name=>openSceneFile(await read(`scenes/${name}.kmscene`)).doc;
+  const limitOf=(doc,id)=>doc.edges.find(route=>route.id===id)?.data.limit;
+  const rat=await open('drowned-rat'),heron=await open('heron-warehouse');
+  // Renamed: the count after it and the counts until it follow.
+  const renamed=renameNode(renameNode(rat,'arlos-challenge','the-challenge'),'hobb-talking','hobb-talks-now');
+  assert.deepEqual(limitOf(renamed,'bell-rings'),[{exchanges:15},{exchanges:8,after:'the-challenge'}]);
+  assert.deepEqual(limitOf(renamed,'arlo-calls-him-out'),[{exchanges:6,until:['hobb-talks-now','hobb-bolts']}]);
+  assert.deepEqual(shapeOf(renamed),[]);
+  // Taken out: a count after it goes (it counted from what can't happen now), it leaves a count's until, a count left with none runs until it runs out.
+  const noChallenge=removeNodes(rat,['arlos-challenge','hobb-talking']);
+  assert.deepEqual(limitOf(noChallenge,'bell-rings'),[{exchanges:15}]);
+  assert.deepEqual(shapeOf(noChallenge),[]);
+  const noFloor=removeNodes(heron,['floor']);
+  assert.deepEqual(limitOf(noFloor,'master-comes'),[{exchanges:6}]);
+  assert.deepEqual(shapeOf(noFloor),[]);
+  // A limit left with no count goes.
+  const counted=setRouteField(clerk(),'cart-comes','limit',[{exchanges:4,after:'murder'}]);
+  assert.equal('limit' in removeNodes(counted,['murder']).edges.find(route=>route.id==='cart-comes').data,false);
+  // Made an ending: only a beat is counted from or until, so it leaves the counts as it would were it taken out, after asking.
+  assert.deepEqual(kindLosses(heron,'floor','ending'),['its pressure','its 5 conversation roles','how 1 cue counts from or until it']);
+  const floorEnds=changeKind(heron,'floor','ending');
+  assert.deepEqual(limitOf(floorEnds,'master-comes'),[{exchanges:6}]);
+  assert.deepEqual(shapeOf(floorEnds),[]);
+  // The first given goes where the format puts it, after what's there; an unchanged limit is the same route.
+  assert.deepEqual(Object.keys(counted.edges.find(route=>route.id==='cart-comes').data),['condition','phase','skill','dc','limit']);
+  assert.deepEqual(Object.keys(setRouteField(setRouteField(clerk(),'find-murder','limit',[{exchanges:3}]),'find-murder','establishes',['hobb-at-granary']).edges[0].data),['condition','phase','skill','dc','establishes','limit']);
+  assert.equal(renameNode(rat,'the-loft','loft').edges.find(route=>route.id==='bell-rings'),rat.edges.find(route=>route.id==='bell-rings'));
+});
+
 test('a new scene is the format\'s skeleton: a start, a discovery, an ending and a route, its ids slugs of their titles',()=>{
   const doc=skeletonScene('The Lamplighter');
   assert.equal(doc.id,'the-lamplighter');
@@ -326,6 +356,11 @@ test('the problems are the campaign check\'s: none on the real scenes, and one w
   assert.deepEqual(problemsOf('hanged-clerk',broken,contextOf(campaign,'hanged-clerk')),[
     {message:'route signed-murder goes to a good ending (murder-unknown) but requires nothing found',at:{kind:'route',id:'signed-murder',field:'requires'}},
     {message:'discovery hobb is required, but no route into a good ending requires it',at:{kind:'node',id:'hobb',field:'required'}},
+  ]);
+  // The talk template is held to the talk's own rules too, each where it is.
+  const template=campaign.scenes.find(scene=>scene.id===campaign.talk).doc;
+  assert.deepEqual(problemsOf('talk',setNodeField(template,'talk','cast',undefined),contextOf(campaign,'talk')),[
+    {message:'the talk template\'s start has no role for {companion} (their opening role, the co-GM\'s first note)',at:{kind:'node',id:'talk',field:'cast'}},
   ]);
   const unlisted=problemsOf('the-lamplighter',skeletonScene('The Lamplighter'),contextOf(campaign,'the-lamplighter'));
   assert.deepEqual(unlisted.map(problem=>problem.message),[

@@ -79,17 +79,6 @@ export const Chapter = __t.object("Chapter", {
 });
 export type Chapter = __Infer<typeof Chapter>;
 
-export const CoGmResult = __t.object("CoGmResult", {
-  id: __t.u64(),
-  sceneId: __t.u64(),
-  turn: __t.u32(),
-  review: __t.string(),
-  mergedTurn: __t.option(__t.u32()),
-  note: __t.option(__t.string()),
-  at: __t.timestamp(),
-});
-export type CoGmResult = __Infer<typeof CoGmResult>;
-
 export const Combatant = __t.object("Combatant", {
   id: __t.string(),
   name: __t.string(),
@@ -109,7 +98,6 @@ export const Confide = __t.object("Confide", {
   note: __t.string(),
   topic: __t.string(),
   what: __t.string(),
-  memory: __t.string(),
 });
 export type Confide = __Infer<typeof Confide>;
 
@@ -159,13 +147,6 @@ export const Dice = __t.object("Dice", {
   rolls: __t.u32(),
 });
 export type Dice = __Infer<typeof Dice>;
-
-export const EndingLead = __t.object("EndingLead", {
-  exitId: __t.string(),
-  count: __t.u32(),
-  probability: __t.f64(),
-});
-export type EndingLead = __Infer<typeof EndingLead>;
 
 export const Entity = __t.object("Entity", {
   id: __t.u64(),
@@ -313,37 +294,14 @@ export const GmState = __t.object("GmState", {
   established: __t.array(__t.string()),
   landed: __t.array(__t.string()),
   hinted: __t.array(__t.string()),
-  get opened() {
-    return __t.array(OpenedNote);
-  },
-  get endingLead() {
-    return __t.option(EndingLead);
-  },
-  get pendingExit() {
-    return __t.option(PendingExit);
-  },
   get closing() {
     return __t.option(ExitAt);
   },
   get ended() {
     return __t.option(ExitAt);
   },
-  sceneStatus: __t.option(__t.string()),
-  oocTurns: __t.array(__t.u32()),
   pressureOffered: __t.array(__t.string()),
-  repeated: __t.option(__t.string()),
-  canon: __t.array(__t.string()),
   patches: __t.string(),
-  notes: __t.option(__t.string()),
-  notesTurn: __t.option(__t.u32()),
-  get whispers() {
-    return __t.array(Whisper);
-  },
-  lastRepairTurn: __t.option(__t.u32()),
-  offGraphTurn: __t.option(__t.u32()),
-  get rulings() {
-    return __t.array(RulingRow);
-  },
   get threat() {
     return __t.option(Threat);
   },
@@ -359,10 +317,6 @@ export const GmState = __t.object("GmState", {
     return __t.array(OwedRow);
   },
   fought: __t.array(__t.string()),
-  get guard() {
-    return __t.array(Guard);
-  },
-  withheld: __t.array(__t.string()),
   get talk() {
     return __t.option(TalkRow);
   },
@@ -372,13 +326,6 @@ export const GmState = __t.object("GmState", {
   },
 });
 export type GmState = __Infer<typeof GmState>;
-
-export const Guard = __t.object("Guard", {
-  cast: __t.string(),
-  stage: __t.string(),
-  turn: __t.u32(),
-});
-export type Guard = __Infer<typeof Guard>;
 
 export const Health = __t.object("Health", {
   entityId: __t.u64(),
@@ -542,14 +489,6 @@ export const OnStage = __t.object("OnStage", {
 });
 export type OnStage = __Infer<typeof OnStage>;
 
-export const OpenedNote = __t.object("OpenedNote", {
-  path: __t.string(),
-  title: __t.string(),
-  scope: __t.string(),
-  turn: __t.u32(),
-});
-export type OpenedNote = __Infer<typeof OpenedNote>;
-
 export const OwedRow = __t.object("OwedRow", {
   from: __t.string(),
   id: __t.string(),
@@ -572,15 +511,6 @@ export const PathStep = __t.object("PathStep", {
   known: __t.option(__t.u32()),
 });
 export type PathStep = __Infer<typeof PathStep>;
-
-export const PendingExit = __t.object("PendingExit", {
-  exitId: __t.string(),
-  turn: __t.u32(),
-  via: __t.string(),
-  extended: __t.bool(),
-  waits: __t.option(__t.string()),
-});
-export type PendingExit = __Infer<typeof PendingExit>;
 
 export const Place = __t.object("Place", {
   id: __t.u64(),
@@ -714,24 +644,6 @@ export const RulesState = __t.object("RulesState", {
   rage: __t.option(__t.u32()),
 });
 export type RulesState = __Infer<typeof RulesState>;
-
-export const RulingRow = __t.object("RulingRow", {
-  turn: __t.u32(),
-  act: __t.string(),
-  target: __t.string(),
-  skill: __t.string(),
-  kind: __t.string(),
-  dc: __t.option(__t.i32()),
-  why: __t.string(),
-  get roll() {
-    return __t.option(Roll);
-  },
-  went: __t.string(),
-  changed: __t.string(),
-  costUsd: __t.f64(),
-  latencyMs: __t.f64(),
-});
-export type RulingRow = __Infer<typeof RulingRow>;
 
 export const Scene = __t.object("Scene", {
   id: __t.u64(),
@@ -992,13 +904,6 @@ export const WeaponRef = __t.object("WeaponRef", {
   name: __t.string(),
 });
 export type WeaponRef = __Infer<typeof WeaponRef>;
-
-export const Whisper = __t.object("Whisper", {
-  to: __t.string(),
-  note: __t.string(),
-  turn: __t.u32(),
-});
-export type Whisper = __Infer<typeof Whisper>;
 
 export const WorldLog = __t.object("WorldLog", {
   id: __t.u64(),

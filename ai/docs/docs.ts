@@ -7,8 +7,8 @@ import { basename, dirname, isAbsolute, join, normalize } from "./paths.ts";
  * - Each session gets a copy-on-write overlay (runs/sessions/<id>/docs/): play edits the session's
  *   lore, never the authored seed. Both places are config.ts's to say, as volumes (a folder, or docs
  *   in memory), so nothing here touches a file system itself.
- * - A character's memories live next to their lore entry: Cast/<Name>/memories/index.md plus one
- *   note per memory (V1's save_memory). Characters without lore get characters/<id>/memories/.
+ * - What's happened with a character in play is the GM's notes on them, beside their lore entry
+ *   (notes.ts: Cast/<Name>/notes.md, or characters/<id>/notes.md for someone without lore).
  * - Access fails closed: a character's scope sees public docs and private docs listing them as a
  *   reader; gm docs are the GM's own truth.
  */
@@ -143,10 +143,6 @@ export function errandsOf(sessionId: string, id: string): string | undefined {
   return section?.replace(/^## .*\n?/, "").trim() || undefined;
 }
 
-export const memoryIndexPath = (id: string) => {
-  const entry = characterEntry(id);
-  return entry ? join(dirname(entry), "memories", "index.md") : `characters/${id}/memories/index.md`;
-};
 export const STORY_INDEX = "story/index.md";
 
 /** The player character's own doc: who they are and what they've told or shown people (the GM's record). */
@@ -185,34 +181,11 @@ export function writePlayerBackstory(sessionId: string, player: { name: string; 
   return written;
 }
 
-/** A character's memory index, private to them (V1's seedMemories). */
-export function memoryIndex(sessionId: string, id: string, name: string): Doc {
-  const path = memoryIndexPath(id);
-  const existing = readDoc(sessionId, path);
-  if (existing) return existing;
-  const doc: Doc = { path, meta: { summary: `An index of ${name}'s saved memories and the context in which they were recorded.`, type: "index", visibility: "private", readers: [`character:${id}`] }, body: "# Memories" };
-  writeDoc(sessionId, doc);
-  return doc;
-}
-
 const escapeLink = (text: string) => text.replace(/\s+/g, " ").replace(/[[\]()]/g, "");
 
 function appendLink(sessionId: string, index: Doc, target: string, title: string, context: string): void {
   const rel = target.startsWith(dirname(index.path) + "/") ? target.slice(dirname(index.path).length + 1) : target;
   writeDoc(sessionId, { ...index, body: `${index.body.trimEnd()}\n- [${escapeLink(title)}](${rel.replace(/ /g, "%20").replace(/\(/g, "%28").replace(/\)/g, "%29")}) — ${escapeLink(context)}` });
-}
-
-export interface MemoryInput { title: string; context: string; content: string }
-
-/** V1's save_memory: a separate private note, linked from the character's index. */
-export function saveMemory(sessionId: string, character: { id: string; name: string }, memory: MemoryInput, origin: { scene: string; turn: number }): string {
-  for (const key of ["title", "context", "content"] as const) if (typeof memory[key] !== "string" || !memory[key].trim()) throw new Error(`Memory requires ${key}.`);
-  const index = memoryIndex(sessionId, character.id, character.name);
-  const path = join(dirname(index.path), `${crypto.randomUUID().slice(0, 8)}.md`);
-  const title = memory.title.trim(), context = memory.context.trim();
-  writeDoc(sessionId, { path, meta: { title, context, summary: `${title}: ${context}`, type: "memory", visibility: "private", readers: [`character:${character.id}`], scene: origin.scene, turn: origin.turn }, body: memory.content.trim() });
-  appendLink(sessionId, index, path, title, context);
-  return path;
 }
 
 export function storyIndex(sessionId: string): Doc {
@@ -230,20 +203,6 @@ export function savePlayedScene(sessionId: string, scene: { id: string; title: s
   writeDoc(sessionId, { path, meta: { title: scene.title, context: `played; ended: ${ending}`, summary: `${scene.title}: what happened when it was played, and how it ended (${ending}).`, type: "story", visibility: "gm", scene: scene.id }, body });
   appendLink(sessionId, index, path, scene.title, `played; ended: ${ending}`);
   return path;
-}
-
-/** A shared fact as its own note (the lite alternative; V1-style reviews edit the lore instead). */
-export function saveFact(sessionId: string, fact: MemoryInput, origin: { scene: string; turn: number }): string {
-  const index = storyIndex(sessionId);
-  const path = `story/facts/${crypto.randomUUID().slice(0, 8)}.md`;
-  writeDoc(sessionId, { path, meta: { title: fact.title.trim(), context: fact.context.trim(), summary: `${fact.title.trim()}: ${fact.context.trim()}`, type: "fact", visibility: "public", scene: origin.scene, turn: origin.turn }, body: fact.content.trim() });
-  appendLink(sessionId, index, path, fact.title, fact.context);
-  return path;
-}
-
-export function memoryLines(sessionId: string, id: string): string[] {
-  const index = readDoc(sessionId, memoryIndexPath(id));
-  return index ? index.body.split("\n").filter(l => l.startsWith("- [")) : [];
 }
 
 /** Keyword search over the session's lore (overlay and seed), with snippets. Not relevance-ranked. */

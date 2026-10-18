@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { SceneDocument } from "./document.ts";
 import type { CampaignFile, PlaceFile } from "./files.ts";
-import { sceneRuleProblems, sceneStoryProblems, type SceneContext } from "./rules.ts";
+import { sceneRuleProblems, sceneStoryProblems, talkTemplateProblems, type SceneContext } from "./rules.ts";
 
 /**
  * The scene format's per-scene rules as an editor runs them: each problem with where it is (the
@@ -86,4 +86,33 @@ test("the carried things another scene brings in count: Prout's page comes into 
   const alone: SceneContext = { ...contextFor(rat), others: [] };
   assert.deepEqual(sceneRuleProblems(rat.id, rat, contextFor(rat)), []);
   assert.deepEqual(sceneRuleProblems(rat.id, rat, alone), [{ message: "beat prouts-page carries ledger-page, which isn't a thing of its place, nor carried from another scene", at: { kind: "node", id: "prouts-page", field: "carry" } }]);
+});
+
+test("a cue's outer limit counts from and until beats: one that names an ending is the route's problem, at that count", () => {
+  const rat = structuredClone(scenes.find(s => s.id === "drowned-rat")!);
+  const bell = rat.edges.find(e => e.id === "bell-rings")!;
+  bell.data.limit = [{ exchanges: 15, until: ["hobb-fled"] }, { exchanges: 8, after: "arlos-challenge" }];
+  assert.deepEqual(sceneRuleProblems(rat.id, rat, contextFor(rat)), [
+    { message: "route bell-rings's outer limit counts from or until hobb-fled, which isn't a beat", at: { kind: "route", id: "bell-rings", field: "limit.0" } },
+  ]);
+});
+
+test("the talk template's own rules, each where it is: the companion, the start's role for them, told a discovery, a way into goodbye from the start, no place", () => {
+  const template = scenes.find(s => s.id === campaign.talk)!;
+  assert.deepEqual(talkTemplateProblems(template), []);
+  const wrong = structuredClone(template);
+  wrong.companion = "kell";
+  delete (wrong.nodes[0]!.data as { cast?: unknown }).cast;
+  const told = wrong.nodes.find(n => n.id === "told")!.data as { revelation?: string; paths?: unknown };
+  delete told.revelation;
+  delete told.paths;
+  wrong.edges = wrong.edges.filter(e => e.target !== "goodbye");
+  wrong.place = "granary-yard";
+  assert.deepEqual(talkTemplateProblems(wrong), [
+    { message: 'the talk template\'s companion is "kell", not "{companion}"', at: { kind: "scene", field: "companion" } },
+    { message: "the talk template's start has no role for {companion} (their opening role, the co-GM's first note)", at: { kind: "node", id: "talk", field: "cast" } },
+    { message: "the talk template has no discovery told (the one thing they might confide, which each talk's prep fills in)", at: { kind: "node", id: "told", field: "kind" } },
+    { message: "the talk template has no way into goodbye from its start (saying goodbye ends a talk wherever it's got to)", at: { kind: "node", id: "goodbye", field: "ways-in" } },
+    { message: "the talk template has a place (a talk is wherever the player stopped)", at: { kind: "scene", field: "place" } },
+  ]);
 });

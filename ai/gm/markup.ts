@@ -1,5 +1,5 @@
-// Copied from the prototype's src/runtime/markup.ts at 44c6d4a, all but markupLines (the QA console's); its types are v2/shared/markup.ts's, imported. M2 took the notes on marked words out of the game (docs/two-part-design.md): a mark is parsed only to take it out of the words (its own types here, never kept), and markupOf writes back the speakers alone.
-import { antecedent, arrived, firstNamed, newcomer, pronounTagged, quoteSpeaker, SPEECH, speechTagged, tagSpeaker, type Pronoun, type Speaker } from "./speakers.ts";
+// Copied from the prototype's src/runtime/markup.ts at 44c6d4a, all but markupLines (the QA console's); its types are v2/shared/markup.ts's, imported. M2 took the notes on marked words out of the game (docs/two-part-design.md): a mark is parsed only to take it out of the words (its own types here, never kept), and markupOf writes back the speakers alone. QA round qa2-1018 took out withSpeakers' crediting of the player's own words quoted inside a sentence (its `player`), and a line whose speech tag names a stranger is nobody the screen knows.
+import { antecedent, arrived, firstNamed, newcomer, pronounTagged, quoteSpeaker, SPEECH, speechTagged, strangerTagged, tagSpeaker, type Pronoun, type Speaker } from "./speakers.ts";
 import type { Marked, Markup, Speech } from "../../shared/markup.ts";
 
 export type { Marked, Markup, Speech };
@@ -501,23 +501,29 @@ export function speechIn(text: string): Speech[] {
  * one the sentence leading in is about (the first named there who isn't only looked at, or the one
  * its "she" means: "Her eyes flick to Sergeant Kell’s notebook." isn't Kell); else, after narration
  * that goes on about someone only as "she" or "he", the one who said the last line, when that's who
- * the pronoun can be and nobody new has come into it ("The boy stops."). Nobody, rather than a guess.
+ * the pronoun can be and nobody new has come into it ("The boy stops."). Nobody, rather than a guess,
+ * and nobody when a speech tag after it names someone the screen doesn't know ("…,” a voice asks").
  * Words quoted in narration rather than said ("At “the Purveyor's office,” her pencil stills.", "each
- * marked “lost to goblins”", "At the bottom: “Not goblins.”") are nobody's line, or the player's own
- * when they echo `player`, the player's latest turn.
+ * marked “lost to goblins”", "At the bottom: “Not goblins.”") are nobody's line, even when they're
+ * the player's own words echoed (QA round qa2-1018: "At “granary rope,” his face drains" came out as
+ * the player saying it, mid-sentence).
  */
-export function withSpeakers<T extends Marked>(marked: T, everyone: Speaker[], options: { player?: string | undefined } = {}): T {
+export function withSpeakers<T extends Marked>(marked: T, everyone: Speaker[]): T {
   // Someone away whom the narration brings in by what they're called is known by it.
   const people = arrived(everyone, marked.text);
   const speech: Speech[] = [];
   const pronounOf = (id?: string) => people.find(p => p.id === id)?.pronoun;
   let prev: Speech | undefined;
   for (const s of marked.speech) {
-    if (!s.tag && notSaid(marked.text, s)) {
-      if (options.player && echoes(marked.text.slice(s.start, s.end), options.player)) speech.push({ ...s, speaker: "you" });
+    if (!s.tag && notSaid(marked.text, s)) continue;
+    let id = s.tag ? tagSpeaker(s.tag, people) : speechTagged(marked.text, s.end, people);
+    // A speech tag after it naming someone nobody here is known as: theirs, whoever they are.
+    if (!id && !s.tag && strangerTagged(marked.text, s.end)) {
+      const line = { ...s };
+      speech.push(line);
+      prev = line;
       continue;
     }
-    let id = s.tag ? tagSpeaker(s.tag, people) : speechTagged(marked.text, s.end, people);
     const between = prev ? marked.text.slice(prev.end, s.start) : "";
     const carried = !s.tag && prev?.speaker ? prev.speaker : undefined;
     const fits = (p: Pronoun | undefined) => !p || !pronounOf(carried) || pronounOf(carried) === p;
@@ -587,10 +593,6 @@ function notSaid(text: string, s: Speech): boolean {
   const before = text.slice(Math.max(0, s.start - 40), s.start);
   return (said.split(/\s+/).length <= 8 && (MENTION.test(before.slice(-30)) || CARRIED_ON.test(text.slice(s.end, s.end + 20)))) || WRITTEN.test(before);
 }
-
-const plain = (s: string) => s.toLowerCase().replace(/[’']/g, "'").replace(/[^a-z0-9' ]+/g, " ").replace(/\s+/g, " ").trim();
-/** Quoted words that are the player's own, from their turn (two words at least). */
-const echoes = (quote: string, player: string) => { const q = plain(quote); return q.split(" ").length >= 2 && plain(player).includes(q); };
 
 /**
  * A reply written back out with its markup, for the GM's own history (a model writes as its last

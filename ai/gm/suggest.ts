@@ -244,12 +244,12 @@ export function limitHead(limit: string): string {
 }
 
 /**
- * A way out fits now: the story is at one of the scene's endings (closing, held for a last word, or
- * leaning towards one), or the player has been here a while.
+ * A way out fits now: the story is at one of the scene's endings (closing), or the player has been
+ * here a while. (An ending held for a last word fitted too, until the old pipeline's held endings went.)
  */
 export function leaveFits(state: TurnView): boolean {
   const turns = sceneEntries(state).filter(e => e.kind === "player").length;
-  return !!(state.closing || state.pendingExit || state.endingLead) || turns >= 4;
+  return !!state.closing || turns >= 4;
 }
 
 /** Someone the world has seen leave, or go down, or die. */
@@ -313,7 +313,7 @@ export function suggestionBrief(scene: Scene, state: TurnView): string {
   const here = metHere(scene, state);
   const exits = scene.exits.filter(e => e.id !== IMPROVISED_EXIT_ID && !state.fought?.includes(e.id));
   const ending = (id: string | undefined) => exits.find(e => e.id === id);
-  const at = ending(state.closing?.exitId) ?? ending(state.pendingExit?.exitId);
+  const at = ending(state.closing?.exitId);
   const entries = sceneEntries(state).filter(e => e.kind !== "system");
   const said = entries.filter(e => e.kind === "player").at(-1)?.text;
   const offered = lastOffered(state);

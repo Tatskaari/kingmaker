@@ -275,7 +275,7 @@ const TABLES: Array<[table: string, column: string, by: keyof Ids]> = [
   ...["chapter", "quest", "flag", "journal", "attitude", "follower"].map(t => [t, "game_id", "game"] as [string, string, keyof Ids]),
   ["seat", "player_id", "players"], ["heard", "player_id", "players"],
   ["gm_state", "scene_id", "scenes"], ["on_stage", "scene_id", "scenes"], ["reply_draft", "scene_id", "scenes"], ["turn", "scene_id", "scenes"], ["transcript", "scene_id", "scenes"],
-  ["scene_suggestion", "scene_id", "scenes"], ["co_gm_result", "scene_id", "scenes"],
+  ["scene_suggestion", "scene_id", "scenes"],
   ...["position", "area", "material", "health", "stack", "surface", "creature", "player_character", "gear", "narrative", "gm_note", "world_log", "look", "entity"]
     .map(t => [t, "place_id", "places"] as [string, string, keyof Ids]),
   ["job_dispatch", "job_id", "jobs"],

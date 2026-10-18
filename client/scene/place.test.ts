@@ -84,7 +84,7 @@ test("the rules' lines and the world they changed: Magic Missile's three darts f
   const { place, effects, floats, at } = watched(sceneViewOf(rowsWith(first.tables)));
   const world0 = sceneViewOf(rowsWith(first.tables)).place!.world;
 
-  // The decide commit: the dice rows and the world written together, as the simulation's rules write them.
+  // The rules' part of a turn: the dice rows and the world written together, as the simulation's rules write them.
   let broke: string[] = [];
   const after = played(first.rows, world => { broke = damageThing(world, world.entities["hoist-rope"]!, 9, "force", 1); });
   assert.deepEqual(broke, ["The hoist rope takes 9 force damage and is destroyed"]);
@@ -147,7 +147,7 @@ test("the menu, as the scene's model words it: the lead's names and spells; deed
   // A deed goes as the lead's line; while the GM has the floor it's refused in the prototype's words, and offered no more.
   scene.deed("(I cut the hoist rope)");
   assert.deepEqual(said, ["(I cut the hoist rope)"]);
-  scene.update({ ...view, phase: "deciding", mayType: false });
+  scene.update({ ...view, phase: "replying", mayType: false });
   assert.equal(scene.sceneContext().busy, true);
   scene.deed("(I pick up Prout's satchel)");
   assert.equal(scene.status, DEED_WAITS);

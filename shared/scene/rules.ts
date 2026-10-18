@@ -1,7 +1,8 @@
-// New (M3): the scene format's per-scene rules (docs/scene-format.md, "Rules the campaign check enforces"), moved out of hosts/dev/campaign.ts so the Obsidian plugin can run them as a scene is edited, and the campaign check calls them as it did.
-import { isBeat, isDiscovery, isEnding, type BeatData, type EndingData, type SceneDocument, type SceneNode } from "./document.ts";
+// New (M3): the scene format's per-scene rules (docs/scene-format.md, "Rules the campaign check enforces"), moved out of hosts/dev/campaign.ts so the Obsidian plugin can run them as a scene is edited, and the campaign check calls them as it did; the talk template's own rules (M2's, for a talk on the two-part GM) moved here too when M3 took M2's talks in.
+import { isBeat, isDiscovery, isEnding, isStart, type BeatData, type EndingData, type SceneDocument, type SceneNode } from "./document.ts";
 import type { Effect, PlaceFile } from "./files.ts";
 import { sceneOf } from "./load.ts";
+import { GOODBYE, TOLD } from "./talk.ts";
 import { validateScene } from "./types.ts";
 
 /**
@@ -85,6 +86,31 @@ export function sceneStoryProblems(doc: SceneDocument, sceneIds: ReadonlySet<str
   return problems;
 }
 
+/**
+ * The talk template (campaign.json's `talk`, town-design §3.6) held to the talk's own rules, beyond
+ * the scene's: its companion is `{companion}`, its first cast entry whoever walks with the player
+ * (`{companion}`, named `{name}`), its start has their opening role (the co-GM's first note), each
+ * talk's prep fills the discovery TOLD with the one thing they might confide, saying goodbye or
+ * walking on ends it at the ending GOODBYE with a way into it from the start (so it's open all talk
+ * long), and it has no place of its own. (That everyone the story has walk with the player has a lore
+ * entry to talk from is the campaign check's: it needs the campaign's lore.)
+ */
+export function talkTemplateProblems(doc: SceneDocument): SceneProblem[] {
+  const problems: SceneProblem[] = [];
+  const p = (message: string, at: ProblemAt) => problems.push({ message, at });
+  if (doc.companion !== "{companion}") p(`the talk template's companion is ${JSON.stringify(doc.companion)}, not "{companion}"`, field("companion"));
+  const [first] = doc.cast;
+  if (first?.id !== "{companion}" || first.name !== "{name}") p("the talk template's first cast entry isn't the companion's ({companion}, named {name})", first ? person(first.id, "id") : field());
+  const start = doc.nodes.find(isStart);
+  if (start && !start.data.cast?.["{companion}"]?.trim()) p("the talk template's start has no role for {companion} (their opening role, the co-GM's first note)", node(start.id, "cast"));
+  const told = doc.nodes.find(n => n.id === TOLD);
+  if (!told || !isDiscovery(told)) p(`the talk template has no discovery ${TOLD} (the one thing they might confide, which each talk's prep fills in)`, told ? node(told.id, "kind") : field());
+  if (!doc.nodes.some(n => n.id === GOODBYE && isEnding(n))) p(`the talk template has no ending ${GOODBYE} (where saying goodbye or walking on ends a talk)`, field());
+  else if (!doc.edges.some(e => e.source === start?.id && e.target === GOODBYE)) p(`the talk template has no way into ${GOODBYE} from its start (saying goodbye ends a talk wherever it's got to)`, node(GOODBYE, "ways-in"));
+  if (doc.place !== undefined) p("the talk template has a place (a talk is wherever the player stopped)", field("place"));
+  return problems;
+}
+
 // ---------------------------------------------------------------------------------------------
 // The rules, a part of the scene each.
 
@@ -139,13 +165,17 @@ function loreProblems({ doc, context, p }: Scene): void {
   }
 }
 
-/** The routes: none leaves an ending, what they require is a beat, an empty condition is only into a discovery. */
+/** The routes: none leaves an ending, what they require is a beat, an empty condition is only into a discovery, a cue's outer limit counts from and until beats. */
 function routeProblems({ doc, p }: Scene): void {
   const nodes = new Map(doc.nodes.map(n => [n.id, n]));
   for (const e of doc.edges) {
     if (nodes.get(e.source)?.data.kind === "exit") p(`route ${e.id} leaves an ending (${e.source})`, route(e.id));
     for (const r of e.data.requires ?? []) if (nodes.get(r)?.data.kind !== "beat") p(`route ${e.id} requires ${r}, which isn't a beat`, route(e.id, "requires"));
     if (!e.data.condition.trim() && !isDiscovery(nodes.get(e.target)!)) p(`route ${e.id} has no condition, and only a route into a discovery may go without`, route(e.id, "condition"));
+    // A cue's outer limit counts from and until beats (from the start when it names none).
+    (e.data.limit ?? []).forEach((count, i) => {
+      for (const id of [...(count.after ? [count.after] : []), ...(count.until ?? [])]) if (nodes.get(id)?.data.kind !== "beat") p(`route ${e.id}'s outer limit counts from or until ${id}, which isn't a beat`, route(e.id, `limit.${i}`));
+    });
   }
 }
 

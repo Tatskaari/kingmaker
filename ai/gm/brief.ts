@@ -213,25 +213,7 @@ function skillSummary(state: TurnView): string {
 }
 
 
-/** The per-turn note: where we are, what moves things on, co-GM notes and this reply's direction. */
-const GUARD_NOTE: Record<string, string> = {
-  surface: "nothing has shown yet. What would show first is something that doesn't fit: a dodge, a slip, a reaction they can't quite hide.",
-  tell: "something has shown. If the player picks at it, their guard goes up, and something personal shows (someone or something they care about that bears on it).",
-  stirred: "guard up. If the player keeps at it, what they're torn between comes out, in their own words: a worry, or a question to the player that shows it, never terms.",
-  torn: "torn, in the open. Next, the thing itself comes out (told, bargained over or refused, depending on how the player has treated them), one piece at a time as the questions reach it.",
-  settled: "settled. They answer follow-ups as far as what they know.",
-};
-
-/** Staged secrets: where each holder present stands, and the one step they can take next. */
-function guardNote(scene: Scene, state: TurnView): string | undefined {
-  const holders = presentCast(scene, state).filter(c => c.secrets?.length);
-  if (!holders.length || !state.guard) return undefined;
-  return `## How far people have opened up\nPeople give up what they're hiding the way they would at a good table: something that doesn't fit shows first; picked at, their guard goes up and something personal shows; kept at, what they're torn between comes out in their own words; only then does the thing itself come out, told, bargained over or refused, depending on how the player has treated them. A reply takes someone one step at most, and only when the player has given them a reason; proof, or leverage that really reaches them, can take them straight to the end. Nothing that's out goes back in.\n${holders.map(c => `- ${c.name}: ${GUARD_NOTE[state.guard?.[c.id]?.stage ?? "surface"]}`).join("\n")}`;
-}
-
-/** Does this reply close the scene? (Its directives say so, by their opening words.) */
-const closes = (directive: string[]) => directive.some(d => d.startsWith("This reply closes the scene") || d.startsWith("The scene is ending"));
-
+/** The per-turn note: where we are, what moves things on, and this reply's direction. (The old co-GM's notes went with it.) */
 export function nowNote(scene: Scene, state: TurnView, directive: string[], options: { castNotes?: boolean; remind?: string } = {}): string {
   const beat = currentBeat(scene, state);
   const present = new Set(presentCast(scene, state).map(c => c.id));
@@ -251,12 +233,7 @@ export function nowNote(scene: Scene, state: TurnView, directive: string[], opti
     ...(beat.pressure && state.turnsInBeat >= 2 && !state.pressureOffered?.includes(beat.id) ? [`The scene has been sitting here a while. If it's stalling or drifting, the world can push: ${beat.pressure}`] : []),
     `(The scene has been at this point for ${state.turnsInBeat} exchange${state.turnsInBeat === 1 ? "" : "s"}.)`,
     `## What moves the scene on from here\n${transitions.map(t => transitionLine(scene, t)).join("\n")}`,
-    ...(guardNote(scene, state) ? [guardNote(scene, state)!] : []),
-    // Co-GM notes steer the middle of a scene; a closing works from what happened, not stale steering.
-    // An ending held for the player's answer isn't a closing: the notes are for that answer (the
-    // Heron's note to stage Sallow initialling the page was kept from the GM while the barge was held).
-    ...(!state.closing && !closes(directive) && (state.notes || state.whispers?.length) ? [`## Notes from your co-GM (for you, written a moment ago: let them shape what people do, but nobody recites them; if the player has since chosen otherwise, the player's choice wins)\n${[state.notes ?? "", ...(state.whispers ?? []).map(w => `- On ${scene.cast.find(c => c.id === w.to)?.name ?? w.to}'s mind: ${w.note}`)].filter(Boolean).join("\n")}`] : []),
-    ...(state.canon.length || state.established.length ? [`## Details established in play (keep them true)\nWhat has happened and been found, in the order it happened.${state.world ? " Where people are and what they're doing now is the world's, below: a detail here about where someone was or what they were doing was true then, and where the world says otherwise, they've moved on (people who have left don't come back unless the story brings them)." : ""}\n${bullets([...state.established, ...state.canon])}`] : []),
+    ...(state.established.length ? [`## Details established in play (keep them true)\nWhat has happened and been found, in the order it happened.${state.world ? " Where people are and what they're doing now is the world's, below: a detail here about where someone was or what they were doing was true then, and where the world says otherwise, they've moved on (people who have left don't come back unless the story brings them)." : ""}\n${bullets(state.established)}`] : []),
     ...(playerNow(state) ? [playerNow(state)!] : []),
     ...(state.world ? [`## The world right now\nWhere everyone and everything is, and what state it's in (ids in brackets). Keep to it, since it's updated after every reply: people and things are where it says, and what's destroyed, burning or gone stays that way until the story changes it. Details it doesn't list are yours to invent, consistent with it. It's as things stood before the player's turn: what the player does in it (shutting a book and buttoning it into their coat, picking something up, crossing the room) has happened by your reply, and the world catches up after it. It's the truth behind the screen, not what the player has seen: of what people carry, the player sees what's out in the open (worn, in hand, held up), and of the rest (in a pocket, a fist, a lining, a box) they know only what they've seen or been told.${unseen.length ? ` Out of the player's sight, and nobody has shown or told them of it: ${unseen.map(e => `${e.name} [${e.id}]`).join("; ")}. Until they find it, the narration doesn't mention it or where it is.` : ""}\n${PHYSICS}\n\n${worldView(state.world)}`] : []),
     // Last before the reply's form and directions: those, the details above and the world all use the names.
@@ -273,9 +250,11 @@ export function playerNow(state: TurnView): string | undefined {
   const status = state.rules?.status;
   if (!status) return undefined;
   const hp = /^HP (\d+)\/(\d+)/.exec(status);
-  const hurt = !!hp && Number(hp[1]) < Number(hp[2]);
+  // Hurt enough to show: a quarter down or more. A scratch isn't, nor a fresh dwarf's "HP 28/31" (toughness is on the sheet's maximum, which healing never reaches: shared/rules/actions.ts),
+  // which had the GM give the player a sore side and keep it (QA round qa2-1018).
+  const hurt = !!hp && Number(hp[1]) <= Number(hp[2]) * 0.75;
   const conditions = status.split(", ").slice(1).filter(p => !p.startsWith("spell slots") && !/^\d/.test(p));
-  return hurt || conditions.length ? `## The player character now\n${status}. Let it show: someone hurt moves and looks hurt.` : undefined;
+  return hurt || conditions.length ? `## The player character now\n${status}. Let it show as what play has done to them (a blow they took, a fall, a spell): someone hurt moves and looks hurt, and nothing else is wrong with them.` : undefined;
 }
 
 export function sceneEntries(state: TurnView): ViewEntry[] {

@@ -1,35 +1,30 @@
 import type { Identity } from "spacetimedb";
-import type { ConsiderResponse, DecideResponse, ReactionsResponse, ReplyResponse, SettleResponse } from "../../../shared/protocol/ai.ts";
+import type { ReactionsResponse, ReplyResponse, SettleResponse } from "../../../shared/protocol/ai.ts";
 import { idText, playerSpeaker } from "../../../shared/protocol/keys.ts";
 import { MAX_LINE, refusal, type Refusal } from "../../../shared/protocol/refusals.ts";
-import type { Mechanic } from "../../../shared/rules/types.ts";
-import { presentCast } from "../../../shared/scene/graph.ts";
 import { actorOf, runMove, type Actor, type TxCtx } from "../context.ts";
-import { mergeReviews } from "../gm/background.ts";
 import { settledFacts } from "../gm/bookkeeping.ts";
 import { sayCall } from "../gm/requests.ts";
-import { getGm, putGm } from "../gm/rows.ts";
+import { getGm } from "../gm/rows.ts";
 import { gameRow, playerRow, sceneOfPlayer, sceneRow, updateScene, type SceneRow, type TurnRow } from "../rows.ts";
-import { rulesFirst } from "../rules/play.ts";
-import { playsTwoPart, sceneGraph } from "../scenes.ts";
+import { sceneGraph } from "../scenes.ts";
 import { addEntry, noteHeard } from "../transcript.ts";
 import { newTurn, queuedTurnOf } from "../turns.ts";
 import type { Move } from "./move.ts";
 import { seenOf } from "./open-scene.ts";
 import type { SayPlan } from "./plans.ts";
-import { afterConsider, afterDecide, afterReactions, afterReply, afterSettle } from "./say-commits.ts";
+import { afterReactions } from "./say-commits.ts";
 import { afterTwoPartReply, afterTwoPartSettle, twoPartStart } from "./two-part.ts";
 
 /**
  * say (v0-design §4.2): the controller's line, recorded at once with its turn, and the game played
- * now (the rules first: what was left hanging lands before they act, world-bridge-design §3.4); then
- * three thinks, each committed in turn: decide (the route, and its check rolled here; the rules' act,
- * resolved here), reply (streamed, then the GM's entry), settle (the world and where the story
- * stands). An act that was violence has the reactions to it between decide and what comes next
- * (world-bridge-design §3.4); a turn the GM rules on (full-gm-design §4.2) has consider before the
- * reply (the ruling, rolled here). A line said while the last turn settles, or waits for its reply's
- * notes, waits as queued, and starts when that one is done. On the wind-down, decide and reply close
- * the scene.
+ * now (twoPartStart: a talk's goodbye said, the rules first, what was left hanging landing before
+ * they act, world-bridge-design §3.4, and the map's act); then the two-part GM's two thinks, each
+ * committed in turn: reply (the mouthpiece, streamed, then the GM's entry, a check it calls rolled
+ * here) and settle (the stage manager's world, the co-GM's roles and moves). On the wind-down the
+ * reply alone closes the scene. A line said while the last turn settles waits as queued, and starts
+ * when that one is done. (The reactions to the player's violence are a step of their own, parked for
+ * combat: nothing queues them.)
  */
 export const say: Move<{ text: string }, SayPlan> = {
   name: "say",
@@ -44,7 +39,7 @@ export const say: Move<{ text: string }, SayPlan> = {
     const line = text.trim(), n = scene.turns + 1;
     const waits = scene.turnId !== undefined;
 
-    const turn = newTurn(tx, scene, actor.id!, n, waits ? "queued" : firstPhase(tx, scene));
+    const turn = newTurn(tx, scene, actor.id!, n, waits ? "queued" : "replying");
     addEntry(tx, scene, { turn: n, speaker: playerSpeaker(actor.id!), kind: "player", text: line });
     noteHeard(tx, scene, sceneGraph(tx, scene, getGm(tx, scene.id)));
     updateScene(tx, scene.id, waits ? { turns: n } : { turns: n, turnId: turn.id });
@@ -56,13 +51,9 @@ export const say: Move<{ text: string }, SayPlan> = {
   think: (tx, plan) => sayCall(tx, plan),
 
   commit(tx, plan, answer) {
-    if (plan.twoPart && plan.step === "reply") return afterTwoPartReply(tx, plan, answer as ReplyResponse);
-    if (plan.twoPart && plan.step === "settle") return afterTwoPartSettle(tx, plan, answer as SettleResponse);
-    if (plan.step === "decide") return afterDecide(tx, plan, answer as DecideResponse);
-    if (plan.step === "reactions") return afterReactions(tx, plan, answer as ReactionsResponse);
-    if (plan.step === "consider") return afterConsider(tx, plan, answer as ConsiderResponse);
-    if (plan.step === "reply") return afterReply(tx, plan, answer as ReplyResponse);
-    return afterSettle(tx, plan, answer as SettleResponse);
+    if (plan.step === "reply") return afterTwoPartReply(tx, plan, answer as ReplyResponse);
+    if (plan.step === "settle") return afterTwoPartSettle(tx, plan, answer as SettleResponse);
+    return afterReactions(tx, plan, answer as ReactionsResponse);
   },
 };
 
@@ -71,44 +62,17 @@ export function sayReducer(tx: TxCtx, sender: Identity, args: { text: string }):
 }
 
 /**
- * A turn's plan as it starts, in the prototype's order (engine.ts:449-467, 517-542): who's on stage
- * as the player speaks; the co-GM's reviews that have come in since merged, and the notes and
- * whispers that have run their course lapsed (full-gm-design §4.2: on both paths a turn starts, a
- * line said now or one that waited); unless this is the wind-down, the rules first (rules/play.ts
- * rulesFirst: a spell's time, fire's tick, coming round, a blow left hanging), their dice lines the
- * turn's first; then what's settled, and whether this is the wind-down. The decide request is built
- * after, so it carries what the merge and the rules brought.
+ * A turn's plan as it starts (on both paths a turn starts, a line said now or one that waited):
+ * what's settled and whether this is the wind-down, then the two-part GM's start (twoPartStart: a
+ * talk's goodbye said, the rules first, the map's act), its reply next. Every scene plays on the
+ * two-part GM's steps (docs/two-part-design.md).
  */
 export function startPlan(tx: TxCtx, sceneId: bigint, turn: TurnRow, line: string): SayPlan {
   const scene = sceneRow(tx, sceneId);
   const gm = getGm(tx, sceneId);
-  const onStage = presentCast(sceneGraph(tx, scene, gm), gm).map(c => c.id);
-  // A scene of the story plays on the two-part GM's steps (docs/two-part-design.md): no decide, no co-GM reviews to merge.
-  if (playsTwoPart(tx, scene)) {
-    const ids = { game: idText(scene.gameId), scene: idText(scene.id), turn: idText(turn.id), n: turn.n, player: idText(turn.playerId) };
-    const plan = twoPartStart(tx, scene, sceneGraph(tx, scene, gm), gm, turn, line, { ...ids, input: line, onStage, settledBefore: settledFacts(gm), windDown: !!gm.closing, seen: seenOf(tx, sceneId) });
-    return { ...plan, seen: seenOf(tx, sceneId) };
-  }
-  mergeReviews(tx, scene, gm, turn.n);
-  const first = gm.closing ? undefined : rulesFirst(tx, scene, sceneGraph(tx, scene, gm), gm, turn.n, line);
-  putGm(tx, sceneId, gm);
-  return {
-    step: "decide", game: idText(scene.gameId), scene: idText(scene.id), turn: idText(turn.id), n: turn.n, player: idText(turn.playerId),
-    input: line,
-    onStage,
-    settledBefore: settledFacts(gm),
-    windDown: !!gm.closing,
-    ...(first?.directives.length ? { rulesFirst: { directives: first.directives, down: first.down, shielded: first.shielded } } : {}),
-    lines: first?.lines ?? [],
-    seen: seenOf(tx, sceneId),
-    // The map's act as this turn (town-design §3.4): its mechanic chosen already, decide's `forced`.
-    ...(turn.mechanic ? { forced: JSON.parse(turn.mechanic) as Mechanic } : {}),
-  };
-}
-
-/** A turn's phase as it starts: a two-part turn goes straight to its reply, any other decides first. */
-export function firstPhase(tx: TxCtx, scene: SceneRow): "replying" | "deciding" {
-  return playsTwoPart(tx, scene) ? "replying" : "deciding";
+  const ids = { game: idText(scene.gameId), scene: idText(scene.id), turn: idText(turn.id), n: turn.n, player: idText(turn.playerId) };
+  const plan = twoPartStart(tx, scene, sceneGraph(tx, scene, gm), gm, turn, line, { ...ids, input: line, settledBefore: settledFacts(gm), windDown: !!gm.closing, seen: seenOf(tx, sceneId) });
+  return { ...plan, seen: seenOf(tx, sceneId) };
 }
 
 /** The game played now (v1-design §3.1): its host's lastPlayedAt, which the title's "(just now)" and my_games' order read, as the prototype's save after every turn gave its folder's time. */

@@ -1,6 +1,8 @@
 # The golden calls
 
-The prototype's GM calls on the hanged clerk, recorded once, for the prompt parity test ([../parity.test.ts](../parity.test.ts)): the AI service's acceptance test (v0-design §10.2, v5-design §4.2, gm-port §16.1). For the same state, the AI service's GM must ask the models what the prototype's asks, and come to what it comes to.
+The prototype's calls on the hanged clerk, recorded once, for the prompt parity test ([../parity.test.ts](../parity.test.ts)): the suggester's acceptance test (v5-design §4.2). For the same state, the AI service must ask the models what the prototype's asks, and come to what it comes to.
+
+**What's left of them is the lines** (`<moment>.suggest.json`). The GM's steps (`00-open.json` to `09-t3-settle.json`: the opening, then each turn's decide, reply and settle, as the prototype's old pipeline asked them) and the second recording with a backstory (`hanged-clerk-backstory`) went with the old pipeline's scene steps after QA round qa1-1018 ([../../../docs/migration-log.md](../../../docs/migration-log.md), M2's "The old pipeline's salvage"): the game plays every scene on the two-part GM, which the prototype never recorded. They're in git history before that cleanup. What follows describes the recording as it was made, all of it.
 
 ## How they were recorded
 
@@ -63,7 +65,7 @@ A reply's decision is the AI service's own, from its decide on the same turn; wh
 
 All of it pinned by the test.
 
-- **The director asks every question the prototype's does.** Since the full GM (full-gm-design §4.1) it asks considered rolls' `roll_call` and the means (`attempt_means`) in every beat, the co-GM's `off_graph`, and after the reply the rules' `left`; since the world bridge (world-bridge-design §3.1) the rules' `mechanic` before the reply, and their `threat` and `threat_severity` after it. The rules' questions are asked when the sheet has a build, as both recordings' have (the wizard's and the rogue's), so the test's `NOT_ASKED` is empty. Every question is the prototype's to the letter, the limit with its `pretending` option included. The act's details call (`director.mechanic`, `.jump`, `.feature`) and the reactions (`director.reactions`) aren't in the recordings: none of their turns casts, strikes or jumps.
+- **The director's questions went with the GM steps' recordings.** Until the old pipeline's salvage the test held the director to every question the prototype asked (`director.before`'s and `director.after`'s, the full GM's and the world bridge's among them), to the letter; they went with the old pipeline's decide and settle and their recordings ([../../../docs/migration-log.md](../../../docs/migration-log.md)), and what's left of them, parked for combat (the rules' mechanic question and the act's details call, the threat after a reply), was never in the recordings: none of their turns casts, strikes or jumps.
 - **The spells in the suggested lines' "who they are" are the sheet's.** The prototype tells the suggester and the judge the character's spells from the rules engine (`suggest.ts`'s `who`); the AI service from the sheet the request sends (`SheetRow.spells`, since the world bridge), the same list, so what they're sent is the same byte for byte.
 - **The dice.** The prototype rolls through its rules engine when there's a sheet; V0's simulation rolls its no-sheet `rollCheck` from the game's dice row, so the same seed rolls differently (v0-design §6.4). The prompts carry whatever was rolled.
 

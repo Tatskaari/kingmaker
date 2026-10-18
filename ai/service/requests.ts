@@ -6,7 +6,7 @@ import { Failure } from "./context.ts";
 /**
  * What each think's endpoint reads of its request (v0-design §5.2, v1-design §3.7, full-gm-design
  * §4.1, world-bridge-design §3.1, story-design §4.4, town-design §3.6-3.8: a talk's open and settle,
- * decide's forced, the looks' things), checked before any model is asked, whichever
+ * the looks' things), checked before any model is asked, whichever
  * GM answers, and before a kept answer or the day's ceiling is looked at. A request without it is
  * the sender's mistake: 400 bad_request, which the module doesn't retry, rather than the endpoint's
  * TypeError, a 500 the module would retry for ten minutes (or an answer made from undefined, kept by
@@ -49,7 +49,7 @@ export function backstoryOp(req: BackstoriesRequest): BackstoryOp {
 type Need = [what: string, has: (request: unknown) => boolean];
 
 /** The GM's bookkeeping as the view copies it (gm/view.ts): its beat, its count, and its lists. */
-const GM_LISTS = ["path", "established", "landed", "hinted", "opened", "oocTurns", "pressureOffered", "canon", "patches", "entered", "absent", "whispers"];
+const GM_LISTS = ["path", "established", "landed", "hinted", "pressureOffered", "patches", "entered", "absent"];
 /** The world's rows as rowsToWorld reads them: the place, and a list of each component. */
 const WORLD_LISTS = ["entity", "position", "area", "material", "health", "stack", "surface", "creature", "playerCharacter", "gear", "narrative", "gmNote", "worldLog"];
 
@@ -89,15 +89,9 @@ const TALK_OPEN: Need = [
 
 const NEEDS: Record<Step, Need[]> = {
   open: [["scene { key }", r => isText(r, "scene.key")], ...viewNeeds(""), STREAM, TALK_OPEN],
-  decide: [...TURN, ["forced { kind } (the menu's act, when it's sent)", r => at(r, "forced") === undefined || isText(r, "forced.kind")]],
   reactions: [...TURN, ["act { what, victims, property } (what the rules decided the player did)", r => isText(r, "act.what") && isList(r, "act.victims") && isList(r, "act.property")]],
-  consider: [
-    ...TURN,
-    ["read { probability, routes } (the decider's, when it's sent)", r => at(r, "read") === undefined || (isNumber(r, "read.probability") && isList(r, "read.routes"))],
-    ["pending { exitId } (the ending held, when it's sent)", r => at(r, "pending") === undefined || isText(r, "pending.exitId")],
-  ],
   reply: [
-    ...TURN, ["decision (the decider's: a two-part reply has none)", r => at(r, "twoPart") === true || isObject(r, "decision")], ["outcome { directives }", r => isList(r, "outcome.directives")], STREAM,
+    ...TURN, ["outcome { directives }", r => isList(r, "outcome.directives")], STREAM,
     ["outcome.windDown { exit } (the wind-down's, when it's sent)", r => at(r, "outcome.windDown") === undefined || isText(r, "outcome.windDown.exit")],
   ],
   settle: [
@@ -107,7 +101,6 @@ const NEEDS: Record<Step, Need[]> = {
   ],
   suggest: [...SCENE, ["offered (the scene's last set)", r => isList(r, "offered")]],
   remember: [...SCENE, REVIEWED],
-  repair: [...SCENE, REVIEWED],
   boundary: [...SCENE, ...BOUNDARY],
   look: [["things [{ key, name }] (what to invent a look for, at least one)", r => isList(r, "things") && (at(r, "things") as unknown[]).length > 0 && (at(r, "things") as Array<{ key?: unknown; name?: unknown }>).every(t => typeof t?.key === "string" && typeof t.name === "string")]],
 };
@@ -120,7 +113,6 @@ function at(value: unknown, path: string): unknown {
 const isText = (r: unknown, path: string) => typeof at(r, path) === "string";
 const isNumber = (r: unknown, path: string) => typeof at(r, path) === "number";
 const isList = (r: unknown, path: string) => Array.isArray(at(r, path));
-const isObject = (r: unknown, path: string) => { const v = at(r, path); return v !== null && typeof v === "object" && !Array.isArray(v); };
 
 /** A 400 naming what a request is missing, if anything. */
 function missing(gaps: Array<string | false>): void {

@@ -71,8 +71,8 @@ export interface StageContext {
   /** Reasoning: "low" was the most accurate in the eval (F1 0.82 vs 0.68), at about 5 s, off the path to first text. */
   effort?: Effort;
   /**
-   * What was settled before this exchange (the scene's facts, the GM's rulings and how they went):
-   * it stands, so a reply that recalls a trade doesn't make it again, the other way round.
+   * What was settled before this exchange (the scene's facts): it stands, so a reply that recalls a
+   * trade doesn't make it again, the other way round.
    */
   settled?: string[];
 }

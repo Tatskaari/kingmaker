@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
-import { CATEGORIES } from "../../docs/reviews.ts";
+import { CATEGORIES, partsText } from "../../docs/reviews.ts";
 import { fakeFetch, type FakeOptions } from "../../llm/fake-openrouter.ts";
 import { prompt } from "../../prompts/index.ts";
 import { initialGm, type GmState } from "../../../shared/gm/state.ts";
-import type { Entry, RememberRequest, RepairRequest, SceneContext } from "../../../shared/protocol/ai.ts";
+import type { Entry, RememberRequest, SceneContext } from "../../../shared/protocol/ai.ts";
 import type { PlaceFile } from "../../../shared/scene/files.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import { keysFor, worldToRows } from "../../../shared/world/rows.ts";
@@ -18,12 +18,12 @@ import { withTestClerk } from "../../gm/fixtures.ts";
 import type { AiContext } from "../context.ts";
 import { folderStores } from "../folder-stores.ts";
 import { remember } from "./remember.ts";
-import { repair } from "./repair.ts";
 
 /**
- * The thinks after a turn (full-gm-design §4.1), on the stand-in: the memory reviews write a note
- * into the game's copy of the lore and a line in memory-reviews.jsonl, and the co-GM's answer is
- * shaped as the prototype's toRepairResult shapes it.
+ * The thinks after a turn (full-gm-design §4.1), on the stand-in: the memory reviews bring the GM's
+ * notes on the people here up to date in the game's copy of the lore and write a line in
+ * memory-reviews.jsonl. (The old co-GM's review, its answer shaped as the prototype's
+ * toRepairResult shaped it, went with the old pipeline.)
  */
 
 const CAERWYN = join(import.meta.dirname, "..", "..", "..", "campaigns", "caerwyn");
@@ -49,8 +49,9 @@ async function setUp(options: FakeOptions) {
   await installed.put("caerwyn", "0.1.0", withTestClerk(filesOf(CAERWYN)));
   const campaign = installed.use("caerwyn", "0.1.0");
   const fake = fakeFetch(options);
-  const contextFor = (key: string): AiContext => {
-    const { calls, usage } = callContext({ fetch: fake.fetch, apiKey: "test" }, stores, { game: GAME, key, attempt: 1 });
+  /** A request's context on the stand-in, or on another (a later review answering otherwise), on the same store. */
+  const contextFor = (key: string, on = fake): AiContext => {
+    const { calls, usage } = callContext({ fetch: on.fetch, apiKey: "test" }, stores, { game: GAME, key, attempt: 1 });
     return { campaign, calls, usage, attempt: 1, stream: () => { throw new Error("nothing streams after a turn"); }, reviews: stores.reviews };
   };
   return { store, campaign, fake, contextFor };
@@ -75,35 +76,65 @@ const GIFT: Entry[] = [
 /** Every attention category answered no, but those named. */
 const flagging = (...flagged: string[]) => Object.fromEntries(Object.keys(CATEGORIES).map(id => [id, flagged.includes(id) ? "flagged" : "not_flagged"]));
 
-const KELLS = { characterId: "kell", title: "What the investigator did", context: "In the granary yard, the morning the clerk Prout was found hanged.", content: "The King's investigator pressed a silver crown into Cob's fist and asked him nothing for it. Soft, or buying him. I'll watch which." };
+/** The notes review's answer: these updates, and a summary. */
+const notesAnswer = (...updates: Array<{ characterId: string; section: string; line: string; replaces?: string }>) => ({ gm_notes: { updates: updates.map(u => ({ replaces: "", ...u })), summary: "Kell's notes are up to date." } });
+const NOTES = (store: string) => join(store, "games", GAME, "docs", "Cast", "Sergeant Agnes Kell", "notes.md");
+const CROWN = "Watched the investigator press a silver crown into Cob's fist and ask nothing for it.";
 
-test("remember: a witnessed moment fires the memories agent, which writes Kell's note and her index's line; the turn's line goes in memory-reviews.jsonl", async () => {
-  const { store, campaign, fake, contextFor } = await setUp({ choices: flagging("witnessed"), toolCalls: { save_memory: [{ name: "save_memory", args: KELLS }] } });
+test("remember: a flagged moment brings the GM's notes on the people here up to date: Kell's notes get a line, in the game's copy; the turn's line goes in memory-reviews.jsonl", async () => {
+  const { store, campaign, fake, contextFor } = await setUp({ choices: flagging("seen"), byName: notesAnswer({ characterId: "kell", section: "seen", line: CROWN }) });
   const key = `${GAME}:s1:t1:remember`;
   // A line the player queued meanwhile is on the transcript already: it isn't the turn reviewed.
   const queued: Entry = { turn: 2, speaker: "player:1", kind: "player", text: "Sergeant, who found him?" };
   const req: RememberRequest = { key, game, player, turn: sceneOf(campaign, 1, initialGm({ start: "yard" }), [...GIFT, queued]), reviewed: 1 };
   const answer = await remember(req, contextFor(key));
 
-  assert.deepEqual(answer.flags, ["witnessed"]);
-  assert.deepEqual(answer.reviews.map(r => [r.kind, r.changes, r.summary, r.error]), [["memories", ["memory kell: What the investigator did"], "Done.", undefined]]);
-  const memories = join(store, "games", GAME, "docs", "Cast", "Sergeant Agnes Kell", "memories");
-  const index = readFileSync(join(memories, "index.md"), "utf8");
-  const note = readdirSync(memories).find(f => f !== "index.md")!;
-  assert.match(index, new RegExp(`^- \\[What the investigator did\\]\\(${note}\\) — In the granary yard, the morning the clerk Prout was found hanged\\.$`, "m"));
-  assert.match(readFileSync(join(memories, note), "utf8"), /visibility: "private"\nreaders: \["character:kell"\]\nscene: "hanged-clerk"\nturn: 1\n---\nThe King's investigator pressed a silver crown/);
+  assert.deepEqual(answer.flags, ["seen"]);
+  assert.deepEqual(answer.reviews.map(r => [r.kind, r.changes, r.summary, r.error]), [["notes", [`note kell seen: added "${CROWN}"`], "Kell's notes are up to date.", undefined]]);
+  const notes = readFileSync(NOTES(store), "utf8");
+  assert.match(notes, /^---\nsummary: "The GM's notes on Sergeant Agnes Kell in this game, kept current: [^"]*"\ntype: "notes"\nvisibility: "gm"\nscene: "hanged-clerk"\nturn: 1\n---\n# Sergeant Agnes Kell: notes from play\n\n## Seen the player do\n- Watched the investigator press a silver crown/);
+  assert.equal(existsSync(join(store, "games", GAME, "docs", "Cast", "Sergeant Agnes Kell", "memories")), false, "no memories beside them");
 
   const lines = readFileSync(join(store, "games", GAME, "memory-reviews.jsonl"), "utf8").trim().split("\n").map(l => JSON.parse(l));
-  assert.deepEqual(lines.map(l => [l.turn, l.flags, l.reviews.length]), [[1, ["witnessed"], 1]]);
+  assert.deepEqual(lines.map(l => [l.turn, l.flags, l.reviews.length]), [[1, ["seen"], 1]]);
 
-  // The attention filter (Jev) and the agent's two rounds, all through the request's calls, and the moment it reviewed the turn's own.
+  // The attention filter (Jev) and the notes review's one call, both through the request's calls, and the moment it reviewed the turn's own.
   const logged = readFileSync(join(store, "games", GAME, "calls.jsonl"), "utf8").trim().split("\n").map(l => JSON.parse(l));
-  assert.deepEqual(logged.filter(e => !e.started).map(e => [e.key, e.operation]), [[key, "memory.attend"], [key, "memory.review.memories"]]);
-  assert.deepEqual([answer.usage.calls, answer.usage.byOperation["memory.review.memories"]?.calls], [3, 2]);
-  const review = fake.sent.find(b => b.tools)!;
-  assert.match(review.input![0]!.content, /## The moment to review\nWren Ashdown \(player\): \(I crouch and press a silver crown/);
-  assert.ok(!review.input![0]!.content.includes("who found him"), "the queued line isn't the moment, or before it");
-  assert.ok(review.instructions!.includes(prompt("review/witnessed")), "the witnessed category's prompt");
+  assert.deepEqual(logged.filter(e => !e.started).map(e => [e.key, e.operation]), [[key, "memory.attend"], [key, "memory.review.notes"]]);
+  assert.deepEqual([answer.usage.calls, answer.usage.byOperation["memory.review.notes"]?.calls], [2, 1]);
+  const review = fake.sent.find(b => b.text?.format?.name === "gm_notes")!;
+  assert.equal(review.instructions, prompt("memory-review", { parts: partsText() }));
+  assert.match(review.instructions!, /- seen \(Seen the player do; 5 lines at most\): what they've seen the player character do/);
+  const input = review.input![0]!.content;
+  assert.match(input, /## The people here \(ids\), and your notes on each so far\n- kell: Sergeant Agnes Kell\n {4}\(no notes yet\)\n- cob: Cob\n/);
+  assert.match(input, /## The moment to review\nWren Ashdown \(player\): \(I crouch and press a silver crown/);
+  assert.ok(!input.includes("who found him"), "the queued line isn't the moment, or before it");
+  const schema = review.text!.format!.schema as { properties: { updates: { items: { properties: { characterId: { enum: string[] }; section: { enum: string[] } } } } } };
+  assert.deepEqual(schema.properties.updates.items.properties.characterId.enum, ["kell", "cob", "moll"], "only the people here");
+  assert.deepEqual(schema.properties.updates.items.properties.section.enum, ["standing", "seen", "learned", "promises", "did"]);
+});
+
+test("remember: a later moment rewrites a line of the notes rather than adding another, and the review reads the notes as they stand", async () => {
+  const { store, campaign, contextFor } = await setUp({ choices: flagging("seen"), byName: notesAnswer({ characterId: "kell", section: "seen", line: CROWN }) });
+  await remember({ key: `${GAME}:s1:t1:remember`, game, player, turn: sceneOf(campaign, 1, initialGm({ start: "yard" }), GIFT), reviewed: 1 }, contextFor(`${GAME}:s1:t1:remember`));
+
+  const PRICE = "Watched the investigator give Cob a silver crown, then call it payment for what he saw last night.";
+  const later = fakeFetch({ choices: flagging("seen", "standing"), byName: notesAnswer(
+    { characterId: "kell", section: "seen", line: PRICE, replaces: CROWN },
+    { characterId: "kell", section: "standing", line: "Wary: the investigator's kindness to the boy came with a price after all." },
+  ) });
+  const turn2: Entry[] = [
+    { turn: 2, speaker: "player:1", kind: "player", text: "That crown wasn't free, Cob. Who came to the yard last night?" },
+    { turn: 2, speaker: "gm", kind: "narration", text: "Cob's fist tightens on the coin. Kell's pencil stops, and she looks at you for a long moment." },
+  ];
+  const key = `${GAME}:s1:t2:remember`;
+  const answer = await remember({ key, game, player, turn: sceneOf(campaign, 2, initialGm({ start: "yard" }), [...GIFT, ...turn2]), reviewed: 2 }, contextFor(key, later));
+
+  assert.deepEqual(answer.reviews.map(r => r.changes), [[`note kell seen: rewrote "${CROWN}" → "${PRICE}"`, `note kell standing: set "Wary: the investigator's kindness to the boy came with a price after all."`]]);
+  const notes = readFileSync(NOTES(store), "utf8");
+  assert.match(notes, /## Standing with the player\n- Wary: the investigator's kindness to the boy came with a price after all\.\n\n## Seen the player do\n- Watched the investigator give Cob a silver crown, then call it payment for what he saw last night\.\n?$/);
+  assert.ok(!notes.includes("ask nothing for it"), "rewritten, not a second line beside the first");
+  assert.match(later.sent.find(b => b.text?.format?.name === "gm_notes")!.input![0]!.content, /- kell: Sergeant Agnes Kell\n {4}seen \(Seen the player do\):\n {4}- Watched the investigator press a silver crown into Cob's fist and ask nothing for it\./, "the review read Kell's notes as they stood");
 });
 
 test("remember: nothing flagged is one call and no review, and the turn's line still goes in memory-reviews.jsonl", async () => {
@@ -112,39 +143,7 @@ test("remember: nothing flagged is one call and no review, and the turn's line s
   const answer = await remember({ key, game, player, turn: sceneOf(campaign, 1, initialGm({ start: "yard" }), GIFT), reviewed: 1 }, contextFor(key));
 
   assert.deepEqual([answer.flags, answer.reviews, answer.usage.calls, fake.asked], [[], [], 1, ["/api/alpha/decisions"]]);
-  assert.equal(existsSync(join(store, "games", GAME, "docs", "Cast", "Sergeant Agnes Kell", "memories")), false);
+  assert.equal(existsSync(NOTES(store)), false, "no notes for anyone");
   const lines = readFileSync(join(store, "games", GAME, "memory-reviews.jsonl"), "utf8").trim().split("\n").map(l => JSON.parse(l));
   assert.deepEqual(lines.map(l => [l.turn, l.flags, l.reviews]), [[1, [], []]]);
-});
-
-test("repair: the co-GM's notes shaped as the prototype's are: a route to nowhere rejected, a DC clamped, a move to the beat it's at dropped; its turn the one reviewed", async () => {
-  const notes = {
-    assessment: "The player is charming the boy; the case idles.", status: "drifting", notes: "Let Kell grow impatient with the coin-giving.",
-    whispers: [{ to: "moll", note: "She wants a crown too, and says so." }], relocations: [], no_but: [],
-    canon: ["Cob spent the crown on a hot pie."], move_to: "yard", move_to_because: "Nothing has moved.", add_beat: null,
-    add_transitions: [
-      { beat: "yard", when: "The player asks Moll what the boots are worth to her.", on: "attempt", to: "doubt", check: { skill: "persuasion", dc: 40, reason: "to coax Moll into talking", success: "She talks.", failure: "She clams up.", on_failure: null }, why: "A way to the doubt through Moll." },
-      { beat: "yard", when: "The player flies to the moon.", on: "outcome", to: "the-moon", check: null, why: "Nowhere." },
-    ],
-  };
-  const { campaign, fake, contextFor } = await setUp({ byName: { co_gm_notes: notes } });
-  const key = `${GAME}:s1:t3:repair`;
-  const gm: GmState = { ...initialGm({ start: "yard" }), turnsInBeat: 3 };
-  const req: RepairRequest = { key, game, player, turn: sceneOf(campaign, 3, gm, [...GIFT, { turn: 2, speaker: "player:1", kind: "player", text: "What songs do you sing, girl?" }, { turn: 3, speaker: "player:1", kind: "player", text: "And the one about the miller's cat?" }]), reviewed: 3 };
-  const { review, usage } = await repair(req, contextFor(key));
-
-  assert.equal(review.turn, 3);
-  assert.equal(review.status, "drifting");
-  assert.equal(review.assessment, "The player is charming the boy; the case idles. [rejected: transition yard -> the-moon rejected]");
-  assert.deepEqual(review.patches, [{ turn: 3, why: "A way to the doubt through Moll.", transition: { beat: "yard", transition: {
-    id: "improv-3-0", when: "The player asks Moll what the boots are worth to her.", on: "attempt",
-    check: { skill: "persuasion", dc: 25, reason: "to coax Moll into talking", success: "She talks.", failure: "She clams up.", onSuccess: "doubt" },
-  } } }]);
-  assert.equal(review.moveTo, undefined, "the tracker is already there");
-  assert.deepEqual([review.notes, review.whispers, review.canon], ["Let Kell grow impatient with the coin-giving.", [{ to: "moll", note: "She wants a crown too, and says so." }], ["Cob spent the crown on a hot pie."]]);
-
-  const call = fake.sent[0]!;
-  assert.deepEqual([call.text?.format?.name, (call as { reasoning?: { effort?: string } }).reasoning?.effort, call.max_output_tokens, call.instructions], ["co_gm_notes", "medium", 8000, prompt("repair")]);
-  assert.match(call.input!.at(-1)!.content, /^## Tracker: the scene is at beat "yard" \(Stones at a hanged man\); 3 exchanges here, 3 since anything moved\./);
-  assert.equal(usage.byOperation.repair?.calls, 1);
 });

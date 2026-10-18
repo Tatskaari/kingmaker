@@ -162,3 +162,13 @@ test("a tool loop's round with no answer in its time is asked again, once; a sec
   await assert.rejects(ask(500), /no answer in/, "no room left before the deadline: no second asking");
   assert.equal(stalls, 0, "it wasn't asked again");
 });
+
+test("a tool loop's round nearer its deadline than its own limit waits out what's left, a whole number of milliseconds", async () => {
+  const fake = fakeFetch({ toolCalls: { update_character_role: [] } });
+  const { calls } = keeping(fake.fetch);
+  const tools = [{ name: "update_character_role", description: "Set a role.", parameters: { type: "object" } }];
+  // The time left before the deadline is a fraction of a millisecond off a whole one, and AbortSignal.timeout refuses fractions:
+  // in QA round qa1-1018 every co-GM round that started under 20 s before its 45 s deadline failed the co-GM on it.
+  const done = await runTools({ operation: "two-part.co-gm", instructions: "?", input: [{ role: "user", content: "?" }], tools, roundMs: 20_000, deadlineMs: 2_000.5, calls }, async () => "ok");
+  assert.deepEqual(done.calls, [], "answered, and the loop finished");
+});
