@@ -263,7 +263,7 @@ test("the two-part GM on the local host: the campaign's hanged clerk walked to m
 
   const signed = await line("Corporal, Sergeant: write it down as murder.");
   const told = of("two-part.reply", 5, "reply")[0]!.request.input!.at(-2)!.content;
-  assert.match(told, /The scene has just moved on to "[^"]+": [\s\S]*arrives now, seen arriving/, "the reply after the move was told to show it");
+  assert.match(told, /The scene has just moved on to "[^"]+": [\s\S]*comes in now, seen arriving/, "the reply after the move was told to show it");
   assert.doesNotMatch(told, /names him now/, "the name said: no more");
   assert.deepEqual([signed.scene.status, signed.gm.closing?.exitId, signed.gm.twoPart.moved], ["closing", "murder-unknown", undefined]);
 

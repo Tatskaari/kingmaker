@@ -180,15 +180,16 @@ function toolRound(calls: Array<Pick<ToolCall, "name" | "args">>, input: NonNull
 function spoken(narration: string, schema: Schema, input: NonNullable<Request["input"]>, recipe: NonNullable<FakeOptions["mouthpiece"]>): unknown {
   const closing = !!schema.properties?.closes;
   const opening = input.filter(m => m.role === "user").at(-1)?.content === "(The player is ready. Begin.)";
-  const check = recipe.check && !closing && !opening ? {
-    skill: recipe.check.skill, dc: recipe.check.dc,
-    outcomes: {
-      major_failure: "It goes badly wrong, and Kell's pencil stops.", minor_failure: "Not this time: something else will have to tell it.",
-      barely_passed: "Just: a part of it, and a catch.", minor_success: "Cleanly: the next of it comes out.", major_success: "Better than hoped: the next of it, and a little more.",
-    },
-  } : null;
+  const dice = recipe.check && !closing && !opening && !!schema.properties?.outcomes ? recipe.check : undefined;
+  const outcomes = {
+    major_failure: "It goes badly wrong, and Kell's pencil stops.", minor_failure: "Not this time: something else will have to tell it.",
+    barely_passed: "Just: a part of it, and a catch.", minor_success: "Cleanly: the next of it comes out.", major_success: "Better than hoped: the next of it, and a little more.",
+  };
   const owed = /(?:^|\n)([^\n]+?) names (?:him|her|them) now: ([^\n]+?)\. /.exec(input.filter(m => m.role === "system").at(-1)?.content ?? "");
-  return { narration: owed ? `${narration} [${owed[1]}] “${owed[2]}.”` : narration, check, ...(closing ? { closes: !recipe.holds } : {}) };
+  const said = owed ? `${narration} [${owed[1]}] “${owed[2]}.”` : narration;
+  // In the schema's order: the check decided first, then the narration, then its outcomes (a talk's has no check: its narration, then null).
+  if (!schema.properties?.outcomes) return { narration: said, check: null, ...(closing ? { closes: !recipe.holds } : {}) };
+  return { check: dice ? { skill: dice.skill, dc: dice.dc } : null, narration: said, outcomes: dice ? outcomes : null, ...(closing ? { closes: !recipe.holds } : {}) };
 }
 
 /** A route as the co-GM's prep has it (routeLine's): its id, where it goes from and to, what it needs reached first, and whether the dice decide it. */
