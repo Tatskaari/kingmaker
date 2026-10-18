@@ -1,11 +1,12 @@
-// Copied from the prototype's src/app/ui/create.tsx at 44c6d4a: the screens read a CreationModel in place of the Game (the flow is the simulation's: client/creation/model.ts), LEVEL is the model's (the campaign's), and nothing is drawn over them (no overlay to wait for). Edits: the creating screen's WRITING lines are busy "traits"; the backstory's "(GM offline)" labels go (the answer says when the GM is offline) and a refusal comes before the row's note; the cards and their own build show a refusal in their note line; the create screen says why the GM's part came to nothing (the row's note, as the prototype's error did), and the creating screen what it waits on; those notes and the backstory's note line take two lines, so the ceiling's words are whole; their own build waits for the engine's lists with a spinner; the sheet's r is there only when this creation made the game, and says "Start again" when there were no builds to choose from.
+// Copied from the prototype's src/app/ui/create.tsx at 44c6d4a: the screens read a CreationModel in place of the Game (the flow is the simulation's: client/creation/model.ts), LEVEL is the model's (the campaign's), and nothing is drawn over them (no overlay to wait for). Edits: the creating screen's WRITING lines are busy "traits"; the backstory's "(GM offline)" labels go (the answer says when the GM is offline) and a refusal comes before the row's note; the cards and their own build show a refusal in their note line; the create screen says why the GM's part came to nothing (the row's note, as the prototype's error did), and the creating screen what it waits on; those notes and the backstory's note line take two lines, so the ceiling's words are whole; their own build waits for the engine's lists with a spinner; the sheet's r is there only when this creation made the game, and says "Start again" when there were no builds to choose from; on a page, the create screen offers the campaign's ready-made characters too (M5: the terminal's --build).
 import type { KeyEvent, MouseEvent, TextareaRenderable } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useEffect, useRef, useState } from "react";
 import { locate, MOST_WORDS, wordCount } from "../../shared/creation/story.ts";
 import type { LoreIssue } from "../../shared/creation/types.ts";
 import type { BuildOption, Choice } from "../../shared/rules/types.ts";
-import type { CreationModel } from "../creation/model.ts";
+import type { Surface } from "../app/model.ts";
+import type { CreationModel, ReadyMade as ReadyMadeOne } from "../creation/model.ts";
 import type { Creation } from "../creation/rows.ts";
 import { DEFAULT_CONCEPT, DEFAULT_NAME } from "../creation/words.ts";
 import { C } from "../theme.ts";
@@ -71,25 +72,45 @@ function Button({ label, onClick, on, dim }: { label: string; onClick: () => voi
 // ---------------------------------------------------------------------------------------------
 // The name and the concept.
 
-/** Name and concept; then three builds that fit (or one of their own), and their backstory. */
-export function CreateScreen({ game }: { game: CreationModel }) {
+/** The create screen's fields, in Tab's order: the name, the concept, and on a page the ready-made characters (M5). */
+type Field = "name" | "concept" | "ready";
+
+/**
+ * Name and concept; then three builds that fit (or one of their own), and their backstory. On a page
+ * (the app's surface), a ready-made character too (M5): the campaign's builds as buttons under it,
+ * Tab's third stop (←→ choose, Enter plays it) or a click, straight into a game of its own as the
+ * name and concept typed (else the default name and the build's own concept), as the terminal
+ * client's --build makes one.
+ */
+export function CreateScreen({ game, surface = "terminal" }: { game: CreationModel; surface?: Surface }) {
   useStore(game);
   const { width, height } = useTerminalDimensions();
   // Back from the builds: as they were typed.
   const [name, setName] = useState(() => (game.creation && game.creation.name !== DEFAULT_NAME ? game.creation.name : ""));
   const [concept, setConcept] = useState(() => (game.creation && game.creation.concept !== DEFAULT_CONCEPT ? game.creation.concept : ""));
-  const [field, setField] = useState<"name" | "concept">(() => (game.creation ? "concept" : "name"));
+  const [field, setField] = useState<Field>(() => (game.creation ? "concept" : "name"));
+  const [pick, setPick] = useState(0);
+  const ready = surface === "page" ? game.readyMade : [];
+  const fields: Field[] = ready.length ? ["name", "concept", "ready"] : ["name", "concept"];
+  const step = (by: number) => setField(f => fields[(fields.indexOf(f) + by + fields.length) % fields.length]!);
   // What the box holds when Enter comes (a pasted line arrives with its Enter, before the state catches up).
   const submit = (typed = concept) => void game.offerBuilds(name || DEFAULT_NAME, typed || DEFAULT_CONCEPT);
+  const play = (i = pick) => { const r = ready[i]; if (r) void game.playReadyMade(r.id, name, concept); };
   useKeyboard(key => {
     if (key.defaultPrevented || game.screen !== "create") return;
-    if (key.name === "tab" || (key.name === "up" && field === "concept") || (key.name === "down" && field === "name")) setField(f => (f === "name" ? "concept" : "name"));
+    if (key.name === "tab") step(key.shift ? -1 : 1);
+    else if ((key.name === "up" && field !== "name") || (key.name === "down" && field !== fields[fields.length - 1])) step(key.name === "up" ? -1 : 1);
+    else if (field === "ready" && (key.name === "left" || key.name === "right")) setPick(p => (p + (key.name === "left" ? -1 : 1) + ready.length) % ready.length);
+    else if (field === "ready" && isEnter(key)) play();
     else if (key.name === "escape") game.toTitle();
   });
   const w = Math.min(width - 4, 100);
   const tall = height >= 30;
   // A move's refusal; or, back here when the GM's part came to nothing (the builds, or its pick), the row's note saying why, as the prototype's error did.
   const note = twoLines(game.error ?? game.creation?.note, w);
+  // On a short page the examples give way to the ready-made characters.
+  const examples = ready.length && height < 30 ? [] : EXAMPLES;
+  const keys: KeyHint[] = field === "ready" ? [["Tab", "switch field"], ["←→", "choose"], ["Enter", "play them", () => play()], ["Esc", "back"]] : [["Tab", "switch field"], ["Enter", field === "name" ? "next" : "see three builds"], ["Esc", "back"]];
   return <box width={width} height={height} flexDirection="column" alignItems="center" justifyContent="center" backgroundColor={C.bg}>
     <text fg={C.title} attributes={BOLD}>Who are you?</text>
     <text fg={C.dim} attributes={ITALIC}>The King has lent you to a small matter of a hanged clerk. He didn't say who you were. You'd better.</text>
@@ -100,11 +121,22 @@ export function CreateScreen({ game }: { game: CreationModel }) {
       <input value={concept} onInput={setConcept} onSubmit={(value: unknown) => submit(typeof value === "string" ? value : concept)} focused={field === "concept"} placeholder={DEFAULT_CONCEPT} />
     </box>
     <box width={w} flexDirection="column" marginTop={1}>
-      <text fg={C.dim}>{`Next: three level ${game.level} D&D builds that fit (SRD 5.2.1), or one of your own, then your backstory. For example:`}</text>
-      {EXAMPLES.map((e, i) => <text key={i} fg={C.faint}>{`  · ${e}`}</text>)}
+      <text fg={C.dim}>{`Next: three level ${game.level} D&D builds that fit (SRD 5.2.1), or one of your own, then your backstory.${examples.length ? " For example:" : ""}`}</text>
+      {examples.map((e, i) => <text key={i} fg={C.faint}>{`  · ${e}`}</text>)}
     </box>
+    {ready.length ? <ReadyMade ready={ready} pick={pick} on={field === "ready"} width={w} onPick={i => { setField("ready"); setPick(i); play(i); }} /> : null}
     <box width={w} height={2} marginTop={1} flexShrink={0} flexDirection="column" alignItems="center">{note.map((l, i) => <text key={i} height={1} flexShrink={0} fg={C.danger}>{l}</text>)}</box>
-    <box marginTop={tall ? 1 : 0}><Keys items={[["Tab", "switch field"], ["Enter", field === "name" ? "next" : "see three builds"], ["Esc", "back"]]} /></box>
+    <box marginTop={tall ? 1 : 0}><Keys items={keys} /></box>
+  </box>;
+}
+
+/** The ready-made characters, a button each (their class), the one picked out with its concept under them. */
+function ReadyMade({ ready, pick, on, width, onPick }: { ready: ReadyMadeOne[]; pick: number; on: boolean; width: number; onPick: (i: number) => void }) {
+  const picked = ready[Math.min(pick, ready.length - 1)];
+  return <box width={width} flexDirection="column" marginTop={1} flexShrink={0}>
+    <text fg={on ? C.title : C.dim} height={1} flexShrink={0}>Or play one ready-made, straight in:</text>
+    <box flexDirection="row" height={1} flexShrink={0} gap={2}>{ready.map((r, i) => <Button key={r.id} label={`${r.id.charAt(0).toUpperCase()}${r.id.slice(1)}`} on={on && i === pick} onClick={() => onPick(i)} />)}</box>
+    <text fg={C.faint} height={1} flexShrink={0}>{on && picked ? oneLine(`  ${picked.concept}`, width) : " "}</text>
   </box>;
 }
 
@@ -158,6 +190,9 @@ function twoLines(note: string | undefined, width: number): string[] {
   const lines = note ? wrap(note, width) : [];
   return lines.length > 2 ? [lines[0]!, `${lines[1]!.slice(0, width - 1)}…`] : lines;
 }
+
+/** A line cut short to the width, when it's longer. */
+const oneLine = (line: string, width: number) => (line.length > width ? `${line.slice(0, width - 1)}…` : line);
 
 /** Why the three are the class defaults, when they are (or why a move wasn't made), in two lines at most. */
 function offerNote(c: Creation, width: number, refused?: string): string[] {

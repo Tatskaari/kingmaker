@@ -15,6 +15,7 @@ import { tuiAliases, tuiFonts } from "./tui.ts";
  * in dist/web, every URL relative so it works from any path (the site's play/, or web:serve's):
  *
  *   index.html, page.js, transport.js, style.css    the page (web/page): xterm.js, the key form, the workers' transport
+ *   doors.js                                        the doors' and lamps' pictures over the map (web/page/doors.ts, with the client's art), bundled
  *   vendor/                                         xterm.js and its addons, from the repo's node_modules
  *   fonts.css, fonts.json, fonts/                   the glyph fonts (web/fonts)
  *   client-worker.js, server-worker.js, chunks/     the two workers (hosts/web), bundled in one esbuild call, sharing chunks
@@ -39,6 +40,7 @@ async function main(argv: string[]): Promise<void> {
   const out = outOf(argv);
 
   const site = await bundleWorkers(out);
+  site.set("doors.js", await bundleDoors());
   addFiles(site, vendorFiles());
   addFiles(site, fontFiles());
   site.set("content.json", encode(JSON.stringify(readContent(V2))));
@@ -83,6 +85,17 @@ async function bundleWorkers(out: string): Promise<Site> {
     logLevel: "warning",
   });
   return new Map(result.outputFiles.map(file => [relative(out, file.path).split("\\").join("/"), file.contents]));
+}
+
+/** The page's doors and lamps (web/page/doors.ts and lamps.ts, the art the client's): one module for page.js to import, as the prototype's doors.js was. */
+async function bundleDoors(): Promise<Uint8Array> {
+  const result = await build({
+    absWorkingDir: V2, entryPoints: [join(V2, "web", "page", "doors.ts")], bundle: true, format: "esm", platform: "browser", target: "es2022",
+    minify: true, legalComments: "none", write: false, logLevel: "warning",
+  });
+  const file = result.outputFiles[0];
+  if (!file) throw new Error("the page's doors module didn't bundle");
+  return file.contents;
 }
 
 /**

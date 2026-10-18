@@ -1,6 +1,6 @@
 // Copied from the prototype's src/app/ui/common.tsx at 44c6d4a, less Lines (the map's): wayOnKey takes { typing } in place of the Game, and useGame is useStore, for any store with a subscribe and a version, through useSyncExternalStore.
-import { TextAttributes, type KeyEvent, type MouseEvent } from "@opentui/core";
-import type { BoxProps } from "@opentui/react";
+import { TextAttributes, type KeyEvent, type MouseEvent, type PasteEvent } from "@opentui/core";
+import { useAppContext, type BoxProps } from "@opentui/react";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { C } from "../theme.ts";
 
@@ -51,6 +51,37 @@ export function useStore<T extends { subscribe(listener: () => void): () => void
   const subscribe = useCallback((listener: () => void) => store.subscribe(listener), [store]);
   useSyncExternalStore(subscribe, () => store.version);
   return store;
+}
+
+/**
+ * Keys before every screen's own (M5): useKeyboard's handlers hear a key in the order the screens
+ * mounted, and a focused box after them all, so something over every screen (the report's question:
+ * ui/report.tsx) listens first. A key the handler takes (it says true) goes no further: to no screen,
+ * and to no box that has the focus.
+ */
+export function useKeysFirst(take: (key: KeyEvent) => boolean): void {
+  const { keyHandler } = useAppContext();
+  const latest = useRef(take);
+  latest.current = take;
+  useEffect(() => {
+    if (!keyHandler) return;
+    const first = (key: KeyEvent) => { if (latest.current(key)) { key.preventDefault(); key.stopPropagation(); } };
+    keyHandler.prependListener("keypress", first);
+    return () => { keyHandler.off("keypress", first); };
+  }, [keyHandler]);
+}
+
+/** A paste before every screen's own, as useKeysFirst's keys: one the handler takes goes no further. */
+export function usePasteFirst(take: (text: string) => boolean): void {
+  const { keyHandler } = useAppContext();
+  const latest = useRef(take);
+  latest.current = take;
+  useEffect(() => {
+    if (!keyHandler) return;
+    const first = (event: PasteEvent) => { if (latest.current(new TextDecoder().decode(event.bytes))) { event.preventDefault(); event.stopPropagation(); } };
+    keyHandler.prependListener("paste", first);
+    return () => { keyHandler.off("paste", first); };
+  }, [keyHandler]);
 }
 
 const FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];

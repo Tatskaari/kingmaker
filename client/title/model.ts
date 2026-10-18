@@ -100,6 +100,11 @@ export class TitleModel {
   quit(): void {
     this.app.quit();
   }
+
+  /** Report a problem with the latest game played (M5: b, or the title's line). */
+  report(): void {
+    this.app.askReport("the title");
+  }
 }
 
 /** How long ago, in a few words: "just now", "5 min ago", "3 h ago", "2 days ago". */

@@ -65,9 +65,10 @@ const KEY_REFUSED = "OpenRouter turned the key down: change it from the bar unde
 const KEEP_ANSWERS_MS = 24 * 60 * 60 * 1000;
 
 export async function startHost(config: HostConfig, storage: Storage, content: Content): Promise<PageHost> {
-  const commits = commitsTo(storage.sim.write, config.log);
-  const sim = newSimulation(storage.sim, commits.tell, config, request => ai.answer(request));
-  const ai = newAiService(storage.ai, content, sim, config);
+  const kept = keptLog(config);
+  const commits = commitsTo(storage.sim.write, kept.log);
+  const sim = newSimulation(storage.sim, commits.tell, kept, request => ai.answer(request));
+  const ai = newAiService(storage.ai, content, sim, kept);
   await installCampaign(content, ai, sim, storage.sim);
 
   const push = pushTo(sim);
@@ -77,9 +78,35 @@ export async function startHost(config: HostConfig, storage: Storage, content: C
 
   return {
     sim, ai,
-    serve: duplex => serveClient(duplex, { sim, push, sessions: storage.sim, ownerMoves: config.ownerMoves, log: config.log }),
+    serve: duplex => serveClient(duplex, { sim, push, sessions: storage.sim, ownerMoves: config.ownerMoves, log: kept.log, reportGame: reportFor(sim, kept, config.model) }),
     idle: jobs.idle,
     stop: jobs.stop,
+  };
+}
+
+/** How many of the simulation's and the AI service's latest log lines the page host keeps, for a report (browser-design §8's "a ring buffer"). */
+export const KEEP_LOG = 300;
+
+/** The config with its log kept too: the latest KEEP_LOG lines, each as the host's log has it (the key out). */
+function keptLog(config: HostConfig): HostConfig & { lines(): string[] } {
+  const lines: string[] = [];
+  return {
+    ...config,
+    log(line) {
+      config.log(line);
+      lines.push(config.model.redact(line));
+      if (lines.length > KEEP_LOG) lines.splice(0, lines.length - KEEP_LOG);
+    },
+    lines: () => [...lines],
+  };
+}
+
+/** report_game as the page makes it: the memory host's, with the log's latest lines beside the game, and the player's key taken out of all of it. */
+function reportFor(sim: MemoryHost, kept: { lines(): string[] }, model: Model) {
+  return async (identity: Identity, game: bigint): Promise<string> => {
+    const text = await sim.report(identity, game);
+    const withLog = text.startsWith('{"kind":"kingmaker-game"') ? `${text.slice(0, -1)},"log":${JSON.stringify(kept.lines())}}` : text;
+    return model.redact(withLog);
   };
 }
 
@@ -115,6 +142,7 @@ function commitsTo(store: (commit: ChangeSet) => void, log: (line: string) => vo
 function newSimulation(kept: SimStore, onCommit: (commit: ChangeSet) => void, config: HostConfig, answer: (request: AiHttpRequest) => Promise<AiHttpResponse>): MemoryHost {
   return memoryHost({
     ai: (endpoint, body, headers, options) => withinTime(answer({ method: "POST", path: endpoint, headers, body }), options?.timeoutMs),
+    aiGet: (path, headers) => answer({ method: "GET", path, headers, body: "" }),
     seed: config.seed ?? randomSeed(), uuid: randomUuid, clock: realClock, database: kept.database,
     env: { AI_URL: "in-process", AI_TOKEN: BEARER, AI_IDENTITY: SERVICE.toHexString() }, service: SERVICE,
     onCommit, log: config.log,
@@ -153,6 +181,8 @@ function newAiService(kept: Persistence, content: Content, sim: MemoryHost, conf
     stream: { url: "in-process", db: "kingmaker", token: BEARER, periodMs: STREAM_PERIOD_MS, fetch: streamInto(post => sim.streamReply(streamArgsOf(post), SERVICE)) },
     serves: { model: config.model.name, gm: "pipeline" },
     dailyUsd: DAILY_USD, overBudget: OVER_BUDGET, keyRefused: KEY_REFUSED,
+    // A game's own, read for a report, without the player's key.
+    redact: text => config.model.redact(text),
     faults: {}, log: config.log,
     exit: code => { throw new Error(`the AI service asked to exit (${code}): the page host runs no faults`); },
   });

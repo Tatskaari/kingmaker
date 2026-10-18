@@ -250,6 +250,11 @@ export class Replica implements Backend {
     return this.move(move, args as LinkMoves[K]);
   }
 
+  /** A report's game (V16, M5): report_game through the link, as this player. */
+  reportGame(game: bigint): Promise<string | Rejection> {
+    return this.link.call("reportGame", { game });
+  }
+
   close(): void {
     this.link.close();
   }

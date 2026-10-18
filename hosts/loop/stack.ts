@@ -6,7 +6,8 @@ import { readStackFile } from "../dev/stack-file.ts";
 /**
  * The GM loop's dev stack (qa/loop/README.md): the dev host (hosts/dev.ts, `--no-keys`) run in the
  * background, so a round's games have a stack to play on between the loop's commands, each its own
- * process; and stopped again. In its own folder and on its own ports (runs/loop-stack, 3330 and
+ * process; and stopped again. A report's restore starts one the same way when no dev stack is up
+ * (hosts/report.ts, in runs/report-stack on free ports: M5). In its own folder and on its own ports (runs/loop-stack, 3330 and
  * 8817), so it never meets a dev stack someone is playing on (3300 and 8787), the e2e (3310) or the
  * arc (3320). The dev host does everything else as `npm run dev` does: the mode (namespace when
  * 11.0.0.1 isn't this machine's), the campaign installed in both services, the doctor.
@@ -19,6 +20,8 @@ export interface StackAsk {
   fake: boolean;
   fresh: boolean;
   mode?: string | undefined;
+  /** The command that stops it, for what's said when one's up already: the loop's unless said. */
+  down?: string;
 }
 
 /** <root>/loop-stack.json: the background dev host, while it runs. */
@@ -32,7 +35,7 @@ const READY = "Kingmaker dev stack ·";
 /** The dev host started in the background, and waited for until its stack is up (its screen, as `npm run dev` prints it), or why not. */
 export async function stackUp(ask: StackAsk, repo: string, wait = 8 * 60_000): Promise<string> {
   const running = runningIn(ask.root);
-  if (running) return `A stack is up already in ${shown(ask.root)} (the dev host's pid ${running.pid}): npm run loop -- stack down first.`;
+  if (running) return `A stack is up already in ${shown(ask.root)} (the dev host's pid ${running.pid}): ${ask.down ?? "npm run loop -- stack down"} first.`;
 
   mkdirSync(ask.root, { recursive: true });
   const args = devArgs(ask, repo);
@@ -104,7 +107,7 @@ function runningIn(root: string): Running | undefined {
   return alive(running.pid) ? running : undefined;
 }
 
-function alive(pid: number): boolean {
+export function alive(pid: number): boolean {
   try {
     process.kill(pid, 0);
     return true;

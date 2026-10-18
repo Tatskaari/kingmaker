@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { IDBFactory } from "fake-indexeddb";
+import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { Identity, Timestamp } from "spacetimedb";
 import { memoryDatabase, metaOf, openIndexedDb, type Database, type Write } from "./database.ts";
 
@@ -20,7 +20,7 @@ const RECORDS: Write[] = [
   { store: "logs", key: ["g1", "calls", 0], value: { operation: "gm.reply" } },
 ];
 
-for (const [kind, open] of [["IndexedDB", () => openIndexedDb("kingmaker-v2-web /kingmaker/pr-preview/pr-0/play/", new IDBFactory())], ["memory", async () => memoryDatabase()]] as const) {
+for (const [kind, open] of [["IndexedDB", () => openIndexedDb("kingmaker-v2-web /kingmaker/pr-preview/pr-0/play/", new IDBFactory(), undefined, IDBKeyRange)], ["memory", async () => memoryDatabase()]] as const) {
   test(`${kind}: records kept as structured clones and read back by key (the logs never), deleted and cleared; a write that can't be kept keeps none of it`, async () => {
     const database: Database = await open();
     await database.write(RECORDS);
@@ -38,5 +38,14 @@ for (const [kind, open] of [["IndexedDB", () => openIndexedDb("kingmaker-v2-web 
 
     await database.clear();
     assert.deepEqual(Object.values(await database.read()).flat(), []);
+  });
+
+  test(`${kind}: a game's log read back for a report, its own lines only, in their order (10 after 2)`, async () => {
+    const database: Database = await open();
+    const lines: Write[] = [2, 10, 0, 1].map(n => ({ store: "logs", key: ["g1", "calls", n], value: { n } }));
+    await database.write([...lines, { store: "logs", key: ["g1", "reviews", 0], value: { review: 0 } }, { store: "logs", key: ["g10", "calls", 0], value: { other: true } }]);
+
+    assert.deepEqual(await database.logs("g1", "calls"), [{ n: 0 }, { n: 1 }, { n: 2 }, { n: 10 }]);
+    assert.deepEqual([await database.logs("g1", "reviews"), await database.logs("g2", "calls")], [[{ review: 0 }], []]);
   });
 }

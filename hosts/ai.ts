@@ -13,6 +13,7 @@ import { canned } from "../ai/service/endpoints/canned.ts";
 import { pipeline } from "../ai/service/endpoints/pipeline.ts";
 import { folderStores } from "../ai/service/folder-stores.ts";
 import { aiService, type AiService } from "../ai/service/server.ts";
+import { keysFrom, withoutKeys } from "../shared/report/redact.ts";
 
 /** Answers kept longer than this are swept at start: a turn that old has long been committed or given up. */
 const KEEP_ANSWERS_MS = 7 * 24 * 60 * 60 * 1000;
@@ -33,6 +34,8 @@ async function main(): Promise<void> {
     stream: { ...config.stdb, periodMs: config.streamMs },
     serves: { model: config.model, gm: config.gm },
     dailyUsd: config.dailyUsd,
+    // A game's own, read for a report, without the keys this process holds: OpenRouter's, the module's bearer, its own token for the module.
+    redact: text => withoutKeys(text, keysFrom([config.apiKey, config.token, config.stdb.token])),
     faults: config.faults,
     log,
     exit: code => process.exit(code),

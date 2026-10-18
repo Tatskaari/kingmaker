@@ -1,4 +1,4 @@
-// Copied from the prototype's src/app/ui/title.tsx at 44c6d4a: it reads a TitleModel in place of the Game (saves are my_games' rows, live, so nothing loads them; describe and ago are title/model.ts's); Report a problem (b) is cut (V16); Esc quits in a terminal and not on a page (:12-16, the app's surface where it read KM_IN_BROWSER). The zoo (z) is v2's (M6): its menu (ui/zoo.tsx) over the title's lines, an exhibit then who to be, where the prototype's carried a visit on.
+// Copied from the prototype's src/app/ui/title.tsx at 44c6d4a: it reads a TitleModel in place of the Game (saves are my_games' rows, live, so nothing loads them; describe and ago are title/model.ts's); Report a problem (b, and its line) is back (M5: the app's ReportModel, about the latest game); Esc quits in a terminal and not on a page (:12-16, the app's surface where it read KM_IN_BROWSER). The zoo (z) is v2's (M6): its menu (ui/zoo.tsx) over the title's lines, an exhibit then who to be, where the prototype's carried a visit on.
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useState } from "react";
 import type { Surface } from "../app/model.ts";
@@ -40,6 +40,7 @@ export function TitleScreen({ game, surface = "terminal" }: { game: TitleModel; 
     })),
     { label: "New game", detail: "make a character and take the case", run: () => game.newCharacter() },
     { label: "The zoo", detail: "every feature of the game, laid out to see and try: the combat ring first", run: openZoo },
+    { label: "Report a problem…", detail: "with the latest game: say what went wrong, and it's saved for Claude", run: () => game.report() },
     { label: "Quit", detail: "the clerk will keep", run: () => game.quit() },
   ];
   const at = Math.min(index, items.length - 1);
@@ -78,6 +79,7 @@ export function TitleScreen({ game, surface = "terminal" }: { game: TitleModel; 
     else if (key.name === "x" || key.name === "delete") doom();
     else if (key.name === "n") game.newCharacter();
     else if (key.name === "z") openZoo();
+    else if (key.name === "b") game.report();
     else if (key.name === "q" || (key.name === "escape" && escQuits(surface))) game.quit();
   });
   const keys: KeyHint[] = game.zooMenu

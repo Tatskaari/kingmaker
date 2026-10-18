@@ -1,4 +1,4 @@
-// Copied from the prototype's src/app/ui/explore.tsx at 44c6d4a, whole but at the seams: the Game is the ExploreModel (client/explore/model.ts), the session's player and the story's lead its view's; the zoo's keys and look, the notebook (j: V3's) and the report (b) are cut; the sidebar's title has the game's number to watch it by (in a terminal: not on a page, the app's surface), and a spectator's sidebar says whose map it is. The town unit's (town-design §3.9), as the prototype has them: the action menu (m, a right-click's "Do something…": ActionMenu, groupsOf, doMenuKey), aiming (aimKey, aimMarks, AimLine, the pointer and the Nearby list as the aim) and the town's effects in the painter; new, a fight on the map as its stand-in's card (FightCard), which holds the keys until it's fought out.
+// Copied from the prototype's src/app/ui/explore.tsx at 44c6d4a, whole but at the seams: the Game is the ExploreModel (client/explore/model.ts), the session's player and the story's lead its view's; the zoo's keys and look and the notebook (j: V3's) are cut, and the report (b) is back (M5: the app's ReportModel); the sidebar's title has the game's number to watch it by (in a terminal: not on a page, the app's surface), and a spectator's sidebar says whose map it is. The town unit's (town-design §3.9), as the prototype has them: the action menu (m, a right-click's "Do something…": ActionMenu, groupsOf, doMenuKey), aiming (aimKey, aimMarks, AimLine, the pointer and the Nearby list as the aim) and the town's effects in the painter; new, a fight on the map as its stand-in's card (FightCard), which holds the keys until it's fought out.
 import { MouseButton, type KeyEvent, type MouseEvent } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -47,7 +47,7 @@ export function ExploreScreen({ explore: game, surface = "terminal" }: { explore
     if (game.aiming) { key.preventDefault(); aimKey(game, key); return; }
     if (game.menu) { key.preventDefault(); tileMenuKey(game, game.menu, key); return; }
     // A fight on the map (town-design §3.3): its card is up until it's fought out (Enter), as the battlefield was; the sheet, the help and the menu still open.
-    if (game.fight && !["c", "r", "escape", "q", "f1"].includes(key.name) && key.sequence !== "?") {
+    if (game.fight && !["c", "r", "b", "escape", "q", "f1"].includes(key.name) && key.sequence !== "?") {
       key.preventDefault();
       if (!game.view.watching && (key.name === "return" || key.name === "enter" || key.name === "kpenter" || key.name === "space")) void game.fightItOut();
       return;
@@ -61,6 +61,7 @@ export function ExploreScreen({ explore: game, surface = "terminal" }: { explore
     else if (key.name === "g") void game.toLead();
     else if (key.name === "c") { game.overlay = { kind: "sheet" }; game.emit(); }
     else if (key.name === "r") { game.overlay = { kind: "log" }; game.emit(); }
+    else if (key.name === "b") game.report("b");
     else if (key.sequence === "?" || key.name === "f1") { game.overlay = { kind: "help" }; game.emit(); }
     else if (key.name === "escape" || key.name === "q") { game.overlay = { kind: "menu", index: 0 }; game.emit(); }
   });
@@ -128,6 +129,7 @@ export function ExploreScreen({ explore: game, surface = "terminal" }: { explore
     ["c", "sheet", button(() => { game.overlay = { kind: "sheet" }; game.emit(); })],
     ["Esc", "menu", overlay("menu")], ["?", "help", overlay("help")], ["e", "interact", button(() => game.interact())], ["←↑→↓", "walk"],
     ["r", "what happened", overlay("log")],
+    ["b", "report a problem", button(() => game.report("b"))],
   ];
   const menuGroups = game.doMenu ? groupsOf(game.doMenu) : undefined;
 

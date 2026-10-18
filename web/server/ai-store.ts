@@ -1,6 +1,6 @@
 import type { Kept, Persistence } from "../../ai/service/memory-stores.ts";
 import type { StoredAnswer } from "../../ai/service/stores.ts";
-import { metaOf, type Records } from "./database.ts";
+import { metaOf, type Database, type Records } from "./database.ts";
 import type { WriteBehind } from "./write-behind.ts";
 
 /**
@@ -13,7 +13,7 @@ import type { WriteBehind } from "./write-behind.ts";
  *   without the notes its think made (a re-dispatched think is answered from the store).
  * - Each game's copy of the lore, by [game, path], is written behind.
  * - Each game's call log and memory reviews are written behind and capped: the last KEEP_LINES of
- *   each, kept for a report of a problem and never read back here.
+ *   each, kept for a report of a problem, which reads them back (everything handed in written first).
  * - The ledger is kept as today's spend (meta's `spent`), which is all the daily ceiling reads.
  *
  * In meta: `spent` ({day, usd}), and `lines`, how many lines each game's log has had.
@@ -25,7 +25,7 @@ export const KEEP_LINES = 200;
 /** Today's spend (UTC), as the ledger's lines add it up. */
 interface Spent { day: string; usd: number }
 
-export function aiPersistence(queue: WriteBehind, records: Records): Persistence {
+export function aiPersistence(queue: WriteBehind, records: Records, database: Pick<Database, "logs">): Persistence {
   const meta = metaOf(records);
   let spent = (meta.get("spent") as Spent | undefined) ?? { day: "", usd: 0 };
   const lines = { ...(meta.get("lines") as Record<string, number> | undefined) };
@@ -44,6 +44,10 @@ export function aiPersistence(queue: WriteBehind, records: Records): Persistence
       if (n >= KEEP_LINES) queue.delete("logs", [game, log, n - KEEP_LINES]);
       lines[`${game} ${log}`] = n + 1;
       queue.put("meta", "lines", { ...lines });
+    },
+    async lines(log, game) {
+      await queue.flush();
+      return database.logs(game, log);
     },
     ledger(line) {
       spent = spentWith(spent, line);

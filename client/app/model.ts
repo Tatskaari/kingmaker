@@ -5,6 +5,9 @@ import { ExploreModel } from "../explore/model.ts";
 import type { ExploreView } from "../explore/rows.ts";
 import { FightModel } from "../fight/model.ts";
 import type { FightView } from "../fight/view.ts";
+import type { Reporting } from "../report/file.ts";
+import { ReportModel } from "../report/model.ts";
+import { whereOf } from "../report/where.ts";
 import { SceneModel, type SheetShown } from "../scene/model.ts";
 import type { SceneView } from "../scene/view.ts";
 import { TitleModel } from "../title/model.ts";
@@ -110,6 +113,10 @@ export interface AppPart {
   readonly refusal: string | undefined;
   go(intent: Intent): void;
   act: Backend["act"];
+  /** A new game as a ready-made character (new_game): the page's create screen makes one, as the terminal client's --build does. */
+  newGame: Backend["newGame"];
+  /** Report a problem (M5): the question over the screen; `from` says where it was asked for. */
+  askReport(from?: string): void;
   subscribe(listener: () => void): () => void;
   /** How many changes have been told of: the screens draw by it (useStore), and look again once subscribed. */
   readonly version: number;
@@ -136,6 +143,8 @@ export class AppModel implements AppPart {
   explore?: ExploreModel;
   /** The seat's game's fight, while it's on or its end is on screen: a new model for each fight. */
   fight?: FightModel;
+  /** Reporting a problem (V16, M5): the question over whichever screen is up, and the screens and errors it keeps. */
+  readonly report: ReportModel;
   /** The player asked to leave: the host takes the screen down. */
   quitting = false;
   problem: string | undefined;
@@ -150,8 +159,10 @@ export class AppModel implements AppPart {
   /** The screen the last refusal came on (none once the player has gone to another): a line refused in a scene isn't the title's to say after /quit, nor a name refused on the create screen New game's next time. */
   private refusedOn?: { words: string; screen?: Screen };
 
-  constructor(backend: Backend, options: { campaign: string; intent?: Intent; surface?: Surface; onQuit?: () => void; saveMs?: number }) {
+  constructor(backend: Backend, options: { campaign: string; intent?: Intent; surface?: Surface; onQuit?: () => void; saveMs?: number; reporting?: Reporting }) {
     this.backend = backend;
+    this.report = new ReportModel({ where: from => whereOf(this, from), game: () => this.reportedGame(), backend }, options.reporting);
+    this.report.onFiled = said => { if (this.shown === "explore") { this.explore?.say(said); this.explore?.emit(); } };
     this.campaign = options.campaign;
     this.surface = options.surface ?? "terminal";
     this.intent = options.intent ?? "title";
@@ -182,6 +193,12 @@ export class AppModel implements AppPart {
     this.problem = undefined;
     this.refusedOn = undefined;
     return this.backend.act(move, args);
+  };
+
+  newGame: Backend["newGame"] = args => {
+    this.problem = undefined;
+    this.refusedOn = undefined;
+    return this.backend.newGame(args);
   };
 
   /** Something went wrong in the client itself: said on the scene's status line, or on the title's or creation's error line. */
@@ -222,6 +239,23 @@ export class AppModel implements AppPart {
     this.onQuit();
   }
 
+  askReport(from?: string): void {
+    this.report.ask(from);
+  }
+
+  /** A report asked for from a screen: the question over it, sent at once with `words` (/report Kell asked twice). */
+  private reportFrom(from: string, words?: string): void {
+    this.report.ask(from);
+    if (words?.trim()) void this.report.send(words);
+  }
+
+  /** The game a report is about: the seat's; on the title, the latest played (a zoo visit's too); none before any. */
+  private reportedGame(): bigint | undefined {
+    if (this.rows.seat) return this.rows.seat.gameId;
+    const latest = [...this.rows.games].sort((a, b) => Number(b.lastPlayedAt.microsSinceUnixEpoch - a.lastPlayedAt.microsSinceUnixEpoch))[0];
+    return latest?.gameId;
+  }
+
   /**
    * The rows changed: the screens' models read them afresh, a character just made goes on to its
    * sheet, and the scene follows. A game whose seat goes from under the player (deleted by its host,
@@ -229,6 +263,7 @@ export class AppModel implements AppPart {
    */
   private update(): void {
     this.rows = this.backend.home();
+    this.report.noted.game = this.rows.seat ? String(this.rows.seat.gameId) : undefined;
     const view = this.backend.view();
     const was = this.shown;
     this.noteRefusal();
@@ -279,6 +314,7 @@ export class AppModel implements AppPart {
       end: exit => this.backend.act("endScene", { game, exit }),
       // A word with whoever walks with the player, from the card between scenes (town-design §1.1: t): talking to them on the map.
       talk: who => this.backend.interact({ verb: "talk", target: who }),
+      report: (from, words) => this.reportFrom(from, words),
     }, () => this.sheetShown());
   }
 
@@ -291,6 +327,7 @@ export class AppModel implements AppPart {
       quit: () => this.go("title"),
       // A fight on the map's stand-in (town-design §3.3), as the scene's is.
       fightItOut: () => this.backend.act("fightItOut", {}),
+      report: from => this.reportFrom(from),
     }, () => this.backend.explore(), () => this.sheetShown());
   }
 
@@ -307,6 +344,7 @@ export class AppModel implements AppPart {
       turn: act => this.backend.act("fightTurn", { act }),
       out: () => this.backend.walk({ toward: OUT }),
       quit: () => this.go("title"),
+      report: from => this.reportFrom(from),
     }, { fromStart: fresh, sheet: () => this.sheetShown(), zoo: fightZoo(this.backend, () => this.rows) });
   }
 

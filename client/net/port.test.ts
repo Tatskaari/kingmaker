@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { test, type TestContext } from "node:test";
 import { Identity, Timestamp } from "spacetimedb";
-import { CLIENT_TABLES, type ClientTable, type Row, type ToClient, type ToServer } from "../../shared/protocol/port.ts";
+import { CLIENT_TABLES, PROTOCOL, type ClientTable, type Row, type ToClient, type ToServer } from "../../shared/protocol/port.ts";
 import { YARD } from "../check/fixture.ts";
 import { CAERWYN_MAPS } from "../check/map.ts";
 import { yardPlaceRows, YARD_PLACE, YARD_SCENE } from "../check/place.ts";
@@ -71,14 +71,14 @@ type Post = (message: ToClient) => void;
  * A server stood in for on the port's other end: connected and the snapshot on connect, and each
  * move to `onMove`, which posts what the move does and its answer. What it heard, in order.
  */
-function serverOn(port: MessagePort, tables: Tables, onMove: (move: ToServer & { kind: "move" }, post: Post) => void = (move, post) => post({ kind: "answer", id: move.id })): ToServer[] {
+function serverOn(port: MessagePort, tables: Tables, onMove: (move: ToServer & { kind: "move" | "call" }, post: Post) => void = (move, post) => post({ kind: "answer", id: move.id })): ToServer[] {
   const heard: ToServer[] = [];
   const post: Post = message => port.postMessage(message);
   port.onmessage = event => {
     const message = event.data as ToServer;
     heard.push(message);
     if (message.kind === "connect") { post({ kind: "connected", identity: "c200aa" }); post({ kind: "snapshot", tables: snapshotOf(tables) }); }
-    if (message.kind === "move") onMove(message, post);
+    if (message.kind === "move" || message.kind === "call") onMove(message, post);
   };
   return heard;
 }
@@ -137,7 +137,7 @@ test("the Replica over a port draws the yard as the Connection over the SDK does
   const connection = await connectionOver(t, tables);
   const { replica, heard } = await replicaOver(t, tables);
 
-  assert.deepEqual(heard[0], { kind: "connect", protocol: 1, session: "default" });
+  assert.deepEqual(heard[0], { kind: "connect", protocol: PROTOCOL, session: "default" });
   assert.deepEqual(replica.view(), connection.view());
   assert.ok(replica.view()!.entries.length > 3 && replica.view()!.place, "the yard's lines and its place are drawn");
   assert.deepEqual(replica.home(), connection.home());
@@ -192,6 +192,23 @@ test("cut off, every move is refused in the server's words: the one waiting, and
   const { port1, port2 } = channel(t);
   port2.onmessage = () => port2.postMessage({ kind: "status", cutOff: words } satisfies ToClient);
   await assert.rejects(new Replica(portLink(port1)).ready, { message: words });
+});
+
+test("a call is answered with its procedure's text (a report's game), or why not; cut off, it's refused unsent", PATIENCE, async t => {
+  const { replica, heard, server } = await replicaOver(t, yardTables(), (call, post) => {
+    if (call.kind !== "call") return;
+    const { game } = call.args as { game: bigint };
+    post(game === 1n ? { kind: "answer", id: call.id, value: '{"kind":"kingmaker-game","id":"1"}' } : { kind: "answer", id: call.id, rejection: { code: "error", text: "(No.)" } });
+  });
+
+  assert.equal(await replica.reportGame(1n), '{"kind":"kingmaker-game","id":"1"}');
+  assert.deepEqual(await replica.reportGame(2n), { code: "error", text: "(No.)" });
+  assert.deepEqual(heard.filter(m => m.kind === "call").map(m => m.kind === "call" && [m.name, m.args]), [["reportGame", { game: 1n }], ["reportGame", { game: 2n }]]);
+
+  server.postMessage({ kind: "status", cutOff: "(Gone.)" } satisfies ToClient);
+  await tick();
+  assert.deepEqual(await replica.reportGame(1n), { code: "error", text: "(Gone.)" });
+  assert.equal(heard.filter(m => m.kind === "call").length, 2);
 });
 
 test("nothing the port link or the Replica loads is the bindings' (only connection.ts loads the SDK's connection), and of the SDK only the port takes its classes", () => {

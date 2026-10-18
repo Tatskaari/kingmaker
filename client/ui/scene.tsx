@@ -510,6 +510,7 @@ export function SceneScreen({ scene, surface = "terminal" }: { scene: SceneModel
     ...(scene.story ? [["/journal", "", () => { scene.input("/journal"); }] as KeyHint] : []),
     ...(world && side ? [["Tab", "the place"] as KeyHint] : []), ["PgUp/PgDn", "scroll"],
     ["/quit", "", () => { scene.input("/quit"); }],
+    ["/report", "", () => { scene.input("/report"); }],
   ];
   // What the pointer's on, and the bottom line about it in place of the keys (as the map's), while no menu's open.
   const menu = scene.overlay ? undefined : scene.sceneMenu;

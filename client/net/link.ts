@@ -1,4 +1,4 @@
-import type { ClientTable, MoveWire, RowOp } from "../../shared/protocol/port.ts";
+import type { CallWire, ClientTable, MoveWire, RowOp } from "../../shared/protocol/port.ts";
 import type { Rejection } from "../backend.ts";
 import type { DbConnection } from "../module_bindings/index.ts";
 import type {
@@ -54,6 +54,9 @@ export interface LinkStatus { trouble?: string | undefined; cutOff?: string | un
 /** Every move a link carries, by its name on the wire, with its arguments as the bindings have them. */
 export type LinkMoves = { [K in MoveWire]: Parameters<DbConnection["reducers"][K]>[0] };
 
+/** Every procedure a link calls, by its name on the wire, with its arguments as the bindings have them. */
+export type LinkCalls = { [K in CallWire]: Parameters<DbConnection["procedures"][K]>[0] };
+
 /**
  * The way to the simulation: the rows it keeps for this client, word of each row event and of its own
  * trouble, and the moves.
@@ -70,5 +73,7 @@ export interface Link {
   covers(): boolean;
   /** A move: undefined when it was made, else why not. */
   move<K extends MoveWire>(name: K, args: LinkMoves[K]): Promise<Rejection | undefined>;
+  /** A procedure called: its text (a report's game, as JSON), else why it couldn't be (the server out of reach, cut off). */
+  call<K extends CallWire>(name: K, args: LinkCalls[K]): Promise<string | Rejection>;
   close(): void;
 }

@@ -19,14 +19,25 @@ export interface AnswerStore {
   sweep?(olderThanMs: number, now?: number): Promise<number>;
 }
 
-/** Each game's model calls in full (its calls.jsonl). Synchronous, as the model client's log is. */
-export interface CallLog { append(game: string, entry: Record<string, unknown>): void }
+/**
+ * Each game's model calls in full (its calls.jsonl). Appended synchronously, as the model client's
+ * log is; read back for a report of a problem (V16: GET /v1/games/{game}/calls).
+ */
+export interface CallLog {
+  append(game: string, entry: Record<string, unknown>): void;
+  /** The game's lines, oldest first (a line that isn't JSON is kept as { unreadable }); none for a game with none. */
+  read(game: string): Promise<Array<Record<string, unknown>>>;
+}
 
 /**
  * Each game's memory reviews (its memory-reviews.jsonl, the prototype's file): a line a reviewed
- * turn, with what the attention filter flagged and what each review it fired changed, or why it failed.
+ * turn, with what the attention filter flagged and what each review it fired changed, or why it
+ * failed. Read back as the call log is.
  */
-export interface ReviewLog { append(game: string, line: Record<string, unknown>): void }
+export interface ReviewLog {
+  append(game: string, line: Record<string, unknown>): void;
+  read(game: string): Promise<Array<Record<string, unknown>>>;
+}
 
 /** A line per model call, with what it cost (costUsd) and when (at), across every game. */
 export interface Ledger {

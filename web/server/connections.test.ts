@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 import { Identity } from "spacetimedb";
-import type { ToClient, ToServer } from "../../shared/protocol/port.ts";
+import { PROTOCOL, type ToClient, type ToServer } from "../../shared/protocol/port.ts";
 import { memoryHost, type MemoryHost } from "../../simulation/src/host/memory.ts";
 import { all, caerwynArgs, scriptedAi } from "../../simulation/src/host/testing.ts";
 import { serveClient } from "./connections.ts";
@@ -34,7 +34,7 @@ function client(t: TestContext, served: Parameters<typeof serveClient>[1]) {
   const [mine, theirs] = inProcessPair(5);
   t.after(() => { mine.close(); theirs.close(); });
   const heard: ToClient[] = [];
-  mine.postMessage({ kind: "connect", protocol: 1, session: "wren" } satisfies ToServer);
+  mine.postMessage({ kind: "connect", protocol: PROTOCOL, session: "wren" } satisfies ToServer);
   serveClient(portDuplex(theirs), served);
   mine.onmessage = event => heard.push(event.data as ToClient);
   let id = 0;
@@ -44,7 +44,13 @@ function client(t: TestContext, served: Parameters<typeof serveClient>[1]) {
     await until(() => heard.some(m => m.kind === "answer" && m.id === asked));
     return heard.find((m): m is ToClient & { kind: "answer" } => m.kind === "answer" && m.id === asked)!;
   };
-  return { heard, move, send: (message: ToServer) => mine.postMessage(message) };
+  const call = async (name: string, args: unknown): Promise<ToClient & { kind: "answer" }> => {
+    const asked = ++id;
+    mine.postMessage({ kind: "call", id: asked, name, args } as ToServer);
+    await until(() => heard.some(m => m.kind === "answer" && m.id === asked));
+    return heard.find((m): m is ToClient & { kind: "answer" } => m.kind === "answer" && m.id === asked)!;
+  };
+  return { heard, move, call, send: (message: ToServer) => mine.postMessage(message) };
 }
 
 async function until(done: () => boolean, ms = 5000): Promise<void> {
@@ -107,7 +113,24 @@ test("a move that throws is an error, logged, and its transaction rolled back; a
   const heard: ToClient[] = [];
   mine.onmessage = event => heard.push(event.data as ToClient);
   serveClient(portDuplex(theirs), served);
-  mine.postMessage({ kind: "connect", protocol: 2 });
+  mine.postMessage({ kind: "connect", protocol: PROTOCOL + 1 });
   await until(() => heard.length > 0);
   assert.deepEqual(heard, [{ kind: "status", cutOff: "(The game and its page are from different builds: reload the page.)" }]);
+});
+
+test("a call is a procedure, as the caller: report_game's text the answer's value (the host's own report when it has one); a procedure there isn't is a rejection", async t => {
+  const { served, sim } = host();
+  const wren = client(t, served);
+  await wren.move("newGame", NEW_GAME);
+  const game = all(sim.db.game)[0]!.id;
+
+  const answered = await wren.call("reportGame", { game });
+  assert.equal(answered.rejection, undefined);
+  const report = JSON.parse(answered.value!) as { kind: string; id: string };
+  assert.deepEqual([report.kind, report.id], ["kingmaker-game", String(game)]);
+  assert.equal(JSON.parse((await wren.call("reportGame", { game: 99n })).value!).refusal.code, "unknown");
+  assert.deepEqual((await wren.call("pingAi", {})).rejection, { code: "error", text: "(There's no procedure pingAi here.)" });
+
+  const own = client(t, { ...served, reportGame: async (_who, asked) => `{"kind":"the host's own","game":"${asked}"}` });
+  assert.equal((await own.call("reportGame", { game })).value, `{"kind":"the host's own","game":"${game}"}`);
 });

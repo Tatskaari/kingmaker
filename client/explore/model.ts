@@ -77,6 +77,8 @@ export interface ExploreActions {
   quit(): void;
   /** The fight on the map's stand-in (town-design §3.3): fought out, as won (fight_it_out). Why not, when it wasn't. */
   fightItOut?(): Promise<Rejection | undefined>;
+  /** Report a problem (M5): the question over the map (`from`: where it was asked for, b or the menu). */
+  report?(from: string): void;
 }
 
 /** How long a walk waits between steps, so the player sees the way (the prototype's KM_APP_STEP_MS: the host's setting now). */
@@ -305,6 +307,12 @@ export class ExploreModel {
   quit(): void {
     this.walking = false;
     this.actions.quit();
+  }
+
+  /** Report a problem (M5: b, or the menu's Report a problem…): a walk stops, and the question comes up over the map. */
+  report(from: string): void {
+    this.walking = false;
+    this.actions.report?.(from);
   }
 
   closeOverlay(): void {

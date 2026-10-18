@@ -1,9 +1,12 @@
 // Its helpers (ok, fail, note, watch, open, until, waitFor, shot, press, :89-260) and its steps for two tabs, a browser that keeps nothing and the key form (:1209-1370) are copied from the prototype's src/web/static/check.ts at 44c6d4a, with the usual edits (v2's paths and screens, the saves read from every IndexedDB store, what the page sends each worker watched by a probe in front of its script); the play is v2's own, on the fake GM.
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { gunzipSync } from "node:zlib";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
+import type { Report } from "../../shared/report/format.ts";
+import { boxAround, countDoorsSaid, doorsDrawn, doorsSaid, doorsSeen, doorSync, lampsSeen, placed, placement, watchDoorSync, type Placement } from "./doors-check.ts";
 import { DEFAULT_BASE, serveStatic } from "./serve.ts";
 import { keyNeedles, readSite, siteProblems, textOf } from "./site.ts";
 
@@ -21,12 +24,16 @@ import { keyNeedles, readSite, siteProblems, textOf } from "./site.ts";
  * - a made-up key from the form: kept in localStorage, and in no URL, console line, IndexedDB record
  *   or screen;
  * - then the play, on the fake GM: the title, a character made, the map ("The lead: The Hanged
- *   Clerk") with its action menu (m opens it, Esc closes it: town-design §1.1), g to the yard and
+ *   Clerk") with its doors and lamp posts drawn as pictures over the ASCII (M5: every pixel in a cell
+ *   the game said they may paint, in step with the frames as the map scrolls, at 1x and 2x), its
+ *   action menu (m opens it, hiding the doors under it, Esc closes it: town-design §1.1), g to the yard and
  *   the opening streamed in, a line and its reply with the suggested lines
- *   after it, a reload with the title's Continue carrying the game on from IndexedDB (the
+ *   after it, a problem reported (/report: M5, the page downloading the report, the game in it the
+ *   server worker's), a reload with the title's Continue carrying the game on from IndexedDB (the
  *   simulation's rows and the AI service's stores), another line, Ctrl+C and Play again (a new client
  *   worker, the server playing on), and a second tab told the game is open in this one (it takes it
- *   over); a browser that won't keep anything is told so.
+ *   over); a browser that won't keep anything is told so, and plays on: a ready-made character from
+ *   the create screen (M5), straight to the map, there with ?doors=off (the ASCII alone).
  *
  * Then the zoo (M6): ?zoo=ring starts on the fake GM with no key asked for, its dice fixed by the
  * address (&seed=1, as the server worker is told), the client worker visits the combat ring as the
@@ -491,6 +498,7 @@ async function thePlay(browser: Browser, url: string): Promise<void> {
   await play(browser, url);
   await twoTabs(browser, url);
   await noStorage(browser, url);
+  await doorsAt2x(url);
 }
 
 /** The title, a character, the map, the yard's opening streamed, a line and its reply, then a reload: Continue carries the game on from IndexedDB, and it plays on. */
@@ -506,9 +514,12 @@ async function play(browser: Browser, url: string): Promise<void> {
     await aCharacter(page);
     await waitFor(page, "The lead:.*Hanged Clerk", "Set off: the town's map, and the lead is the hanged clerk", 60000);
     await shot(page, "map");
+    await theDoors(page);
     await theMenu(page);
     await theOpening(page);
+    await thePlacesDoors(page);
     await aLine(page, LINE, "What have we got", REPLY, "the fake GM's reply");
+    await aReport(page);
     await theSaves(page);
     await reloadAndContinue(page);
     await aLine(page, "Who's the girl on the wall, Sergeant?", "girl on the wall, Sergeant", "smirk", "after the reload, the game plays on: the next line's reply");
@@ -555,14 +566,72 @@ async function aCharacter(page: Page): Promise<void> {
 
 /** m on the map: the action menu over it, made from the sheet's catalogue (town-design §1.1, step 1); Esc closes it, and the map is as it was. */
 async function theMenu(page: Page): Promise<void> {
+  const count = (await doorsSeen(page))?.drawn ?? 0;
   await press(page, "m");
   await waitFor(page, "What will you do\\?", "m on the map: the action menu", 30000);
   await shot(page, "menu");
+  await doorsUnder(page, "What will you do?");
   await press(page, "Escape");
   await sleep(400);
   const screen = await text(page);
   if (!/What will you do\?/.test(screen) && /The lead:.*Hanged Clerk/s.test(screen)) ok("Esc closes the action menu, the map as it was");
   else fail("Esc left the action menu up, or the map wasn't under it");
+  let back = 0;
+  for (let i = 0; i < 20 && back < count; i++) { back = (await doorsSeen(page))?.drawn ?? 0; if (back < count) await sleep(150); }
+  if (back >= count) ok(`and the doors are drawn again (${back})`);
+  else fail(`after the menu, ${back} doors drawn, ${count} before it`);
+}
+
+/**
+ * New (M5): the doors and lamp posts on the map, drawn as pictures over the ASCII (web/page/doors.ts):
+ * those in view drawn, every pixel of them in a cell the game said they may paint, on a canvas exactly
+ * over xterm's; and walking, the map scrolling under you, they keep in step with the frames.
+ */
+async function theDoors(page: Page): Promise<void> {
+  await watchDoorSync(page);
+  const seen = await doorsDrawn(page, 1);
+  if (seen && seen.drawn >= 1) ok(`the doors in view on the map are drawn as pictures (${seen.drawn} of ${seen.doors.length}: ${seen.doors.map(d => `${d.id.replace(/^[^:]*:/, "")} ${d.look}`).join(", ")})`);
+  else { fail(`the doors on the map: ${JSON.stringify(seen)}`); return; }
+  const lamps = await lampsSeen(page);
+  if (lamps && lamps.drawn > 0) ok(`and the lamp posts in view, by day (${lamps.drawn} of ${lamps.lamps.length}: ${lamps.lamps.map(l => `${l.id.replace(/^[^:]*:/, "")} ${l.look}`).join(", ")})`);
+  else fail(`the lamp posts on the map: ${JSON.stringify(lamps)}`);
+  const where = await placement(page);
+  if (placed(where, 1) && where.drawn > 500) ok(`every pixel of them is in a cell the game said they may paint (${where.drawn} device pixels), on a canvas exactly over xterm's (${where.size}, ${where.cell} a cell)`);
+  else fail(`the doors' placement: ${JSON.stringify(where)}`);
+  await shot(page, "doors");
+  // In step: walking scrolls the map under you, and the doors with it (there and back: g still finds the lead).
+  const before = (await doorSync(page)).taken;
+  for (const key of ["ArrowLeft", "ArrowLeft", "ArrowLeft", "ArrowRight", "ArrowRight", "ArrowRight"]) {
+    await page.keyboard.press(key);
+    await sleep(350);
+  }
+  await sleep(600);
+  const sync = await doorSync(page);
+  if (sync.taken - before >= 3 && !sync.takenOff && !sync.drawnOff && sync.drawn > 0) ok(`walking, the doors keep in step with the frames: taken ${sync.taken - before} times and drawn with xterm ${sync.drawn} times, on the cells of the frame they came with every time (${sync.cells} cells compared)`);
+  else fail(`walking, the doors out of step: ${JSON.stringify(sync)}`);
+}
+
+/** New (M5): the scene's place, drawn beside the talk, has its doors drawn as pictures too (the stage's), each pixel in its cells. */
+async function thePlacesDoors(page: Page): Promise<void> {
+  let seen = await doorsSeen(page);
+  for (let i = 0; i < 50 && !(seen && seen.drawn > 0 && seen.doors.some(d => d.view === "stage")); i++) { await sleep(200); seen = await doorsSeen(page); }
+  const stage = seen?.doors.filter(d => d.view === "stage") ?? [];
+  const where = await placement(page);
+  if (seen && seen.drawn > 0 && stage.length && placed(where, 1)) ok(`the yard's doors, in the scene's place beside the talk, are drawn as pictures too (${stage.map(d => `${d.id.replace(/^[^:]*:/, "")} ${d.look}`).join(", ")}), every pixel in its cells`);
+  else fail(`the scene's place's doors: ${JSON.stringify(seen)}, their placement ${JSON.stringify(where)}`);
+}
+
+/** New (M5): a box over the map (the action menu) hides the doors and lamp posts under it: none of their cells or pixels is in it. */
+async function doorsUnder(page: Page, title: string): Promise<void> {
+  const box = await boxAround(page, title);
+  let under: Placement | undefined;
+  for (let i = 0; i < 20 && box; i++) {
+    under = await placement(page, box);
+    if (!under.cellsInside && !under.drawnInside) break;
+    await sleep(150);
+  }
+  if (box && under && !under.cellsInside && !under.drawnInside && !under.outside) ok(`under the action menu (cells ${box.left}-${box.right} by ${box.top}-${box.bottom}) the doors and lamp posts are hidden: none of their cells or pixels is in it`);
+  else fail(`the doors under the action menu: ${JSON.stringify({ box, under })}`);
 }
 
 /** g walks to the lead and the yard opens; the fake's opening streams in, its first words before its last; then the box is open. */
@@ -592,6 +661,45 @@ async function aLine(page: Page, line: string, said: string, replied: string, wh
   await waitFor(page, replied, what, 60000);
   await waitFor(page, "1–\\d into the box", "then the lines suggested, over the box", 30000);
   await shot(page, `reply-${replied}`);
+}
+
+/**
+ * A problem reported from the page (M5): /report with its words in the scene's box files it at once;
+ * the client worker makes the report, its game asked of the server worker (its rows, the AI service's
+ * calls and docs, the host's log), and the page downloads it as kingmaker-report-<time>.json.gz; the
+ * screen says where it went, to tell Claude; the download is the report (its words, where, the screen,
+ * the game), gzipped. Enter puts the word away, the scene as it was.
+ */
+async function aReport(page: Page): Promise<void> {
+  const words = "The fake GM never answers what I say";
+  const downloaded = page.waitForEvent("download", { timeout: 60000 });
+  await page.keyboard.type(`/report ${words}`, { delay: 10 });
+  await press(page, "Enter");
+  const download = await downloaded.catch(() => undefined);
+  if (!download) { fail("/report: no download came"); return; }
+  const name = download.suggestedFilename();
+  if (/^kingmaker-report-\d{8}-\d{6}\.json\.gz$/.test(name)) ok(`/report: the page downloads ${name}`);
+  else fail(`/report: the download is named ${name}`);
+  // The box wraps its words, so "tell" and "Claude" may be a row apart (the rest of each row between them).
+  const named = name.replace(/\./g, "\\.");
+  await waitFor(page, `Downloaded ${named}.*tell.*Claude 'report ${named}'`, "the screen says where it went, to tell Claude", 20000);
+  await shot(page, "report");
+  const file = join(OUT, name);
+  await download.saveAs(file);
+  const report = JSON.parse(gunzipSync(readFileSync(file)).toString("utf8")) as Report;
+  const game = report.game && !("error" in report.game) ? report.game : undefined;
+  const ai = game && !("error" in game.ai) ? game.ai : undefined;
+  if (report.kind === "kingmaker-report" && report.words === words && report.where.screen === "scene" && report.build.host === "page" && report.screens.now?.includes("The Hanged Clerk")) ok(`the download is the report: its words, where (${report.where.scene?.title}, turn ${report.where.scene?.turn}), the screen as it was, the build (stamp ${report.build.stamp})`);
+  else fail(`the download isn't the report it should be: ${JSON.stringify({ kind: report.kind, words: report.words, where: report.where, build: report.build }).slice(0, 300)}`);
+  if (game?.rows.transcript?.some(r => r.text === LINE) && ai?.calls.calls.some(c => c.operation === "two-part.reply") && game.log?.length) ok(`with the game the server worker gave: ${Object.values(game.rows).reduce((n, list) => n + list.length, 0)} rows, ${ai.calls.calls.length} call lines from IndexedDB, ${ai.docs.docs.length} docs, ${game.log.length} log lines`);
+  else fail(`the report's game isn't the server worker's: ${JSON.stringify(report.game).slice(0, 300)}`);
+  const heard = await page.evaluate(`km.heard.filter(h => h.type === "report").map(h => h.name)`) as string[];
+  if (heard.includes(name)) ok("the page heard the report from the client worker");
+  else fail(`km.heard has no report: ${JSON.stringify(heard)}`);
+  await press(page, "Enter");
+  await sleep(400);
+  if (!/Report saved/.test(await text(page))) ok("Enter puts the word away, the scene as it was");
+  else fail("the report's word stayed up after Enter");
 }
 
 /** IndexedDB holds the game: the simulation's rows (the character's among them) and the AI service's stores (an answer kept). */
@@ -671,21 +779,70 @@ async function twoTabs(browser: Browser, url: string): Promise<void> {
   }
 }
 
-/** A browser that won't let the page keep anything (IndexedDB refused, as with this site's data blocked): the game plays, and the bar says it won't be kept. */
+/**
+ * A browser that won't let the page keep anything (IndexedDB refused, as with this site's data blocked): the game plays,
+ * and the bar says it won't be kept; a ready-made character from the create screen (M5), straight to the map, there with
+ * ?doors=off: the ASCII alone, the client never saying where the doors are.
+ */
 async function noStorage(browser: Browser, url: string): Promise<void> {
   const context = await browser.newContext({ viewport: VIEWPORT });
   const refuse = `IDBFactory.prototype.open = function () { throw new DOMException("The user denied permission to access the database.", "SecurityError"); };\n`;
   await watch(context, new URL(url).origin, refuse);
   try {
-    const { page } = await open(context, url, `fake&size=${COLS}x${ROWS}`);
+    const { page } = await open(context, url, `fake&size=${COLS}x${ROWS}&doors=off`);
     await waitFor(page, "Hanged Clerk of Caerwyn", "without IndexedDB: the title", 60000);
+    await countDoorsSaid(page);
     const said = await page.innerText("#key-bar [data-storage]").catch(() => "");
     if (said && (await page.isVisible("#key-bar [data-storage]"))) ok(`without IndexedDB the game plays, and the bar under it says it won't be kept ("${said}")`);
     else fail(`without IndexedDB the bar says "${said}"`);
     await shot(page, "no-storage");
+    await aReadyMade(page);
+    await sleep(1500);
+    const none = await page.evaluate(`km.doors === undefined && !document.querySelector(".km-doors")`);
+    const told = await doorsSaid(page);
+    if (none && told === 0) ok("?doors=off leaves the map's ASCII alone: no overlay, and the client worker never says where the doors are");
+    else fail(`?doors=off: an overlay ${!none}, the client said where the doors are ${told} times`);
   } finally {
     await context.close();
   }
+}
+
+/** New (M5): at twice the pixels (a real device scale factor), the doors and lamp posts drawn as crisply, every pixel in its cell, on a canvas exactly over xterm's. */
+async function doorsAt2x(url: string): Promise<void> {
+  const browser = await chromium.launch({ args: ["--force-device-scale-factor=2", `--window-size=${VIEWPORT.width},${VIEWPORT.height}`] });
+  try {
+    const context = await browser.newContext({ viewport: null });
+    await watch(context, new URL(url).origin);
+    const { page } = await open(context, url, `fake&size=${COLS}x${ROWS}`);
+    await waitFor(page, "Hanged Clerk of Caerwyn", "at 2x: the title", 60000);
+    await press(page, "n");
+    await waitFor(page, "Or play one ready-made, straight in:", "at 2x: n, the ready-made characters");
+    await press(page, "Tab", "Tab", "Enter");
+    await waitFor(page, "The lead:.*Hanged Clerk", "at 2x: the cleric, straight to the map", 60000);
+    const seen = await doorsDrawn(page, 1);
+    const where = await placement(page);
+    if (seen && seen.drawn >= 1 && placed(where, 2) && where.drawn > 2000) ok(`at 2x: ${seen.drawn} doors drawn, every pixel of them and the lamp posts in a cell the game said they may paint (${where.drawn} device pixels), on a canvas exactly over xterm's (${where.size}, ${where.cell} a cell)`);
+    else fail(`at 2x: the doors ${JSON.stringify(seen)}, their placement ${JSON.stringify(where)}`);
+    await shot(page, "doors-2x");
+  } finally {
+    await browser.close();
+  }
+}
+
+/** New (M5): the create screen's ready-made characters, the campaign's five under the fields; a name, Tab, Tab and → three times picks the rogue out, and Enter plays it, straight to the map. */
+async function aReadyMade(page: Page): Promise<void> {
+  await press(page, "n");
+  await waitFor(page, "Or play one ready-made, straight in:", "n: character creation, with the campaign's ready-made characters under the fields");
+  const screen = await text(page);
+  const missing = ["Cleric", "Fighter", "Ranger", "Rogue", "Wizard"].filter(c => !screen.includes(c));
+  if (missing.length) fail(`the ready-made characters lack ${missing.join(", ")}`);
+  else ok("the campaign's five ready-made characters, a button each");
+  await page.keyboard.type("Wren Ashdown", { delay: 15 });
+  await press(page, "Tab", "Tab", "ArrowRight", "ArrowRight", "ArrowRight");
+  await waitFor(page, "a palace inspector with soft shoes", "a name, Tab, Tab and → three times: the rogue, its concept under the buttons");
+  await shot(page, "ready-made");
+  await press(page, "Enter");
+  await waitFor(page, "The lead:.*Hanged Clerk", "Enter plays the rogue as Wren Ashdown, straight to the map (new_game with its build)", 60000);
 }
 
 // ---------------------------------------------------------------------------------------------

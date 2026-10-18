@@ -7,6 +7,9 @@ import * as verbs from "../client/headless.ts";
 import { connect } from "../client/net/connection.ts";
 import { ownerAt, ownerFor } from "../client/net/owner.ts";
 import { keepToken, serverFor, sessionAt } from "../client/net/session.ts";
+import { glyphSet } from "../client/look/glyphs.ts";
+import type { Reporting } from "../client/report/file.ts";
+import { terminalReporting } from "./reports.ts";
 import { configureTerminal } from "./terminal.ts";
 
 /**
@@ -85,6 +88,10 @@ const USAGE = `Kingmaker: headless play
                                                 the scene's place: as the player sees it, then from above with what's
                                                 what of it they can see, by the names they know; --full, the QA map:
                                                 everything in the world by its own name, hidden things too
+  play report --session <name> <what went wrong>
+                                                report a problem, as the client's b or /report does: what you'd see,
+                                                where you are and the game (yours now, else the latest), saved in
+                                                runs/reports for Claude (npm run report -- inspect <file>)
 
 new, begin, say, act, retry and go wait for the lines suggested after the reply (the opening's, for
 new, begin and go; 15 s at most), and print them. Every verb also takes --demo (canned turns, no server), and --url
@@ -169,8 +176,16 @@ async function run(game: Backend, args: Args): Promise<number> {
     case "journal": return verbs.journal(game, out);
     case "map": return verbs.map(game, out, { w: cells(args.values.w, 100), h: cells(args.values.h, 30) }, { full: !!args.values.full });
     case "ring": return await verbs.ring(game, ringOf(args.values.ring), out, { ...waiting, fast: args.values.fast ?? false });
+    case "report": return await verbs.report(game, args.text, out, reportsFor(args));
     default: console.log(`There's no "${args.verb}" to play.\n\n${USAGE}`); return 1;
   }
+}
+
+/** Where a report goes (runs/reports), and the files with the tokens the session knows of (its own, the dev stack's). */
+function reportsFor(args: Args): Reporting {
+  const env = process.env;
+  const runs = env.KM_RUNS_DIR ?? "runs";
+  return terminalReporting({ runs, host: "headless", env, glyphs: glyphSet, ...(args.values.session ? { session: sessionAt(runs, args.values.session).path } : {}), stack: args.values.stack ?? join(runs, "dev") });
 }
 
 /** Who to make, and how, from new's (or builds') arguments: --as, --build, the backstory from --backstory or its file, --accept-fixes. */

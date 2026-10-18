@@ -1,4 +1,4 @@
-// After the prototype's src/cli/qa.ts at 44c6d4a: the same verbs and the same MODE:, ACTIONS: and PHASE: output (act and suggestions as :180-227 have them), as a client of the simulation; builds and new's creation are its :34-39, :55-78 and :112-176 (offerFor, offerText, the new verb), through the moves; map is its :230-234, the scene's place from its rows; end is its :203-215, through end_scene as the dev stack's owner, and go, journal and act's go_to_lead, fight and carry_on take the story on between scenes (story-design §4.5); on the map between scenes (map-design §3.6), observe is MODE: explore (the town's observe: explore/text.ts) and act takes any of its action ids, each made as its move; and the town unit's (town-design §1.2, §3.9): the action menu's ids too (cast_fire-bolt@25,6, hide, rest_short…: observe lists the menu), talk_kell opening a talk and waiting for its greeting, and a talk's say_<n>, say_goodbye and walk_on.
+// After the prototype's src/cli/qa.ts at 44c6d4a (and src/cli/report.ts's make, as report: M5): the same verbs and the same MODE:, ACTIONS: and PHASE: output (act and suggestions as :180-227 have them), as a client of the simulation; builds and new's creation are its :34-39, :55-78 and :112-176 (offerFor, offerText, the new verb), through the moves; map is its :230-234, the scene's place from its rows; end is its :203-215, through end_scene as the dev stack's owner, and go, journal and act's go_to_lead, fight and carry_on take the story on between scenes (story-design §4.5); on the map between scenes (map-design §3.6), observe is MODE: explore (the town's observe: explore/text.ts) and act takes any of its action ids, each made as its move; and the town unit's (town-design §1.2, §3.9): the action menu's ids too (cast_fire-bolt@25,6, hide, rest_short…: observe lists the menu), talk_kell opening a talk and waiting for its greeting, and a talk's say_<n>, say_goodbye and walk_on.
 import { tooLong } from "../shared/creation/story.ts";
 import type { Backstory, LoreIssue, OwnBuild } from "../shared/creation/types.ts";
 import { refusal } from "../shared/protocol/refusals.ts";
@@ -25,6 +25,8 @@ import { wayOnOf } from "./story/view.ts";
 import { stageView } from "./look/stage-view.ts";
 import { describe } from "./title/model.ts";
 import { withZoo, zooAct } from "./zoo/text.ts";
+import { fileReport, type Reporting } from "./report/file.ts";
+import type { Where } from "../shared/report/format.ts";
 import { again, pickFoes, visit, zooFightOf, type VisitWith, type ZooFight } from "./zoo/zoo.ts";
 
 export type { VisitWith };
@@ -519,6 +521,35 @@ export function journal(game: Backend, out: Out): number {
   out.print(journalText(view.story));
   return 0;
 }
+
+/**
+ * A problem reported (V16, M5), as the terminal client reports one (client/report/file.ts): the
+ * words, where the player is, what they'd see (observe's text, as the screen) and the game (the
+ * seat's, else the latest played), kept by the host (runs/reports); then where it went, to tell Claude.
+ */
+export async function report(game: Backend, words: string, out: Out, reporting: Reporting): Promise<number> {
+  if (!words.trim()) { out.print("What went wrong? report takes it as its words: what you did, what happened, what you expected."); return 1; }
+  const screen: string[] = [];
+  observe(game, { print: text => screen.push(text), progress: () => {} });
+  const id = game.home().seat?.gameId ?? latestGame(game.home().games);
+  const filed = await fileReport(game, { words, where: whereNow(game), screens: { now: screen.join("\n"), recent: [] }, errors: [], ...(id !== undefined ? { game: id } : {}) }, reporting);
+  out.print(filed.said);
+  return 0;
+}
+
+/** Where the player is, as observe would say: a fight, a scene, the map, the sheet, or the title (then about the latest game). */
+function whereNow(game: Backend): Where {
+  const fight = game.fight?.();
+  if (fight) return { screen: "fight", game: fight.game, fight: { round: fight.round, ...(fight.board.units[fight.turn] ? { turn: fight.board.units[fight.turn]!.name } : {}), status: fight.status } };
+  const view = game.view();
+  if (view) return { screen: "scene", game: view.game, scene: { ...(view.sceneId ? { id: view.sceneId } : {}), title: view.title, ...(view.turn !== undefined ? { turn: view.turn } : {}), phase: view.phase, ...(view.over ? { over: true } : {}) }, ...(view.time ? { time: view.time } : {}) };
+  const map = game.explore();
+  if (map) return { screen: "explore", game: map.game, map: { key: map.ex.map, at: { x: map.ex.at.x, y: map.ex.at.y } }, time: map.ex.story.time };
+  return game.home().seat ? { screen: "created", game: String(game.home().seat!.gameId) } : { screen: "title", latest: true };
+}
+
+/** The game played last, of the player's (a zoo visit's too). */
+const latestGame = (games: HomeRows["games"]) => [...games].sort((a, b) => Number(b.lastPlayedAt.microsSinceUnixEpoch - a.lastPlayedAt.microsSinceUnixEpoch))[0]?.gameId;
 
 /**
  * Waits for the turn in flight to answer, and for the lines suggested after its reply; then prints what answered it (not the line itself), the lines, and the phase. A line

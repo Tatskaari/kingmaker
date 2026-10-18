@@ -1,9 +1,9 @@
 import { setGlobalLogLevel } from "spacetimedb";
-import type { MoveWire } from "../../shared/protocol/port.ts";
+import type { CallWire, MoveWire } from "../../shared/protocol/port.ts";
 import { refusalIn } from "../../shared/protocol/refusals.ts";
 import type { Rejection } from "../backend.ts";
 import { DbConnection, type SubscriptionHandle } from "../module_bindings/index.ts";
-import { PLACE_TABLES, type ClientTables, type Link, type LinkMoves, type LinkStatus, type RowListener, type RowOp, type Watched } from "./link.ts";
+import { PLACE_TABLES, type ClientTables, type Link, type LinkCalls, type LinkMoves, type LinkStatus, type RowListener, type RowOp, type Watched } from "./link.ts";
 import { endSceneAs, type Owner } from "./owner.ts";
 import { Replica } from "./replica.ts";
 
@@ -125,6 +125,17 @@ export class SpacetimeLink implements Link {
     try {
       await reducer(args);
       return undefined;
+    } catch (error) {
+      return rejectionOf(error);
+    }
+  }
+
+  /** A procedure called as this player: its text, else what went wrong on the way. Cut off, the words say why. */
+  async call<K extends CallWire>(name: K, args: LinkCalls[K]): Promise<string | Rejection> {
+    if (this.status.cutOff) return { code: "error", text: this.status.cutOff };
+    const procedure = this.db.procedures[name] as (args: LinkCalls[K]) => Promise<string>;
+    try {
+      return await procedure(args);
     } catch (error) {
       return rejectionOf(error);
     }

@@ -20,7 +20,7 @@ const HELP = [
   "Type and press Enter. Plain words are what you say, out loud, to whoever's there: Who paid you, then? *Asterisks* or (brackets) are what you do: *looks over my shoulder*, (I check his pockets). Talk and do in the same breath if you like.",
   "The GM narrates and plays everyone else, each person's lines in their colour (gold italics for anyone not here). Rolls happen when the story needs them (🎲 lines): the GM calls a check, the dice say how far it made or missed it, and the scene goes on from there.",
   "After each reply, suggested lines come up over the box (a risky try in yellow): a number or a click puts one in the box to send or change; typing hides them. A talk's are said at once. /suggestions off turns them off.",
-  "/sheet (or /c) your character sheet · /journal (or /j) your notebook · /quests the quests · /help this · /retry carries on a turn the GM lost · /quit goes back to the title (the game is kept). PgUp/PgDn (or the mouse wheel) scroll the conversation.",
+  "/sheet (or /c) your character sheet · /journal (or /j) your notebook · /quests the quests · /help this · /report what went wrong, saved for Claude (with the words after it, it goes at once) · /retry carries on a turn the GM lost · /quit goes back to the title (the game is kept). PgUp/PgDn (or the mouse wheel) scroll the conversation.",
   "When a scene ends, it waits for you: an Enter of its own, or a click, goes on. For testing, as the dev stack's owner: /exits lists the scene's endings, /end <id> takes one now.",
 ];
 
@@ -30,7 +30,7 @@ const SCROLL_KEYS: Record<string, number> = { up: -1, down: 1, pageup: -2, paged
 /** The keys that put the sheet away, when it has no use for them itself (the prototype's, c and s among them). */
 const CLOSE_SHEET = ["escape", "return", "space", "c", "s", "q"];
 
-/** What's open over the scene: the character sheet, or the help. */
+/** What's open over the scene: the character sheet, the help, the notebook, the quests. */
 export function Overlay({ scene }: { scene: SceneModel }) {
   useStore(scene);
   const { width, height } = useTerminalDimensions();
@@ -120,6 +120,9 @@ function SheetBox({ shown, sheet, width, height, close }: { shown: SheetShown | 
 // -------------------------------------------------------------------------------------------------
 // The map's (src/app/ui/overlay.tsx HELP.explore, the menu, What happens and the sheet, over an ExploreModel).
 
+/** How to report a problem, on the map and in a fight (a scene's help says /report): the prototype's words. */
+export const REPORT_HELP = "Something wrong? b (or Report a problem… in the Esc menu): say what went wrong in a line or two, and the game saves everything needed to look into it, for Claude.";
+
 /** How to play on the map (the prototype's HELP.explore, with what this client has of it). */
 const EXPLORE_HELP = [
   "Click on the map to walk there (any key or click stops you). Right-click anyone or anything for what you can do with them; the Nearby list works the same.",
@@ -132,10 +135,11 @@ const EXPLORE_HELP = [
   "Aiming: point and click; or Tab through what's in reach, the arrows to move the aim, t for yourself, Enter. The faint ring is how far it reaches; an area shows what it covers and who it catches, and if that's you it says so in red and asks for the Enter or the click again. Esc, or a right-click, thinks better of it.",
   "It's the rules': a Fireball breaks a door down, and it stays down. Hurt someone and the town reacts: people run, the guards come on, and it's a fight on the map. What you do to someone or something whose scene is waiting (Kell, the yard gate) opens it, your act first; to Kell, a talk. Hidden, you stay so until you move or speak to anyone.",
   "c shows your character sheet, r What happens in full. Esc opens the menu (back to the title). The keys at the bottom are buttons too. The game is kept as you go.",
+  REPORT_HELP,
 ];
 
-/** The Esc menu on the map: back to the game, or to the title (the game is kept). */
-const EXPLORE_MENU = ["Back to the game", "Back to the title (the game is kept)"];
+/** The Esc menu on the map: back to the game, to the title (the game is kept), or reporting a problem (last, M5). */
+const EXPLORE_MENU = ["Back to the game", "Back to the title (the game is kept)", "Report a problem…"];
 const CLOSE_MAP = ["escape", "return", "space", "c", "s", "q", "r"];
 
 /** What's open over the map: the help, What happens, the Esc menu, the character sheet. */
@@ -205,8 +209,9 @@ export function ExploreOverlay({ explore: game }: { explore: ExploreModel }) {
   }
 }
 
-/** The menu's choices, by key or click: back to the game, or to the title. */
+/** The menu's choices, by key or click: back to the game, to the title, or report a problem (over the map as it was before the menu). */
 function pickMenu(game: ExploreModel, index: number): void {
   game.closeOverlay();
   if (index === 1) game.quit();
+  else if (index === 2) game.report("menu");
 }

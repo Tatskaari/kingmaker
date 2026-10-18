@@ -27,7 +27,7 @@ const KINDS: Record<string, () => Kind> = {
   },
   memory() {
     const host = keeping();
-    return { stores: memoryStores(host), lines: (log, game) => host.lines.filter(l => l.log === log && l.game === game).map(l => l.line) };
+    return { stores: memoryStores(host), lines: (log, game) => host.logged.filter(l => l.log === log && l.game === game).map(l => l.line) };
   },
 };
 
@@ -35,11 +35,12 @@ const KINDS: Record<string, () => Kind> = {
 function keeping(kept: Persistence["kept"] = {}) {
   const host = {
     kept, answers: [] as Array<[string, StoredAnswer]>, forgotten: [] as string[], docs: [] as Array<[string, string, string]>,
-    lines: [] as Array<{ log: string; game: string; line: Record<string, unknown> }>, ledgerLines: [] as Array<Record<string, unknown>>,
+    logged: [] as Array<{ log: string; game: string; line: Record<string, unknown> }>, ledgerLines: [] as Array<Record<string, unknown>>,
     async answer(key: string, answer: StoredAnswer) { host.answers.push([key, answer]); },
     forget(keys: string[]) { host.forgotten.push(...keys); },
     doc(game: string, path: string, text: string) { host.docs.push([game, path, text]); },
-    line(log: "calls" | "reviews", game: string, line: Record<string, unknown>) { host.lines.push({ log, game, line }); },
+    line(log: "calls" | "reviews", game: string, line: Record<string, unknown>) { host.logged.push({ log, game, line }); },
+    async lines(log: "calls" | "reviews", game: string) { return host.logged.filter(l => l.log === log && l.game === game).map(l => l.line); },
     ledger(line: Record<string, unknown>) { host.ledgerLines.push(line); },
   };
   return host;
@@ -82,6 +83,7 @@ for (const [name, make] of Object.entries(KINDS)) {
     stores.ledger.append({ at: new Date().toISOString(), costUsd: 0.25 });
     stores.ledger.append({ at: new Date().toISOString(), costUsd: 0.5 });
     assert.deepEqual([lines("calls", "g1"), lines("reviews", "g1")], [[{ operation: "gm.reply" }], [{ turn: 1 }]]);
+    assert.deepEqual([await stores.calls.read("g1"), await stores.reviews.read("g1"), await stores.calls.read("g2")], [[{ operation: "gm.reply" }], [{ turn: 1 }], []], "read back for a report");
     assert.equal(await stores.ledger.spentToday(), 0.75, "yesterday's doesn't count");
   });
 }

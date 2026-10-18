@@ -44,3 +44,20 @@ test("tables.ts's defaults are schema.ts's, but the options' undefined", () => {
   assert.deepEqual(kept.sort(), declared.sort());
   assert.equal(DECLARED.flatMap(t => t.defaults).length, SCHEMA.split(".default(").length - 1, "the scan found every default");
 });
+
+test("every table is a game's (games/tables.ts, which a report reads and a restore writes back) or isn't, with why, and not both; each id a game's table points by is one of its columns", async () => {
+  const { GAME_TABLES, NOT_A_GAMES } = await import("./games/tables.ts");
+  const games = GAME_TABLES.map(t => t.table);
+  const not = Object.keys(NOT_A_GAMES);
+  assert.deepEqual([...games, ...not].sort(), Object.keys(TABLES).sort(), "each table once, in one list or the other");
+  assert.equal(new Set(games).size, games.length);
+
+  const columns = (accessor: string) => {
+    const block = new RegExp(`^export const ${accessor} = table\\(.*\\{\\n([\\s\\S]*?)\\n\\}\\);$`, "m").exec(SCHEMA)?.[1] ?? "";
+    return [...block.matchAll(/\b(\w+): t\./g)].map(m => m[1]!);
+  };
+  for (const t of GAME_TABLES) {
+    for (const column of Object.keys(t.refs ?? {})) assert.ok(columns(t.table).includes(column), `${t.table}.${column} isn't a column of it`);
+    if (t.own) assert.equal((TABLES as Record<string, { autoInc?: boolean }>)[t.table]!.autoInc, true, `${t.table}'s own id is one the table gives (autoInc)`);
+  }
+});

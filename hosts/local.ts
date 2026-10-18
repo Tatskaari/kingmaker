@@ -47,6 +47,8 @@ export interface LocalHost {
   store: string;
   /** What the AI service logged. */
   aiLogs: string[];
+  /** The bearer the module sends the AI service: what a tool beside them asks it with (a report's restore gives a game its docs). */
+  bearer: string;
   /** Deletes the store. */
   close(): void;
 }
@@ -63,6 +65,7 @@ export async function localHost(options: LocalOptions = {}): Promise<LocalHost> 
   const sim = memoryHost({
     seed: options.seed ?? 1,
     ai: (endpoint, body, headers) => ai.answer({ method: "POST", path: endpoint, headers, body }),
+    aiGet: (path, headers) => ai.answer({ method: "GET", path, headers, body: "" }),
     env: { AI_URL: "http://ai.local", AI_TOKEN: BEARER, AI_IDENTITY: SERVICE.toHexString() },
     service: SERVICE,
   });
@@ -70,7 +73,7 @@ export async function localHost(options: LocalOptions = {}): Promise<LocalHost> 
 
   await install(options.files ?? readCampaignFiles(options.campaign ?? CAERWYN), ai, sim, BEARER);
 
-  return { sim, ai, store, aiLogs, close: () => rmSync(store, { recursive: true, force: true }) };
+  return { sim, ai, store, aiLogs, bearer: BEARER, close: () => rmSync(store, { recursive: true, force: true }) };
 }
 
 /** The AI service as hosts/ai.ts makes it, but in this process: a folder store, the fake model per turn, the stream into the simulation. */

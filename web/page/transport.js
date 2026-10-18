@@ -1,9 +1,11 @@
-// Copied from the prototype's src/web/page/worker-transport.js at 44c6d4a, as v2's page's transport (browser-design §2, §5): two workers in place of one, the client's (client-worker.js: v2's screens on the JS OpenTUI) and the server's (server-worker.js: the simulation, the AI service and the saves), joined by a MessageChannel the page makes, port A to the client and port B to the server; what the page says goes to the worker it's for (understand-web.md §5.4: keys, resizes and quitting to the client; the key, flushes and taking over to the server), and what they say comes back in the server's messages as before, with ready (the server worker has the game); Play again starts a new client worker on a new channel, whose server end goes to the server worker ({type: "port"}); the fake GM ({fake: "dev" | "arc"}) in place of offline, and on it the bar offers a key, the page starting again with it; the key goes to the server worker only; a tab taking the game over has this tab's workers save it and go, and ends them; what goes into the game has a key taken out of it, and what comes out has the key masked (src/web/static/worker.ts:59-94's scrub and write, here, where the key is); km.heard is what the workers said; the report's download, the stats and a closed game's grace for its jobs go (V16; the server worker's jobs go on as the client comes and goes).
+// Copied from the prototype's src/web/page/worker-transport.js at 44c6d4a, as v2's page's transport (browser-design §2, §5): two workers in place of one, the client's (client-worker.js: v2's screens on the JS OpenTUI) and the server's (server-worker.js: the simulation, the AI service and the saves), joined by a MessageChannel the page makes, port A to the client and port B to the server; what the page says goes to the worker it's for (understand-web.md §5.4: keys, resizes and quitting to the client; the key, flushes and taking over to the server), and what they say comes back in the server's messages as before, with ready (the server worker has the game); Play again starts a new client worker on a new channel, whose server end goes to the server worker ({type: "port"}); the fake GM ({fake: "dev" | "arc"}) in place of offline, and on it the bar offers a key, the page starting again with it; the key goes to the server worker only; a tab taking the game over has this tab's workers save it and go, and ends them; what goes into the game has a key taken out of it, and what comes out has the key masked (src/web/static/worker.ts:59-94's scrub and write, here, where the key is); km.heard is what the workers said; a report of a problem the client worker made is downloaded (M5: its download, as the prototype's was); the stats and a closed game's grace for its jobs go (the server worker's jobs go on as the client comes and goes).
 
 // The page's transport (page.js): the game runs in two Web Workers on this page, and this speaks to
 // the page in the prototype's server's messages (hello, started, exit, error) so the rest of the page
 // is as it was, with ready and busy from the server worker. It also says what only the page has to
-// say, on the bar under the terminal: whether this browser is keeping the game, and the key. And it
+// say, on the bar under the terminal: whether this browser is keeping the game, and the key. A report
+// of a problem the client worker made (b, /report, the Esc menu) is downloaded as a file: what's kept
+// in the browser is out of reach of whoever investigates it. And it
 // keeps to one tab at a time (the server worker holds a Web Lock named after the deployment): a tab
 // whose server worker finds the game open in another offers to take it over, and the other tab, told
 // so on a BroadcastChannel, has its workers save the game and let it go.
@@ -176,6 +178,8 @@ export function workerTransport(handlers, options) {
     worker.postMessage({
       type: "start", port: port1, cols: message.cols, rows: message.rows, ...(message.window ? { window: message.window } : {}),
       ...(options.glyphs ? { glyphs: options.glyphs } : {}),
+      // ?doors=off: the page draws no doors or lamps, so the client needn't say where they are (M5).
+      ...(message.doors === false ? { doors: false } : {}),
       // The browser's reduced motion: a fight's moves shown at their ends with their captions, not played out.
       ...(globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? { reducedMotion: true } : {}),
       // The zoo (?zoo, ?zoo=<exhibit>): the client opens its menu, or visits the exhibit (as options.build, against options.foes).
@@ -198,6 +202,8 @@ export function workerTransport(handlers, options) {
     if (worker !== client) return;
     if (m.type === "output") return handlers.bytes(masked(m.data));
     hear("client", m);
+    // A report of a problem (the key never in it: the client worker hasn't got it), downloaded.
+    if (m.type === "report") return download(m.name, m.data);
     if (m.type === "exit") {
       client = undefined;
       worker.terminate();
@@ -310,7 +316,20 @@ export function workerTransport(handlers, options) {
   }
 
   function hear(from, m) {
-    heard.push({ from, type: String(m?.type), ...(m?.type === "error" ? { message: String(m.message ?? "") } : {}) });
+    heard.push({ from, type: String(m?.type), ...(m?.type === "error" ? { message: String(m.message ?? "") } : {}), ...(m?.type === "report" ? { name: String(m.name ?? "") } : {}) });
+  }
+
+  /** A file the page hands the browser to save (its downloads): a report of a problem. */
+  function download(name, data) {
+    const url = URL.createObjectURL(new Blob([data], { type: "application/gzip" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = name;
+    link.hidden = true;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
   }
 
   if (bar) {

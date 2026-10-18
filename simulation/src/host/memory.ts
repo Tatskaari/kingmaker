@@ -11,6 +11,8 @@ import { Refused, type Db, type Env, type Schema, type TxCtx } from "../context.
 import { seedOf, setDiceSeedReducer } from "../dice-seed.ts";
 import * as creation from "../creation/moves.ts";
 import * as games from "../games/moves.ts";
+import { aiAsks, gameReportJson, reportRows, type AiGot } from "../games/report.ts";
+import { restoreGameReducer } from "../games/restore.ts";
 import { installCampaignReducer } from "../install.ts";
 import { claimJob, dispatchWaitingReducer, failJob, finishJob, reapJobs } from "../jobs.ts";
 import { initDatabase } from "../lifecycle.ts";
@@ -58,8 +60,13 @@ export interface AiReply { status: number; body: string; headers?: Record<string
  */
 export type AiPost = (endpoint: string, body: string, headers: Record<string, string>, options?: { timeoutMs: number }) => Promise<AiReply>;
 
+/** A GET of the AI service (a report's: its calls and docs for a game), with the bearer. Throwing stands for a refused connection. */
+export type AiGet = (path: string, headers: Record<string, string>) => Promise<AiReply>;
+
 export interface MemoryHostOptions {
   ai: AiPost;
+  /** The AI service's GETs, for report(): without it, a report's game says the AI service couldn't be asked. */
+  aiGet?: AiGet;
   /** The game's randomness: dice seeds and uuids. */
   seed?: number;
   /** Where tx.uuid() comes from, in place of the seeded sequence: a source that repeats, as SpacetimeDB's generator does for about 3% of transactions. */
@@ -136,7 +143,7 @@ type Body<A> = (tx: TxCtx, sender: Identity, args: A) => void;
 /** The move, as a caller makes it (with no arguments, when none are needed): the refusal, or nothing when it was made. */
 type Made<B> = B extends Body<infer A> ? ({} extends A ? (args?: A) => Refusal | undefined : (args: A) => Refusal | undefined) : never;
 
-/** Character creation's moves, the games' (v1-design §3.3), the map's (map-design §3.2) and its action menu's (town-design §3.2), and the story's between scenes (story-design §4.3), by their bodies' names. */
+/** Character creation's moves, the games' (v1-design §3.3), the map's (map-design §3.2) and its action menu's (town-design §3.2), the story's between scenes (story-design §4.3), a fight's and the zoo's (M6), and the owner's restore of a reported game (M5), by their bodies' names. */
 const MOVES = {
   startCreation: creation.startCreationReducer, creationBack: creation.creationBackReducer, chooseBuild: creation.chooseBuildReducer,
   makeOwn: creation.makeOwnReducer, pickOwn: creation.pickOwnReducer, takeOwn: creation.takeOwnReducer, setBackstory: creation.setBackstoryReducer,
@@ -149,6 +156,7 @@ const MOVES = {
   carryOn: story.carryOnReducer, fightItOut: story.fightItOutReducer, endScene: story.endSceneReducer,
   startRing: startRingReducer, fightTurn: fightTurnReducer,
   visitZoo: visitZooReducer, openExhibit: openExhibitReducer,
+  restoreGame: restoreGameReducer,
 };
 
 /** A caller's moves: each returns the refusal, or nothing when it was made. */
@@ -172,6 +180,8 @@ export interface MemoryHost {
   as(identity: Identity): Caller;
   /** stream_reply, as the AI service unless `from` says otherwise. */
   streamReply(args: StreamArgs, from?: Identity): Refusal | undefined;
+  /** report_game (V16, M5) as `identity`: JSON, the game's every row and the AI service's own of it (GET through `aiGet`), or the refusal. */
+  report(identity: Identity, game: bigint): Promise<string>;
   /** run_job for every dispatch that's due, until none is. Several drains may run at once. */
   drain(): Promise<void>;
   /**
@@ -262,6 +272,7 @@ export function memoryHost(options: MemoryHostOptions): MemoryHost {
     db: store.db, owner, service, logs, transact, reap, tickPlaces, fightSteps,
     as: identity => callerAs(identity, call),
     streamReply: (args, from = service) => call(tx => streamReplyReducer(tx, from, args)),
+    report: (identity, game) => reportGame(transact, identity, game, aiGetter(env, options.aiGet)),
     drain: jobs.drain,
     dispatchDue: jobs.dispatchDue,
     advance(ms) {
@@ -292,6 +303,31 @@ function callerAs(identity: Identity, call: (body: (tx: TxCtx) => void) => Refus
     installCampaign: args => call(tx => installCampaignReducer(tx, identity, args)),
     dispatchWaiting: () => call(tx => dispatchWaitingReducer(tx, identity)),
     setDiceSeed: args => call(tx => setDiceSeedReducer(tx, identity, args)),
+  };
+}
+
+/** report_game as index.ts runs it: the rows in a transaction, then the AI service's calls and docs, GET with nothing locked. */
+async function reportGame(transact: <T>(body: (tx: TxCtx) => T) => T, identity: Identity, gameId: bigint, get: (path: string) => Promise<AiGot>): Promise<string> {
+  const asked = transact(tx => reportRows(tx, identity, gameId));
+  if ("refusal" in asked) return JSON.stringify(asked);
+
+  const asks = aiAsks(asked.game.uid);
+  const [calls, docs] = await Promise.all([get(asks.calls), get(asks.docs)]);
+
+  return gameReportJson(asked, { calls, docs });
+}
+
+/** The AI service's GETs with the bearer, each answer or why there was none (no aiGet: none could be asked). */
+function aiGetter(env: Env, aiGet: AiGet | undefined): (path: string) => Promise<AiGot> {
+  const headers = { authorization: `Bearer ${env.AI_TOKEN ?? ""}` };
+  return async path => {
+    if (!aiGet) return { error: "this host has no way to ask the AI service" };
+    try {
+      const reply = await aiGet(path, headers);
+      return { status: reply.status, body: reply.body };
+    } catch (e) {
+      return { error: String(e) };
+    }
   };
 }
 

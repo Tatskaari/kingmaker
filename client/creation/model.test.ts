@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { refusal } from "../../shared/protocol/refusals.ts";
 import { AppModel } from "../app/model.ts";
 import { creationRow, LISTS, NEPHEW, NEPHEW_ISSUE, OFFER, OWN } from "../check/rows.ts";
-import { StubBackend } from "../check/stub.ts";
+import { CAERWYN, StubBackend } from "../check/stub.ts";
 import { DEFAULT_CONCEPT, DEFAULT_NAME } from "./words.ts";
 
 /** The creation's model over rows the test sets; each move recorded. */
@@ -33,6 +33,27 @@ test("a refused concept stays on the create screen, the refusal its error", asyn
   await app.creation.offerBuilds("Tamsin Vell", "x".repeat(301));
   assert.deepEqual([app.intent, app.screen], ["new", "create"]);
   assert.equal(app.creation.error, "(Your character's concept needs to be 300 characters or fewer.)");
+});
+
+test("ready-made characters (M5): the campaign's builds, newest version; one played as new_game with its build, the name and concept typed or the defaults; refused, it stays", async () => {
+  const builds = (concept: string) => JSON.stringify({ fighter: { concept: `${concept} fighter`, build: {} }, wizard: { concept: `${concept} wizard`, build: {} } });
+  const backend = new StubBackend({ campaigns: [{ ...CAERWYN, builds: builds("old") }, { ...CAERWYN, version: "0.2.0", builds: builds("new") }, { ...CAERWYN, key: "zoo", builds: builds("zoo") }] });
+  const app = new AppModel(backend, { campaign: "caerwyn", intent: "new" });
+  assert.deepEqual(app.creation.readyMade, [{ id: "fighter", concept: "new fighter" }, { id: "wizard", concept: "new wizard" }]);
+
+  await app.creation.playReadyMade("wizard", "  ", "");
+  assert.deepEqual(backend.moves, [{ name: "newGame", args: { campaign: "caerwyn", name: DEFAULT_NAME, concept: "new wizard", build: "wizard" } }]);
+  assert.equal(app.intent, "game");
+  await app.creation.playReadyMade("cleric", "Wren", "a hedge wizard");
+  assert.equal(backend.moves.length, 1, "one the campaign hasn't isn't played");
+
+  backend.answers.newGame = () => refusal("no_campaign", { campaign: "caerwyn" });
+  app.go("new");
+  await app.creation.playReadyMade("fighter", "Wren Ashdown", "a hedge wizard");
+  assert.deepEqual(backend.moves.at(-1)?.args, { campaign: "caerwyn", name: "Wren Ashdown", concept: "a hedge wizard", build: "fighter" });
+  assert.deepEqual([app.intent, app.screen], ["new", "create"]);
+  assert.match(app.creation.error ?? "", /caerwyn/);
+  assert.deepEqual(new AppModel(new StubBackend(), { campaign: "caerwyn", intent: "new" }).creation.readyMade, [], "none where the campaign's row hasn't them");
 });
 
 test("the cards: one chosen by its index, their own made from the one picked out, back to the concept", () => {

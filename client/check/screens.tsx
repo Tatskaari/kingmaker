@@ -19,7 +19,7 @@
  * title, character creation's six screens and the sheet (check/creation.tsx). Then the story's:
  * the way on between scenes, Kell's talk, the card, the notebook, the quests, the fight's card and
  * The End (check/story-screens.tsx). Last, a fight on the map played out, from a recorded fight's rows
- * (check/fight-screens.tsx). (The prototype's src/app/smoke/screens-check.tsx, for this client.)
+ * (check/fight-screens.tsx). And reporting a problem from each screen (check/report-screens.tsx). (The prototype's src/app/smoke/screens-check.tsx, for this client.)
  *
  *   npm run screens        (node --experimental-ffi --no-warnings --import tsx client/check/screens.tsx [--show])
  */
@@ -39,6 +39,7 @@ import { checkPlace } from "./place-screens.tsx";
 import { checkTown } from "./town-screens.tsx";
 import { checkFight } from "./fight-screens.tsx";
 import { checkZoo, checkZooFight } from "./zoo-screens.tsx";
+import { checkReports } from "./report-screens.tsx";
 import { YARD, yardRows } from "./fixture.ts";
 
 const show = process.argv.includes("--show");
@@ -596,6 +597,9 @@ await checkFight(checks, show);
 await checkZoo(checks, show);
 // A zoo fight on the fight's screen (M6): n again, o other foes, Enter again once it's over.
 await checkZooFight(checks, show);
+
+// Reporting a problem (M5): from the title, a scene, the map and a fight, the question over the screen, the screen kept, where it went.
+await checkReports(checks, show);
 
 let failed = 0;
 for (const [what, ok] of checks) {

@@ -4,7 +4,7 @@ import { mkdir, open, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join, relative, sep } from "node:path";
 import { folderVolume } from "../docs/volumes.ts";
 import { scenarioPath } from "../../shared/scene/scenario.ts";
-import type { AnswerStore, CampaignStore, Ledger, StoredAnswer, Stores, VersionFiles } from "./stores.ts";
+import type { AnswerStore, CallLog, CampaignStore, Ledger, StoredAnswer, Stores, VersionFiles } from "./stores.ts";
 
 /**
  * The stores as one folder (KM_AI_STORE; a volume in the container):
@@ -46,15 +46,29 @@ function answerFolder(dir: string): AnswerStore {
   };
 }
 
-/** A file of JSON lines in each game's folder: its calls, its memory reviews. */
-function gameLines(gamesDir: string, name: string): { append(game: string, line: Record<string, unknown>): void } {
+/** A file of JSON lines in each game's folder: its calls, its memory reviews; read back whole (a line that isn't JSON, cut short by a crash, as { unreadable }). */
+function gameLines(gamesDir: string, name: string): CallLog {
+  const file = (game: string) => join(gamesDir, game, name);
   return {
     append(game, line) {
-      const file = join(gamesDir, game, name);
-      mkdirSync(dirname(file), { recursive: true });
-      appendFileSync(file, JSON.stringify(line) + "\n");
+      mkdirSync(dirname(file(game)), { recursive: true });
+      appendFileSync(file(game), JSON.stringify(line) + "\n");
+    },
+    async read(game) {
+      const text = await readFile(file(game), "utf8").catch(() => "");
+      return text.split("\n").filter(line => line.trim()).map(lineOf);
     },
   };
+}
+
+/** A logged line, parsed; one that doesn't parse is kept as its text. */
+function lineOf(text: string): Record<string, unknown> {
+  try {
+    const line = JSON.parse(text) as unknown;
+    return line && typeof line === "object" && !Array.isArray(line) ? (line as Record<string, unknown>) : { unreadable: text };
+  } catch {
+    return { unreadable: text };
+  }
 }
 
 /**

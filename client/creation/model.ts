@@ -4,6 +4,7 @@ import { refusal } from "../../shared/protocol/refusals.ts";
 import type { OwnPicks, SheetData, SrdLists } from "../../shared/rules/types.ts";
 import type { AppPart } from "../app/model.ts";
 import type { MoveName, Moves } from "../backend.ts";
+import type { BuildsFile } from "../../shared/scene/files.ts";
 import { sheetOf, type SheetRow } from "../sheet/rows.ts";
 import { creationOf, memoParse, type Creation, type CreationLocal } from "./rows.ts";
 import { DEFAULT_CONCEPT, DEFAULT_NAME, levelOf, timeWords } from "./words.ts";
@@ -55,6 +56,30 @@ export class CreationModel {
   /** Who's being made, for the creating screen: the creation's name and concept, else the seat's character's. */
   get creating(): { name: string; concept: string } | undefined {
     return this.creation ?? this.app.rows.player;
+  }
+
+  /**
+   * The campaign's ready-made characters (its builds.json: each an id, its class's name, and its
+   * concept), which the page's create screen offers, as the terminal client's --build makes one;
+   * none where the campaign's row hasn't them.
+   */
+  get readyMade(): ReadyMade[] {
+    const row = this.app.rows.campaigns.filter(c => c.key === this.app.campaign).sort((a, b) => (a.version < b.version ? 1 : -1))[0];
+    const builds = this.parse<BuildsFile>(row?.builds) ?? {};
+    return Object.entries(builds).map(([id, b]) => ({ id, concept: b.concept }));
+  }
+
+  /**
+   * A ready-made character, as the terminal client's --build makes one (new_game, V0's): straight
+   * into a game of its own, as the name typed (or the default) and the concept typed (or its own);
+   * the game's screen once it's made, else why not on the note line.
+   */
+  async playReadyMade(id: string, name: string, concept: string): Promise<void> {
+    const made = this.readyMade.find(r => r.id === id);
+    if (!made) return;
+    this.said = undefined;
+    const refused = await this.app.newGame({ campaign: this.app.campaign, name: name.trim() || DEFAULT_NAME, concept: concept.trim() || made.concept, build: id });
+    if (!refused) this.app.go("game");
   }
 
   /** The level characters are made at: the creation's campaign's, else the one this client starts games in. */
@@ -325,6 +350,9 @@ export class CreationModel {
     this.app.emit();
   }
 }
+
+/** One of the campaign's ready-made characters: its build's id (its class: "wizard") and its concept. */
+export interface ReadyMade { id: string; concept: string }
 
 /**
  * The prototype's rule for a pick's subclass (src/app/game.ts:573-576): a class with a subclass at
