@@ -1,7 +1,7 @@
-// After the prototype's zoo arena (src/game/zoo/arenas.ts and wings/arena.ts at bc2ab1f: the wolf run, the goblin pit, the porters' floor and the grain floor, each with who fights there and how) and its Heron grid (src/game/combat/heron-grid.ts: the grain floor's tiles, dust, sacks, lights and starts), as setups for startFight, each ring on a map of its own; and a practice ring with one bandit, new, for a quick fight (M6).
-import type { FightSetup } from "../../../shared/fight/types.ts";
-import type { LegendEntry, MapFile } from "../../../shared/map/tiles.ts";
-import type { CombatantSetup, MapActor, Tile2 } from "../../../shared/map/types.ts";
+// After the prototype's zoo arena (src/game/zoo/arenas.ts and wings/arena.ts at bc2ab1f: the wolf run, the goblin pit, the porters' floor and the grain floor, each with who fights there and how) and its Heron grid (src/game/combat/heron-grid.ts: the grain floor's tiles, dust, sacks, lights and starts), as setups for startFight, each ring on a map of its own; and a practice ring with one bandit, new, for a quick fight (M6). Shared (it was the simulation's), so the client can list the rings to start one from its menu.
+import type { FightSetup } from "../fight/types.ts";
+import type { LegendEntry, MapFile } from "../map/tiles.ts";
+import type { CombatantSetup, MapActor, Tile2 } from "../map/types.ts";
 
 /**
  * The zoo's arena (docs/combat-design.md §7): rings to start a fight in, for QA and for the user to

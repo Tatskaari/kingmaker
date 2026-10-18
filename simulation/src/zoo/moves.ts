@@ -1,4 +1,4 @@
-// New (M6, docs/combat-design.md §7): start_ring, the zoo's way into a fight: one of the arena's rings (zoo/rings.ts) set out and started through startFight, the one way in.
+// New (M6, docs/combat-design.md §7): start_ring, the zoo's way into a fight: one of the arena's rings (shared/zoo/rings.ts) set out and started through startFight, the one way in.
 import type { Identity } from "spacetimedb";
 import { andList, refusal } from "../../../shared/protocol/refusals.ts";
 import { actorOf, Refused, type TxCtx } from "../context.ts";
@@ -6,7 +6,7 @@ import { FIGHT_ON } from "../fight/moves.ts";
 import { liveFightOf } from "../fight/rows.ts";
 import { startFight } from "../fight/start.ts";
 import { gameRow, playerRow } from "../rows.ts";
-import { RINGS, ringSetup } from "./rings.ts";
+import { RINGS, ringSetup } from "../../../shared/zoo/rings.ts";
 
 /**
  * start_ring: a fight in one of the zoo's rings, for the caller's game (its host's, out of a scene

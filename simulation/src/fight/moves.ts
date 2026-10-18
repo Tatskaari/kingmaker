@@ -1,4 +1,4 @@
-// New (M6, docs/combat-design.md §1): the player's moves in a fight. The map's own (walk, attack, cast: shared/map/moves.ts's ids) are fight moves on their turn, routed here by the map's reducers; fight_turn has the fight's own acts (dash, dodge, disengage, end_turn, yield, leave, auto); and walk out, once it's over, goes back to the map. The prototype's TacticalFight.act and parse (src/game/combat/fights.ts at bc2ab1f), as moves.
+// New (M6, docs/combat-design.md §1): the player's moves in a fight. The map's own (walk, attack, cast: shared/map/moves.ts's ids) are fight moves on their turn, routed here by the map's reducers; fight_turn has the fight's own acts (dash, dodge, disengage, end_turn, yield, leave, auto) and hurry, the screen's skip to their turn; and walk out, once it's over, goes back to the map. The prototype's TacticalFight.act and parse (src/game/combat/fights.ts at bc2ab1f), as moves.
 import type { Identity } from "spacetimedb";
 import { isFightAct, type FightResult } from "../../../shared/fight/types.ts";
 import { OUT, type MenuMove, type WalkArgs } from "../../../shared/map/moves.ts";
@@ -11,7 +11,7 @@ import { mapRowsOf, walkerOf, writeExplore } from "../map/rows.ts";
 import { nothingLeft } from "./options.ts";
 import { liveFightOf, play, type FightRow } from "./rows.ts";
 import type { Skirmish } from "./skirmish.ts";
-import { afterAct, autoTurn, endTurn, playersTurn } from "./turns.ts";
+import { afterAct, autoTurn, endTurn, playersTurn, step } from "./turns.ts";
 
 /** What the map's other moves are refused with while a fight is on: it's the fight first. */
 export const FIGHT_ON = "(There's a fight on: see it through first.)";
@@ -30,11 +30,12 @@ export function refuseInAFight(tx: TxCtx, actor: Actor): void {
   if (fight) throw new Refused(refusal("not_now", { text: fight.status === "on" ? FIGHT_ON : FIGHT_OVER }));
 }
 
-/** fight_turn: one of the fight's own acts, on the player's turn. */
+/** fight_turn: one of the fight's own acts, on the player's turn; or hurry, on the other side's. */
 export function fightTurnReducer(tx: TxCtx, sender: Identity, args: { act: string }): void {
   const act = args.act;
   if (!isFightAct(act)) throw new Refused(refusal("unavailable"));
   const actor = actorOf(tx, sender);
+  if (act === "hurry") return hurry(tx, theirFight(tx, actor));
   onTheirTurn(tx, theirFight(tx, actor), s => {
     const pc = s.pc();
     switch (act) {
@@ -44,6 +45,19 @@ export function fightTurnReducer(tx: TxCtx, sender: Identity, args: { act: strin
       case "end_turn": endTurn(s); return undefined;
       case "auto": autoTurn(s); return undefined;
     }
+  });
+}
+
+/**
+ * hurry (the screen's "skip to your turn"): the other side's turns still to come before the player's
+ * are played now, one after another in this one move, each written as its moments as fight_step
+ * would, until it's the player's turn or the fight is over. On the player's own turn it does
+ * nothing. The step on the clock, if any, finds nothing left to do.
+ */
+function hurry(tx: TxCtx, fight: FightRow): void {
+  if (fight.options) return;
+  play(tx, fight, s => {
+    for (let i = 0; i < 64 && step(s); i++);
   });
 }
 

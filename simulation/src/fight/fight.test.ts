@@ -6,7 +6,7 @@ import type { CombatantSetup, Tile2 } from "../../../shared/map/types.ts";
 import { all, hostWithCampaign, identity } from "../host/testing.ts";
 import type { MemoryHost } from "../host/memory.ts";
 import { playerRow } from "../rows.ts";
-import { RINGS } from "../zoo/rings.ts";
+import { RINGS } from "../../../shared/zoo/rings.ts";
 import { decide, freshMemo } from "./ai.ts";
 import { boardOfRow, eventsOf, fightOf, peek, type FightRow } from "./rows.ts";
 import { startFight } from "./start.ts";
@@ -423,4 +423,83 @@ test("a fight that keeps the player writes their hit points back to the sheet at
   toPlayer(practice.host, practice.game.id);
   assert.equal(practice.host.as(practice.wren).fightTurn({ act: "yield" }), undefined);
   assert.equal(practice.host.db.rulesState.playerId.find(practice.playerId)!.campaign, before, "their character untouched");
+});
+
+test("each option says what the screen shows of it: its name, what it costs, where it's aimed and at whom, how far it reaches; and the tiles a walk to would draw a swing", () => {
+  const { host, playerId, game, wren } = onMap();
+  started(host, playerId, room([{ id: "bandit", at: { x: 3, y: 3 } }, { id: "far", name: "a far bandit", at: { x: 9, y: 3 } }], { x: 2, y: 3 }));
+  toPlayer(host, game.id);
+  const o = options(host, game.id)!;
+  const by = (id: string) => o.actions.find(a => a.id === id)!;
+  assert.deepEqual({ ...by("attack@3,3"), label: undefined }, { id: "attack@3,3", label: undefined, kind: "attack", name: "Attack", cost: "action", at: { x: 3, y: 3 }, target: "bandit", range: 5 });
+  assert.deepEqual([by("shove@3,3").name, by("shove@3,3").cost, by("shove@3,3").range], ["Shove", "action", 5]);
+  assert.deepEqual([by("grapple@3,3").name, by("grapple@3,3").target], ["Grab", "bandit"]);
+  const close = o.actions.find(a => a.kind === "move" && a.name === "Close in on a far bandit")!;
+  assert.equal(close.cost, "move");
+  assert.ok(close.feet! > 0 && close.at && close.id === `walk@${close.at.x},${close.at.y}`);
+  assert.deepEqual([by("dash").cost, by("dodge").name, by("end_turn").cost, by("auto").name], ["action", "Dodge", "free", "Let the dice decide"]);
+  assert.equal(o.speed, board(host, game.id).units["player"]!.speed, "their speed, not dashed");
+  // Away from the bandit beside them is a swing; a step that keeps beside him isn't.
+  assert.ok(o.swings?.some(t => t.x === 1 && t.y === 3), "west, out of his reach: a swing");
+  assert.ok(!o.swings?.some(t => t.x === 2 && t.y === 2), "a step that keeps beside him: none");
+  for (const t of o.swings ?? []) assert.ok(o.moves.some(m => m.x === t.x && m.y === t.y), "each one a tile they can reach");
+  // Disengaged, none; and the action's spent, so no blows on offer.
+  assert.equal(host.as(wren).fightTurn({ act: "disengage" }), undefined);
+  const after = options(host, game.id)!;
+  assert.equal(after.swings, undefined);
+  assert.equal(after.actionUsed, true);
+  assert.ok(!after.actions.some(a => a.cost === "action"));
+});
+
+test("a spell's option says its range, a bonus action's cost and an area's tiles", () => {
+  const { host, playerId, game } = onMap("wizard");
+  started(host, playerId, room([{ id: "bandit", at: { x: 3, y: 3 } }, { id: "far", name: "a far bandit", at: { x: 8, y: 3 } }], { x: 2, y: 3 }));
+  toPlayer(host, game.id);
+  const o = options(host, game.id)!;
+  const bolt = o.actions.find(a => a.id === "cast_fire-bolt@8,3")!;
+  assert.deepEqual([bolt.name, bolt.cost, bolt.range, bolt.target], ["Fire Bolt", "action", 120, "far"]);
+  const cone = o.actions.find(a => a.id === "cast_burning-hands@3,3")!;
+  assert.deepEqual([cone.name, cone.range], ["Burning Hands", 15]);
+  assert.ok(cone.area!.some(t => t.x === 3 && t.y === 3) && !cone.area!.some(t => t.x === 2 && t.y === 3), "the cone's tiles, aimed at the bandit");
+});
+
+test("a hit says how its target stood as the moment began, so a screen that sees it late can wind it back", () => {
+  const { host, playerId, game, wren } = onMap();
+  started(host, playerId, room([{ id: "bandit", at: { x: 3, y: 3 } }], { x: 2, y: 3 }));
+  toPlayer(host, game.id);
+  const before = board(host, game.id).units["bandit"]!;
+  for (let i = 0; i < 4; i++) {
+    const seen = fightNow(host, game.id).seq;
+    if (!options(host, game.id)?.actions.some(a => a.id === "attack@3,3")) break;
+    assert.equal(host.as(wren).attack({ how: "attack", at: { x: 3, y: 3 } }), undefined);
+    const hit = events(host, fightNow(host, game.id)).filter(e => e.seq > seen).flatMap(e => e.detail.hits).find(h => h.unit === "bandit");
+    if (!hit) continue;
+    assert.deepEqual(hit.was, { hp: before.hp, state: "fighting", at: { x: 3, y: 3 } });
+    assert.equal(hit.hp, Math.max(0, before.hp - hit.damage.reduce((n, d) => n + d.amount, 0)));
+    return;
+  }
+  assert.fail("no blow landed in four tries");
+});
+
+test("hurry, the screen's skip to your turn: the other side's turns before the player's played at once, each its moments; on the player's turn it does nothing, and a spectator can't", () => {
+  const { host, playerId, game, wren } = onMap();
+  const tom = identity(2);
+  assert.equal(host.as(tom).joinGame({ game: game.id }), undefined);
+  started(host, playerId, room([{ id: "bandit-1", at: { x: 9, y: 1 } }, { id: "bandit-2", name: "another bandit", at: { x: 9, y: 5 } }], { x: 2, y: 3 }));
+  toPlayer(host, game.id);
+  const mine = fightNow(host, game.id);
+  assert.equal(host.as(wren).fightTurn({ act: "hurry" }), undefined, "on the player's own turn: nothing to do");
+  assert.equal(fightNow(host, game.id).seq, mine.seq, "and nothing written");
+  assert.equal(host.as(wren).fightTurn({ act: "end_turn" }), undefined);
+  const theirs = fightNow(host, game.id);
+  assert.equal(theirs.options, "");
+  assert.equal(host.as(tom).fightTurn({ act: "hurry" })?.code, "not_controller");
+  assert.equal(host.as(wren).fightTurn({ act: "hurry" }), undefined);
+  const back = fightNow(host, game.id);
+  assert.ok(back.options || back.status !== "on", "the turn's come round to the player (or the fight's over), with no step on the clock played");
+  const played = events(host, back).filter(e => e.seq > theirs.seq);
+  // Each bandit's turn played (its moves and blows: the first one's turn began as the player's ended), and the player's begun.
+  for (const id of ["bandit-1", "bandit-2"]) assert.ok(played.some(e => e.actor === id && e.kind !== "turn") || board(host, game.id).units[id]!.state !== "fighting", `${id}'s turn was played`);
+  if (back.options) assert.equal(played[played.length - 1]!.kind === "turn" && played[played.length - 1]!.actor, "player");
+  assert.equal(host.fightSteps(), 0, "the step on the clock finds nothing to do");
 });

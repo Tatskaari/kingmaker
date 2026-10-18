@@ -213,6 +213,7 @@ export class Skirmish {
       hits.push({
         unit: u.id, damage, healed, ...(d.saves[u.id] !== undefined ? { saved: d.saves[u.id]! } : {}), hp: u.hp, maxHp: u.maxHp, state: u.state,
         fell: was.state === "fighting" && (u.state === "down" || u.state === "dead"), gained, lost, ...(moved ? { movedTo: { ...u.at } } : {}),
+        was: { hp: was.hp, state: was.state, at: { ...was.at } },
       });
     }
     return hits;

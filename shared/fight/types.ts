@@ -196,6 +196,8 @@ export interface FightHit {
   lost: string[];
   /** Where they were moved to, when it wasn't their own move (a shove). */
   movedTo?: Tile2;
+  /** How they stood as the moment began, so a screen can play it from there (a fight's moments seen late are wound back by it). */
+  was?: { hp: number; state: UnitState; at: Tile2 };
 }
 
 /** A moment's details: what the screen animates, and the log's lines. */
@@ -244,25 +246,51 @@ export interface FightEvent {
 // ---------------------------------------------------------------------------------------------
 // The player's turn.
 
-/** One of the player's options, by its action id (the map's: attack@x,y, cast_<spell>@x,y, walk@x,y; the fight's own: dash, end_turn…). */
+/**
+ * One of the player's options, by its action id (the map's: attack@x,y, cast_<spell>@x,y, walk@x,y;
+ * the fight's own: dash, end_turn…), with what the screen's menu and aiming show of it: what it's
+ * called (one menu line for each name, its targets aimed on the board), what it spends of the turn,
+ * where it's aimed and at whom, how far it reaches, and an area's tiles.
+ */
 export interface FightAction {
   id: string;
   label: string;
   kind: "move" | "attack" | "cast" | "turn";
+  /** What it is, for the menu's line: "Attack", "Fire Bolt", "Shove", "Grab", "Dash"; a named move's own words ("Close in on a grey wolf"). */
+  name?: string;
+  /** What it spends of the turn: the action, the bonus action, movement, or nothing. */
+  cost?: "action" | "bonus" | "move" | "free";
+  /** The tile it's aimed at (the target's), or walked to. */
+  at?: Tile2;
+  /** Who or what is there: a unit's or a prop's id. */
+  target?: string;
+  /** How far it reaches from where they stand, in feet: a weapon's reach (or a bow's long range), a spell's range. */
+  range?: number;
+  /** The tiles an area would cover, aimed here. */
+  area?: Tile2[];
+  /** The feet a move takes. */
+  feet?: number;
 }
 
 /** What the player can do on their turn, as the fight row carries it (none while it isn't theirs). */
 export interface FightOptions {
   movementLeft: number;
+  /** Their full movement this turn (their speed, doubled once they've dashed), for the screen's gauge. */
+  speed?: number;
   actionUsed: boolean;
   bonusActionUsed: boolean;
   /** The tiles they can end a move on this turn. */
   moves: Tile2[];
+  /** Of those, the ones a walk to would draw a swing on the way (leaving someone's reach, not having disengaged). */
+  swings?: Tile2[];
   actions: FightAction[];
 }
 
-/** The fight's own acts, beside the map's moves (fight_turn's `act`). */
-export const FIGHT_ACTS = ["dash", "dodge", "disengage", "end_turn", "yield", "leave", "auto"] as const;
+/**
+ * The fight's own acts, beside the map's moves (fight_turn's `act`). `hurry` is the screen's "skip
+ * to your turn": the other side's turns still to come before the player's are played at once.
+ */
+export const FIGHT_ACTS = ["dash", "dodge", "disengage", "end_turn", "yield", "leave", "auto", "hurry"] as const;
 export type FightAct = (typeof FIGHT_ACTS)[number];
 export const isFightAct = (id: string): id is FightAct => (FIGHT_ACTS as readonly string[]).includes(id);
 

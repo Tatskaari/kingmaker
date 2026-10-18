@@ -4,7 +4,7 @@ import { solid } from "../../../shared/fight/grid.ts";
 import { mapOf } from "../../../shared/map/tiles.ts";
 import { all, hostWithCampaign, identity } from "../host/testing.ts";
 import { eventsOf, fightOf } from "../fight/rows.ts";
-import { RINGS, ringSetup } from "./rings.ts";
+import { RINGS, ringSetup } from "../../../shared/zoo/rings.ts";
 
 /**
  * The zoo's rings (M6, docs/combat-design.md §7): each set out on a map that builds, everyone on a
