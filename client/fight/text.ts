@@ -28,8 +28,8 @@ function head(view: FightView): string {
   const turn = view.board.units[view.turn];
   const o = view.options;
   if (o) return `your turn. ${o.movementLeft} ft to move, action ${o.actionUsed ? "spent" : "ready"}, bonus action ${o.bonusActionUsed ? "spent" : "ready"}.`;
-  if (turn && turn.id === view.board.pc) return turn.state === "down" ? "your turn, on the floor: a death save." : "your turn.";
-  return `${turn ? `${turn.name}'s turn` : "the others' turn"}: they act a turn at a time (observe again in a moment).`;
+  if (turn && turn.id === view.board.pc) return view.watching ? `${turn.name}'s turn.` : turn.state === "down" ? "your turn, on the floor: a death save." : "your turn.";
+  return `${turn ? `${turn.name}'s turn` : "the others' turn"}: the other side acts a turn at a time (observe again in a moment).`;
 }
 
 /** The moments as lines: each caption, its dice and narration under it. */
