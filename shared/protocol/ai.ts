@@ -253,7 +253,7 @@ export interface CombatAction { action: CombatVerb; target?: string; spell?: str
 export interface CombatDone { act: CombatAction; lines: string[]; result: string; refused?: boolean }
 
 /** Someone in the fight as the GM sees them: who, which side, how they stand, whether they're out of it, their weapon's reach and their speed, and how far they are from each of the others (in the place's world, feet). */
-export interface CombatFighter { id: string; name: string; side: Side; initiative: number; hurt: string; hp?: number; max?: number; ac: number; down: boolean; out?: string; reach: { melee: boolean; feet: number; speed: number }; feet: Record<string, number> }
+export interface CombatFighter { id: string; name: string; called?: string; side: Side; initiative: number; hurt: string; hp?: number; max?: number; ac: number; down: boolean; out?: string; reach: { melee: boolean; feet: number; speed: number }; feet: Record<string, number> }
 
 /**
  * The fight as the combat step sees it: its state, everyone in it, whose turn it is, what's been

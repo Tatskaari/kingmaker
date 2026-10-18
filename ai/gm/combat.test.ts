@@ -67,7 +67,11 @@ test("the fight as the GM reads it: everyone in order with how they stand, their
   const note = fightNote(yard(), fight("player"));
   assert.match(note, /^## The fight: round 1 \(Cob won't be taken\)/);
   assert.match(note, /- Cob \[cob\], against the player, initiative 17: unhurt, HP 10\/10, AC 12; melee, reach 5 ft, moves 30 ft\. From: you 20 ft, Sergeant Agnes Kell 30 ft/);
-  assert.match(note, /- You, the player character \[player\], initiative 12: .*◀ their turn now/);
+  assert.match(note, /- You, the player character \("you" in your narration, never their name\) \[player\], initiative 12: .*◀ their turn now/);
+  const unheard = fight("cob");
+  unheard.fighters[0] = { ...unheard.fighters[0]!, called: "the boy with the stones" };
+  assert.match(fightNote(yard(), unheard), /- the boy with the stones \(Cob: the player hasn't heard the name, so they're the boy with the stones in your narration until someone says it\) \[cob\]/);
+  assert.match(fightNote(yard(), unheard), /## It's the boy with the stones's turn \[cob\]/);
   assert.match(note, /## It's the player's turn\nThey said: «I hit Cob with my sword\.»/);
   assert.match(note, /weapons: Longsword \[w1\]/);
   const theirs = fightNote(yard(), fight("cob"));

@@ -38,7 +38,7 @@
     },
     {
       "id": "crake-1",
-      "name": "the talking Crake",
+      "name": "Bram Crake",
       "called": "the big man with the tin cup",
       "look": "An enormous river-bruiser in a reefer jacket, with a cudgel under one arm and a tin cup in the other hand, which he jingles.",
       "voice": "Cheerful, reasonable and relentless, all about rates: 'Shilling a head to use the gate. Uniforms is extra, but we'll waive it, seeing as it's you.'",
@@ -55,7 +55,7 @@
     },
     {
       "id": "crake-2",
-      "name": "the silent Crake",
+      "name": "Tam Crake",
       "called": "the other big man",
       "look": "His identical brother, with an identical cudgel, leaning on the gate post and saying nothing at all.",
       "voice": "Says nothing. Nods at his brother, occasionally; cracks his knuckles, once.",
@@ -71,6 +71,12 @@
     }
   ],
   "facts": {},
+  "onEnd": [
+    {
+      "op": "follow",
+      "who": "kell"
+    }
+  ],
   "nodes": [
     {
       "id": "at-the-gate",

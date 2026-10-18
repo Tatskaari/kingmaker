@@ -106,7 +106,7 @@ export function fightNote(view: TurnView, combat: CombatView): string {
 }
 
 function fighterLine(f: CombatFighter, now: boolean, all: CombatFighter[]): string {
-  const name = f.id === "player" ? "You, the player character" : f.name;
+  const name = f.id === "player" ? "You, the player character (\"you\" in your narration, never their name)" : f.called ? `${f.called} (${f.name}: the player hasn't heard the name, so they're ${f.called} in your narration until someone says it)` : f.name;
   const side = f.id === "player" ? "" : f.side === "party" ? ", with the player" : ", against the player";
   const state = f.out ? (f.out === "fled" ? "fled: out of the fight" : "gave up: out of the fight") : f.down ? "down: 0 hit points, out cold" : `${f.hurt}, HP ${f.hp}/${f.max}, AC ${f.ac}`;
   const reach = f.out ? "" : `; ${f.reach.melee ? "melee, reach 5 ft" : `ranged, ${f.reach.feet} ft`}, moves ${f.reach.speed} ft`;
@@ -114,7 +114,7 @@ function fighterLine(f: CombatFighter, now: boolean, all: CombatFighter[]): stri
   return `- ${name} [${f.id}]${side}, initiative ${f.initiative}: ${state}${reach}${apart ? `. From: ${apart}` : ""}${now ? "  ◀ their turn now" : ""}`;
 }
 
-const nameIn = (all: CombatFighter[], id: string) => (id === "player" ? "you" : all.find(f => f.id === id)?.name ?? id);
+const nameIn = (all: CombatFighter[], id: string) => (id === "player" ? "you" : all.find(f => f.id === id)?.called ?? all.find(f => f.id === id)?.name ?? id);
 
 function turnNote(view: TurnView, combat: CombatView, whose: CombatFighter): string {
   const used = actionUsed(combat);
@@ -140,7 +140,10 @@ function sheetLine(view: TurnView): string {
   return [list("spells ready", r?.spells), list("weapons", r?.weapons), list("features", r?.features)].filter(Boolean).join("; ") || "no spells, weapons or features on their sheet";
 }
 
-const fighterOf = (combat: CombatView, id: string): CombatFighter => combat.fighters.find(f => f.id === id) ?? combat.fighters[0]!;
+const fighterOf = (combat: CombatView, id: string): CombatFighter => {
+  const f = combat.fighters.find(x => x.id === id) ?? combat.fighters[0]!;
+  return f.called ? { ...f, name: f.called } : f;
+};
 
 /** How the combat GM is asked: the request's calls, and the game's keys for who says each line. */
 export interface CombatHow { calls: CallContext; byKey(markup: Markup): Markup }

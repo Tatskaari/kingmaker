@@ -22,7 +22,8 @@ import { putGm } from "../gm/rows.ts";
 import { inPlay, playedOut } from "../rules/play.ts";
 import { engineCall } from "../rules/session.ts";
 import { updateTurn } from "../rows.ts";
-import { addEntry, noteHeard, writeReply } from "../transcript.ts";
+import { unnamed } from "../../../shared/scene/names.ts";
+import { addEntry, entriesOf, noteHeard, writeReply } from "../transcript.ts";
 import { finishTurn } from "../turns.ts";
 import { syncStage } from "../world/stage.ts";
 import type { Next } from "./move.ts";
@@ -46,7 +47,7 @@ export function startCombat(tx: TxCtx, at: At, plan: SayPlan, initiative: Initia
   const side = (id: string) => (foes.some(f => f.id === id) ? "foes" : "party") as Fighter["side"];
   const state: CombatState = { started: plan.n, round: 1, order: rolled.rolls.map(r => ({ id: r.id, side: side(r.id), initiative: r.total })), at: 0, why: initiative.why };
   at.gm.combat = state;
-  addEntry(tx, at.scene, { turn: plan.n, speaker: "system", kind: "system", text: `Combat! In initiative order: ${state.order.map(f => nameOf(at, f.id)).join(", ")}.` });
+  addEntry(tx, at.scene, { turn: plan.n, speaker: "system", kind: "system", text: `Combat! In initiative order: ${state.order.map(f => nameOf(tx, at, f.id)).join(", ")}.` });
   tx.log(`[scene ${at.scene.id} turn ${plan.n}] combat: ${state.order.map(f => `${f.id} ${f.initiative}`).join(", ")} (${initiative.why})`);
   return turnUp(tx, at, plan, 0, true);
 }
@@ -67,15 +68,18 @@ export function combatTurnPlan(tx: TxCtx, at: At, plan: SayPlan): SayPlan {
 export function afterCombat(tx: TxCtx, plan: SayPlan, answer: CombatResponse): Next<SayPlan> {
   const at = atTurn(tx, plan);
   const turnId = idOf(plan.turn);
-  if (answer.entries.length) writeReply(tx, at.scene, plan.n, turnId, answer.entries);
-  noteHeard(tx, at.scene, at.graph);
   const combat = at.gm.combat;
   const k = (plan.combat?.k ?? 1) + 1;
-  if (!combat || answer.move.kind === "end_combat") return endCombat(tx, at, plan, answer.move.kind === "end_combat" ? answer.move : undefined);
-  if (answer.move.kind === "end_turn") return passTurn(tx, at, plan, k);
+  const said = () => { if (answer.entries.length) writeReply(tx, at.scene, plan.n, turnId, answer.entries); noteHeard(tx, at.scene, at.graph); };
+  if (!combat || answer.move.kind === "end_combat") { said(); return endCombat(tx, at, plan, answer.move.kind === "end_combat" ? answer.move : undefined); }
+  if (answer.move.kind === "end_turn") { said(); return passTurn(tx, at, plan, k); }
   // A GM that never ends a turn doesn't hold the fight up: past twice the turn's actions, it passes on.
   if ((plan.combat?.done.length ?? 0) >= 2 * ACTS_A_TURN) { tx.log(`[scene ${at.scene.id} turn ${plan.n}] combat: ${whoseTurn(combat).id}'s turn passed on after ${plan.combat!.done.length} actions`); return passTurn(tx, at, plan, k); }
 
+  // An action's attempt is narrated before its dice, unless the rules refuse it (the GM is told why, and tries again).
+  const refused = refusalOf(tx, at, plan.n, whoseTurn(combat).id, answer.move.act);
+  if (!refused) said();
+  else tx.db.replyDraft.turnId.delete(turnId);
   const done = resolve(tx, at, plan, answer.move.act);
   putGm(tx, at.scene.id, at.gm);
   const fight = fightNow(tx, at, plan.n);
@@ -170,7 +174,19 @@ function resolve(tx: TxCtx, at: At, plan: SayPlan, act: CombatAction): CombatDon
     : f.id === "player" ? playersAct(tx, at, plan, act)
     : theirBlow(tx, at, plan.n, f.id, act.target!);
   tx.log(`[scene ${at.scene.id} turn ${plan.n}] combat: ${f.id} ${act.action}${act.target ? ` ${act.target}` : ""}: ${out.result}`);
-  return { act, ...out };
+  return { act, lines: out.lines, result: [out.result, standingAfter(tx, at, plan.n, act)].filter(Boolean).join(" ") };
+}
+
+/**
+ * Where an action's target stands now, by the rules, for the GM (the user's play, combat-gm: a blow
+ * that left the talking Crake badly hurt at 1 hit point was narrated as him dropping out cold): down,
+ * or still on their feet and how hurt.
+ */
+function standingAfter(tx: TxCtx, at: At, n: number, act: CombatAction): string {
+  if (!act.target || !["attack", "cast", "grapple", "shove", "feature"].includes(act.action)) return "";
+  const s = standingsOf(tx, at, n).find(x => x.id === act.target);
+  if (!s) return "";
+  return `Now ${nameOf(tx, at, s.id)} ${s.id === "player" ? "are" : "is"} ${s.hp <= 0 ? "down: 0 hit points, out cold" : `${s.hurt} (${s.hp}/${s.max} HP), still on ${s.id === "player" ? "your" : "their"} feet`}.`;
 }
 
 /** What the rules refuse before anything is rolled: a target nobody knows, a blow or a hold from out of reach, what the cast can't do. */
@@ -182,7 +198,7 @@ function refusalOf(tx: TxCtx, at: At, n: number, who: string, act: CombatAction)
   const feet = apart(world, who, act.target);
   const reach = act.action === "attack" ? reachFor(tx, at, n, who, act.weapon) : { melee: true, feet: 5 };
   if (act.weapon === "improvised" || !reach.melee || feet === undefined || feet <= reach.feet + SLACK) return undefined;
-  return `Out of reach: ${nameOf(at, act.target)} is ${feet} ft away, and ${act.action === "attack" ? "a melee blow reaches" : "hands reach"} 5 ft. move_towards first (or end the turn).`;
+  return `Out of reach: ${nameOf(tx, at, act.target)} is ${feet} ft away, and ${act.action === "attack" ? "a melee blow reaches" : "hands reach"} 5 ft. move_towards first (or end the turn).`;
 }
 
 /** A move up to their speed, towards someone or something (they stop beside them) or away from it, in the place's world. */
@@ -196,7 +212,7 @@ function move(tx: TxCtx, at: At, n: number, who: string, act: CombatAction): { l
   playedOut(tx, at.scene, at.graph, at.gm, played);
   const after = apart(world, who, act.target!) ?? 0;
   const beside = after <= 5 + SLACK;
-  return { lines: [], result: `${nameOf(at, who)} moved ${Math.abs(before - after)} ft ${act.away ? "back from" : "towards"} ${nameOf(at, act.target!)}: now ${beside ? "beside them" : `${after} ft away`}.` };
+  return { lines: [], result: `${nameOf(tx, at, who)} moved ${Math.abs(before - after)} ft ${act.away ? "back from" : "towards"} ${nameOf(tx, at, act.target!)}: now ${beside ? "beside them" : `${after} ft away`}.` };
 }
 
 /** Fleeing or giving up: out of the fight (one of the cast who flees is gone from the scene, as the reactions' flight is). */
@@ -209,7 +225,7 @@ function leaves(tx: TxCtx, at: At, n: number, f: Fighter, how: "flee" | "surrend
     played.session.absent = [...new Set([...(played.session.absent ?? []), f.id])];
     playedOut(tx, at.scene, at.graph, at.gm, played);
   }
-  return { lines: [], result: `${nameOf(at, f.id)} ${how === "flee" ? "flees: out of the fight" : "gives up: out of the fight"}.` };
+  return { lines: [], result: `${nameOf(tx, at, f.id)} ${how === "flee" ? "flees: out of the fight" : "gives up: out of the fight"}.` };
 }
 
 /** A stunt the dice decide: the player's check, rolled as every check is (rollerFor), its dice line written. */
@@ -255,7 +271,7 @@ function fightNow(tx: TxCtx, at: At, n: number): Pick<CombatPlan, "fighters" | "
     const s = stand.find(x => x.id === f.id)!;
     const feet = Object.fromEntries(combat.order.filter(o => o.id !== f.id && world).map(o => [o.id, apart(world!, f.id, o.id) ?? 0]));
     return {
-      id: f.id, name: nameOf(at, f.id), side: f.side, initiative: f.initiative, hurt: s.hurt, hp: s.hp, max: s.max, ac: s.ac, down: s.hp <= 0,
+      id: f.id, name: f.id === "player" ? "you" : castOf(at, f.id)?.name ?? f.id, ...(called(tx, at, f.id) ? { called: called(tx, at, f.id) } : {}), side: f.side, initiative: f.initiative, hurt: s.hurt, hp: s.hp, max: s.max, ac: s.ac, down: s.hp <= 0,
       ...(f.out ? { out: f.out } : {}), reach: reachFor(tx, at, n, f.id), feet,
     };
   });
@@ -295,6 +311,10 @@ function apart(world: SceneWorld, a: string, b: string): number | undefined {
   return p && q ? Math.round(distance(p, q)) : undefined;
 }
 
+/** What the player calls someone whose name they haven't heard yet; none once they have. */
+const called = (tx: TxCtx, at: At, id: string): string | undefined => (id === "player" ? undefined : unnamed(at.graph, { transcript: entriesOf(tx, at.scene.id) })[id]);
+
 const castOf = (at: At, id: string): Character | undefined => at.graph.cast.find(c => c.id === id);
 const membersOf = (at: At): FightMember[] => at.gm.combat!.order.map(f => (f.id === "player" ? "player" : castOf(at, f.id) ?? "player"));
-const nameOf = (at: At, id: string) => (id === "player" ? "you" : castOf(at, id)?.name ?? id);
+/** Someone in the fight as the player knows them: by what they call them until they've heard the name (shared/scene/names.ts unnamed). */
+const nameOf = (tx: TxCtx, at: At, id: string) => (id === "player" ? "you" : unnamed(at.graph, { transcript: entriesOf(tx, at.scene.id) })[id] ?? castOf(at, id)?.name ?? id);

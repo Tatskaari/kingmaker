@@ -446,7 +446,7 @@ function waitingEndings(scene: Scene, view: TurnView, who: Character[]): Array<{
  * scene from the conversation's turns to everyone's in initiative order, each narrated by the GM.
  */
 const FIGHT_START = `## When a fight breaks out
-- \`roll_for_initiative\` comes after \`check\`, before the narration: null unless a fight starts in this reply. A fight is when someone means to hurt someone and blows are about to be traded with nobody backing off: they attack and won't be talked down, or the player attacks someone who fights back. Then fill it in: \`foes\`, the ids (or names) of the people who'll fight the player; \`allies\`, those who'll fight beside them (the companion, if they would); \`why\`, a few words on what it's about. The player is always in it. Leave \`check\` null then.
+- \`roll_for_initiative\` comes after \`check\`, before the narration: null unless a fight starts in this reply. A fight is when someone means to hurt someone and blows are about to be traded with nobody backing off: they attack and won't be talked down, or the player attacks someone who fights back. Then fill it in: \`foes\`, the ids (or names) of the people who'll fight the player; \`allies\`, those who'll fight beside them (whoever came with the player, unless their card says they wouldn't: standing between the two sides is fighting on the player's side); \`why\`, a few words on what it's about. The player is always in it. Leave \`check\` null then.
 - Your narration takes the fight up to its first blow and stops there, ending on "Roll for initiative!". From then on the game goes round everyone in initiative order, and you narrate each turn as it comes, with the dice deciding what lands.
 - Not for a shove, a slap or a scuffle that's over as soon as it starts, nor a threat that can still be talked down: those are the conversation's, with a check if it could go either way.`;
 
@@ -746,7 +746,8 @@ export function fightOf(scene: Scene, view: TurnView, asked: Initiative | null |
   };
   const ids = (list: unknown) => [...new Set((Array.isArray(list) ? list : []).map(x => idOf(String(x))).filter((x): x is string => !!x))];
   const foes = ids(asked.foes);
-  const allies = ids(asked.allies).filter(id => !foes.includes(id));
+  // The companion fights beside the player unless the GM sets them against them.
+  const allies = [...new Set([...ids(asked.allies), ...companionsOf(scene, view).map(c => c.id)])].filter(id => !foes.includes(id));
   return foes.length ? { foes, allies, why: String(asked.why ?? "").trim() } : undefined;
 }
 
