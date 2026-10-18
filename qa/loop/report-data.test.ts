@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { callsBefore, callsByTurn, capped, costOf, keptCalls, type Call } from "./calls.ts";
 import { newRecord, type GameRecord } from "./record.ts";
-import { armStats, byCheck, gameStats } from "./report-data.ts";
+import { armStats, byCheck, fightsOf, gameStats } from "./report-data.ts";
 import type { Review } from "./review.ts";
 import { personas, type Round } from "./round.ts";
 import type { Ending } from "./scenes.ts";
@@ -116,4 +116,20 @@ test("the arms side by side, and the findings by check", () => {
   assert.deepEqual(k1!.bySeverity, [1, 0, 0, 0, 0]);
   assert.deepEqual([k2!.outcomes.none, k2!.per10!.toFixed(1), k2!.overall], [1, "16.7", 2]);
   assert.deepEqual(byCheck(games).map(c => [c.check, c.penalty, c.arms.k1?.count ?? 0, c.arms.k2?.count ?? 0]), [["knows", 20, 1, 1], ["drag", 1, 0, 1]]);
+});
+
+test("the fights as the player saw them (docs/combat-gm.md): each from its line to its end, the order and the sides, who came and when, the rounds; blows outside a fight, and a call for initiative that started none", () => {
+  const e = (turn: number, kind: GameRecord["entries"][number]["kind"], text: string) => ({ turn, kind, text });
+  const { fights, blows, calledOnly } = fightsOf([
+    e(1, "player", "(I swing at the boy)"), e(1, "roll", "Greataxe: your attack on Cob: 12 +5 = 17 vs AC 10: hit"), e(1, "narration", "He drops."),
+    e(2, "player", "(I swing at the sergeant)"), e(2, "narration", "She draws her truncheon. Roll for initiative!"),
+    e(2, "system", "Combat! In initiative order: Sergeant Agnes Kell, you. Keeping clear of it: the girl in the shawl."),
+    e(2, "system", "Joining the fight: Old Wat (against you)."), e(2, "system", "Your turn."),
+    e(3, "player", "(I hack at her)"), e(3, "system", "Round 2."), e(3, "system", "Round 3."), e(3, "system", "Arriving: the granary porters."),
+    e(4, "player", "(I hack again)"), e(4, "system", "The fight is over (you won)."),
+    e(5, "player", "(I kick the dog)"), e(5, "narration", "The dog bares its teeth. Roll for initiative!"),
+  ]);
+  assert.deepEqual(fights, [{ from: 2, line: "(I swing at the sergeant)", order: "Sergeant Agnes Kell, you", sides: ["Keeping clear of it: the girl in the shawl.", "Joining the fight: Old Wat (against you)."], arrived: ["the granary porters (round 3)"], rounds: 3, to: 4, ended: "you won" }]);
+  assert.deepEqual(blows, [{ turn: 1, line: "(I swing at the boy)", roll: "Greataxe: your attack on Cob: 12 +5 = 17 vs AC 10: hit" }]);
+  assert.deepEqual(calledOnly, [5], "the fight at turn 2 started; turn 5's call didn't");
 });

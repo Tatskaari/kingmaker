@@ -8,9 +8,9 @@ import type { SceneDocument } from "../scene/document.ts";
 import type { BuildsFile } from "../scene/files.ts";
 import { presentCast } from "../scene/graph.ts";
 import { sceneOf } from "../scene/load.ts";
-import { blowBetween, rollInitiative, standings } from "./acts.ts";
-import { createCharacter } from "./character.ts";
-import { rulesFrom } from "./engine.ts";
+import { blowBetween, rollInitiative, standings, standUp } from "./acts.ts";
+import { close, createCharacter } from "./character.ts";
+import { event, opened, rulesFrom } from "./engine.ts";
 import { withEngine } from "./pin.ts";
 import type { SceneSession } from "./types.ts";
 
@@ -52,6 +52,20 @@ test("a blow between two of the cast (Kell at Cob), and one of theirs at the pla
   const kellAtCob = pinned(() => blowBetween(rules, s, who(s, "kell"), who(s, "cob")));
   assert.match(kellAtCob.lines[0]!, /attack on Cob/);
   assert.match(kellAtCob.directive, /Kell (hit|missed|landed a critical hit on) Cob/);
+});
+
+test("getting up off the ground (QA round hobo1-1018: the narration stood a prone player up five times and the rules never did): prone in the standings, then not; one on their feet already gets up from nothing", () => {
+  const s = yard();
+  pinned(() => {
+    const ctx = opened(rules, s);
+    ctx.apply([event(ctx.E, "ConditionApplied", { targetId: s.rules!.pc, conditionId: "prone", appliedConditionId: ctx.E.newEventId() })]);
+    close(rules, s, ctx);
+  });
+  assert.deepEqual(pinned(() => standings(rules, s, ["player"]))[0]!.conditions, ["prone"]);
+  assert.equal(pinned(() => standUp(rules, s, "player")), true, "they were down");
+  assert.equal(pinned(() => standings(rules, s, ["player"]))[0]!.conditions, undefined, "and they're up");
+  assert.equal(pinned(() => standUp(rules, s, "player")), false, "already up");
+  assert.equal(pinned(() => standUp(rules, s, who(s, "cob"))), false);
 });
 
 test("standings: hit points, AC and the word for each, after the blows land", () => {

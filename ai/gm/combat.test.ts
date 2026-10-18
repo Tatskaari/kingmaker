@@ -120,6 +120,23 @@ test("on anyone's turn but the player's there's no other (smoke2-1018: Kell's tu
   assert.deepEqual(after.move, { kind: "end_turn", narration: "Your blade rings off the post, and Cob laughs." }, "told once, as the turn's end");
 });
 
+test("a smite is the spell it is, cast beside the blow (QA round hobo1-1018: a paladin's Divine Smite called as a feature the rules haven't got, twice): a feature that's one of the player's spells is cast as it, a bonus-action spell doesn't take the turn's action, and only one a turn", async () => {
+  const view = yard();
+  view.rules = { weapons: [{ id: "w1", name: "Longsword" }], spells: [{ id: "divine-smite", name: "Divine Smite", level: 1, bonus: true }, { id: "command", name: "Command", level: 1 }], features: [] };
+  const struck = [{ act: { action: "attack" as const, target: "cob", narration: "You swing." }, lines: ["Longsword: your attack on Cob: 18 +6 = 24 vs AC 12: hit"], result: "You hit Cob." }];
+  const calls = scripted([["perform_action", { action: "feature", feature: "divine-smite", target: "cob", narration: "Your oath burns in the blade." }]]);
+  const out = await combatMove(clerk, view, fight("player", { done: struck }), { calls, byKey });
+  assert.deepEqual(out.move, { kind: "act", act: { action: "cast", spell: "divine-smite", target: "cob", narration: "Your oath burns in the blade." } }, "cast, beside the attack");
+  const smitten = [...struck, { act: { action: "cast" as const, spell: "divine-smite", target: "cob", narration: "Smite." }, lines: [], result: "Your next hit lands 2d8 radiant harder." }];
+  const again = scripted([["perform_action", { action: "cast", spell: "divine-smite", narration: "Again!" }], ["perform_action", { action: "cast", spell: "command", target: "cob", narration: "Drop." }], ["end_turn", { narration: "The light fades from the blade." }]]);
+  const next = await combatMove(clerk, view, fight("player", { done: smitten }), { calls: again, byKey });
+  assert.deepEqual(next.move, { kind: "end_turn", narration: "The light fades from the blade." });
+  const told = JSON.stringify(again.inputs.at(-1));
+  assert.match(told, /has cast a bonus-action spell this turn already/);
+  assert.match(told, /has used their action this turn/, "the attack was the action; Command would be a second");
+  assert.match(fightNote(view, fight("player")), /Divine Smite \(a bonus action, cast before the blow it goes with\) \[divine-smite\]/);
+});
+
 test("a turn's action once: a second attack is put right; past the turn's calls only end_turn; once it's over only end_combat", async () => {
   const done = [{ act: { action: "attack" as const, target: "player", narration: "Cob swings." }, lines: ["Club: Cob's attack on you: 4 +2 = 6 vs AC 16: miss"], result: "Cob missed you (Club)." }];
   const calls = scripted([["perform_action", { action: "attack", target: "player", narration: "Again!" }], ["end_turn", { narration: "The club whistles past you." }]]);

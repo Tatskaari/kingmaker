@@ -984,7 +984,7 @@ export type FightMember = Character | "player";
 export interface InitiativeRoll { id: string; roll: number; modifier: number; total: number }
 
 /** How someone in the fight stands now, by the rules: hit points, armour class, and the word for it. */
-export interface Standing { id: string; hp: number; max: number; ac: number; hurt: "unhurt" | "hurt" | "badly hurt" | "down" }
+export interface Standing { id: string; hp: number; max: number; ac: number; hurt: "unhurt" | "hurt" | "badly hurt" | "down"; conditions?: string[] }
 
 const memberId = (m: FightMember) => (m === "player" ? "player" : m.id);
 
@@ -1066,8 +1066,26 @@ export function standings(rules: Rules, state: RulesSession, members: FightMembe
   const out = members.map(m => {
     const id = engineIdOf(ctx, state, m);
     const c = ctx.campaign.state.characters[id]!;
-    return { id: memberId(m), hp: Math.max(0, c.hp.current), max: c.hp.max, ac: sheetOf(ctx, id).ac.total, hurt: hurt(c) as Standing["hurt"] };
+    const conditions = [...new Set(c.appliedConditions.map(a => a.conditionId).filter(k => SRD_CONDITIONS.has(k) && k !== "concentrating"))];
+    return { id: memberId(m), hp: Math.max(0, c.hp.current), max: c.hp.max, ac: sheetOf(ctx, id).ac.total, hurt: hurt(c) as Standing["hurt"], ...(conditions.length ? { conditions } : {}) };
   });
   close(rules, state, ctx);
   return out;
+}
+
+/**
+ * Someone in the fight getting up off the ground: prone no more (QA round hobo1-1018: a mastiff's
+ * bite knocked the player prone, five times the narration stood him up and the rules never did, so
+ * every swing was at disadvantage and every blow at him had advantage). Whether they were down to
+ * start with: getting up takes half their move.
+ */
+export function standUp(rules: Rules, state: RulesSession, m: FightMember): boolean {
+  const ctx = opened(rules, state);
+  const id = engineIdOf(ctx, state, m);
+  const prone = ctx.campaign.state.characters[id]!.appliedConditions.filter(a => a.conditionId === "prone");
+  for (const a of prone) ctx.apply([event(ctx.E, "ConditionRemoved", { targetId: id, conditionId: a.conditionId })]);
+  const e = state.world?.entities[memberId(m)];
+  if (e) e.states = e.states.filter(s => s !== "prone");
+  close(rules, state, ctx);
+  return prone.length > 0;
 }

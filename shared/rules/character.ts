@@ -777,7 +777,8 @@ export function spellFactsOf(rules: Rules, spells: SpellRef[]): SpellFacts[] {
   return spells.map(s => {
     const def = rules.content.spells.get(s.id);
     const targeting = def ? (def as unknown as { targeting?: { shape?: string } }).targeting : undefined;
-    return def ? { ...s, range: def.range, effects: (def.mechanicalEffects ?? []).map(m => String(m.kind)), ...(targeting?.shape ? { area: true } : {}) } : s;
+    const bonus = /^bonus action/i.test(String((def as unknown as { castingTime?: string } | undefined)?.castingTime ?? ""));
+    return def ? { ...s, range: def.range, effects: (def.mechanicalEffects ?? []).map(m => String(m.kind)), ...(targeting?.shape ? { area: true } : {}), ...(bonus ? { bonus: true } : {}) } : s;
   });
 }
 

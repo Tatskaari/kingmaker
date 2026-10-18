@@ -29,7 +29,7 @@ export const PERFORM_ACTION: ToolDef = {
     properties: {
       action: {
         type: "string", enum: COMBAT_VERBS.filter(v => v !== "move"),
-        description: "attack: a blow or a shot with a weapon (the cast use their own; a melee blow needs them within 5 ft: move_towards first). cast: a spell (the player's, by its id). grapple, shove: hands on someone within 5 ft (the player's). feature: a class feature (the player's, by its id). check: a stunt the dice decide (the player's: skill and dc). flee: running from the fight (they leave it). surrender: giving up (they're out of it): whoever gives up calls it, so the rules know. other: something the player does that's none of these (picking something up, helping someone); on anyone else's turn, what they say, how they hold their ground or how they look is end_turn's narration.",
+        description: "attack: a blow or a shot with a weapon (the cast use their own; a melee blow needs them within 5 ft: move_towards first). cast: a spell (the player's, by its id). grapple, shove: hands on someone within 5 ft (the player's). feature: a class feature (the player's, by its id). check: a stunt the dice decide (the player's: skill and dc). stand: getting up off the ground when they're prone (half their move; a move from the ground does it first). flee: running from the fight (they leave it). surrender: giving up (they're out of it): whoever gives up calls it, so the rules know. other: something the player does that's none of these (picking something up, helping someone); on anyone else's turn, what they say, how they hold their ground or how they look is end_turn's narration.",
       },
       target: { type: "string", description: "Who it's aimed at: an id from the fight (\"player\" for the player character), or a thing's id; omit when it's at nobody." },
       spell: { type: "string", description: "cast: the spell's id, as the player's sheet has it." },
@@ -130,7 +130,7 @@ export function fightNote(view: TurnView, combat: CombatView): string {
 function fighterLine(f: CombatFighter, now: boolean, all: CombatFighter[]): string {
   const name = f.id === "player" ? "You, the player character (\"you\" in your narration, never their name)" : f.called ? `${f.called} (${f.name}: the player hasn't heard the name, so they're ${f.called} in your narration until someone says it)` : f.name;
   const side = f.id === "player" ? "" : f.side === "party" ? ", with the player" : ", against the player";
-  const state = f.out ? (f.out === "fled" ? "fled: out of the fight" : "gave up: out of the fight") : f.down ? "down: 0 hit points, out cold" : `${f.hurt}, HP ${f.hp}/${f.max}, AC ${f.ac}`;
+  const state = f.out ? (f.out === "fled" ? "fled: out of the fight" : "gave up: out of the fight") : f.down ? "down: 0 hit points, out cold" : `${f.hurt}, HP ${f.hp}/${f.max}, AC ${f.ac}${f.conditions?.length ? `, ${f.conditions.join(", ")}${f.conditions.includes("prone") ? " (on the ground: getting up, stand, takes half their move)" : ""}` : ""}`;
   const reach = f.out ? "" : `; ${f.reach.melee ? "melee, reach 5 ft" : `ranged, ${f.reach.feet} ft`}, moves ${f.reach.speed} ft`;
   const apart = f.out ? "" : Object.entries(f.feet).filter(([id]) => all.some(o => o.id === id && !o.out)).map(([id, ft]) => `${nameIn(all, id)} ${ft <= 5 ? "beside them" : `${ft} ft`}`).join(", ");
   return `- ${name} [${f.id}]${side}, initiative ${f.initiative}: ${state}${reach}${apart ? `. From: ${apart}` : ""}${now ? "  ◀ their turn now" : ""}`;
@@ -168,7 +168,7 @@ function outOfIt(view: TurnView, combat: CombatView): string | undefined {
 function sidesNote(combat: CombatView): string {
   const who = combat.pending!.map(p => `- ${p.called ? `${p.called} (${p.name}: the player hasn't heard the name)` : p.name} [${p.id}]${p.arriving ? `, just arrived: ${p.arriving.trim().replace(/\.$/, "")}` : ""}${p.about ? `. ${p.about}` : ""}`);
   return `## Before the next turn: who's on which side
-These people are here and have no side in the fight yet. Call pick_sides with one for each: with_player, against_player or flee, as who they are would (what they want and fear, whom they're loyal to, how the fight looks to them right now). Its narration shows them taking it.
+These people are here and have no side in the fight yet. Call pick_sides with one for each: with_player, against_player or flee, as who they are would (what they want and fear, whom they're loyal to, what they never do, how the fight looks to them right now). Someone whose card says they won't stand against someone, or fight but for their own, doesn't, whatever the player has said. Its narration shows them taking it.
 ${who.join("\n")}`;
 }
 
@@ -182,7 +182,8 @@ const doneLine = (d: CombatDone, i: number) => `${i + 1}. ${d.act.action === "mo
 function sheetLine(view: TurnView): string {
   const r = view.rules;
   const list = (name: string, xs: Array<{ id: string; name: string }> | undefined) => (xs?.length ? `${name}: ${xs.map(x => `${x.name} [${x.id}]`).join(", ")}` : "");
-  return [list("spells ready", r?.spells), list("weapons", r?.weapons), list("features", r?.features)].filter(Boolean).join("; ") || "no spells, weapons or features on their sheet";
+  const spells = r?.spells?.map(s => (s.bonus ? { ...s, name: `${s.name} (a bonus action, cast before the blow it goes with)` } : s));
+  return [list("spells ready", spells), list("weapons", r?.weapons), list("features", r?.features)].filter(Boolean).join("; ") || "no spells, weapons or features on their sheet";
 }
 
 const fighterOf = (combat: CombatView, id: string): CombatFighter => {
@@ -201,19 +202,20 @@ export interface CombatHow { calls: CallContext; byKey(markup: Markup): Markup }
  */
 export async function combatMove(scene: Scene, view: TurnView, combat: CombatView, how: CombatHow): Promise<{ move: CombatMove; entries: Reply[]; costUsd: number }> {
   const tools = combat.pending?.length ? [PICK_SIDES] : combat.over ? [END_COMBAT] : [PERFORM_ACTION, MOVE_TOWARDS, END_TURN, END_COMBAT];
+  const bonus = bonusSpells(view);
   const result = await runTools({
     operation: combat.pending?.length ? "combat.sides" : combat.whose === "player" ? "combat.player" : "combat.turn", instructions: combatInstructions(scene, view), input: combatInput(scene, view, combat), tools,
     effort: "low", maxTurns: 4, calls: how.calls, roundMs: 20_000, deadlineMs: 45_000, parallel: false, stop: () => true,
-  }, async (name, args) => { checkCall(combat, name, args); return { ok: true }; });
-  const asked = result.stopped ? moveOf(result.stopped.name, result.stopped.args) : wordsAlone(combat, result.text);
+  }, async (name, args) => { checkCall(combat, name, asSpell(view, args), bonus); return { ok: true }; });
+  const asked = result.stopped ? moveOf(result.stopped.name, asSpell(view, result.stopped.args)) : wordsAlone(combat, result.text);
   // Something small after the turn's action is what came of the turn, told early (smoke2-1018: a miss told by other, then again by end_turn): the turn ends on it.
-  const move: CombatMove = asked.kind === "act" && asked.act.action === "other" && actionUsed(combat) ? { kind: "end_turn", narration: asked.act.narration } : asked;
+  const move: CombatMove = asked.kind === "act" && asked.act.action === "other" && actionUsed(combat, bonus) ? { kind: "end_turn", narration: asked.act.narration } : asked;
   const narration = "narration" in move ? move.narration : move.act.narration;
   return { move, entries: narration.trim() ? [spoken(scene, view, narration, how.byKey)] : [], costUsd: result.costUsd };
 }
 
 /** A tool call held to the fight: wrong ones are answered in the loop (InvalidToolArguments) for the GM to put right. */
-export function checkCall(combat: CombatView, name: string, args: Record<string, unknown>): void {
+export function checkCall(combat: CombatView, name: string, args: Record<string, unknown>, bonus: ReadonlySet<string> = new Set()): void {
   const narration = typeof args.narration === "string" ? args.narration.trim() : "";
   if (!narration) throw new InvalidToolArguments(`${name} needs its narration.`);
   if (combat.pending?.length) return checkSides(combat, name, args);
@@ -225,7 +227,9 @@ export function checkCall(combat: CombatView, name: string, args: Record<string,
   if (!COMBAT_VERBS.includes(action)) throw new InvalidToolArguments(`perform_action's action is one of ${COMBAT_VERBS.join(", ")}.`);
   const whose = fighterOf(combat, combat.whose);
   if (combat.done.length >= ACTS_A_TURN) throw new InvalidToolArguments("That's all for this turn: call end_turn.");
-  if (ACTION_VERBS.has(action) && actionUsed(combat)) throw new InvalidToolArguments(`${whose.name} has used their action this turn: a move${whose.id === "player" ? " or something small (other)" : ""}, or end_turn.`);
+  const quick = action === "cast" && bonus.has(String(args.spell ?? ""));
+  if (quick && bonusUsed(combat, bonus)) throw new InvalidToolArguments(`${whose.name} has cast a bonus-action spell this turn already.`);
+  if (ACTION_VERBS.has(action) && !quick && actionUsed(combat, bonus)) throw new InvalidToolArguments(`${whose.name} has used their action this turn: a move${whose.id === "player" ? " or something small (other)" : ""}, or end_turn.`);
   if (whose.id !== "player" && ["cast", "grapple", "shove", "feature", "check"].includes(action)) throw new InvalidToolArguments(`${whose.name} can attack with their weapon, move, flee or surrender: the rules don't have ${action} for them.`);
   // smoke2-1018: Kell's turn told as other, other, end_turn (her surrender among them, so the rules never knew).
   if (whose.id !== "player" && action === "other") throw new InvalidToolArguments(`What ${whose.name} says, how they hold their ground or how they look is end_turn's narration: call end_turn with it. If they give up, perform_action surrender; if they run, flee.`);
@@ -248,10 +252,29 @@ function checkSides(combat: CombatView, name: string, args: Record<string, unkno
   if (missing.length) throw new InvalidToolArguments(`pick_sides needs one for each: ${missing.join(", ")} ${missing.length === 1 ? "has" : "have"} none.`);
 }
 
-/** Whether this turn has used its action already: an action verb, or a second move (a dash). */
-function actionUsed(combat: CombatView): boolean {
+/** Whether this turn has used its action already: an action verb (a bonus-action spell isn't one), or a second move (a dash). */
+function actionUsed(combat: CombatView, bonus: ReadonlySet<string> = new Set()): boolean {
   const done = combat.done.filter(d => !d.refused);
-  return done.some(d => ACTION_VERBS.has(d.act.action)) || done.filter(d => d.act.action === "move").length > 1;
+  return done.some(d => ACTION_VERBS.has(d.act.action) && !(d.act.action === "cast" && bonus.has(d.act.spell ?? ""))) || done.filter(d => d.act.action === "move").length > 1;
+}
+
+/** Whether this turn has cast its bonus-action spell. */
+const bonusUsed = (combat: CombatView, bonus: ReadonlySet<string>) => combat.done.some(d => !d.refused && d.act.action === "cast" && bonus.has(d.act.spell ?? ""));
+
+/** The player's spells cast as a bonus action (a smite), by id. */
+const bonusSpells = (view: TurnView) => new Set((view.rules?.spells ?? []).filter(s => s.bonus).map(s => s.id));
+
+/**
+ * A feature the player's sheet has as a spell (QA round hobo1-1018: a paladin's Divine Smite called
+ * as a feature, which the rules haven't got, twice, "the smite does not answer"): cast as that spell.
+ */
+function asSpell(view: TurnView, args: Record<string, unknown>): Record<string, unknown> {
+  if (args.action !== "feature" || typeof args.feature !== "string") return args;
+  const said = args.feature.trim().toLowerCase();
+  const spell = (view.rules?.spells ?? []).find(s => s.id === said || s.name.toLowerCase() === said.replace(/-/g, " "));
+  if (!spell) return args;
+  const { feature: _f, ...rest } = args;
+  return { ...rest, action: "cast", spell: spell.id };
 }
 
 /** move_towards held to the turn: a target, at most two moves (the second a dash, the turn's action). */

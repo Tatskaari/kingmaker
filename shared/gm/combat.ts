@@ -30,8 +30,8 @@ export type CombatOutcome = "won" | "lost" | "yielded" | "fled" | "stopped";
 export const COMBAT_OUTCOMES: readonly CombatOutcome[] = ["won", "lost", "yielded", "fled", "stopped"];
 
 /** What anyone can do on their turn (perform_action's `action`). The player's are the rules' acts on their sheet; the cast's are their statblock's blow, and the rest. */
-export type CombatVerb = "attack" | "cast" | "grapple" | "shove" | "feature" | "check" | "move" | "flee" | "surrender" | "other";
-export const COMBAT_VERBS: readonly CombatVerb[] = ["attack", "cast", "grapple", "shove", "feature", "check", "move", "flee", "surrender", "other"];
+export type CombatVerb = "attack" | "cast" | "grapple" | "shove" | "feature" | "check" | "move" | "stand" | "flee" | "surrender" | "other";
+export const COMBAT_VERBS: readonly CombatVerb[] = ["attack", "cast", "grapple", "shove", "feature", "check", "move", "stand", "flee", "surrender", "other"];
 
 /** The verbs that take a turn's action: one a turn. */
 export const ACTION_VERBS: ReadonlySet<CombatVerb> = new Set(["attack", "cast", "grapple", "shove", "check", "flee", "surrender"]);

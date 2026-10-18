@@ -219,7 +219,7 @@ export interface Brawl { turn: number; cause: string; against: string[]; allies:
  * ("Self", "Touch", "120 feet", "Self (15-foot cone)"), its effects' kinds (attack, save, heal,
  * buff...), and whether it fills an area.
  */
-export interface SpellFacts { id: string; name: string; level: number; range?: string; effects?: string[]; area?: boolean }
+export interface SpellFacts { id: string; name: string; level: number; range?: string; effects?: string[]; area?: boolean; /** Cast as a bonus action (a smite): beside the turn's action, not instead of it. */ bonus?: boolean }
 
 // ---------------------------------------------------------------------------------------------
 // Builds.

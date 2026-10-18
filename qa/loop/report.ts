@@ -5,7 +5,7 @@ import { CallBook, entryHtml, esc, md, page, sevChip, Speakers } from "./html.ts
 import { notesPath, recordPath, reviewPath, roundDir, RUBRIC, type LoopConfig } from "./paths.ts";
 import { callsBefore, type Call } from "./calls.ts";
 import { readRecord, turnsOf, type GameRecord } from "./record.ts";
-import { armStats, byCheck, gameStats, mean, OUTCOMES, type ArmStats, type GameStats } from "./report-data.ts";
+import { armStats, byCheck, fightsOf, gameStats, mean, OUTCOMES, type ArmStats, type GameStats } from "./report-data.ts";
 import { RATINGS, type Review } from "./review.ts";
 import { loadRound, personas, type Round } from "./round.ts";
 import type { Ending } from "./scenes.ts";
@@ -74,10 +74,11 @@ function indexPage(round: Round, games: GameStats[], titles: Record<string, stri
 <p class="eyebrow">GM loop · QA round · ${esc(round.created.slice(0, 16).replace("T", " "))} · <code>${esc(round.build.commit.slice(0, 7))}</code>${round.build.dirty ? " (with local changes)" : ""}</p>
 <h1>${esc(round.name)}</h1>
 <p class="lede">${played.length} of ${games.length} blind games played: ${scenes}, up to ${round.maxTurns} turns each, on ${Object.keys(round.arms).length} arm${Object.keys(round.arms).length === 1 ? "" : "s"}; ${reviewed.length} reviewed blind against <a href="#rubric">the rubric</a>. The testers and reviewers saw only the neutral names; this page unblinds them.</p>
-<nav class="toc"><a href="#arms">The arms</a><a href="#scenes">The scenes</a><a href="#checks">By check</a><a href="#findings">Every finding</a><a href="#games">The games</a><a href="#rubric">The rubric</a></nav>
+<nav class="toc"><a href="#arms">The arms</a><a href="#scenes">The scenes</a>${hasFights(games) ? `<a href="#fights">The fights</a>` : ""}<a href="#checks">By check</a><a href="#findings">Every finding</a><a href="#games">The games</a><a href="#rubric">The rubric</a></nav>
 </header>
 <section id="arms"><h2>The arms side by side</h2><p class="faint">Penalty per 10 replies sums each kept finding's penalty (severity 1 to 5: 1, 2, 4, 8, 16) over the reviewed games' GM replies, the openings among them. An ending is good, mixed or bad as its scene grades it (its result); ungraded is an ending the scene's file hasn't got (the game's own), and none is out of turns or stopped. Waits are the loop's waits on a busy GM, and 402s the calls OpenRouter turned away on the key's in-flight cap. With a handful of games an arm, read the findings before the numbers.</p>${armTable(armStats(round, games))}</section>
 <section id="scenes"><h2>The scenes</h2>${sceneTable(round, games, titles)}</section>
+${hasFights(games) ? `<section id="fights"><h2>The fights</h2><p class="faint">Each fight in the conversation (docs/combat-gm.md) as the player saw it: the turn it broke out on and the line that brought it, the initiative order, who joined, ran or kept clear as they picked their sides, who came as it went on, and how it ended. Under each game, the blows rolled with no fight on, and any reply that called for initiative with no fight after it.</p>${fightTable(games, titles)}</section>` : ""}
 <section id="checks"><h2>Findings by check</h2>${checkTable(round, games)}</section>
 <section id="findings"><h2>Every finding (${reviewed.reduce((sum, g) => sum + g.kept.length, 0)} kept of ${reviewed.reduce((sum, g) => sum + g.findings.length, 0)})</h2><p class="faint">Most severe first; the triage's why first, then the reviewer's. A discarded finding is struck through and counts for nothing.</p>${findingTable(games)}</section>
 <section id="games"><h2>The games</h2>${gameTable(games, titles)}</section>
@@ -123,6 +124,23 @@ function findingTable(games: GameStats[]): string {
   return `<div class="scroll"><table class="data"><thead><tr><th>Sev</th><th>Check</th><th>Where</th><th>Quote</th><th>Why</th></tr></thead><tbody>
 ${sorted.map(({ f, g }) => `<tr class="${f.v?.verdict === "discard" ? "discarded" : ""}"><td>${sevChip(f.severity)}</td><td><code>${esc(f.check)}</code></td><td><a href="games/${esc(g.id)}.html#t-${f.turn}">${esc(g.id)} t${f.turn}</a><div class="faint">${esc(g.arm)} · ${esc(g.persona)} · ${esc(g.scene)}</div></td><td class="q">“${esc(f.quote)}”</td><td class="w">${whyHtml(f)}${f.better ? `<div class="faint">Better: ${esc(f.better)}</div>` : ""}</td></tr>`).join("\n")}
 </tbody></table></div>`;
+}
+
+/** Whether any game of the round had a fight, or violence: the fights section's. */
+const hasFights = (games: GameStats[]) => games.some(g => g.record && (fightsOf(g.record.entries).fights.length || fightsOf(g.record.entries).blows.length));
+
+function fightTable(games: GameStats[], titles: Record<string, string>): string {
+  const rows = games.filter(g => g.record).flatMap(g => {
+    const seen = fightsOf(g.record!.entries);
+    const game = `<td>${g.record?.sceneRow ? `<a href="games/${esc(g.id)}.html">${esc(g.id)}</a>` : esc(g.id)}</td><td>${esc(g.persona)}</td><td>${esc(titles[g.scene] ?? g.scene)}</td>`;
+    const outside = [
+      ...seen.blows.map(b => `t${b.turn}: ${esc(b.roll.replace(/: \d+.*$/, ""))} <span class="faint">(«${esc(b.line.slice(0, 90))}»)</span>`),
+      ...seen.calledOnly.map(t => `t${t}: "Roll for initiative!" with no fight after it`),
+    ];
+    const fights = seen.fights.map(f => `<tr>${game}<td class="n">t${f.from}${f.to !== undefined ? `–${f.to}` : ""}</td><td class="w">«${esc(f.line.slice(0, 140))}»</td><td class="w">${esc(f.order)}${f.sides.length ? `<br><span class="faint">${esc(f.sides.join(" "))}</span>` : ""}</td><td>${esc(f.arrived.join("; ") || "–")}</td><td class="n">${f.rounds}</td><td>${esc(f.ended ?? "not over")}</td></tr>`);
+    return [...fights, ...(outside.length ? [`<tr>${game}<td colspan="6" class="w"><span class="faint">Outside a fight:</span> ${outside.join("; ")}</td></tr>`] : [])];
+  });
+  return `<div class="scroll"><table class="data"><thead><tr><th>Game</th><th>Persona</th><th>Scene</th><th class="n">Turns</th><th>What brought it</th><th>The order, and the sides</th><th>Who came</th><th class="n">Rounds</th><th>How it ended</th></tr></thead><tbody>${rows.join("\n")}</tbody></table></div>`;
 }
 
 function gameTable(games: GameStats[], titles: Record<string, string>): string {

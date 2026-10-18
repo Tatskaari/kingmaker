@@ -10,7 +10,7 @@ import { ACTS_A_TURN, nextTurn, overOf, whoseTurn, type CombatState, type Fighte
 import { diceLine } from "../../../shared/gm/two-part.ts";
 import type { CombatAction, CombatDone, CombatFighter, CombatNewcomer, CombatResponse, Initiative, Outcome } from "../../../shared/protocol/ai.ts";
 import { idOf } from "../../../shared/protocol/keys.ts";
-import { blowBetween, bystander, reachOf, rollInitiative, standings, type FightMember, type Standing } from "../../../shared/rules/acts.ts";
+import { blowBetween, bystander, reachOf, rollInitiative, standings, standUp, type FightMember, type Standing } from "../../../shared/rules/acts.ts";
 import type { Mechanic, Rules, SceneSession } from "../../../shared/rules/types.ts";
 import { fightsAhead, storyNeeds, takeRoute } from "../../../shared/scene/beats.ts";
 import { fighterOf, presentCast, presentFighters } from "../../../shared/scene/graph.ts";
@@ -23,7 +23,7 @@ import { putGm } from "../gm/rows.ts";
 import { inPlay, playedOut } from "../rules/play.ts";
 import { engineCall } from "../rules/session.ts";
 import { updateTurn } from "../rows.ts";
-import { unnamed } from "../../../shared/scene/names.ts";
+import { beingCalled, unnamed } from "../../../shared/scene/names.ts";
 import { addEntry, entriesOf, noteHeard, writeReply } from "../transcript.ts";
 import { finishTurn } from "../turns.ts";
 import { syncStage } from "../world/stage.ts";
@@ -73,6 +73,7 @@ export function startCombat(tx: TxCtx, at: At, plan: SayPlan, initiative: Initia
     else { at.gm = taken.gm; tx.log(`[scene ${at.scene.id} turn ${plan.n}] the fight is ${ahead.beat.id}'s: ${ahead.route.id}`); }
   }
   closeIn(tx, at, plan, [...foes, ...allies].map(c => c.id));
+  rouse(tx, at, plan.n, [...foes, ...allies].map(c => c.id));
   const rolled = withRules(tx, at, plan.n, (rules, session) => rollInitiative(rules, session, ["player", ...allies, ...foes]));
   for (const line of rolled.lines) addEntry(tx, at.scene, { turn: plan.n, speaker: "dice", kind: "roll", text: line });
   const side = (id: string) => (foes.some(f => f.id === id) ? "foes" : "party") as Fighter["side"];
@@ -113,6 +114,19 @@ function runsOff(tx: TxCtx, at: At, n: number, id: string): "away" | "clear" {
   return stays ? "clear" : "away";
 }
 
+/** Whoever joins the fight is up and in it: not asleep, nor cowering, in the world (QA round hobo1-1018: Duchess fought on the map's key as "asleep"). */
+function rouse(tx: TxCtx, at: At, n: number, ids: string[]): void {
+  const played = inPlay(tx, at.scene, at.graph, at.gm, n);
+  let changed = false;
+  for (const id of ids) {
+    const e = played.place.world.entities[id];
+    if (!e || !e.states.some(s => s === "asleep" || s === "cowering")) continue;
+    e.states = e.states.filter(s => s !== "asleep" && s !== "cowering");
+    changed = true;
+  }
+  if (changed) playedOut(tx, at.scene, at.graph, at.gm, played);
+}
+
 /**
  * Who doesn't leave the scene when they run from a fight: whoever walks with the player (the story's
  * followers, and those the scene's own endings have follow them: Kell in the yard), and whoever
@@ -149,6 +163,7 @@ function sidesPicked(tx: TxCtx, at: At, n: number, sides: Record<string, string>
   delete combat.pending;
   const ran = running.map(id => ({ id, how: runsOff(tx, at, n, id) }));
   if (joining.length) {
+    rouse(tx, at, n, joining.map(c => c.id));
     const rolled = withRules(tx, at, n, (rules, session) => rollInitiative(rules, session, joining));
     for (const line of rolled.lines) addEntry(tx, at.scene, { turn: n, speaker: "dice", kind: "roll", text: line });
     const now = at.gm.combat!;
@@ -334,7 +349,9 @@ function resolve(tx: TxCtx, at: At, plan: SayPlan, act: CombatAction): CombatDon
     tx.log(`[scene ${at.scene.id} turn ${plan.n}] combat: ${f.id}'s ${act.action} refused: ${refused}`);
     return { act, lines: [], result: refused, refused: true };
   }
-  const out = act.action === "move" ? move(tx, at, plan.n, f.id, act)
+  const stood = (plan.combat?.done ?? []).some(d => d.act.action === "stand" && !d.refused);
+  const out = act.action === "move" ? move(tx, at, plan.n, f.id, act, stood)
+    : act.action === "stand" ? stand(tx, at, plan.n, f.id)
     : act.action === "flee" || act.action === "surrender" ? leaves(tx, at, plan.n, f, act.action)
     : act.action === "other" ? { lines: [], result: "Done: no dice." }
     : act.action === "check" ? check(tx, at, plan.n, act)
@@ -368,18 +385,32 @@ function refusalOf(tx: TxCtx, at: At, n: number, who: string, act: CombatAction)
   return `Out of reach: ${nameOf(tx, at, n, act.target)} is ${feet} ft away, and ${act.action === "attack" ? "a melee blow reaches" : "hands reach"} 5 ft. move_towards first (or end the turn).`;
 }
 
-/** A move up to their speed, towards someone or something (they stop beside them) or away from it, in the place's world. */
-function move(tx: TxCtx, at: At, n: number, who: string, act: CombatAction): { lines: string[]; result: string } {
+/** Getting up off the ground: prone no more, half their move gone (one already on their feet loses nothing). */
+function stand(tx: TxCtx, at: At, n: number, who: string): { lines: string[]; result: string } {
+  const m: FightMember = who === "player" ? "player" : castOf(at, who, worldOf(tx, at, n)) ?? "player";
+  const was = withRules(tx, at, n, (rules, session) => standUp(rules, session, m));
+  return { lines: [], result: was ? `${nameOf(tx, at, n, who)} ${who === "player" ? "get" : "gets"} up off the ground: half ${who === "player" ? "your" : "their"} move gone.` : `${nameOf(tx, at, n, who)} ${who === "player" ? "are" : "is"} on ${who === "player" ? "your" : "their"} feet already.` };
+}
+
+/**
+ * A move up to their speed, towards someone or something (they stop beside them) or away from it, in
+ * the place's world. One on the ground gets up first, and getting up (now or earlier this turn) takes
+ * half their move.
+ */
+function move(tx: TxCtx, at: At, n: number, who: string, act: CombatAction, stood = false): { lines: string[]; result: string } {
+  const m: FightMember = who === "player" ? "player" : castOf(at, who, worldOf(tx, at, n)) ?? "player";
+  const rose = withRules(tx, at, n, (rules, session) => standUp(rules, session, m));
   const played = inPlay(tx, at.scene, at.graph, at.gm, n);
   const world = played.place.world;
-  const speed = reachFor(tx, at, n, who).speed;
+  const full = reachFor(tx, at, n, who).speed;
+  const speed = rose || stood ? Math.floor(full / 2) : full;
   const before = apart(world, who, act.target!) ?? 0;
   const blank = { name: "", kind: "", text: "", add: [], remove: [] };
   applyOps(world, [{ ...blank, op: "place", what: who, to: act.target!, how: act.away ? "away" : "toward", feet: speed }], n, "rules");
   playedOut(tx, at.scene, at.graph, at.gm, played);
   const after = apart(world, who, act.target!) ?? 0;
   const beside = after <= 5 + SLACK;
-  return { lines: [], result: `${nameOf(tx, at, n, who)} moved ${Math.abs(before - after)} ft ${act.away ? "back from" : "towards"} ${nameOf(tx, at, n, act.target!)}: now ${beside ? "beside them" : `${after} ft away`}.` };
+  return { lines: [], result: `${rose ? `${nameOf(tx, at, n, who)} got up off the ground first (half the move). ` : ""}${nameOf(tx, at, n, who)} moved ${Math.abs(before - after)} ft ${act.away ? "back from" : "towards"} ${nameOf(tx, at, n, act.target!)}: now ${beside ? "beside them" : `${after} ft away`}.` };
 }
 
 /** Fleeing or giving up: out of the fight (one of the cast who flees is gone from the scene, as the reactions' flight is). */
@@ -439,7 +470,8 @@ function fightNow(tx: TxCtx, at: At, n: number): Pick<CombatPlan, "fighters" | "
     const s = stand.find(x => x.id === f.id)!;
     const feet = Object.fromEntries(combat.order.filter(o => o.id !== f.id && world).map(o => [o.id, apart(world!, f.id, o.id) ?? 0]));
     return {
-      id: f.id, name: f.id === "player" ? "you" : castOf(at, f.id, world)?.name ?? f.id, ...(called(tx, at, f.id) ? { called: called(tx, at, f.id) } : {}), side: f.side, initiative: f.initiative, hurt: s.hurt, hp: s.hp, max: s.max, ac: s.ac, down: s.hp <= 0,
+      id: f.id, name: f.id === "player" ? "you" : castOf(at, f.id, world)?.name ?? f.id, ...(called(tx, at, f.id, world) ? { called: called(tx, at, f.id, world) } : {}), side: f.side, initiative: f.initiative, hurt: s.hurt, hp: s.hp, max: s.max, ac: s.ac, down: s.hp <= 0,
+      ...(s.conditions?.length ? { conditions: s.conditions } : {}),
       ...(f.out ? { out: f.out } : {}), reach: reachFor(tx, at, n, f.id), feet,
     };
   });
@@ -449,7 +481,7 @@ function fightNow(tx: TxCtx, at: At, n: number): Pick<CombatPlan, "fighters" | "
     const r = at.graph.reinforcements?.find(x => x.id === id);
     const leader = at.graph.cast.find(x => x.members?.some(m => m.id === id));
     const arriving = r && combat.arrived?.includes(id) && combat.round > 1 ? r.why : leader && combat.arrived?.includes(leader.id) && combat.round > 1 ? `with ${leader.name}` : undefined;
-    return { id, name: c?.name ?? id, ...(called(tx, at, id) ? { called: called(tx, at, id) } : {}), about: [c?.look, c?.attitude && at.graph.cast.some(x => x.id === id) ? c.attitude : ""].filter(Boolean).join(" ").trim(), ...(arriving ? { arriving } : {}) };
+    return { id, name: c?.name ?? id, ...(called(tx, at, id, world) ? { called: called(tx, at, id, world) } : {}), about: [c?.look, ...(at.graph.cast.some(x => x.id === id) ? [c?.attitude, c?.limits] : [])].filter(Boolean).join(" ").trim(), ...(arriving ? { arriving } : {}) };
   });
   return { fighters, ...(over ? { over } : {}), ...(pending.length ? { pending } : {}) };
 }
@@ -486,8 +518,21 @@ function apart(world: SceneWorld, a: string, b: string): number | undefined {
   return p && q ? Math.round(distance(p, q)) : undefined;
 }
 
-/** What the player calls someone whose name they haven't heard yet; none once they have. */
-const called = (tx: TxCtx, at: At, id: string): string | undefined => (id === "player" ? undefined : unnamed(at.graph, { transcript: entriesOf(tx, at.scene.id) })[id]);
+/**
+ * What the player calls someone whose name they haven't heard yet; none once they have. One of the
+ * cast by their card's `called`, one of the place's beings with a name of their own by what they are
+ * (QA round hobo1-1018: "Combat! In initiative order: Duchess, you." gave the mastiff's name away,
+ * and the narration took it up).
+ */
+function called(tx: TxCtx, at: At, id: string, world?: SceneWorld): string | undefined {
+  if (id === "player") return undefined;
+  const heard = { transcript: entriesOf(tx, at.scene.id) };
+  const card = unnamed(at.graph, heard)[id];
+  if (card || fighterOf(at.graph, id)) return card;
+  const e = world?.entities[id];
+  const name = e ? beingCalled(e, heard) : undefined;
+  return name && name !== e!.name ? name : undefined;
+}
 
 /**
  * Someone in the fight as the rules know them: their card, a group's member (the Crakes, with their
@@ -528,4 +573,8 @@ export function companionsHere(tx: TxCtx, at: At): string[] {
   return [...tx.db.follower.gameId.filter(at.scene.gameId)].map(f => f.castKey).filter(k => here.has(k));
 }
 /** Someone in the fight as the player knows them: by what they call them until they've heard the name (shared/scene/names.ts unnamed). */
-const nameOf = (tx: TxCtx, at: At, n: number, id: string) => (id === "player" ? "you" : unnamed(at.graph, { transcript: entriesOf(tx, at.scene.id) })[id] ?? castOf(at, id, fighterOf(at.graph, id) ? undefined : worldOf(tx, at, n))?.name ?? id);
+function nameOf(tx: TxCtx, at: At, n: number, id: string): string {
+  if (id === "player") return "you";
+  const world = fighterOf(at.graph, id) ? undefined : worldOf(tx, at, n);
+  return called(tx, at, id, world) ?? castOf(at, id, world)?.name ?? id;
+}

@@ -67,7 +67,8 @@ export function mechanicQuestion(rules: RulesOptions, offered: readonly Mechanic
   const criteria: Record<MechanicChoice, string | undefined> = {
     // Offered to everyone: a character without magic who tries it gets the rules' "it doesn't come", not a fireball.
     cast: "Casting a spell now (naming a spell, or plainly working new magic). Not using what a spell already running gives them (seeing through a familiar's eyes, keeping up an illusion, a light already lit).",
-    attack: "Attacking someone or something right now, to hurt a person or break a thing: a blow, a stab, a punch, a kick, a shot or a thrown weapon. Threats, grabs, shoves and drawing a weapon aren't attacks, and nor is tossing something to someone or working on something in hand.",
+    // QA round hobo1-1018: "(I heft my greataxe onto my shoulder and stomp straight at the boy) Throw one more rock, runt, and I split you" was rolled as a blow.
+    attack: "Attacking someone or something right now, to hurt a person or break a thing: a blow, a stab, a punch, a kick, a shot or a thrown weapon, that the player says they make in this turn. A threat isn't one, even a conditional one ('one more rock and I split you'), and nor is closing in on someone, hefting, raising or drawing a weapon, a grab or a shove, tossing something to someone, or working on something in hand.",
     grapple: "Grabbing hold of someone who'd resist, to hold or restrain them: a grapple, a headlock, pinning them, or a hold in a wrestling bout (a sparring partner resists too).",
     shove: "Shoving someone who'd resist: to knock them down, or push them back or away.",
     jump: "Jumping: across a gap or over something, up onto something, or down from it.",

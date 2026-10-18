@@ -12,6 +12,25 @@ export interface Heard { transcript: ReadonlyArray<{ kind: string; text: string 
 
 export const TITLES = new Set(["the", "a", "an", "big", "old", "young", "little", "master", "mister", "mr", "mrs", "miss", "sergeant", "corporal", "captain", "marshal", "king", "queen", "sir", "lady", "lord", "dame"]);
 
+/**
+ * What a creature or a person of the place who isn't on a card and goes by a name (the Heron's
+ * mastiff, Duchess) is, from the first sentence of how they look ("A vast, elderly brindle mastiff…"
+ * is a mastiff, "An enormous river-bruiser…" a bruiser): what to call them until the name is heard.
+ */
+const KINDS = "mastiff|hound|dog|cur|terrier|lurcher|cat|horse|mare|pony|mule|donkey|goat|pig|sow|boar|ox|cow|bull|rat|raven|crow|magpie|parrot|cockerel|goose|hen|bear|wolf|fox|man|woman|boy|girl|child|lad|lass|gentleman|lady|porter|clerk|watchman|sailor|bargee|soldier|bruiser|thug|ruffian|guard|bodyguard|footpad";
+export const kindIn = (description: string | undefined) => new RegExp(`\\b(${KINDS})\\b`).exec((description ?? "").split(/(?<=[.;:])\s/)[0]!.toLowerCase())?.[1];
+
+/**
+ * What the player calls one of the place's beings with no card, by the play so far: a name of
+ * their own (a capital, not "the" or "a": Duchess) unheard is what they are ("the mastiff"); any
+ * other, or one heard, is their name. (The cast's are `unnamed`'s.)
+ */
+export function beingCalled(e: { name: string; kind: string; description?: string }, state: Heard): string {
+  const named = /^\p{Lu}/u.test(e.name) && !/^(the|a|an)\s/i.test(e.name);
+  if (!named || new RegExp(`\\b${e.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(heardIn(state, []))) return e.name;
+  return `the ${kindIn(e.description) ?? (e.kind === "creature" ? "animal" : "stranger")}`;
+}
+
 /** Everything the player has been told or shown: these hooks, and every line of play but the dice (their own turns too). */
 export const heardIn = (state: Heard, hooks: string[]) => [...hooks, ...state.transcript.filter(e => e.kind !== "roll").map(e => e.text)].join("\n");
 export const namedIn = (c: Pick<Character, "name" | "aka">, heard: string) => nameTokens(c).some(t => new RegExp(`\\b${t}\\b`).test(heard));
