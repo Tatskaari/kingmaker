@@ -7,6 +7,7 @@ import type { GuardStage, TalkRecord } from "../../../shared/gm/state.ts";
 import { talkOf } from "../../../shared/scene/talk.ts";
 import { idempotencyKey, idOf, idText, playerSpeaker } from "../../../shared/protocol/keys.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
+import type { SpellFacts } from "../../../shared/rules/types.ts";
 import type { Skill } from "../../../shared/scene/types.ts";
 import { pcKey } from "../../../shared/world/rows.ts";
 import type { TxCtx } from "../context.ts";
@@ -158,10 +159,20 @@ function partyOf(tx: TxCtx, controller: PlayerRow): SheetRow[] {
   return [{
     name: controller.name, concept: controller.concept, build: sheet.build, skills: JSON.parse(sheet.skills) as Partial<Record<Skill, number>>, status: sheet.statusLine,
     ...(sheet.backstory ? { backstory: JSON.parse(sheet.backstory) as Backstory } : {}),
-    spells: sheet.spells.map(s => ({ id: s.id, name: s.name, level: s.level })),
+    spells: spellsOf(sheet),
     weapons: sheet.weapons.map(w => ({ id: w.id, name: w.name })),
     features: sheet.features.map(f => ({ id: f.id, name: f.name, target: f.target === "creature" ? "creature" : "self" })),
   }];
+}
+
+/**
+ * The spells ready, with what the rules say of each one's reach (the sheet's spellFacts: its range,
+ * its effects' kinds, an area), which tells the act step a spell that needs aiming from one that
+ * doesn't; as the sheet names them while nothing has worked the facts out.
+ */
+function spellsOf(sheet: RowOf<"sheet">): SpellFacts[] {
+  const facts = sheet.spellFacts ? JSON.parse(sheet.spellFacts) as SpellFacts[] : [];
+  return sheet.spells.map(s => facts.find(f => f.id === s.id) ?? { id: s.id, name: s.name, level: s.level });
 }
 
 /** The scene's suggested lines as they stand, in the order shown: the last set offered. */

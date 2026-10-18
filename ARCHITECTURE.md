@@ -1,6 +1,6 @@
 # Kingmaker: architecture
 
-The way in for reviewing the game. It says what the parts are and how they connect, where state lives and how a change is checked, and links to each part's own doc for the detail. The [README](README.md) says what you can play and how to run it; its [rules](README.md#the-rules) are the ones every part keeps.
+The way in for reviewing the game. It says what the parts are and how they connect, where state lives and how a change is checked, and links to each part's own doc for the detail. The [README](README.md) pitches the game and [docs/running.md](docs/running.md) says what you can play and how to run it; its [rules](docs/running.md#the-rules) are the ones every part keeps.
 
 ## The parts
 
@@ -46,7 +46,7 @@ A line said in a scene of the story, as [docs/two-part-design.md](docs/two-part-
 |---|---|
 | SpacetimeDB's tables | Everything that happens: games, scenes and turns, the transcript, the world's rows, the dice, the GM's bookkeeping, the jobs in flight. The authority |
 | The AI service's stores | The answers by key, each game's call log, memory reviews and copy of the lore (read back for a report of a problem), the cost ledger, the installed campaigns: a folder (`runs/dev/ai` under the dev stack), or memory kept in IndexedDB in a page |
-| `runs/reports/`, the browser's downloads | Reports of a problem: one gzipped JSON file each, the game's rows and the AI service's own of it among what's in it, every key out ([README.md](README.md#reporting-a-problem)) |
+| `runs/reports/`, the browser's downloads | Reports of a problem: one gzipped JSON file each, the game's rows and the AI service's own of it among what's in it, every key out ([docs/running.md](docs/running.md#reporting-a-problem)) |
 | The repo | The campaign, the prompts, the vendored rules engine and SRD texts |
 | `runs/`, `dist/` | Run and build output, never committed |
 

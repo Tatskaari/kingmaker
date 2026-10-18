@@ -76,6 +76,8 @@ test("a spell said in words: the line asks the act step, and the rules resolve i
   const ended = await line("(I cast Magic Missile at the hoist rope)");
 
   assert.deepEqual(stepsOf(1), ["act", "reactions", "reply", "settle"]);
+  const spells = (script.to("act")[0]!.body as ActRequest).turn.party[0]!.spells!;
+  assert.deepEqual(spells.find(s => s.id === "magic-missile"), { id: "magic-missile", name: "Magic Missile", level: 1, range: "120 feet", effects: ["auto-hit"] }, "the act step is told each spell's reach: whether it needs aiming");
   const lines = turnLines(1);
   const dice = lines.filter(([kind]) => kind === "roll").map(([, text]) => text!);
   assert.deepEqual(lines.map(([kind]) => kind), ["player", ...dice.map(() => "roll"), "narration"], "the rules' lines before the reply");

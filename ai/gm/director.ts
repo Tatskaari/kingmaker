@@ -1,6 +1,7 @@
 // Copied from the prototype's src/runtime/director.ts at 44c6d4a: lines 24-52 (decisionState) as they are (reading a TurnView), which the questions below read. The rest of decideBefore (:718-1019, the turn's one decision: the route, the cue, the roll call, the same push again, a plan off the graph, earned, daft, out of character, an ending on the brink, a limit) went with the old pipeline's decide (docs/migration-log.md, M2's "The old pipeline's salvage"), but for the rules' mechanic question (:793-809, with the world bridge: world-bridge-design §2.2) and the act's details call (:988-1009, withMechanic's), parked for combat as mechanicQuestion, readMechanic and mechanicOf, and asked again of a line in a scene since "After the migration: spells and blows said in a scene" (the act step: service/endpoints/act.ts), offering the acts a scene's rules resolve (SCENE_ACTS); freeformCheck (:639-650, the plain check a considered turn rolled when its ruling failed) and the tries that failed (:1231-1232 and 1360-1369, failedTries) went with considered rolls; decideAfter (:1234-1358, the read after the reply) went with the old pipeline's settle, but for its threat and severity (:1284-1295, :1343-1349), parked for combat as threatQuestions and readThreat; a talk's settings and its staged secrets after the reply (:1219-1229, :1263-1275, :1324) went with the old pipeline's talk. The details' questions are gm/mechanics.ts.
 
 import type { ChoiceQuestion, Decider, Decision as Answers } from "../llm/decide.ts";
+import { castNamed } from "../../shared/rules/acting.ts";
 import { HAZARD_KINDS } from "../../shared/rules/acts.ts";
 import type { Mechanic, ThreatRead } from "../../shared/rules/types.ts";
 import { currentBeat, presentCast } from "../../shared/scene/graph.ts";
@@ -93,15 +94,18 @@ export function readMechanic(decision: Answers): RuledAct | Extract<Mechanic, { 
  * gm/mechanics.ts): the mechanic question in a call of its own (`director.rules`), offering the acts
  * `offered` (all of them unless it's said: a scene's are SCENE_ACTS), then, for a spell, a blow, a
  * grab, a shove, a jump or a feature, its details in a second small call (mechanicDetails: which
- * spell at whom, which blow, where they act from), `extra` questions riding along in it. None when
+ * spell at whom, which blow, where they act from), `extra` questions riding along in it. A line that
+ * casts one of the sheet's spells by its name (acting.ts castNamed: "(I cast thunderwave at the
+ * constables)") isn't asked the question: it's that spell, and only its details are asked. None when
  * the line does nothing the rules resolve.
  */
 export async function mechanicOf(decider: Decider, scene: Scene, state: TurnView, line: string, rules: RulesOptions, extra: Record<string, ChoiceQuestion> = {}, offered: readonly MechanicChoice[] = EVERY_ACT): Promise<{ mechanic?: Mechanic; details?: Answers }> {
-  const asked = await decider.decide(decisionState(scene, state, line), { mechanic: mechanicQuestion(rules, offered) }, "director.rules");
-  const act = readMechanic(asked);
+  const cast = offered.includes("cast") ? castNamed(line, rules.spells) : undefined;
+  const named = cast && rules.spells.find(sp => sp.id === cast.id);
+  const act = named ? "cast" : readMechanic(await decider.decide(decisionState(scene, state, line), { mechanic: mechanicQuestion(rules, offered) }, "director.rules"));
   if (!act) return {};
   if (typeof act !== "string") return { mechanic: act };
-  const detailed = await mechanicDetails(decider, scene, state, line, act, rules, extra);
+  const detailed = await mechanicDetails(decider, scene, state, line, act, rules, extra, named);
   return { ...(detailed.mechanic ? { mechanic: detailed.mechanic } : {}), details: detailed.decision };
 }
 

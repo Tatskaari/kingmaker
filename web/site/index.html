@@ -468,7 +468,7 @@ main { max-width: var(--wide); margin-inline: auto; }
       <p class="brand__tagline" id="tagline">Being an account of a murder, a great deal of grain, and the eve of the Centennial Assembly.</p>
     </div>
     <div class="pitchline">
-      <p class="eyebrow">A pitch and a plan, from a working prototype</p>
+      <p class="eyebrow">A pitch and a plan, from a working game</p>
       <h1>A cRPG where you can truly do what you want</h1>
       <p class="lede">Hand-crafted stories, run by an AI game master, in a world that remembers what you did.</p>
       <a class="cta" href="https://tatskaari.github.io/kingmaker/pr-preview/pr-650/play/" target="_blank" rel="noopener">Play the tech demo <span class="cta__arrow" aria-hidden="true">&#9656;</span></a>
@@ -550,7 +550,7 @@ main { max-width: var(--wide); margin-inline: auto; }
       </div>
     </div>
   </figure>
-  <p class="game-cap" id="turn-cap"><strong>Turn 8 of a real game, played on 14 October 2026.</strong> Merling is a tiefling sorcerer with no Fireball, and the game told the player so on turn 1. The dashed lines are what the player never sees: the decider’s answer, and what the stage manager wrote back to the world.</p>
+  <p class="game-cap" id="turn-cap"><strong>Turn 8 of a real game, played on the prototype on 14 October 2026;</strong> the game resolves a spell the same way. Merling is a tiefling sorcerer with no Fireball, and the game told the player so on turn 1. The dashed lines are what the player never sees: the decider’s answer, and what the stage manager wrote back to the world.</p>
 </section>
 
 <!-- ================================================================== #pitch -->
@@ -599,47 +599,35 @@ main { max-width: var(--wide); margin-inline: auto; }
       <div class="pillar__text">
         <p class="pillar__n"><b>I</b> Pillar one</p>
         <h3>Structured improvisation</h3>
-        <p class="pillar__lede">A decision engine makes lightning-fast calls that move the plot on, and the GM repairs the plot when the players go off the rails.</p>
+        <p class="pillar__lede">A GM in two parts: one improvises the scene in the moment, the other steers the plot from behind the screen, so nothing breaks when the players go off the rails.</p>
         <ul class="points">
-          <li><strong>A scene is prep, not a script:</strong> a premise, a cast with wants, fears and secrets, beats and the cues that move between them, and the only ways the scene can end.</li>
-          <li><strong>The decider makes the calls.</strong> Each turn, one call to <a href="https://typesafe.ai/blog/introducing-system-one-models-and-jev" target="_blank" rel="noopener">Jev</a>, TypeSafe’s decision model, answers multiple-choice questions built from the game’s state, in about 0.3 s, so its answers always name something that exists. Ending a scene, or telling the player no, needs a confidence of 0.6 or more.</li>
-          <li><strong>The GM repairs the plot.</strong> Go off the scene’s routes and nothing breaks. Essential clues sit in more than one place and move to wherever the player goes, and pacing cues push the story on when it stalls.</li>
+          <li><strong>A scene is prep, not a script:</strong> a premise and the truth behind it, a cast with wants, fears and secrets, the discoveries the player can make by many paths, the events the world brings, and the only ways the scene can end.</li>
+          <li><strong>The mouthpiece improvises.</strong> One fast model voices everyone in the scene, and when the outcome is uncertain and matters it calls a check, its five outcomes written before the dice fall. The rules roll it on your sheet. First words in about a second.</li>
+          <li><strong>The co-GM steers.</strong> Behind the screen it gives each person a role for the next reply, and moves the scene along its routes when what one describes has happened. The game checks every move against the scene, so the plot only goes where the prep allows.</li>
+          <li><strong>The GM repairs the plot.</strong> Go off the scene’s routes and nothing breaks. A discovery comes by any plausible path, cues bring the world in when the story stalls, and what the player missed goes with whoever has it into the next scene.</li>
           <li><strong>Exact control where a writer wants it,</strong> down to how Kell’s stories end and when she’ll tell them. A person writes the people, the facts and the stakes; the GM writes the words in between.</li>
-          <li><strong>Cheap and checkable:</strong> a fraction of a cent a decision, right 93–100% of the time on the decision suite, with every answer logged with its odds.</li>
+          <li><strong>Cheap and checkable:</strong> about a cent a turn with everything behind it, and every call logged with its prompt, its answer and its cost.</li>
         </ul>
       </div>
       <div class="pillar__side">
       <aside class="callout callout--moment">
-        <p class="callout__label">From the prototype</p>
-        <p>Kell’s card in the scene’s prep says “The porters found him at first light”, and that “the yard doors were padlocked when they came, the loft door is barred on the inside”. Her lore sets her voice: “Dry, calm, precise and sparing. Short sentences.” In a live game:</p>
+        <p class="callout__label">From the game</p>
+        <p>A taciturn dwarf has spent the morning trying to buy the paper crackling in Cob’s boot. Then he stops bargaining:</p>
         <div class="tx">
-          <p class="tx__say"><span class="tx__who">Player</span>Sergeant, who found him?</p>
-          <p class="tx__gm"><span class="tx__who">GM</span>Sergeant Kell glances up at the body, then back to her notebook. “The porters. First light. They came to open the yard, saw him, and ran for the watch.” Her pencil taps once against the page. “The doors were padlocked. The loft door barred from inside. They couldn’t reach him.”</p>
+          <p class="tx__say"><span class="tx__who">Player</span>Keep the boots. Paper’s for Prout.</p>
+          <p class="tx__gm"><span class="tx__who">GM</span>Cob watches your face, then gives a wary nod. He keeps the boot on, but bends to work the folded sheet carefully free of its lining. “Mister Prout’s, then. Cob’s keeping the boot.” The page opens in his hands: a dozen King’s Road grain wagons this past month marked ‘lost to goblins’, each countersigned ‘J. Sallow, for the Royal Purveyor’. […] Kell goes very still at the name. “I’d met him.”</p>
         </div>
-        <p class="src">A live check, 15 Oct 2026, turn 1 · the player: Tamsin Vell, human rogue 3 · first words in 959 ms · $0.0021</p>
+        <p class="src">A blind QA game on real models, 18 Oct 2026, the hanged clerk, turn 11 · the player: Brann, dwarf fighter 3 · first words in 959 ms</p>
       </aside>
       <aside class="callout callout--moment">
-        <p class="callout__label">From the prototype</p>
-        <p>The same turn, from the inside: one of nine questions in a single call, its options the scene’s own routes.</p>
-        <div class="ask" id="ask">
-          <p class="ask__q">Which of these is the player attempting?</p>
-          <ul class="opts" aria-label="The options, with the odds the decider gave each">
-            <li class="opt" tabindex="0" style="--p:0.01" data-opt="examine-body">examine-body <span>.01</span></li>
-            <li class="opt" tabindex="0" style="--p:0" data-opt="win-cob">win-cob <span>.00</span></li>
-            <li class="opt" tabindex="0" style="--p:0.01" data-opt="catch-moll">catch-moll <span>.01</span></li>
-            <li class="opt" tabindex="0" style="--p:0" data-opt="scare-kids">scare-kids <span>.00</span></li>
-            <li class="opt" tabindex="0" style="--p:0" data-opt="concede">concede <span>.00</span></li>
-            <li class="opt" tabindex="0" style="--p:0" data-opt="walk-away">walk-away <span>.00</span></li>
-            <li class="opt is-pick" tabindex="0" style="--p:0.98" data-opt="none">none <span>.98</span></li>
-            <li class="opt" tabindex="0" style="--p:0" data-opt="plain:not-suicide">plain:not-suicide <span>.00</span></li>
-            <li class="opt" tabindex="0" style="--p:0" data-opt="plain:page-found">plain:page-found <span>.00</span></li>
-            <li class="opt" tabindex="0" style="--p:0" data-opt="plain:make-case">plain:make-case <span>.00</span></li>
-            <li class="opt" tabindex="0" style="--p:0" data-opt="other_risky">other_risky <span>.00</span></li>
-          </ul>
-          <p class="ask__menu" id="ask-menu" aria-live="polite"><b>none</b>: Nothing risky and none of the above: the player talks, asks, accepts an offer, looks around or searches at leisure, or does something with no real chance or cost of failure.</p>
-          <p><strong>Answer:</strong> <code>none</code>, confidence .98, with three more answers in the same call. 392 ms, $0.0004.</p>
+        <p class="callout__label">From the game</p>
+        <p>The same turn, behind the screen. The co-GM’s moves, and the answers the game gave it:</p>
+        <div class="tx">
+          <p class="tx__x"><span class="tx__who">co-GM</span><code>move_scene find-motive</code>: “Cob handed over the page removed from the Granary Roll …” → Reached “Motive: supplies are being embezzled”. Still overdue: the noon bell.</p>
+          <p class="tx__x"><code>move_scene cart-comes</code>: “The noon bell’s outer limit has arrived …” → Moved to “The dead-cart arrives”. Arriving now: Corporal Abner Tull.</p>
+          <p class="tx__x"><code>update_character_role kell</code>: “If Brann asks directly why Prout mattered to her, she tells once how he asked about false entries … and that she sent him to the palace: ‘I should have listened.’”</p>
         </div>
-        <p class="src">The same live check, call 11 (director.before) · 392 ms · $0.0004326 · point at an option for the decider’s own description of it</p>
+        <p class="src">The same game’s call log · the co-GM: five rounds while the player read, $0.0026 · […] marks a cut</p>
       </aside>
       </div>
     </article>
@@ -652,15 +640,15 @@ main { max-width: var(--wide); margin-inline: auto; }
         <p class="pillar__lede">Author your world in Obsidian or your favourite Markdown editor. The game records what happens to it as you play.</p>
         <ul class="points">
           <li><strong>Lore in Markdown,</strong> in a folder you can open in Obsidian. Caerwyn is 154 linked docs, and each one says who may read it: anyone, only the people it names, or only the GM.</li>
-          <li><strong>Loaded between turns, without tool calls.</strong> Before each reply, <a href="https://typesafe.ai/blog/introducing-system-one-models-and-jev" target="_blank" rel="noopener">Jev</a> picks the notes each person present needs, and they go straight into that character’s context. No one spends a turn searching, so it’s fast, cheap and consistent.</li>
-          <li><strong>Memories and character updates, recorded as you play</strong> by background agents, into this game’s own copy of the lore. The authored files never change.</li>
+          <li><strong>One living note on each person,</strong> the GM’s own: how they stand with you and why, what they’ve seen you do, what they’ve learned, the promises made. Background reviews keep it current after every turn, and the co-GM reads it before it sets anyone’s role.</li>
+          <li><strong>Recorded as you play,</strong> into this game’s own copy of the lore. The authored files never change.</li>
           <li><strong>The GM always gets every fact,</strong> marked told, for now or held, so it never has to invent one. When an earlier build hid one from it, the GM lied, and the memory saved afterwards repeated the lie.</li>
         </ul>
         <ol class="loop" id="loop" aria-label="The loop, round and round">
           <li><span>authored lore</span></li>
-          <li><span>Jev picks what each person can know</span></li>
+          <li><span>the GM knows every fact</span></li>
           <li><span>the characters respond</span></li>
-          <li><span>the GM remembers</span></li>
+          <li><span>the GM’s notes kept current</span></li>
           <li><span>the knowledge grows</span></li>
         </ol>
         <p><strong>Authored lore starts the world. Play changes its memories.</strong></p>
@@ -692,7 +680,7 @@ main { max-width: var(--wide); margin-inline: auto; }
           <li class="step"><strong>the stage manager</strong> reads the reply and writes back what it established, checked against the world’s own ids.</li>
         </ol>
         <ul class="points">
-          <li><strong>Emergent mechanics decide how the world reacts.</strong> Fire, damage and breaking follow one set of rules everywhere. What burns keeps burning and what’s struck breaks, because of the rules, not a script.</li>
+          <li><strong>Emergent mechanics decide how the world reacts.</strong> Fire, damage and breaking follow the same rules in a scene and on the map. What burns keeps burning and what’s struck breaks, because of the rules, not a script.</li>
           <li><strong>The stage manager reconciles the story with the world.</strong> Whatever the GM narrates, the world is brought into line with it, and whatever the world does, the GM is told.</li>
         </ul>
         <p>So the map, the world and the GM tell the same story, and consequences last.</p>
@@ -747,20 +735,20 @@ main { max-width: var(--wide); margin-inline: auto; }
   </div>
   <div class="two">
       <ul class="points">
-        <li><strong>First words in about 1.4 s,</strong> and under a cent a turn. A two-hour session for four players comes to about $1 (an estimate).</li>
-        <li><strong>Prompts change only when the evals hold:</strong> 163 cases, checked mechanically and judged by a model.</li>
-        <li><strong>The zoo and the QA console exercise every system.</strong> A headless tour checks all 143 exhibits in 16 seconds, and testers, human or AI, play the whole game blind through the console.</li>
+        <li><strong>First words in about a second,</strong> and about a cent a turn with everything behind it. The rest of the GM’s work happens while you read.</li>
+        <li><strong>Judged by reading play.</strong> Blind QA rounds of eight games: persona testers play, reviewers who never see the prep judge, and every finding is read before anything changes. Four rounds on 18 Oct took the good endings from 4 of 8 to 7 of 8.</li>
+        <li><strong>Checked end to end on every change.</strong> The whole game plays on a real SpacetimeDB in CI; kill either service mid-turn and the turn finishes; and a player’s problem report restores into a game to carry on.</li>
       </ul>
       <aside class="callout callout--moment">
-        <p class="callout__label">From the prototype</p>
-        <p>A real 13-turn game in the granary yard:</p>
+        <p class="callout__label">From the game</p>
+        <p>A QA round: eight blind games on real models, 117 turns:</p>
         <div class="stats">
-          <p class="stat"><b class="num">1.37 s</b><span>first words, median of 13 turns</span></p>
-          <p class="stat"><b class="num">2.2 s</b><span>first words, the slowest turn</span></p>
-          <p class="stat"><b class="num">$0.114</b><span>the whole game, 173 model calls</span></p>
-          <p class="stat"><b class="num">&lt; 1¢</b><span>a turn, background jobs included</span></p>
+          <p class="stat"><b class="num">1.06 s</b><span>first words, the median turn</span></p>
+          <p class="stat"><b class="num">1.8 s</b><span>first words, 9 turns in 10</span></p>
+          <p class="stat"><b class="num">$0.14</b><span>a game of up to twenty turns</span></p>
+          <p class="stat"><b class="num">≈ 1¢</b><span>a turn, background work included</span></p>
         </div>
-        <p class="src">A game on 14 Oct 2026, 13 turns · the player: Jez, human sorcerer 3, “A wild mage with very little control over what they're doing”</p>
+        <p class="src">QA round qa4-1018, 18 Oct 2026: its games’ turn records and call logs</p>
       </aside>
   </div>
 </section>
@@ -774,8 +762,9 @@ main { max-width: var(--wide); margin-inline: auto; }
   </div>
   <div class="creators">
     <div class="prose">
-      <p><strong>A campaign is data, not engine code.</strong> Caerwyn is three kinds of file: lore in Markdown, scenes as typed data, and the models’ instructions. Point the engine at a lore folder or a git repo, and play.</p>
-      <p><strong>A scripting API, grown from play.</strong> The stage manager writes every change in a small, schema-checked world language, so a model can’t name something that isn’t there, and whatever a story needs that it can’t say goes into <code>world.unsupported(...)</code>. The goal: a feature like “ice melts near fire” becomes one module, one test and one zoo exhibit, with no change to the engine.</p>
+      <p><strong>A campaign is data, not engine code.</strong> Caerwyn is a folder: the scenario, a <code>.kmscene</code> file for each scene, maps painted in characters, the places on them, and lore in Markdown. Those are the files the game loads: install the folder, and play.</p>
+      <p><strong>Written in Obsidian.</strong> The campaign folder is the vault. The game’s own plugin edits each scene as a graph, the story’s flow, the maps and the places, holds them to the format’s rules as you write, and previews a map with the game’s renderer.</p>
+      <p><strong>A scripting API, grown from play.</strong> The stage manager writes every change in a small, schema-checked world language, so a model can’t name something that isn’t there. The goal: a feature like “ice melts near fire” becomes one module, one test and one zoo exhibit, with no change to the engine.</p>
     </div>
     <aside class="callout callout--moment">
       <p class="callout__label">From the prototype</p>
@@ -801,11 +790,11 @@ main { max-width: var(--wide); margin-inline: auto; }
     <div class="section__head">
       <p class="eyebrow">The design, and how far we've come</p>
       <h2>See the roadmap</h2>
-      <p class="lede">This is the pitch. The roadmap is the design: the game we're building, area by area, and how far the prototype has come against each.</p>
+      <p class="lede">This is the pitch. The roadmap is the design: the game we're building, area by area, and how far the game has come against each.</p>
       <a class="cta" href="https://claude.ai/artifact/SdWwGZBtvKZ3JuAt73Hxq6" target="_blank" rel="noopener">See the roadmap <span class="cta__arrow" aria-hidden="true">&#9656;</span></a>
     </div>
     <ol class="todo">
-      <li><span aria-hidden="true">&#9632;</span><b>How the AI works</b><p>One turn step by step, the decider's questions, the bridge, the scene format, memory, scene boundaries, speed and cost, and how quality is measured.</p></li>
+      <li><span aria-hidden="true">&#9632;</span><b>How the AI works</b><p>One turn step by step, the two-part GM with a check and the co-GM’s moves, the bridge, the scene format, memory, scene boundaries, speed and cost, and how quality is measured.</p></li>
       <li><span aria-hidden="true">&#9671;</span><b>The architecture and the data</b><p>The AI API beside a simulation in SpacetimeDB, and the game as tables.</p></li>
       <li><span aria-hidden="true">&#9671;</span><b>Moves and the client API</b><p>What a client sends and subscribes to, and BG3-style control for four players.</p></li>
       <li><span aria-hidden="true">&#9671;</span><b>Scripting and the plan</b><p>One language for a campaign's own features, and the way from prototype to product.</p></li>
@@ -816,7 +805,7 @@ main { max-width: var(--wide); margin-inline: auto; }
 </main>
 
 <footer class="foot">
-  <p>Every quote on this page is word for word from a real game, eval or check of the prototype; […] marks a cut. The pictures are the game’s own renders, from <code>src/game/views.ts</code> (the stage view and the town view), animated with its look layer’s noise and flame ramps.</p>
+  <p>Every quote on this page is word for word from a real game, eval or check, of the prototype or the game; […] marks a cut. The pictures are the game’s own renders, from the prototype’s <code>src/game/views.ts</code> (the stage view and the town view), animated with its look layer’s noise and flame ramps.</p>
   <p class="sign">Quit · the clerk will keep.</p>
 </footer>
 
@@ -1710,6 +1699,7 @@ var LOOK = (function () {
   if (brEl && brData && L) new Brazier(brEl, brData, $("#brazier-say"));
 })();
 </script>
+
 
 
 </body></html>
