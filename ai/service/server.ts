@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { HEADERS, STEP_ENDPOINT, type AiError, type CampaignPut, type Endpoint, type Health } from "../../shared/protocol/ai.ts";
+import { GAME_LINES, HEADERS, STEP_ENDPOINT, type AiError, type CampaignPut, type Endpoint, type GameCalls, type GameDocs, type Health } from "../../shared/protocol/ai.ts";
 import { isGameId, isTurnKey, keyParts, type CreationKeyParts, type CreationStep, type Step, type TurnKeyParts } from "../../shared/protocol/keys.ts";
+import { isDoc } from "../docs/volumes.ts";
 import { KeyRefused } from "../llm/openrouter.ts";
 import { budget } from "./budget.ts";
 import type { Campaign, Campaigns } from "./campaigns.ts";
@@ -15,7 +16,8 @@ import { streamSink, type StreamTarget } from "./stream.ts";
  * The AI service's HTTP API (v0-design §5.1, v5-design §3.6, v1-design §3.7, full-gm-design §4.1,
  * world-bridge-design §3.1): the thinks (the opening, a turn's own with the reactions to the
  * player's violence, its suggested lines, the memory reviews after it, a scene's boundary, the looks,
- * and character creation's builds and backstories), a campaign's words, and its health.
+ * and character creation's builds and backstories), a campaign's words, its health, and a game's own
+ * for a report of a problem (V16, M5): its calls and memory reviews, and its docs, read or given.
  *
  * - Every route but health wants the bearer the module sends (401 otherwise).
  * - A think is answered by its idempotency key, which names its step (a creation's endpoints serve
@@ -27,6 +29,9 @@ import { streamSink, type StreamTarget } from "./stream.ts";
  *   it runs; a kept answer is served all the same.
  * - OpenRouter turning the key down (a 401) is 403 key_refused, in words for the player that say
  *   where the key is changed: asking again won't mend it, so the game fails the move at once.
+ * - A game's own (GET /v1/games/{game}/calls and /docs, PUT /docs) is read from the stores as they
+ *   are, with every key the service holds taken out (`redact`); a PUT writes each doc into the game's
+ *   copy of the lore, as a restored game's.
  * - Errors are { error: { code, message } }: 400 bad_request (a request it can't read, checked
  *   before any model is asked), 401 unauthorised, 402 over_budget, 403 key_refused, 409
  *   other_campaign or key_reused, 500 model_failed (after the model client's own retries), 503
@@ -52,6 +57,8 @@ export interface ServiceOptions {
   overBudget?: string;
   /** What the player is told when OpenRouter turns the key down (403 key_refused): where this host's key is changed. Absent: KEY_REFUSED's words. */
   keyRefused?: string;
+  /** Every key this host holds taken out of a game's own as it's read (a report's): the OpenRouter key, the bearers. Absent: nothing to take out. */
+  redact?: (text: string) => string;
   faults: Faults;
   log(line: string): void;
   /** How a fault ends the process (process.exit; a test's stand-in). */
@@ -77,6 +84,12 @@ const THINKS: Record<Endpoint, keyof Endpoints> = {
   "/v1/scenes/boundary": "boundary", "/v1/looks": "looks",
   "/v1/characters": "characters", "/v1/backstories": "backstories",
 };
+/** What a request is for, by its method and path: a think, a campaign PUT, or a game's own (V16). */
+type Route =
+  | { kind: "think"; endpoint: Endpoint }
+  | { kind: "campaign"; campaign: string; version: string }
+  | { kind: "calls" | "docs"; game: string };
+
 /** The steps that never call a model: the ceiling doesn't stop them. */
 const NO_MODEL: ReadonlyArray<Step | CreationStep> = ["own"];
 const LIMIT = { think: 2 << 20, campaign: 16 << 20 };
@@ -100,16 +113,45 @@ export function aiService(options: ServiceOptions): AiService {
     const url = new URL(request.path, "http://ai.local");
     try {
       if (request.method === "GET" && url.pathname === "/v1/health") return json(200, await health(request, url.searchParams.has("deep")));
-      const endpoint = Object.hasOwn(THINKS, url.pathname) ? (url.pathname as Endpoint) : undefined;
-      const campaign = /^\/v1\/campaigns\/([^/]+)\/([^/]+)$/.exec(url.pathname);
-      if (!(request.method === "POST" && endpoint) && !(request.method === "PUT" && campaign)) throw new Failure(404, "bad_request", `nothing at ${request.method} ${url.pathname}`);
+      const route = routeOf(request.method, url.pathname);
       if (closing) throw new Failure(503, "not_ready", "the AI service is shutting down");
       checkBearer(request, options.token);
-      if (endpoint) return await think(endpoint, request);
-      return json(200, await install(pathPart(campaign![1]!), pathPart(campaign![2]!), request.body));
+      switch (route.kind) {
+        case "think": return await think(route.endpoint, request);
+        case "campaign": return json(200, await install(route.campaign, route.version, request.body));
+        case "calls": return own(await gameCalls(route.game));
+        case "docs": return own(request.method === "PUT" ? giveDocs(route.game, request.body) : gameDocs(route.game));
+      }
     } catch (error) {
       return failed(error);
     }
+  }
+
+  /** A game's own, as JSON with every key taken out. */
+  function own(value: unknown): AiHttpResponse {
+    const body = JSON.stringify(value);
+    return { status: 200, headers: { "content-type": "application/json" }, body: options.redact ? options.redact(body) : body };
+  }
+
+  /** A game's calls and memory reviews: the latest GAME_LINES of each, and how many in all. */
+  async function gameCalls(game: string): Promise<GameCalls> {
+    const [calls, reviews] = await Promise.all([options.stores.calls.read(game), options.stores.reviews.read(game)]);
+    return { game, calls: calls.slice(-GAME_LINES), reviews: reviews.slice(-GAME_LINES), total: { calls: calls.length, reviews: reviews.length } };
+  }
+
+  /** Every doc of a game's copy of the lore, by path. */
+  function gameDocs(game: string): GameDocs {
+    const volume = options.stores.docs.overlay(game);
+    return { game, docs: volume.list().sort().map(path => ({ path, text: volume.read(path) ?? "" })) };
+  }
+
+  /** A game given docs (a game restored from a report: its GM's notes), each written into its copy of the lore. */
+  function giveDocs(game: string, text: string): { game: string; written: number } {
+    const docs = docsIn(parsed(text) as unknown as Partial<GameDocs>);
+    const volume = options.stores.docs.overlay(game);
+    for (const doc of docs) volume.write(doc.path, doc.text);
+    options.log(`[ai] game ${game}: ${docs.length} docs given`);
+    return { game, written: docs.length };
   }
 
   /** A think: checked, then answered by its key (kept, joined, or run and kept). */
@@ -232,6 +274,36 @@ function untilSent(res: ServerResponse, unsent: Set<Promise<void>>): void {
   const sent = new Promise<void>(resolve => { res.once("finish", resolve); res.once("close", resolve); });
   unsent.add(sent);
   void sent.then(() => unsent.delete(sent));
+}
+
+/** What a request is for: a 404 when it's nothing the service serves. */
+function routeOf(method: string, path: string): Route {
+  const endpoint = Object.hasOwn(THINKS, path) ? (path as Endpoint) : undefined;
+  if (method === "POST" && endpoint) return { kind: "think", endpoint };
+  const campaign = /^\/v1\/campaigns\/([^/]+)\/([^/]+)$/.exec(path);
+  if (method === "PUT" && campaign) return { kind: "campaign", campaign: pathPart(campaign[1]!), version: pathPart(campaign[2]!) };
+  const game = /^\/v1\/games\/([^/]+)\/(calls|docs)$/.exec(path);
+  if (game && (method === "GET" || (method === "PUT" && game[2] === "docs"))) return { kind: game[2] as "calls" | "docs", game: gameIn(game[1]!) };
+  throw new Failure(404, "bad_request", `nothing at ${method} ${path}`);
+}
+
+/** A game's uid from the path: a folder's name in the store, so held to a game id's shape. */
+function gameIn(text: string): string {
+  const game = pathPart(text);
+  if (!isGameId(game)) throw new Failure(400, "bad_request", `"${game}" isn't a game's id`);
+  return game;
+}
+
+/** A PUT's docs: each a doc's path (Markdown, kept inside the game's folder) and its text. */
+function docsIn(put: Partial<GameDocs>): GameDocs["docs"] {
+  if (!Array.isArray(put.docs)) throw new Failure(400, "bad_request", "docs are { docs: [{ path, text }] }");
+  for (const doc of put.docs) {
+    const path = typeof doc?.path === "string" ? doc.path : "";
+    if (typeof doc?.text !== "string" || !isDoc(path) || path.startsWith("/") || path.split("/").some(part => part === ".." || part === "")) {
+      throw new Failure(400, "bad_request", `"${path}" isn't a doc's path in a game's lore`);
+    }
+  }
+  return put.docs;
 }
 
 /** A think's body as far as the server reads it: the key, and the game it's for. */

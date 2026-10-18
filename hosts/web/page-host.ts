@@ -150,6 +150,8 @@ function newAiService(kept: Persistence, content: Content, sim: MemoryHost, conf
     stream: { url: "in-process", db: "kingmaker", token: BEARER, periodMs: STREAM_PERIOD_MS, fetch: streamInto(post => sim.streamReply(streamArgsOf(post), SERVICE)) },
     serves: { model: config.model.name, gm: "pipeline" },
     dailyUsd: DAILY_USD, overBudget: OVER_BUDGET, keyRefused: KEY_REFUSED,
+    // A game's own, read for a report, without the player's key.
+    redact: text => config.model.redact(text),
     faults: {}, log: config.log,
     exit: code => { throw new Error(`the AI service asked to exit (${code}): the page host runs no faults`); },
   });

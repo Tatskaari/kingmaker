@@ -189,4 +189,10 @@ test("each game's call log keeps its last lines and its memory reviews theirs; t
   assert.ok(!logs.has(JSON.stringify(["g1", "calls", 4])) && logs.has(JSON.stringify(["g1", "calls", 5])), "the oldest gone first");
   assert.deepEqual([lines("g1", "reviews").length, lines("g2", "calls").length], [1, 1]);
   assert.equal(await memoryStores((await openStorage(database, () => {})).ai).ledger.spentToday(), 0.75);
+
+  // Read back for a report of a problem (the AI service's GET /v1/games/{game}/calls), oldest first, a line handed in just now too.
+  stores.calls.append("g2", { n: 1 });
+  const kept = await stores.calls.read("g1");
+  assert.deepEqual([kept.length, kept[0], kept.at(-1)], [KEEP_LINES, { n: 5 }, { n: KEEP_LINES + 4 }]);
+  assert.deepEqual([await stores.calls.read("g2"), await stores.reviews.read("g1"), await stores.calls.read("g3")], [[{ n: 0 }, { n: 1 }], [{ n: 0 }], []]);
 });

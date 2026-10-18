@@ -1,13 +1,13 @@
 import type { DocsVolume } from "../docs/config.ts";
 import { memoryVolume } from "../docs/volumes.ts";
 import { scenarioPath } from "../../shared/scene/scenario.ts";
-import type { AnswerStore, CampaignStore, DocsStore, Ledger, StoredAnswer, Stores } from "./stores.ts";
+import type { AnswerStore, CallLog, CampaignStore, DocsStore, Ledger, StoredAnswer, Stores } from "./stores.ts";
 
 /**
  * The stores in memory (stores.ts), with nothing of Node: a browser's (the page's server worker) and
  * a test's. What the service reads back is held here: the answers, each game's copy of the lore,
- * today's spend and the campaigns as PUT. The logs are only ever written, so they're handed on and
- * not held.
+ * today's spend and the campaigns as PUT. The logs are written as they go and read back only for a
+ * report of a problem, so they're handed on and not held: the host reads them back (none without one).
  *
  * A host that keeps the stores between runs (in IndexedDB, written behind) gives a persistence: each
  * write is handed to it as it's made, an answer waits until it's kept, and the stores start from
@@ -27,6 +27,8 @@ export interface Persistence {
   doc(game: string, path: string, text: string): void;
   /** A line in a game's call log, or its memory reviews. */
   line(log: "calls" | "reviews", game: string, line: Record<string, unknown>): void;
+  /** A game's call log, or its memory reviews, as the host kept them, oldest first (for a report: GET /v1/games/{game}/calls). */
+  lines?(log: "calls" | "reviews", game: string): Promise<Array<Record<string, unknown>>>;
   /** A line in the ledger. */
   ledger(line: Record<string, unknown>): void;
 }
@@ -42,11 +44,19 @@ export function memoryStores(persist?: Persistence): Stores {
   const kept = persist?.kept ?? {};
   return {
     answers: answerMap(kept.answers ?? {}, persist),
-    calls: { append: (game, line) => persist?.line("calls", game, line) },
-    reviews: { append: (game, line) => persist?.line("reviews", game, line) },
+    calls: handedOn("calls", persist),
+    reviews: handedOn("reviews", persist),
     ledger: dailySpend(kept.ledger ?? [], persist),
     campaigns: campaignMap(),
     docs: docsMaps(kept.docs ?? {}, persist),
+  };
+}
+
+/** A game's log, each line handed on to the host as it's written, and read back from it. */
+function handedOn(log: "calls" | "reviews", persist: Persistence | undefined): CallLog {
+  return {
+    append: (game, line) => persist?.line(log, game, line),
+    read: async game => (await persist?.lines?.(log, game)) ?? [],
   };
 }
 

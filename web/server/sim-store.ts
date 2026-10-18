@@ -64,7 +64,7 @@ export async function openStorage(database: Database, notice: StorageNotice): Pr
   const queue = writeBehind(database, keepingFor(notice));
   if (metaOf(records).get("dataVersion") === undefined) queue.put("meta", "dataVersion", DATA_VERSION);
 
-  return { sim: simStore(queue, records), ai: aiPersistence(queue, records), flush: queue.flush, close: queue.close };
+  return { sim: simStore(queue, records), ai: aiPersistence(queue, records, database), flush: queue.flush, close: queue.close };
 }
 
 /**

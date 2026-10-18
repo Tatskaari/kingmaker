@@ -592,3 +592,66 @@ test("a campaign PUT the service can't read is a 400: a name that isn't one, a s
   assert.match(JSON.parse(answers[5]!.body).error.message, /^caerwyn\.kmscenario: it isn't a scenario of the kingmaker format, version 2 \(format "kingmaker", version "0\.1\.0", kind "scenario"\)/);
   assert.equal(JSON.parse(answers[6]!.body).error.message, "the files have no caerwyn.kmscenario");
 });
+
+// ---------------------------------------------------------------------------------------------
+// A game's own, for a report of a problem (V16, M5): its calls and memory reviews, and its docs.
+
+/** A GET or PUT of a game's own, with the bearer. */
+const own = (method: "GET" | "PUT", path: string, body = ""): AiHttpRequest => ({ method, path, headers: { authorization: `Bearer ${TOKEN}` }, body });
+
+test("a game's calls and memory reviews come back as logged, the latest of each with how many in all, and its docs by path", async () => {
+  const { ai, stores } = service();
+  stores.calls.append(GAME, { operation: "two-part.reply", text: "Kell looks up." });
+  stores.calls.append(GAME, { operation: "two-part.co-gm", text: "" });
+  stores.reviews.append(GAME, { turn: 1, saved: ["Kell remembers the arrow"] });
+  stores.docs.overlay(GAME).write("Cast/Kell/notes.md", "Kell trusts the investigator, a little.");
+  stores.calls.append("another-game", { operation: "two-part.reply", text: "Not this game's." });
+
+  const calls = await ai.answer(own("GET", `/v1/games/${GAME}/calls`));
+  const docs = await ai.answer(own("GET", `/v1/games/${GAME}/docs`));
+
+  assert.equal(calls.status, 200);
+  assert.deepEqual(JSON.parse(calls.body), {
+    game: GAME, total: { calls: 2, reviews: 1 },
+    calls: [{ operation: "two-part.reply", text: "Kell looks up." }, { operation: "two-part.co-gm", text: "" }],
+    reviews: [{ turn: 1, saved: ["Kell remembers the arrow"] }],
+  });
+  assert.deepEqual(JSON.parse(docs.body), { game: GAME, docs: [{ path: "Cast/Kell/notes.md", text: "Kell trusts the investigator, a little." }] });
+  assert.deepEqual(JSON.parse((await ai.answer(own("GET", "/v1/games/nobody-yet/calls"))).body), { game: "nobody-yet", calls: [], reviews: [], total: { calls: 0, reviews: 0 } });
+});
+
+test("a game's own wants the bearer, a game's id and a route there is: a 401, a 400, a 404", async () => {
+  const { ai } = service();
+  assert.equal((await ai.answer({ ...own("GET", `/v1/games/${GAME}/calls`), headers: {} })).status, 401);
+  assert.equal((await ai.answer(own("GET", "/v1/games/..%2Fanswers/calls"))).status, 400);
+  assert.equal((await ai.answer(own("GET", `/v1/games/${GAME}/answers`))).status, 404);
+  assert.equal((await ai.answer(own("PUT", `/v1/games/${GAME}/calls`, "{}"))).status, 404, "a call log is only ever read");
+});
+
+test("a game given docs (a restored game's) keeps each in its copy of the lore; a path outside it, or not a doc's, is a 400 and writes nothing", async () => {
+  const { ai, stores } = service();
+  const given = await ai.answer(own("PUT", `/v1/games/${GAME}/docs`, JSON.stringify({ docs: [{ path: "Cast/Cob/notes.md", text: "Cob owes the investigator a boot." }] })));
+  assert.deepEqual(JSON.parse(given.body), { game: GAME, written: 1 });
+  assert.equal(stores.docs.overlay(GAME).read("Cast/Cob/notes.md"), "Cob owes the investigator a boot.");
+
+  for (const path of ["../escaped.md", "/etc/passwd.md", "Cast/Cob/notes.txt", "Cast/.hidden/notes.md", "Cast//notes.md"]) {
+    const refused = await ai.answer(own("PUT", `/v1/games/${GAME}/docs`, JSON.stringify({ docs: [{ path: "Cast/Moll/notes.md", text: "first" }, { path, text: "no" }] })));
+    assert.equal(refused.status, 400, path);
+  }
+  assert.equal(stores.docs.overlay(GAME).read("Cast/Moll/notes.md"), undefined, "nothing of a refused PUT is written");
+  assert.equal((await ai.answer(own("PUT", `/v1/games/${GAME}/docs`, JSON.stringify({ files: {} })))).status, 400);
+});
+
+test("a game's own comes back with every key the host holds taken out (redact)", async () => {
+  const KEY = "sk-or-v1-0123456789abcdef0123456789abcdef";
+  const { ai, stores } = service({ redact: text => text.split(KEY).join("[key removed]") });
+  stores.calls.append(GAME, { operation: "two-part.reply", error: `HTTP 401: ${KEY} was refused` });
+  stores.docs.overlay(GAME).write("Player/Wren.md", `Wren keeps the key ${KEY} in her hat.`);
+
+  const calls = await ai.answer(own("GET", `/v1/games/${GAME}/calls`));
+  const docs = await ai.answer(own("GET", `/v1/games/${GAME}/docs`));
+
+  for (const answer of [calls, docs]) assert.ok(!answer.body.includes(KEY));
+  assert.equal(JSON.parse(calls.body).calls[0].error, "HTTP 401: [key removed] was refused");
+  assert.match(JSON.parse(docs.body).docs[0].text, /keeps the key \[key removed\] in her hat/);
+});

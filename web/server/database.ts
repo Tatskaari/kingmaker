@@ -10,7 +10,8 @@
  * - `meta`: the page host's own records by name (sim-store.ts and ai-store.ts say which);
  * - `answers`: the AI service's kept answers, by idempotency key;
  * - `docs`: each game's copy of the lore, by [game, path];
- * - `logs`: each game's call log and memory reviews, by [game, log, n]: written, never read back here.
+ * - `logs`: each game's call log and memory reviews, by [game, log, n]: written as they go, and read
+ *   back only for a report of a problem (`logs`).
  */
 
 export const STORES = ["rows", "meta", "answers", "docs", "logs"] as const;
@@ -36,6 +37,8 @@ export interface Database {
   write(writes: Write[]): Promise<void>;
   /** Every record of every store gone. */
   clear(): Promise<void>;
+  /** A game's call log or memory reviews, oldest first (a report's: the AI service's GET /v1/games/{game}/calls). */
+  logs(game: string, log: string): Promise<Array<Record<string, unknown>>>;
 }
 
 /** How the page hears whether the browser is keeping the game: not (and why, in words for it), or again. */
@@ -86,17 +89,28 @@ export function memoryDatabase(): Database {
     async clear() {
       for (const records of stores.values()) records.clear();
     },
+    async logs(game, log) {
+      const mine = [...store("logs").values()].filter(([key]) => Array.isArray(key) && key[0] === game && key[1] === log);
+      return mine.sort(([a], [b]) => Number((a as unknown[])[2]) - Number((b as unknown[])[2])).map(([, line]) => structuredClone(line) as Record<string, unknown>);
+    },
   };
 }
 
-/** The database in IndexedDB, by its name, its stores made the first time: the browser's own, or a test's (fake-indexeddb's). */
-export async function openIndexedDb(name: string, factory: IDBFactory = globalThis.indexedDB, timeoutMs = OPEN_TIMEOUT_MS): Promise<Database> {
+/** The database in IndexedDB, by its name, its stores made the first time: the browser's own, or a test's (fake-indexeddb's, with its key ranges). */
+export async function openIndexedDb(name: string, factory: IDBFactory = globalThis.indexedDB, timeoutMs = OPEN_TIMEOUT_MS, keyRange: typeof IDBKeyRange = globalThis.IDBKeyRange): Promise<Database> {
   const db = await open(factory, name, timeoutMs);
   return {
     read: () => readAll(db),
     write: writes => (writes.length ? inTransaction(db, [...new Set(writes.map(write => write.store))], tx => writeAll(tx, writes)) : Promise.resolve()),
     clear: () => inTransaction(db, [...STORES], tx => { for (const name of STORES) tx.objectStore(name).clear(); }),
+    logs: (game, log) => logsOf(db, keyRange, game, log),
   };
+}
+
+/** A game's log, its lines by [game, log, n] in n's order (IndexedDB sorts an array key element by element). */
+async function logsOf(db: IDBDatabase, keyRange: typeof IDBKeyRange, game: string, log: string): Promise<Array<Record<string, unknown>>> {
+  const range = keyRange.bound([game, log, 0], [game, log, Number.MAX_SAFE_INTEGER]);
+  return (await requested(db.transaction("logs", "readonly").objectStore("logs").getAll(range))) as Array<Record<string, unknown>>;
 }
 
 /**

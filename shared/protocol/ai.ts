@@ -381,6 +381,23 @@ export interface Health {
   budget: { dailyUsd: number; spentToday: number };
 }
 
+/**
+ * A game's own, as the AI service keeps them (V16: problem reports, M5), by the game's uid: its model
+ * calls and memory reviews (GET /v1/games/{game}/calls), and its copy of the lore, every doc it wrote,
+ * the GM's notes on each person among them (GET /v1/games/{game}/docs; PUT the same to give a game
+ * restored from a report its docs). Each answer has every key the service holds taken out.
+ */
+export const gamePath = (game: string, what: "calls" | "docs") => `/v1/games/${encodeURIComponent(game)}/${what}`;
+
+/** How many of a game's calls, and of its memory reviews, a GET gives: the latest, when there are more (a call's line carries its whole prompt). */
+export const GAME_LINES = 300;
+
+/** GET /v1/games/{game}/calls: the latest GAME_LINES lines of each log, oldest first, and how many each has in all. */
+export interface GameCalls { game: string; calls: Array<Record<string, unknown>>; reviews: Array<Record<string, unknown>>; total: { calls: number; reviews: number } }
+
+/** GET /v1/games/{game}/docs, and PUT's body: every doc of the game's copy of the lore, by its path ("Cast/Kell/notes.md"). */
+export interface GameDocs { game: string; docs: Array<{ path: string; text: string }> }
+
 /** PUT /v1/campaigns/{campaign}/{version}: the whole campaign folder, by path ("scenes/hanged-clerk.kmscene"). */
 export interface CampaignPut { files: Record<string, string> }
 /** How many files it stored, and the scenes it loaded with their words. */
