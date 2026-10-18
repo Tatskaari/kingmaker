@@ -1,5 +1,6 @@
 import type { RollResult } from "../dice.ts";
 import type { Brawl, Threat } from "../rules/types.ts";
+import type { Path } from "../scene/document.ts";
 import type { Beat, Essential, Scene, Skill, Transition } from "../scene/types.ts";
 import type { RulingRecord } from "./consider.ts";
 
@@ -126,7 +127,9 @@ export interface TalkState { with: string; where: string; confide?: Confide }
 /**
  * A companion's talks with the player between scenes, kept for the whole story (session.ts's
  * TalkRecord; the talk_record table): how many there have been, what they've told of themselves (each
- * note of their lore once, in the order told), and how far they'd come with what's not yet told.
+ * note of their lore once, in the order told), and how far they'd come with what's not yet told (the
+ * old pipeline's staged secrets wrote it: a talk on the two-part GM stages through the companion's
+ * role and writes none, and a record from before still makes them readier: ai/gm/talk.ts).
  */
 export interface TalkRecord { count: number; told: Array<{ note: string; topic: string; turn: number }>; stages?: Record<string, GuardStage> }
 
@@ -159,6 +162,14 @@ export interface ScenePatch {
   cast?: { id: string; secrets: string[] };
   close?: { beat: string; id: string };
   essential?: Essential;
+  /**
+   * A discovery as this play of the scene has it (a talk's, town-design §3.6: the template's `told`
+   * filled from the talk's prep with the one thing the companion might confide): its revelation, and
+   * its paths, the ways it can come out. The latest word on it wins.
+   */
+  fill?: { id: string; revelation: string; paths: Path[] };
+  /** A node this play of the scene hasn't got, with every route into and out of it (a talk with nothing to confide this time: its `told`). */
+  drop?: string;
   why: string;
 }
 

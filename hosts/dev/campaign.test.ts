@@ -299,19 +299,29 @@ test("the maps: each builds as the simulation builds it, its ways out land where
 
 const TALK = "scenes/talk.kmscene";
 
-test("the talk template (town-design §3.6): its companion {companion}, its first cast entry the companion's, with a told event, a goodbye and no place; and everyone who walks with the player has a lore entry to talk from", () => {
+test("the talk template (town-design §3.6): its companion {companion}, its first cast entry the companion's, its start with their opening role, a told discovery, a goodbye the start leads to, and no place; and everyone who walks with the player has a lore entry to talk from", () => {
   const template = packOf(files).scenes.find(s => s.id === "talk")!;
   assert.deepEqual([template.companion, template.cast[0]!.id, template.cast[0]!.name, template.nodes.map(n => n.id)], ["{companion}", "{companion}", "{name}", ["talk", "told", "goodbye"]]);
+  const [start, told] = template.nodes as any[];
+  assert.match(start.data.cast["{companion}"], /^Characterise: at their own business/, "the companion's opening role, the co-GM's first note");
+  assert.deepEqual([told.data.kind, told.data.paths.length, template.edges.map(e => [e.id, e.source, e.target, e.data.condition === ""])], ["beat", 2, [["goodbye", "talk", "goodbye", false], ["confided", "talk", "told", true]]], "told a discovery, the way into it taken once its revelation has landed");
 
   const wrong = changed(TALK, t => { t.companion = "kell"; t.cast[0].id = "kell"; t.nodes[1].id = "spilled"; t.edges[1].target = "spilled"; t.nodes[2].id = "farewell"; t.edges[0].target = "farewell"; t.place = "granary-yard"; });
-  // (A place's people would be the template's cast: the scene checks say so too.)
-  assert.deepEqual(checkCampaign(wrong).filter(p => !p.includes("'s people:")), [
+  // (A place's people would be the template's cast, and the role and the paths are for {companion}: the scene checks say so too.)
+  assert.deepEqual(checkCampaign(wrong).filter(p => p.includes("the talk template")), [
     'scenes/talk.kmscene: the talk template\'s companion is "kell", not "{companion}"',
     "scenes/talk.kmscene: the talk template's first cast entry isn't the companion's ({companion}, named {name})",
-    "scenes/talk.kmscene: the talk template has no event beat told (where the one thing they keep back takes the talk once it's told)",
-    "scenes/talk.kmscene: the talk template has no ending goodbye (where walking on ends a talk)",
+    "scenes/talk.kmscene: the talk template has no discovery told (the one thing they might confide, which each talk's prep fills in)",
+    "scenes/talk.kmscene: the talk template has no ending goodbye (where saying goodbye or walking on ends a talk)",
     "scenes/talk.kmscene: the talk template has a place (a talk is wherever the player stopped)",
   ]);
+  const roleless = changed(TALK, t => { delete t.nodes[0].data.cast; t.edges[0].source = "told"; });
+  assert.deepEqual(checkCampaign(roleless), [
+    "scenes/talk.kmscene: the talk template's start has no role for {companion} (their opening role, the co-GM's first note)",
+    "scenes/talk.kmscene: the talk template has no way into goodbye from its start (saying goodbye ends a talk wherever it's got to)",
+  ]);
+  const evented = changed(TALK, t => { delete t.nodes[1].data.revelation; delete t.nodes[1].data.paths; t.edges[1].data.condition = "Kell has told it."; });
+  assert.deepEqual(checkCampaign(evented), ["scenes/talk.kmscene: the talk template has no discovery told (the one thing they might confide, which each talk's prep fills in)"], "an event beat told, as the old pipeline had it, isn't a talk's any more");
   const entry = "lore/Cast/Sergeant Agnes Kell/private.md";
   const loreless = changed(entry, files[entry]!.replace('character: "kell"\n', ""));
   assert.deepEqual(checkCampaign(loreless), ["scenes/talk.kmscene: kell walks with the player, but has no lore entry to talk from (a private.md with character: kell)"]);

@@ -39,17 +39,26 @@ export function withImprovisedEnding(scene: Scene): Scene {
  * The authored scene as play has it: what the co-GM has added during play, and what the boundary
  * brought over from earlier scenes. An essential the scene preps for if the player missed it
  * earlier (`missed`) is the scene's only once the boundary has brought it over, and a route that
- * brings an essential the scene hasn't got (or is a way towards one) isn't there.
+ * brings an essential the scene hasn't got (or is a way towards one) isn't there. A talk's prep
+ * fills its discovery for this talk (`fill`: the one thing the companion might confide, and the ways
+ * it can come out), or, with nothing to confide, the discovery isn't this talk's (`drop`: the node
+ * goes, with every route into and out of it).
  */
 export function effectiveScene(authored: Scene, patches: ScenePatch[]): Scene {
   const scene = withImprovisedEnding(authored);
   const brought = patches.flatMap(p => (p.essential ? [p.essential] : []));
   if (!patches.length && !scene.essentials?.some(e => e.missed)) return scene;
   // The scene's own essentials, and what the boundary brought (in place of the scene's prep for it).
-  const essentials = [...(scene.essentials ?? []).filter(e => !e.missed && !brought.some(b => b.id === e.id)), ...brought];
+  const dropped = new Set(patches.flatMap(p => (p.drop ? [p.drop] : [])));
+  const essentials = [...(scene.essentials ?? []).filter(e => !e.missed && !brought.some(b => b.id === e.id) && !dropped.has(e.id)), ...brought];
   const has = new Set(essentials.map(e => e.id));
-  const live = (t: Transition) => [t.essential, t.towards].every(e => !e || has.has(e));
-  const beats = scene.beats.map(b => ({ ...b, transitions: b.transitions.filter(live) }));
+  const kept = (t: Transition) => ![t.to, t.check?.onSuccess].some(to => !!to && dropped.has(to));
+  const live = (t: Transition) => [t.essential, t.towards].every(e => !e || has.has(e)) && kept(t);
+  const beats = scene.beats.filter(b => !dropped.has(b.id)).map(b => {
+    const fill = findLast(patches, p => p.fill?.id === b.id)?.fill;
+    return { ...b, transitions: b.transitions.filter(live), ...(fill ? { revelation: fill.revelation, paths: fill.paths.map(p => ({ ...p, ...(p.check ? { check: { ...p.check } } : {}) })) } : {}) };
+  });
+  const routes = dropped.size ? (scene.routes ?? []).filter(r => !dropped.has(r.source) && !dropped.has(r.target)) : scene.routes;
   for (const patch of patches) {
     if (patch.beat && !beats.some(b => b.id === patch.beat!.id)) beats.push({ ...patch.beat, transitions: [...patch.beat.transitions] });
   }
@@ -70,7 +79,7 @@ export function effectiveScene(authored: Scene, patches: ScenePatch[]): Scene {
   const closed = patches.filter(p => p.close).map(p => p.close!);
   for (const b of beats) if (closed.length) b.transitions = b.transitions.filter(t => !closed.some(c => c.beat === b.id && c.id === t.id));
   const open = closed.length ? anytime.filter(t => !closed.some(c => c.beat === "*" && c.id === t.id)) : anytime;
-  return { ...scene, beats, anytime: open, cast, ...(scene.essentials || brought.length ? { essentials } : {}) };
+  return { ...scene, beats, anytime: open, cast, routes, ...(scene.essentials || brought.length ? { essentials } : {}) };
 }
 
 export function currentBeat(scene: Scene, state: Pick<GmState, "beat">): Beat {
