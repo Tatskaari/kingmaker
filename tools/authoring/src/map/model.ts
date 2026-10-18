@@ -414,3 +414,21 @@ export const regionIds=(maps:Array<{key:string;doc?:MapDocument}>,except:string)
 /** The terrains a legend entry can be, those of buildings and the rest. */
 export const STRUCTURES:Terrain[]=['wall','door','window','fence'];
 export const isTerrain=(value:string):value is Terrain=>(TERRAINS as string[]).includes(value);
+
+/**
+ * The map with a legend character renamed: its entry under the new character, where it was in the
+ * legend, and every tile painted with it written in the new one (only the rows it's on change).
+ * Refused for a character that can't be one.
+ */
+export function renameLegendChar(doc:MapDocument,from:string,to:string):MapDocument{
+  if(!(from in doc.legend))throw new Error(`"${from}" isn't in the legend.`);
+  if(from===to)return doc;
+  const problem=legendCharProblem(doc,to);
+  if(problem)throw new Error(problem);
+  const legend=Object.fromEntries(Object.entries(doc.legend).map(([ch,entry])=>[ch===from?to:ch,entry]));
+  const grid=doc.grid.map(row=>row.includes(from)?[...row].map(ch=>ch===from?to:ch).join(''):row);
+  return {...doc,legend,grid};
+}
+
+/** The people about at an hour (all of them, for none), each with their index in the map's list. */
+export const peopleAbout=(doc:MapDocument,time?:TimeOfDay)=>(doc.people??[]).map((person,index)=>({person,index})).filter(({person})=>!time||person.times.includes(time));

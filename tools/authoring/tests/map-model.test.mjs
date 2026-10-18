@@ -11,7 +11,7 @@ const bundle=async entry=>{
 };
 const model=await bundle('../src/map/model.ts');
 const game=await bundle('./game-maps.ts');
-const {openMapFile,serializeMap,mapShapeOf,cellsOf,gridOf,withCells,paint,rectangle,fill,cellAt,addLegendEntry,setLegendEntry,removeLegendEntry,legendCharProblem,freeChar,entryName,setRegionField,addRegion,removeRegion,setExit,addExit,removeExits,setPersonField,addPerson,removePerson,resizeCells,resizeMap,newMap,DEFAULT_LEGEND,thingsAt,mapFileKind,VOID}=model;
+const {openMapFile,serializeMap,mapShapeOf,cellsOf,gridOf,withCells,paint,rectangle,fill,cellAt,addLegendEntry,setLegendEntry,removeLegendEntry,legendCharProblem,freeChar,entryName,setRegionField,addRegion,removeRegion,setExit,addExit,removeExits,setPersonField,addPerson,removePerson,resizeCells,resizeMap,newMap,DEFAULT_LEGEND,thingsAt,mapFileKind,VOID,renameLegendChar,peopleAbout}=model;
 
 const CAMPAIGN=new URL('../../../campaigns/caerwyn/',import.meta.url);
 const read=path=>readFile(new URL(path,CAMPAIGN),'utf8');
@@ -202,4 +202,21 @@ test('what isn\'t a map of the format is refused, naming what\'s wrong; a versio
   const study=await readFile(new URL('fixtures/v1-study/Harbour study.kmmap',import.meta.url),'utf8');
   assert.equal(mapFileKind(study),'v1');
   assert.equal(mapFileKind('{}'),'other');
+});
+
+test('a legend character renamed: its entry where it was, every tile painted with it written in the new one, and only those rows changed',async()=>{
+  const text=await read('maps/palace.kmmap'),doc=openMapFile(text);
+  const next=renameLegendChar(doc,'f','F');
+  assert.deepEqual(Object.keys(next.legend),Object.keys(doc.legend).map(ch=>ch==='f'?'F':ch));
+  assert.deepEqual(next.legend.F,doc.legend.f);
+  next.grid.forEach((row,y)=>assert.equal(row,doc.grid[y].replaceAll('f','F'),`row ${y}`));
+  assert.ok(next.grid.some((row,y)=>row!==doc.grid[y]));
+  assert.equal(serializeMap(next).split('\n').filter((line,i)=>line!==serializeMap(doc).split('\n')[i]).length,doc.grid.filter(row=>row.includes('f')).length+1);
+  assert.throws(()=>renameLegendChar(doc,'f','a'),/in the legend already/);
+  assert.throws(()=>renameLegendChar(doc,'f',' '),/the void/);
+  assert.equal(renameLegendChar(doc,'f','f'),doc);
+  // People by the hour: the town's about in the morning and at night.
+  const town=openMapFile(await read('maps/caerwyn.kmmap'));
+  assert.equal(peopleAbout(town).length,town.people.length);
+  assert.deepEqual(peopleAbout(town,'night').map(({index})=>index),town.people.flatMap((person,index)=>person.times.includes('night')?[index]:[]));
 });

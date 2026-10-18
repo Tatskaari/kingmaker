@@ -58,23 +58,26 @@ export function NewRegionDialog({rect,taken,onAdd,onClose}:{rect:{x:number;y:num
   </Dialog>;
 }
 
-/** A new exit: where it goes (one of the scenario's maps, and a tile there) and what it says. */
-export function NewExitDialog({at,maps,landing,onAdd,onClose}:{at:Tile2;maps:Option[];landing:(map:string)=>Tile2;onAdd:(exit:MapExit)=>void;onClose:()=>void}){
-  const [map,setMap]=useState(maps[0]?.value??''),[label,setLabel]=useState(''),[to,setTo]=useState<Tile2>(()=>maps[0]?landing(maps[0].value):{x:0,y:0});
+/** A new exit: its tile here (asked for unless it's the tile it was added on), where it goes (one of the scenario's maps, and a tile there) and what it says. */
+export function NewExitDialog({at,fixed,maps,landing,onAdd,onClose}:{at:Tile2;fixed?:boolean;maps:Option[];landing:(map:string)=>Tile2;onAdd:(exit:MapExit)=>void;onClose:()=>void}){
+  const [map,setMap]=useState(maps[0]?.value??''),[label,setLabel]=useState(''),[to,setTo]=useState<Tile2>(()=>maps[0]?landing(maps[0].value):{x:0,y:0}),[from,setFrom]=useState<Tile2>(at);
   const ready=!!map&&label.trim().length>0;
-  return <Dialog label="New exit" title={`New exit at (${at.x}, ${at.y})`} onClose={onClose} footer={<button type="button" className="primary" disabled={!ready} onClick={()=>onAdd({at:{x:at.x,y:at.y},to:{map,at:to},label:label.trim()})}><Plus size={14}/>Add exit</button>}>
+  return <Dialog label="New exit" title={fixed?`New exit at (${at.x}, ${at.y})`:'New exit'} onClose={onClose} footer={<button type="button" className="primary" disabled={!ready} onClick={()=>onAdd({at:{x:from.x,y:from.y},to:{map,at:to},label:label.trim()})}><Plus size={14}/>Add exit</button>}>
     <TextField label="Label" field="label" placeholder="Down to the wharves" value={label} onChange={setLabel}/>
+    {!fixed&&<TileFields label="From (tile here)" at={from} onChange={setFrom}/>}
     {maps.length?<SelectField label="To map" field="to.map" value={map} options={maps} onChange={value=>{setMap(value);setTo(landing(value))}}/>:<p className="muted">The scenario has no maps to go to yet.</p>}
     <TileFields label="Lands at (tile there)" at={to} onChange={setTo}/>
   </Dialog>;
 }
 
-/** Someone new about on the map: a name and a glyph, about all day until the author says otherwise. */
-export function NewPersonDialog({at,onAdd,onClose}:{at:Tile2;onAdd:(person:{name:string;glyph:string;at:Tile2})=>void;onClose:()=>void}){
-  const [name,setName]=useState(''),[glyph,setGlyph]=useState('p');
+/** Someone new about on the map: a name and a glyph (and a tile, unless it's the tile they were added on), about all day until the author says otherwise. */
+export function NewPersonDialog({at,fixed,onAdd,onClose}:{at:Tile2;fixed?:boolean;onAdd:(person:{name:string;glyph:string;at:Tile2})=>void;onClose:()=>void}){
+  const [name,setName]=useState(''),[glyph,setGlyph]=useState('p'),[where,setWhere]=useState<Tile2>(at);
   const ready=name.trim().length>0&&[...glyph].length===1;
-  return <Dialog label="New person" title={`Someone about at (${at.x}, ${at.y})`} onClose={onClose} footer={<button type="button" className="primary" disabled={!ready} onClick={()=>onAdd({name:name.trim(),glyph,at})}><Plus size={14}/>Add</button>}>
+  return <Dialog label="New person" title={fixed?`Someone about at (${at.x}, ${at.y})`:'Someone about'} onClose={onClose} footer={<button type="button" className="primary" disabled={!ready} onClick={()=>onAdd({name:name.trim(),glyph,at:{x:where.x,y:where.y}})}><Plus size={14}/>Add</button>}>
     <TextField label="Name" field="name" placeholder="a lamplighter" value={name} onChange={setName}/>
     <TextField label="Glyph" field="glyph" hint="One character, as the map draws them." value={glyph} onChange={setGlyph}/>
+    {!fixed&&<TileFields label="Stands at (tile)" at={where} onChange={setWhere}/>}
+    <p className="muted">About at every hour: choose their hours once they're added.</p>
   </Dialog>;
 }

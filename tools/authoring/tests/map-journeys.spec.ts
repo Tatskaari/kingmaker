@@ -86,7 +86,7 @@ test('painting with a new legend entry: its fields from the editor, the palette 
   await dialog.getByLabel('Style',{exact:true}).fill('carpet');
   await dialog.getByLabel('Roof',{exact:true}).fill('palace');
   await dialog.getByLabel('Roof height',{exact:true}).fill('4');
-  await dialog.getByLabel('Something stands on it').check();
+  await dialog.getByRole('button',{name:'Something stands on it'}).click();
   await dialog.getByLabel('Decor name',{exact:true}).fill('a candelabrum');
   await dialog.getByLabel('Glyph',{exact:true}).fill('Ψ');
   await dialog.getByLabel('Colour',{exact:true}).fill('#ffd27f');
@@ -196,14 +196,16 @@ test('a region tied to a scene lays its place on the map, and a thing of the pla
   expect(doc.regions.at(-1)).toEqual({id:'the-kings-closet',name:'the King\'s closet',rect:{x:5,y:2,w:8,h:6}});
   // Tied to the King's morning, its place laid here from the region's corner.
   const inspector=page.locator('.region-inspector');
+  await inspector.getByRole('button',{name:'Play a scene here'}).click();
   await inspector.getByLabel('Scene',{exact:true}).selectOption('kings-morning');
   await inspector.getByLabel('Its scene\'s place is laid here').check();
   await inspector.getByLabel('Trigger',{exact:true}).selectOption('enter');
   doc=await saved(page,'maps/palace.kmmap');
   expect(doc.regions.at(-1)).toEqual({id:'the-kings-closet',name:'the King\'s closet',rect:{x:5,y:2,w:8,h:6},sceneId:'kings-morning',worldOrigin:{x:5,y:2},trigger:'enter'});
   expect(doc.regions.slice(0,-1)).toEqual(palace.regions);
-  await inspector.getByRole('button',{name:'Show its place on the map'}).click();
+  // The region selected, its place is shown as soon as it lays it, with no button to press (and the button hides it).
   await expect(page.locator('.map-place-note')).toContainText('places/dressing-room.kmplace');
+  await expect(inspector.getByRole('button',{name:'Hide its place'})).toBeVisible();
   await expect(page.locator('.map-marker-thing')).toHaveCount(room.things.filter((t:any)=>t.at).length);
   await expect(page.locator('.map-marker-cast')).toHaveCount(Object.keys(room.people).length);
   await page.screenshot({path:'dist/screenshots/map-place-layer.png'});
@@ -232,11 +234,12 @@ test('a region tied to a scene lays its place on the map, and a thing of the pla
   expect((await saved(page,'maps/palace.kmmap')).regions.at(-1).worldOrigin).toEqual({x:5,y:2});
   // On the town, selecting the granary yard's region shows the yard; a thing added from a tile's menu is the place's.
   await openMap(page,'maps/caerwyn.kmmap');
-  await page.getByRole('tab',{name:'Map',exact:true}).click();
-  await page.locator('.map-panel summary',{hasText:'Regions'}).click();
-  await page.locator('.map-panel').getByRole('button',{name:/^the yard behind the King's Granary/}).click();
+  await page.getByRole('tab',{name:/^Regions/}).click();
+  await page.locator('.list-view').getByRole('button',{name:/^the yard behind the King's Granary/}).click();
+  await expect(page.locator('.list-view .doc-card')).toContainText('The yard behind the King\'s Granary');
+  await page.locator('.list-view .doc-card').getByRole('button',{name:'Show on the map'}).click();
   await expect(page.locator('.map-place-note')).toContainText('places/granary-yard.kmplace');
-  await expect(page.getByRole('tab',{name:'Place',exact:true})).toBeVisible();
+  await expect(page.locator('.region-inspector[data-region="granary-yard"]')).toBeVisible();
   await tileMenu(page,44,14);
   await page.getByRole('menuitem',{name:'Add a thing of The yard behind the King\'s Granary here…'}).click();
   const pigeon=page.getByRole('dialog',{name:'New thing'});
@@ -277,6 +280,25 @@ test('resizing grows the map and moves what stands on it; the scenario\'s start 
   await page.getByRole('button',{name:'Undo map edit'}).click();
   expect(await savedText(page,'maps/palace.kmmap')).toBe(await readFile(new URL('maps/palace.kmmap',CAMPAIGN),'utf8'));
   expect(await savedText(page,'maps/caerwyn.kmmap')).toBe(await readFile(new URL('maps/caerwyn.kmmap',CAMPAIGN),'utf8'));
+  // Cropping from the keyboard asks once: pressed again on the same edge, while it keeps the focus, it crops on without asking.
+  const width=async()=>Math.max(...(await saved(page,'maps/palace.kmmap')).grid.map((row:string)=>[...row].length));
+  const east=page.getByRole('button',{name:'Resize east edge'});
+  await east.focus();
+  await page.keyboard.press('-');
+  await expect(page.getByRole('alertdialog')).toContainText('Pressing − again on this edge crops on without asking');
+  await page.getByRole('button',{name:'Crop map'}).click();
+  await expect.poll(width).toBe(13);
+  await expect(east).toBeFocused();
+  await page.keyboard.press('-');
+  await expect.poll(width).toBe(12);
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  // Left and come back to, the edge asks again.
+  await page.getByRole('button',{name:'Resize north edge'}).focus();
+  await east.focus();
+  await page.keyboard.press('-');
+  await expect(page.getByRole('alertdialog')).toContainText('Crop the map?');
+  await page.getByRole('button',{name:'Cancel'}).click();
+  expect(await width()).toBe(12);
 });
 
 test('the Game preview is the game\'s renderer on the map as the game builds it, with the people about at an hour, and saves nothing',async({page})=>{
@@ -295,7 +317,7 @@ test('the Game preview is the game\'s renderer on the map as the game builds it,
   await expect(page.locator('.map-error')).toHaveCount(0);
   await canvas(page).hover();
   await expect(page.locator('.map-hover-tile')).toContainText('Hover:');
-  await page.getByRole('button',{name:'Paint',exact:true}).click();
+  await page.getByRole('tab',{name:'Paint',exact:true}).click();
   await expect(canvas(page)).toHaveAttribute('data-renderer','pixi');
   expect(await savedText(page,'maps/caerwyn.kmmap')).toBe(before);
   expect(errors).toEqual([]);

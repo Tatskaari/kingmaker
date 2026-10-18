@@ -28,7 +28,8 @@ test('a place on its own grid: its things where they stand, one moved, one added
   await expect(page.locator('.km-place[data-campaign="read"]')).toBeVisible();
   await expect(page.locator('.place-thing')).toHaveCount(yard.things.filter((t:any)=>t.at).length);
   await expect(page.locator('.place-person')).toHaveCount(Object.keys(yard.people).length);
-  await expect(page.locator('.place-layers')).toContainText('Laid on caerwyn at granary-yard (40, 9)');
+  // Where it's laid, by the names an author knows them by (the map's title and the region's name).
+  await expect(page.locator('.place-layers')).toContainText('On Caerwyn, over “the yard behind the King\'s Granary” (40, 9)');
   await expect(page.getByRole('tab',{name:'Problems (0)'})).toBeVisible();
   // Prout's satchel, dragged from the gate across the yard: moved in feet, still in the yard.
   await drag(page,await feet(page,14,10),await feet(page,24,30));
@@ -53,8 +54,9 @@ test('a place on its own grid: its things where they stand, one moved, one added
   await inspector.getByLabel('Size',{exact:true}).selectOption('large');
   await inspector.getByLabel('Material',{exact:true}).selectOption('wood');
   await inspector.getByLabel('Description',{exact:true}).fill('A ladder long enough for the hoist beam.');
-  await inspector.getByRole('button',{name:'Add',exact:true}).first().click();
-  await inspector.getByLabel('States 1',{exact:true}).fill('leaning');
+  await inspector.getByRole('button',{name:'Add a state',exact:true}).click();
+  await inspector.getByLabel('New: States',{exact:true}).fill('leaning');
+  await inspector.getByLabel('New: States',{exact:true}).press('Enter');
   doc=await saved(page,path);
   expect(doc.things.at(-1)).toEqual({id:'a-ladder',name:'a ladder',kind:'object',in:'yard',at:[6,20],size:'large',material:'wood',states:['leaning'],description:'A ladder long enough for the hoist beam.'});
   // The ladder dragged past the place's west edge stays on its floor, and off the floor nothing is offered to add.

@@ -201,3 +201,26 @@ export function newPlace(title:string,id=slugOf(title)):PlaceDocument{
     things:[],people:{},
   };
 }
+
+/** Why an area's or a thing's id can't be `id`: not a slug, or taken in the place (its own aside). */
+export function placeIdProblem(doc:PlaceDocument,id:string,current?:string):string|undefined{
+  if(!/^[a-z0-9][a-z0-9-]*$/.test(id))return 'An id is a slug: lower-case letters, digits and dashes.';
+  if(id!==current&&idsOf(doc).has(id))return `${id} is in the place already.`;
+  return undefined;
+}
+
+/**
+ * An area or a thing renamed, and everything of the place naming it following: what's in it (a thing's
+ * or someone's `in`). The scenes naming it (a path's via, an effect) aren't the place's: the problems
+ * and warnings say where they need it.
+ */
+export function renamePlaceId(doc:PlaceDocument,from:string,to:string):PlaceDocument{
+  const kind=idsOf(doc).get(from);
+  if(!kind||kind==='person'||from===to)return doc;
+  const problem=placeIdProblem(doc,to,from);
+  if(problem)throw new Error(problem);
+  const areas=kind==='area'?doc.areas.map(area=>area.id===from?withKey(area,'id',to,ORDER.area):area):doc.areas;
+  const things=doc.things.map(thing=>{let next=thing.id===from?withKey(thing,'id',to,ORDER.thing):thing;if(next.in===from)next=withKey(next,'in',to,ORDER.thing);return next});
+  const people=Object.fromEntries(Object.entries(doc.people).map(([who,person])=>[who,person.in===from?withKey(person,'in',to,ORDER.person):person]));
+  return {...doc,areas,things,people};
+}

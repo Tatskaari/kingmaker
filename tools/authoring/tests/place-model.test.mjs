@@ -11,7 +11,7 @@ const bundle=async entry=>{
 };
 const model=await bundle('../src/place/model.ts');
 const game=await bundle('./game-places.ts');
-const {openPlaceFile,serializePlace,placeShapeOf,tileOfFeet,feetOfTile,feetMoved,tilesOf,areaAt,contentsOf,spotOf,setThingField,setAreaField,setPersonField,moveThing,movePerson,moveArea,onPlace,addThing,addArea,addPerson,removeFromPlace,placeIdFor,newPlace,idsOf}=model;
+const {openPlaceFile,serializePlace,placeShapeOf,tileOfFeet,feetOfTile,feetMoved,tilesOf,areaAt,contentsOf,spotOf,setThingField,setAreaField,setPersonField,moveThing,movePerson,moveArea,onPlace,addThing,addArea,addPerson,removeFromPlace,placeIdFor,newPlace,idsOf,renamePlaceId,placeIdProblem}=model;
 
 const CAMPAIGN=new URL('../../../campaigns/caerwyn/',import.meta.url);
 const read=path=>readFile(new URL(path,CAMPAIGN),'utf8');
@@ -121,4 +121,39 @@ test('a new place is a size and one area, the whole of it; what isn\'t a place i
   assert.throws(()=>openPlaceFile('{','places/x.kmplace'),/places\/x\.kmplace: it isn't JSON/);
   const yardDoc=await yard();
   assert.throws(()=>openPlaceFile(JSON.stringify({...yardDoc,things:[{id:'x',name:'x',in:'yard',size:'colossal'}]})),/size "colossal" isn't one of/);
+});
+
+test('an area or a thing renamed: what\'s in it follows, and a taken id or one that isn\'t a slug is refused',async()=>{
+  const yard=openPlaceFile(await read('places/granary-yard.kmplace'));
+  // The hoist beam holds the rope, which holds the body: renamed, the rope's in follows.
+  const next=renamePlaceId(yard,'hoist-beam','the-beam');
+  assert.equal(next.things.find(t=>t.id==='the-beam').name,yard.things.find(t=>t.id==='hoist-beam').name);
+  assert.equal(next.things.find(t=>t.id==='hoist-rope').in,'the-beam');
+  assert.deepEqual(Object.keys(next.things.find(t=>t.id==='the-beam')),Object.keys(yard.things.find(t=>t.id==='hoist-beam')));
+  // An area: the things on its floor and the people who start in it follow.
+  const lane=renamePlaceId(yard,'lane','the-lane');
+  assert.deepEqual(lane.areas.map(a=>a.id),yard.areas.map(a=>a.id==='lane'?'the-lane':a.id));
+  assert.deepEqual(lane.things.filter(t=>t.in==='the-lane').map(t=>t.id),yard.things.filter(t=>t.in==='lane').map(t=>t.id));
+  assert.deepEqual(Object.entries(lane.people).filter(([,p])=>p.in==='the-lane').map(([id])=>id),Object.entries(yard.people).filter(([,p])=>p.in==='lane').map(([id])=>id));
+  assert.throws(()=>renamePlaceId(yard,'lane','yard'),/in the place already/);
+  assert.throws(()=>renamePlaceId(yard,'lane','The Lane'),/a slug/);
+  assert.equal(renamePlaceId(yard,'kell','kell-2'),yard,'someone\'s start is the cast\'s id, not the place\'s');
+  assert.equal(placeIdProblem(yard,'lane','lane'),undefined);
+});
+
+test('where the scenes played in a place name its things (a path\'s via as words, an effect\'s target) and its people (their cast)',async()=>{
+  const uses=await bundle('../src/place/uses.ts');
+  const yard=openPlaceFile(await read('places/granary-yard.kmplace'));
+  const clerk=JSON.parse(await read('scenes/hanged-clerk.kmscene'));
+  const scenes=[{key:'hanged-clerk',path:'scenes/hanged-clerk.kmscene',doc:clerk}];
+  const paths=clerk.nodes.flatMap(node=>(node.data.paths??[]).map((path,i)=>({node,path,i})));
+  for(const thing of yard.things){
+    const named=uses.thingUsesOf(yard,thing.id,scenes).map(use=>use.where);
+    const viaIt=paths.filter(({path})=>[thing.id,thing.name].map(name=>name.toLowerCase().replace(/^(the|a|an) /,'')).includes(path.via.toLowerCase().replace(/\([^)]*\)/g,' ').replace(/\s+/g,' ').trim().replace(/^(the|a|an) /,''))).map(({node,i})=>`${node.data.title||node.id}: path ${i+1}`);
+    for(const where of viaIt)assert.ok(named.includes(where),`${thing.id}: ${where}`);
+  }
+  assert.ok(yard.things.some(thing=>uses.thingUsesOf(yard,thing.id,scenes).length>0),'the clerk names some of the yard\'s things');
+  assert.deepEqual(uses.castUsesOf(yard,'kell',scenes).map(use=>use.where),[`${clerk.cast.find(member=>member.id==='kell').name} of its cast`]);
+  assert.deepEqual(uses.castUsesOf(yard,'player',scenes),[]);
+  assert.deepEqual(uses.thingUsesOf(yard,'nothing-here',scenes),[]);
 });
