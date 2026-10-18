@@ -21,9 +21,13 @@ import { portDuplex } from "./transport.ts";
  * to the fight, played from its first moment; skipped to the player's turn, their options are the
  * menu's lines; an attack aimed and done goes to the simulation as its move and comes back as its
  * moments, played; the dice decide the rest; and once it's over, back to the map is the map again.
+ * The page host's dice are fixed (DICE), so it's the same fight every run: the player's turn comes,
+ * the menu offers an attack (a shot across the ring), and auto plays it on to a victory in round 4.
  */
 
 const V2 = join(import.meta.dirname, "..", "..");
+/** The page host's dice: the fight the comment above says. */
+const DICE = 1;
 
 function repoContent(): Content {
   const prompts = join(V2, "ai", "prompts");
@@ -49,7 +53,7 @@ function until(app: AppModel, what: string, ok: () => boolean, ms = 20_000): Pro
 test("the fight's screen against the game: a ring started turns the screen to it, the player's attack aimed from the menu goes as its move and comes back as its moments, the dice decide the rest, and out is the map again", { timeout: 120_000 }, async (t: TestContext) => {
   const content = repoContent();
   const storage = await openStorage(memoryDatabase(), () => {});
-  const host = await startHost({ model: fakeModel(content.fake), ownerMoves: true, log: () => {} }, storage, content);
+  const host = await startHost({ model: fakeModel(content.fake), ownerMoves: true, log: () => {}, seed: DICE }, storage, content);
   const { port1, port2 } = new MessageChannel();
   t.after(() => { port1.close(); port2.close(); });
   host.serve(portDuplex(port2));
@@ -69,24 +73,23 @@ test("the fight's screen against the game: a ring started turns the screen to it
   // Skipped to the player's turn: their options as the menu's lines.
   fight.skip();
   await until(app, "the player's turn", () => fight.canAct() || fight.view.status !== "on");
-  if (fight.view.status === "on") {
-    fight.openMenu();
-    assert.ok(fight.menu, "the menu opens on their turn");
-    const names = fight.menu!.entries.map(e => e.name);
-    assert.ok(names.includes("End your turn") && names.includes("Dodge"), names.join(", "));
-    // An attack, if the bandit's in reach; else closing in on him; either goes as its move and comes back as its moments.
-    const before = fight.view.events.length;
-    const attack = fight.menu!.entries.findIndex(e => e.name === "Attack");
-    const close = fight.menu!.entries.findIndex(e => /^Close in on/.test(e.name));
-    fight.chooseFromMenu(attack >= 0 ? attack : close);
-    if (fight.aim) fight.fire();
-    await until(app, "the act's moments, and its answer", () => fight.view.events.length > before && !fight.sending);
-    assert.equal(fight.status, undefined, `no refusal (${fight.status})`);
-    const act = fight.view.events[before]!;
-    assert.equal(act.actor, "player");
-    assert.ok(["attack", "move"].includes(act.kind), act.kind);
-    assert.ok(fight.player.log.some(l => l.seq === act.seq) || !fight.player.caughtUp, "played (or playing)");
-  }
+  assert.equal(fight.view.status, "on", "the player's turn came, the fight still on");
+  fight.openMenu();
+  assert.ok(fight.menu, "the menu opens on their turn");
+  const names = fight.menu!.entries.map(e => e.name);
+  assert.ok(names.includes("End your turn") && names.includes("Dodge"), names.join(", "));
+  // The attack the menu offers: it goes as its move and comes back as its moments.
+  const before = fight.view.events.length;
+  const attack = fight.menu!.entries.findIndex(e => e.name === "Attack");
+  assert.ok(attack >= 0, `an attack on the menu: ${names.join(", ")}`);
+  fight.chooseFromMenu(attack);
+  if (fight.aim) fight.fire();
+  await until(app, "the act's moments, and its answer", () => fight.view.events.length > before && !fight.sending);
+  assert.equal(fight.status, undefined, `no refusal (${fight.status})`);
+  const act = fight.view.events[before]!;
+  assert.equal(act.actor, "player");
+  assert.equal(act.kind, "attack");
+  assert.ok(fight.player.log.some(l => l.seq === act.seq) || !fight.player.caughtUp, "played (or playing)");
   // The dice decide the rest, a turn at a time.
   for (let i = 0; i < 40 && fight.view.status === "on"; i++) {
     fight.skip();
@@ -97,6 +100,7 @@ test("the fight's screen against the game: a ring started turns the screen to it
     await until(app, `the turn played (${fight.status ?? "no refusal"})`, () => fight.view.events.length > seen || fight.view.status !== "on");
   }
   assert.equal(fight.view.status, "over");
+  assert.equal(fight.view.outcome, "victory");
   fight.skip();
   assert.equal(fight.player.log[fight.player.log.length - 1]!.kind, "over", "its end in the log");
   // Out: back to the map.

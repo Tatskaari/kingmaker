@@ -193,7 +193,7 @@ export function workerTransport(handlers, options) {
     server = new Worker(new URL(`./server-worker.js${VERSION}`, import.meta.url), { type: "module" });
     server.onmessage = event => fromServer(event.data);
     server.onerror = () => handlers.message({ type: "error", reload: true, message: UNSTARTED });
-    server.postMessage({ type: "start", port, ...(key ? { key } : {}), ...(fake ? { fake } : {}) }, [port]);
+    server.postMessage({ type: "start", port, ...(key ? { key } : {}), ...(fake ? { fake } : {}), ...(options.seed !== undefined ? { seed: options.seed } : {}) }, [port]);
   }
 
   /** What the client worker says: the terminal's bytes, its first screen, its end, what went wrong. */

@@ -33,6 +33,8 @@ import { localHost } from "./local.ts";
 const FILES = { ...readCampaignFiles(join(import.meta.dirname, "..", "campaigns", "caerwyn")), "scenes/hanged-clerk.kmscene": readFileSync(TEST_CLERK, "utf8") };
 const WREN = new Identity(0x1001n);
 const SDK = { Identity, Timestamp, TimeDuration };
+/** The page host's dice, fixed: a test never rolls the page's own randomness. */
+const DICE = 7;
 
 /** A game played a few turns on the local host: made, walked into the yard (its opening), and two lines said. */
 async function played() {
@@ -166,7 +168,7 @@ test("a game played on the fake model, reported from the headless client, inspec
   const runs = mkdtempSync(join(tmpdir(), "km-report-"));
   const content = repoContent();
   const storage = await openStorage(memoryDatabase(), () => {});
-  const host = await startHost({ model: fakeModel(content.fake), ownerMoves: true, log: () => {} }, storage, content);
+  const host = await startHost({ model: fakeModel(content.fake), ownerMoves: true, log: () => {}, seed: DICE }, storage, content);
   const client = (session: string) => {
     const { port1, port2 } = new MessageChannel();
     host.serve(portDuplex(port2));

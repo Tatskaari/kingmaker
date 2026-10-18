@@ -8,7 +8,7 @@ import { onTop } from "../dev/fake.ts";
 import { camel, reviewLines } from "../dev/gm-status.ts";
 import type { Stack } from "../dev/stack.ts";
 import type { Game } from "./creation.ts";
-import { callLog, check, doneTurn, Failed, mapUntil, nextTurn, note, ok, restartAi, seconds, step, turnOf, until, type Player } from "./kit.ts";
+import { callLog, check, doneTurn, Failed, fixDice, mapUntil, nextTurn, note, ok, restartAi, seconds, step, turnOf, until, type Player } from "./kit.ts";
 
 /**
  * The e2e's steps for the GM (full-gm-design §4.4, two-part-design.md), after V1's: a memory kept (the
@@ -25,6 +25,8 @@ import { callLog, check, doneTurn, Failed, mapUntil, nextTurn, note, ok, restart
 /** Step 20 left $10 in today's ledger, so the AI service keeps its ceiling raised from here on. */
 export const RAISED = { KM_AI_DAILY_USD: "100" };
 const WREN = { campaign: "caerwyn", name: "Wren Ashdown", concept: "a hedge wizard from the fens", build: "wizard" };
+/** Step 24's game's dice, fixed just before it's made, whatever the steps before made: its check is a natural 1 every run. */
+const RISKY_DICE = 24;
 
 /** The role the co-GM gives Moll every turn in step 23. */
 const MOLL = { status: "On the yard wall, heels drumming", mental_state: "Itching to be asked", conversation_role: "She wants to be asked about the jump, so she can tell it bigger." };
@@ -107,12 +109,14 @@ export async function theCoGmSteers(stack: Stack, root: string, a: Player, game:
  * reply but an opening or a closing): both clients see the turn go replying, settling, done, and
  * its rows: the narration setting it up, the dice line (rolled by the
  * simulation from the game's dice, through the rules engine on the player's sheet) with how far it
- * made or missed it, and the outcome that came up; the co-GM is told how it went. (Until M2 the old
- * pipeline ruled on the act before the reply, and rolled a plain check when the ruling was too slow.)
+ * made or missed it, and the outcome that came up; the co-GM is told how it went. Its game's dice are
+ * fixed as it's made, so the check is a natural 1 every run. (Until M2 the old pipeline ruled on the
+ * act before the reply, and rolled a plain check when the ruling was too slow.)
  */
 export async function aRiskyCheck(stack: Stack, root: string, a: Player, b: Player, fake: FakeOptions): Promise<Game> {
   step("24. A risky act the GM calls a check on");
   await restartAi(stack, onTop(fake, { mouthpiece: { check: { skill: "sleight_of_hand", dc: 12 } } }), RAISED);
+  await fixDice(stack, RISKY_DICE);
   const game = await aNewGame(stack, a);
   check("B's join_game is made", (await b.conn.joinGame(game.id)) === undefined);
   await until(b, "B to see the scene", 10_000, r => r.game.id === game.id && r.scene.status === "live");
@@ -128,7 +132,7 @@ export async function aRiskyCheck(stack: Stack, root: string, a: Player, b: Play
   }
   const lines = linesOf(rows, n);
   const dice = lines.find(l => l.kind === "roll")?.text ?? "";
-  check(`the narration, the dice line ("${dice}"), then the outcome that came up`, lines.map(l => l.kind).join() === "player,narration,roll,narration" && /^Sleight Of Hand .*DC 12.*\((badly|narrowly|only just|cleanly|with room to spare|natural 20!|natural 1!)\)\.$/.test(dice));
+  check(`the narration, the dice line ("${dice}": the fixed dice's natural 1), then the outcome that came up`, lines.map(l => l.kind).join() === "player,narration,roll,narration" && /^Sleight Of Hand check: .* vs DC 12: failure \(natural 1!\)\.$/.test(dice));
   const told = modelInput(root, game, "two-part.co-gm", keyOf(game, n, "settle"));
   check("the co-GM was told how it went", told.includes("# This turn's check\nThe GM called Sleight Of Hand DC 12, and the roll came to "));
   return game;

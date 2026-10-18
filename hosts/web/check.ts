@@ -35,11 +35,12 @@ import { keyNeedles, readSite, siteProblems, textOf } from "./site.ts";
  *   over); a browser that won't keep anything is told so, and plays on: a ready-made character from
  *   the create screen (M5), straight to the map, there with ?doors=off (the ASCII alone).
  *
- * Then the zoo (M6): ?zoo=ring starts on the fake GM with no key asked for, the client worker visits
- * the combat ring as the page comes up, and its fight is on the fight's screen; the player's turn
- * comes (the other side's moves skipped to it with f), e ends it and the other side's moves play
- * on their own, nothing pressed, until it's theirs again in round 2; n fights it again from the
- * start, and o's list sets the dogs.
+ * Then the zoo (M6): ?zoo=ring starts on the fake GM with no key asked for, its dice fixed by the
+ * address (&seed=1, as the server worker is told), the client worker visits the combat ring as the
+ * page comes up, and its fight is on the fight's screen; the player's turn comes (the other side's
+ * moves skipped to it with f), e ends it and the other side's moves play on their own, nothing
+ * pressed, until it's theirs again in round 2; n fights it again from the start, and o's list sets
+ * the dogs.
  *
  * Throughout: no page error, and no request leaves the origin (anything else is refused and failed),
  * but the key's check with OpenRouter, faked here.
@@ -67,6 +68,8 @@ const CONCEPT = "a disgraced palace auditor with a ledger-keeper's eye and a bor
 const OPENING = { first: "pigeon", last: "clangs" };
 const LINE = "Morning, Sergeant. What have we got?";
 const REPLY = "drizzle";
+/** The zoo ring's dice (?seed): the page host's tests' seed, whose ring fight comes round to the player in round 2. */
+const ZOO_DICE = 1;
 
 let failures = 0;
 let shots = 0;
@@ -153,7 +156,7 @@ interface Watch {
 }
 
 /** A message the page sent a worker, as its probe told it: whether it carried a port and a key (never the key), and which fake. */
-interface Told { worker: string; type: string; port: boolean; key: boolean; fake: string; cols: number; rows: number }
+interface Told { worker: string; type: string; port: boolean; key: boolean; fake: string; cols: number; rows: number; seed?: number }
 
 /**
  * A context watched: its console and requests, anything bound elsewhere than the page's origin refused
@@ -189,7 +192,10 @@ async function watch(context: BrowserContext, origin: string, serverFirst = ""):
   }
   await context.route("**/__check?*", route => {
     const said = new URL(route.request().url()).searchParams;
-    seen.told.push({ worker: said.get("worker") ?? "", type: said.get("type") ?? "", port: said.get("port") === "true", key: said.get("key") === "true", fake: said.get("fake") ?? "", cols: Number(said.get("cols")), rows: Number(said.get("rows")) });
+    seen.told.push({
+      worker: said.get("worker") ?? "", type: said.get("type") ?? "", port: said.get("port") === "true", key: said.get("key") === "true", fake: said.get("fake") ?? "", cols: Number(said.get("cols")), rows: Number(said.get("rows")),
+      ...(said.get("seed") ? { seed: Number(said.get("seed")) } : {}),
+    });
     return route.fulfill({ status: 204 });
   });
   return seen;
@@ -203,7 +209,7 @@ function probe(worker: "client" | "server"): string {
     const m = event.data ?? {};
     if (told.has(m.type)) return;
     told.add(m.type);
-    const said = { worker: ${JSON.stringify(worker)}, type: String(m.type), port: String(m.port instanceof MessagePort), key: String(typeof m.key === "string" && m.key.length > 0), fake: String(m.fake ?? ""), cols: String(m.cols ?? ""), rows: String(m.rows ?? "") };
+    const said = { worker: ${JSON.stringify(worker)}, type: String(m.type), port: String(m.port instanceof MessagePort), key: String(typeof m.key === "string" && m.key.length > 0), fake: String(m.fake ?? ""), cols: String(m.cols ?? ""), rows: String(m.rows ?? ""), seed: String(m.seed ?? "") };
     fetch("./__check?" + new URLSearchParams(said)).catch(() => {});
   });
 }
@@ -285,13 +291,13 @@ function stayedHome(seen: Watch, origin: string, what: string, openRouter = fals
  * the server with the other end, and the key or the fake. Then what they said: ready (the server has
  * the game) and started (the client drew).
  */
-async function bothStarted(page: Page, seen: Watch, what: string, server: { fake: string; key: boolean }): Promise<void> {
+async function bothStarted(page: Page, seen: Watch, what: string, server: { fake: string; key: boolean; seed?: number }): Promise<void> {
   const started = (worker: string) => seen.told.find(t => t.worker === worker && t.type === "start");
   await untilHere(() => !!started("client") && !!started("server"), 15000);
   const client = started("client"), host = started("server");
   if (client?.port && !client.key && client.cols === COLS && client.rows === ROWS) ok(`${what}: the client worker was started with its end of the page's channel, the terminal's size (${client.cols}x${client.rows}) and no key`);
   else fail(`${what}: the client worker's start: ${JSON.stringify(client ?? "none")}`);
-  if (host?.port && host.key === server.key && host.fake === server.fake) ok(`${what}: the server worker was started with the other end${server.fake ? `, on the fake GM (${server.fake})` : ""}${server.key ? ", and the key" : ""}`);
+  if (host?.port && host.key === server.key && host.fake === server.fake && host.seed === server.seed) ok(`${what}: the server worker was started with the other end${server.fake ? `, on the fake GM (${server.fake})` : ""}${server.key ? ", and the key" : ""}${server.seed !== undefined ? `, and the dice's seed (${server.seed})` : ""}`);
   else fail(`${what}: the server worker's start: ${JSON.stringify(host ?? "none")}, not ${JSON.stringify(server)}`);
   if (await until(page, `km.heard.some(h => h.from === "server" && h.type === "ready") && km.heard.some(h => h.from === "client" && h.type === "started")`, 60000)) ok(`${what}: the server worker has the game (ready), and the client worker drew its first screen (started)`);
   else fail(`${what}: the workers said ${JSON.stringify(await page.evaluate("km.heard"))}`);
@@ -846,15 +852,16 @@ async function aReadyMade(page: Page): Promise<void> {
  * ?zoo=ring: no key asked for (the zoo plays on the fake GM), the combat ring's fight on the fight's
  * screen as the page comes up; the player's turn (f skips the other side's moves to it), e ends it, the
  * other side's moves play and it comes round again; n fights it again from its start; o lists the
- * line-ups, and the third sets the dogs.
+ * line-ups, and the third sets the dogs. Its dice are fixed (ZOO_DICE), so the fight is the same every
+ * time: whoever goes first, the player's turn comes round again in round 2.
  */
 async function theZoo(browser: Browser, url: string): Promise<void> {
   const context = await browser.newContext({ viewport: VIEWPORT });
   const origin = new URL(url).origin;
   const seen = await watch(context, origin);
   try {
-    const { page } = await open(context, url, `zoo=ring&size=${COLS}x${ROWS}`);
-    await bothStarted(page, seen, "?zoo=ring", { fake: "dev", key: false });
+    const { page } = await open(context, url, `zoo=ring&seed=${ZOO_DICE}&size=${COLS}x${ROWS}`);
+    await bothStarted(page, seen, "?zoo=ring", { fake: "dev", key: false, seed: ZOO_DICE });
     if (!(await page.isVisible("#gate"))) ok("?zoo=ring: no key asked for (the zoo plays on the fake GM)");
     else fail("?zoo=ring: the page asked for a key");
     await waitFor(page, "The combat ring · Round 1", "?zoo=ring: the combat ring's fight, on the fight's screen", 60000);

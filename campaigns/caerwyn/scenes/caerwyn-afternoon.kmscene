@@ -71,8 +71,8 @@
       "id": "lead",
       "type": "story",
       "position": {
-        "x": 400,
-        "y": 60
+        "x": 410,
+        "y": -222
       },
       "data": {
         "kind": "beat",

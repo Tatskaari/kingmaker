@@ -90,6 +90,7 @@ export const GAME_TABLES: GameTable[] = [
 /** The tables that aren't a game's, and why. */
 export const NOT_A_GAMES: Partial<Record<TableName, string>> = {
   admin: "the database's owner",
+  diceSeed: "the owner's fixed dice for a test (set_dice_seed): each new game's seed comes out of it",
   reaper: "the job loop's own interval",
   campaign: "a campaign version, which every game of it shares",
   sceneDef: "a campaign version's scenes",
