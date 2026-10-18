@@ -1,4 +1,4 @@
-// Cut from the prototype's src/app/app.tsx at 44c6d4a: the screen switch over an AppModel in place of the Game (the title, character creation's six, the map between scenes, a fight on the map (M6) and the game: its scene, the moment between scenes, the fight's stand-in and The End), with what's open over the scene and the map, and a report's question over any of them (M5); Ctrl+C or Ctrl+D leaves; the title, the scene and the map are told where they're drawn (the app's surface: a terminal or a page).
+// Cut from the prototype's src/app/app.tsx at 44c6d4a: the screen switch over an AppModel in place of the Game (the title, character creation's six, the map between scenes, a fight on the map (M6) and the game: its scene, the moment between scenes, the fight's stand-in and The End), with what's open over the scene and the map, and a report's question over any of them (M5); Ctrl+C or Ctrl+D leaves; the title, the create screen, the scene and the map are told where they're drawn (the app's surface: a terminal or a page).
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useCallback, useSyncExternalStore } from "react";
 import type { AppModel, Surface } from "./app/model.ts";
@@ -30,7 +30,7 @@ export function App({ app }: { app: AppModel }) {
   const screen = (() => {
     switch (app.screen) {
       case "title": return <TitleScreen game={app.title} surface={app.surface} />;
-      case "create": return <CreateScreen game={app.creation} />;
+      case "create": return <CreateScreen game={app.creation} surface={app.surface} />;
       case "creating": return <CreatingScreen game={app.creation} />;
       case "choose": return <ChooseScreen game={app.creation} />;
       case "custom": return <CustomScreen game={app.creation} />;

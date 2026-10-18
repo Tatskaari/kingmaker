@@ -113,6 +113,8 @@ export interface AppPart {
   readonly refusal: string | undefined;
   go(intent: Intent): void;
   act: Backend["act"];
+  /** A new game as a ready-made character (new_game): the page's create screen makes one, as the terminal client's --build does. */
+  newGame: Backend["newGame"];
   /** Report a problem (M5): the question over the screen; `from` says where it was asked for. */
   askReport(from?: string): void;
   subscribe(listener: () => void): () => void;
@@ -191,6 +193,12 @@ export class AppModel implements AppPart {
     this.problem = undefined;
     this.refusedOn = undefined;
     return this.backend.act(move, args);
+  };
+
+  newGame: Backend["newGame"] = args => {
+    this.problem = undefined;
+    this.refusedOn = undefined;
+    return this.backend.newGame(args);
   };
 
   /** Something went wrong in the client itself: said on the scene's status line, or on the title's or creation's error line. */

@@ -1,6 +1,9 @@
 // After the prototype's src/app/smoke/screens-check.tsx at 44c6d4a: its sheet's checks (:798-849), the title's (:853-874) and making a character's (:890-1306), drawn from fixture rows with the moves recorded (no engine, no model, no server).
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { act } from "react";
 import { testRender } from "@opentui/react/test-utils";
+import { refusal } from "../../shared/protocol/refusals.ts";
 import { App } from "../app.tsx";
 import { AppModel, type Intent, type Surface } from "../app/model.ts";
 import type { HomeRows } from "../backend.ts";
@@ -8,7 +11,7 @@ import { DEFAULT_CONCEPT, DEFAULT_NAME } from "../creation/words.ts";
 import type { SceneView } from "../scene/view.ts";
 import { YARD } from "./fixture.ts";
 import { CONCEPT, creationRow, DRAFT, FIGHTER, gameRow, LISTS, NAME, NEPHEW, NEPHEW_ISSUE, OFFER, OWN, sheetRow, WIZARD } from "./rows.ts";
-import { StubBackend } from "./stub.ts";
+import { CAERWYN, StubBackend } from "./stub.ts";
 
 /**
  * The title, character creation's screens and the sheet, drawn by the real App over fixture rows,
@@ -36,6 +39,7 @@ async function everyCheck(checks: Array<[string, boolean]>, show: boolean): Prom
   for (const size of [[80, 24], [130, 42]] as const) {
     await title(checks, size, show);
     await create(checks, size, show);
+    await readyMade(checks, size, show);
     await creating(checks, size);
     await choose(checks, size, show);
     await custom(checks, size, show);
@@ -192,6 +196,60 @@ async function create(checks: Array<[string, boolean]>, size: Size, show: boolea
   checks.push([`the create screen ${label(size)}: back from builds that didn't come, the fields kept and the note saying why, whole`,
     f.app.screen === "create" && flat(failed).includes(CEILING) && !failed.includes(`${DEFAULT_NAME} (Enter for the default)`) && failed.includes("Esc back")]);
   await f.setup.dispose();
+}
+
+// New (M5): the page's ready-made characters, as the terminal client's --build makes one.
+
+/** The campaign's row with its ready-made builds (builds.json), as the module has it. */
+const WITH_BUILDS = (): Partial<HomeRows> => ({ campaigns: [{ ...CAERWYN, builds: readFileSync(join(import.meta.dirname, "..", "..", "campaigns", "caerwyn", "builds.json"), "utf8") }] });
+const READY = ["Cleric", "Fighter", "Ranger", "Rogue", "Wizard"];
+const FIGHTER_CONCEPT = "a broken-nosed ex-sergeant of the river watch";
+
+async function readyMade(checks: Array<[string, boolean]>, size: Size, show: boolean): Promise<void> {
+  // In a terminal: none (its --build makes one).
+  const t = await open(WITH_BUILDS(), "new", size);
+  checks.push([`the create screen ${label(size)}: in a terminal, no ready-made characters`, !t.frame.includes("ready-made") && !t.frame.includes("Wizard")]);
+  await t.setup.dispose();
+
+  // On a page: a button each, Tab's third stop, ←→ picks one out with its concept, Enter plays it as the name typed.
+  const p = await open(WITH_BUILDS(), "new", size, undefined, "page");
+  if (show) console.log(`create, a page ${label(size)}\n${p.frame}`);
+  const missing = ["Who are you?", " Name ", " Who they are, in a sentence ", "Or play one ready-made, straight in:", ...READY, "Esc back"].filter(w => !p.frame.includes(w));
+  checks.push([`the create screen on a page ${label(size)}: the fields, then the campaign's five ready-made characters, a button each${missing.length ? ` (not: ${missing.join(" | ")})` : ""}`, !missing.length]);
+  await p.type("Bet Vell");
+  await p.press(() => p.setup.mockInput.pressTab());
+  let frame = await p.press(() => p.setup.mockInput.pressTab());
+  const first = unboxed(frame).includes("a cheerful priest of the river god") && frame.includes("←→ choose") && frame.includes("Enter play them");
+  frame = await p.press(() => p.setup.mockInput.pressArrow("right"));
+  checks.push([`the create screen on a page ${label(size)}: Tab, Tab picks the first out with its concept; → the next`, first && unboxed(frame).includes(FIGHTER_CONCEPT)]);
+  await p.press(() => p.setup.mockInput.pressEnter());
+  await p.settle();
+  const made = p.backend.moves.at(-1);
+  const fighter = JSON.parse(WITH_BUILDS().campaigns![0]!.builds!).fighter.concept as string;
+  checks.push([`the create screen on a page ${label(size)}: Enter plays it as the name typed and its own concept (new_game, build fighter), and the game's screen follows`,
+    made?.name === "newGame" && JSON.stringify(made.args) === JSON.stringify({ campaign: "caerwyn", name: "Bet Vell", concept: fighter, build: "fighter" }) && p.app.intent === "game"]);
+  await p.setup.dispose();
+
+  // Tab to the concept, Shift+Tab back, Tab again, a concept typed: a click on the wizard plays that one as it, and the default name.
+  const c = await open(WITH_BUILDS(), "new", size, undefined, "page");
+  await c.press(() => c.setup.mockInput.pressTab());
+  await c.press(() => c.setup.mockInput.pressTab({ shift: true }));
+  frame = await c.press(() => c.setup.mockInput.pressTab());
+  await c.type("a hedge wizard from the fens");
+  await c.click("Wizard");
+  await c.settle();
+  const clicked = c.backend.moves.at(-1);
+  checks.push([`the create screen on a page ${label(size)}: Shift+Tab goes back a field, and a click on Wizard plays it as the concept typed`,
+    clicked?.name === "newGame" && JSON.stringify(clicked.args) === JSON.stringify({ campaign: "caerwyn", name: DEFAULT_NAME, concept: "a hedge wizard from the fens", build: "wizard" })]);
+  await c.setup.dispose();
+
+  // Refused (the campaign not installed, say): why, on the note line, and the create screen stays.
+  const r = await open(WITH_BUILDS(), "new", size, undefined, "page");
+  r.backend.answers.newGame = () => refusal("no_campaign", { campaign: "caerwyn" }) as never;
+  await r.click("Rogue");
+  frame = await r.settle();
+  checks.push([`the create screen on a page ${label(size)}: a refused one says why, and the create screen stays`, r.app.screen === "create" && frame.includes("(There's no campaign called caerwyn here.)")]);
+  await r.setup.dispose();
 }
 
 /** The ceiling's words, as a creation step past it fails in them (the PR's KM_AI_DAILY_USD=0.001). */

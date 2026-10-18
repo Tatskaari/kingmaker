@@ -469,5 +469,6 @@ departs from the plan, and how it measures.
 - The $5 ceiling counts the fake's pretend costs too (about $0.003 a turn).
 - `DATA_VERSION` (`web/server/sim-store.ts`) is bumped by hand when a table changes in a way a restore can't mend;
   a build with another version clears the saves.
-- The page has no ready-made character (the terminal client's `--build`): a character is made from a sentence.
+- The page had no ready-made character (the terminal client's `--build`): built since (M5), the campaign's five offered
+  under the create screen's fields, Tab's third stop or a click.
 - The server worker needs a secure context (https, or localhost) for Web Crypto, as Pages and `web:serve` give it.

@@ -29,7 +29,8 @@ import { keyNeedles, readSite, siteProblems, textOf } from "./site.ts";
  *   server worker's), a reload with the title's Continue carrying the game on from IndexedDB (the
  *   simulation's rows and the AI service's stores), another line, Ctrl+C and Play again (a new client
  *   worker, the server playing on), and a second tab told the game is open in this one (it takes it
- *   over); a browser that won't keep anything is told so.
+ *   over); a browser that won't keep anything is told so, and plays on: a ready-made character from
+ *   the create screen (M5), straight to the map.
  *
  * Then the zoo (M6): ?zoo=ring starts on the fake GM with no key asked for, the client worker visits
  * the combat ring as the page comes up, and its fight is on the fight's screen; the player's turn
@@ -720,9 +721,26 @@ async function noStorage(browser: Browser, url: string): Promise<void> {
     if (said && (await page.isVisible("#key-bar [data-storage]"))) ok(`without IndexedDB the game plays, and the bar under it says it won't be kept ("${said}")`);
     else fail(`without IndexedDB the bar says "${said}"`);
     await shot(page, "no-storage");
+    await aReadyMade(page);
   } finally {
     await context.close();
   }
+}
+
+/** New (M5): the create screen's ready-made characters, the campaign's five under the fields; a name, Tab, Tab and → three times picks the rogue out, and Enter plays it, straight to the map. */
+async function aReadyMade(page: Page): Promise<void> {
+  await press(page, "n");
+  await waitFor(page, "Or play one ready-made, straight in:", "n: character creation, with the campaign's ready-made characters under the fields");
+  const screen = await text(page);
+  const missing = ["Cleric", "Fighter", "Ranger", "Rogue", "Wizard"].filter(c => !screen.includes(c));
+  if (missing.length) fail(`the ready-made characters lack ${missing.join(", ")}`);
+  else ok("the campaign's five ready-made characters, a button each");
+  await page.keyboard.type("Wren Ashdown", { delay: 15 });
+  await press(page, "Tab", "Tab", "ArrowRight", "ArrowRight", "ArrowRight");
+  await waitFor(page, "a palace inspector with soft shoes", "a name, Tab, Tab and → three times: the rogue, its concept under the buttons");
+  await shot(page, "ready-made");
+  await press(page, "Enter");
+  await waitFor(page, "The lead:.*Hanged Clerk", "Enter plays the rogue as Wren Ashdown, straight to the map (new_game with its build)", 60000);
 }
 
 // ---------------------------------------------------------------------------------------------
