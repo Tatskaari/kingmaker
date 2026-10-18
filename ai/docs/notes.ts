@@ -1,5 +1,5 @@
 import { docsConfig } from "./config.ts";
-import { characterEntry, parseDoc, writeDoc } from "./docs.ts";
+import { characterEntry, parseDoc, writeDoc, type Doc } from "./docs.ts";
 import { dirname, join } from "./paths.ts";
 
 /**
@@ -51,14 +51,20 @@ export const isNotesPath = (path: string): boolean => /^(?:Cast|characters)\/.+\
 
 const none = (): Notes => ({ standing: [], seen: [], learned: [], promises: [], did: [] });
 
-/** Someone's notes in a game, from its own copy only (an authored doc at the same path is never theirs). */
-export function readNotes(game: string, id: string): Notes {
+/** Someone's notes as a doc of the game's copy (the old pipeline's disclosure starts each person's scope with it), or undefined when they have none. */
+export function notesDoc(game: string, id: string): Doc | undefined {
   const path = notesPath(id);
   const text = docsConfig().overlay(game).read(path);
+  return text === undefined ? undefined : parseDoc(path, text);
+}
+
+/** Someone's notes in a game, from its own copy only (an authored doc at the same path is never theirs). */
+export function readNotes(game: string, id: string): Notes {
+  const doc = notesDoc(game, id);
   const notes = none();
-  if (text === undefined) return notes;
+  if (!doc) return notes;
   let at: NoteSection | undefined;
-  for (const raw of parseDoc(path, text).body.split("\n")) {
+  for (const raw of doc.body.split("\n")) {
     const heading = /^#{2,3}\s+(.+?)\s*$/.exec(raw)?.[1];
     if (heading !== undefined) { at = SECTIONS.find(s => s.heading.toLowerCase() === heading.toLowerCase())?.key; continue; }
     const line = /^\s*[-*]\s+(.+?)\s*$/.exec(raw)?.[1];

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { memoryLines } from "../../docs/docs.ts";
+import { readNotes } from "../../docs/notes.ts";
 import { fakeFetch, type FakeFetch, type FakeOptions, type Request } from "../../llm/fake-openrouter.ts";
 import { LOOK_MODEL } from "../../look/invent.ts";
 import { initialGm, type GmState, type TalkRecord } from "../../../shared/gm/state.ts";
@@ -224,7 +224,7 @@ test("a talk's settle asks the guard questions beside the next lines, and answer
   assert.match(inputOf(lines), /Wren Ashdown \(player\): What have you got against the Drowned Rat\?\n\nGM: Kell's pencil stops/, "the talk so far, the reply included");
   assert.deepEqual(answer.ops, []);
   assert.equal(formatted(fake, "world_ops").length, 0, "no stage manager: a talk has no world");
-  assert.equal(memoryLines(GAME, "kell").length, 0, "nothing told, nothing remembered");
+  assert.equal(readNotes(GAME, "kell").did.length, 0, "nothing told, nothing in her notes");
 
   // Not asked for (the controller's setting), or the reply closed the talk: no lines, and no call for them.
   const quiet = setUp({ talkSuggestions: LINES });
@@ -235,7 +235,7 @@ test("a talk's settle asks the guard questions beside the next lines, and answer
   assert.equal(quiet.fake.sent.filter(b => b.instructions?.startsWith("You suggest what the player might")).length, 0);
 });
 
-test("once the settle finds it told, out is out: her guard settled, and her memory of telling it written once", async () => {
+test("once the settle finds it told, out is out: her guard settled, and a line of the GM's notes on her that she told it, written once", async () => {
   const gm = afterOpen(await openedPrep());
   const told = setUp({ talkSuggestions: LINES, choices: { outcome: "confided" } });
   const req = talkSettle(4, gm, "What happened at the Rat?", "“She put me out through the door. Through it.” Kell says it flatly, and writes nothing down.");
@@ -243,15 +243,15 @@ test("once the settle finds it told, out is out: her guard settled, and her memo
 
   assert.equal(answer.after?.outcome?.route, "confided");
   assert.equal(answer.after?.guard?.kell, "settled");
-  const remembered = memoryLines(GAME, "kell");
+  const remembered = readNotes(GAME, "kell").did;
   assert.equal(remembered.length, 1);
-  assert.match(remembered[0]!, /Told Wren about the door at the Drowned Rat/);
+  assert.match(remembered[0]!, /^Told Wren about the door at the Drowned Rat, in a word between scenes/);
 
   // The next turn finds it told already (the route on the path): nothing written twice.
   const later = { ...gm, beat: "told", path: [{ turn: 4, from: "talk", to: "told", via: "confided", source: "post" as const }], guard: { kell: { stage: "settled" as const, turn: 4 } } };
   const again = await pipeline.settle(talkSettle(5, later, "And you never went back?", "“Never.”"), setUp({ talkSuggestions: LINES }).contextFor(`${GAME}:s11:t5:settle`));
   assert.equal(again.after?.guard, undefined, "settled already: not asked again");
-  assert.equal(memoryLines(GAME, "kell").length, 1);
+  assert.equal(readNotes(GAME, "kell").did.length, 1);
 });
 
 const RAY: Mechanic = { kind: "cast", spell: "ray-of-frost", targets: ["kell"], from: { backOff: 30 } };

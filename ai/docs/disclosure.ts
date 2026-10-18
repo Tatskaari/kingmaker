@@ -1,14 +1,16 @@
 import { JevDecider, type ChoiceQuestion, type Decider } from "../llm/decide.ts";
-import { characterEntry, linksIn, memoryIndexPath, permitted, playerDoc, readDoc, STORY_INDEX, titleOf, type Doc, type DocLink } from "./docs.ts";
+import { characterEntry, linksIn, permitted, playerDoc, readDoc, STORY_INDEX, titleOf, type Doc, type DocLink } from "./docs.ts";
+import { gmNotes, isNotesPath, notesDoc } from "./notes.ts";
 import { script, type Disclosed, type OpenedNote, type Person, type WorkingSet } from "./types.ts";
 
 export type { OpenedNote } from "./types.ts";
 
 /**
  * Progressive disclosure (V1's): each person present has a scope. Their lore entry (private.md)
- * and memory index are always in; each turn Jev judges every unopened note linked from their open
- * docs (one call per scope, one independent yes/no question per link, all scopes in parallel), and
- * a note opens when P(open) > 0.7. Access fails closed: a scope only ever sees notes it may read.
+ * and the GM's notes on them from play (notes.ts) are always in; each turn Jev judges every
+ * unopened note linked from their open docs (one call per scope, one independent yes/no question
+ * per link, all scopes in parallel), and a note opens when P(open) > 0.7. Access fails closed: a
+ * scope only ever sees notes it may read.
  * Opened notes stay open for the scene; rejected links are asked again on later turns. It's handed
  * the scene's working set (types.ts), and what it keeps (keepOpened, withhold) comes back as a value
  * for the game to keep.
@@ -25,7 +27,7 @@ type Scope = { id: string; label: string; initial: Doc[]; character?: Person };
 function scopes(view: WorkingSet): Scope[] {
   const out: Scope[] = view.present.map(c => {
     const entry = characterEntry(c.id);
-    const initial = [entry ? readDoc(view.game, entry) : undefined, readDoc(view.game, memoryIndexPath(c.id))].filter((d): d is Doc => !!d);
+    const initial = [entry ? readDoc(view.game, entry) : undefined, notesDoc(view.game, c.id)].filter((d): d is Doc => !!d);
     return { id: `character:${c.id}`, label: c.name, initial, character: c };
   });
   const gm = [playerDoc(view.game, view.player), readDoc(view.game, STORY_INDEX), ...(view.scene.lore ?? []).map(p => readDoc(view.game, p))].filter((d): d is Doc => !!d);
@@ -108,19 +110,22 @@ export const URGENT = 0.9;
 /**
  * The GM's memory block (V1's reuse note: one GM voice gets each person's scoped lore in its own
  * labelled block, so it can keep who-knows-what straight). Split for prompt caching: "stable" is
- * each person's lore entry (changes only when play edits it); "live" is memory indexes, opened
- * notes and the story so far (changes most turns), sent after the conversation.
+ * each person's lore entry (changes only when play edits it); "live" is the GM's notes on each
+ * person from play (where their memory index was), the notes opened and the story so far (changes
+ * most turns), sent after the conversation. Its words are the prototype's otherwise, which the
+ * parity test holds the old pipeline's GM to.
  */
 export function memoryBrief(view: WorkingSet, part: "stable" | "live"): string | undefined {
   const blocks: string[] = [];
   for (const scope of scopes(view)) {
-    const entries = scope.initial.filter(d => !d.path.endsWith("memories/index.md") && d.path !== STORY_INDEX);
-    const indexes = scope.initial.filter(d => d.path.endsWith("memories/index.md") || d.path === STORY_INDEX);
+    const kept = scope.character ? gmNotes(view.game, scope.character.id) : undefined;
+    const index = scope.initial.find(d => d.path === STORY_INDEX);
     const notes = opened(view.memory).filter(n => n.scope === scope.id).map(n => readDoc(view.game, n.path)).filter((d): d is Doc => !!d);
     const parts = part === "stable"
-      ? entries.map(d => d.body)
+      ? scope.initial.filter(d => d.path !== STORY_INDEX && !isNotesPath(d.path)).map(d => d.body)
       : [
-        ...indexes.map(d => d.path === STORY_INDEX ? `Earlier scenes (index):\n${d.body.replace(/^# .*\n?/, "").trim()}` : `What ${scope.label} remembers (index; notes open below when they matter):\n${d.body.replace(/^# .*\n?/, "").trim() || "(nothing yet)"}`),
+        ...(kept ? [`The GM's notes on ${scope.label} from play (what's happened with them):\n${kept}`] : []),
+        ...(index ? [`Earlier scenes (index):\n${index.body.replace(/^# .*\n?/, "").trim()}`] : []),
         ...notes.map(d => `#### ${titleOf(d)}${d.meta.context ? ` (${d.meta.context})` : ""}\n${d.body}`),
       ];
     if (parts.length) blocks.push(`### ${scope.character ? `${scope.label}: their own ${part === "stable" ? "lore" : "memories"}` : `The GM's ${part === "stable" ? "own notes (the player character, this place)" : "notes"}`}\n${parts.join("\n\n")}`);

@@ -3,7 +3,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { memoryLines, readDoc, type Doc } from "../docs/docs.ts";
+import { readDoc, type Doc } from "../docs/docs.ts";
+import { gmNotes, readNotes } from "../docs/notes.ts";
 import type { Decision } from "../llm/decide.ts";
 import { campaigns } from "../service/campaigns.ts";
 import { Failure } from "../service/context.ts";
@@ -147,19 +148,15 @@ test("what they're keeping back goes on their card for the talk only (a patch on
   assert.equal(kell.cast[0]!.secrets, undefined, "the scene itself is unchanged");
 });
 
-test("told once, it's in their memories, written once however often it's found told; private to them", () => {
+test("told once, it's in the GM's notes on them, under what they did, written once however often it's found told; the GM's alone", () => {
   const state = talking("talk-record");
   const talk: TalkState = { with: "kell", where: "the granary lane in Caerwyn, evening", confide: { note: `${KELL}/knowledge/Nan Quill.md`, topic: "the door at the Drowned Rat", what: "Nan Quill put her out through the door.", memory: "I told the investigator about the door. They didn't laugh." } };
 
+  assert.equal(gmNotes(state.id, "kell"), undefined, "nothing yet");
   assert.equal(rememberTold(state, kell, talk), true);
   assert.equal(rememberTold(state, kell, talk), false, "a settle run again writes nothing twice");
-  const remembered = memoryLines(state.id, "kell");
-  assert.equal(remembered.length, 1);
-  assert.match(remembered[0]!, /Told Wren about the door at the Drowned Rat/);
-  assert.match(remembered[0]!, /between scenes: the granary lane in Caerwyn, evening/);
-  const note = readDoc(state.id, `${KELL}/memories/${/\]\(([^)]+)\)/.exec(remembered[0]!)![1]}`);
-  assert.match(note!.body, /They didn't laugh/);
-  assert.deepEqual(note!.meta.readers, ["character:kell"], "her memory, private to her");
+  assert.deepEqual(readNotes(state.id, "kell").did, ["Told Wren about the door at the Drowned Rat, in a word between scenes (the granary lane in Caerwyn, evening)."]);
+  assert.equal(readDoc(state.id, `${KELL}/notes.md`)!.meta.visibility, "gm", "the GM's notes, which nobody in the story reads");
   assert.equal(rememberTold(state, kell, { with: "kell", where: "anywhere" }), false, "nothing kept back, nothing to remember");
 });
 

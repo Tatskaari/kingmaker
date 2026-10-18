@@ -7,6 +7,7 @@ import type { ChoiceQuestion, Decider } from "../llm/decide.ts";
 import { configureDocs } from "./config.ts";
 import { disclose, keepOpened, memoryBrief, withhold } from "./disclosure.ts";
 import { characterEntry } from "./docs.ts";
+import { note } from "./notes.ts";
 import type { WorkingSet } from "./types.ts";
 
 /**
@@ -80,10 +81,16 @@ test("what disclosure keeps comes back as a value for the game to keep: opened, 
   assert.deepEqual([again.opened, again.asked], [[], 0], "nothing open is asked again, and nothing withheld");
 });
 
-test("the GM's memory block: each person's lore, and the notes open for them", async () => {
+test("the GM's memory block: each person's lore, then the GM's notes on them from play and the notes open for them; disclosure starts their scope with those notes", async () => {
   assert.match(memoryBrief(VIEW, "stable")!, /### Kell: their own lore\n# Kell\n\nA sergeant of the watch/);
-  const memory = keepOpened(undefined, (await disclose(VIEW, "Who found him?", opener())).opened);
+  assert.doesNotMatch(memoryBrief(VIEW, "live") ?? "", /notes on them from play/, "no notes yet, none shown");
+  note("g1", { id: "kell", name: "Kell" }, "standing", "Wary: the investigator is new and asks a lot.");
+  note("g1", { id: "kell", name: "Kell" }, "seen", "Watched the investigator crouch to talk to Cob, kindly.");
+  const decider = opener();
+  const memory = keepOpened(undefined, (await disclose(VIEW, "Who found him?", decider)).opened);
+  assert.match(decider.asked.find(a => a.operation === "memory.disclose.kell")!.state, /# Lore: Cast\/Kell\/notes\.md\n# Kell: notes from play\n\n## Standing with the player\n- Wary/);
   const live = memoryBrief({ ...VIEW, memory }, "live")!;
-  assert.match(live, /### Kell: their own memories\n#### Cob\n# Cob\n\nHe found the body at dawn\./);
+  assert.match(live, /### Kell: their own memories\nThe GM's notes on Kell from play \(what's happened with them\):\nStanding with the player: Wary: the investigator is new and asks a lot\.\nSeen the player do:\n- Watched the investigator crouch to talk to Cob, kindly\.\n\n#### Cob\n# Cob\n\nHe found the body at dawn\./);
   assert.match(live, /### The GM's notes\n#### The secret\n# The secret\n\nSallow did it\./);
+  assert.doesNotMatch(memoryBrief(VIEW, "stable")!, /notes from play/, "the notes change from turn to turn: never in the stable part");
 });
