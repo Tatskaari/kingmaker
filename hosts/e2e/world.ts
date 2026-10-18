@@ -70,7 +70,8 @@ export async function beforeTheGmSpeaks(stack: Stack, a: Player, b: Player, fake
     check(`${p.name} saw the dice rows (event ${lastDice}) before the reply's first draft (event ${firstDraft})`, lastDice >= 0 && firstDraft > lastDice);
   }
   const hurt = worldOf(a).entities.kell?.states ?? [];
-  check(`the world rows have Kell hurt, as the rules left her: ${hurt.join(", ") || "nothing"}`, hurt.some(st => st === "hurt" || st === "badly hurt"));
+  // Three darts (3d4 + 3) drop a guard about half the time: down is as hurt as the rules leave her.
+  check(`the world rows have Kell hurt, as the rules left her: ${hurt.join(", ") || "nothing"}`, hurt.some(st => st === "hurt" || st === "badly hurt" || st === "down"));
   const status = rows.sheets.find(s => s.playerId === rows.scene.controllerId)?.statusLine ?? "";
   check(`the sheet's status: ${status}`, /spell slots 1st 3\/4/.test(status));
   await pause(500);
