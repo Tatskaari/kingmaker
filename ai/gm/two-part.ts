@@ -499,11 +499,14 @@ export async function coGm(scene: Scene, view: TurnView, gm: GmState, check: Tur
     if (name === "move_scene") {
       const outcome: RouteOutcome = args.outcome === "success" || args.outcome === "failure" ? args.outcome : "none";
       const route = String(args.route_id);
+      const why = String(args.why ?? "");
+      // A cue's move is what brings it about; any other records what has happened, and one whose reason says it hasn't is refused.
+      if (scene.routes.find(r => r.id === route)?.phase !== "cue" && deniesItself(why)) return `error: your reason says this hasn't happened, so [${route}] stays as it is: a move records what has happened in the story. If it has happened, say what happened; if not, leave it.`;
       const taken = takeRoute(scene, state, route, outcome, view.turn);
       if ("error" in taken) return `error: ${taken.error}`;
       state = taken.gm;
-      moves.push({ route, outcome, why: String(args.why ?? "") });
-      return movedText(scene, state, taken.reached);
+      moves.push({ route, outcome, why });
+      return movedText(scene, state, taken.reached, view.turn);
     }
     const id = String(args.char_id);
     if (!scene.cast.some(c => c.id === id)) return `error: no character "${id}" (ids: ${scene.cast.map(c => c.id).join(", ")})`;
@@ -513,9 +516,18 @@ export async function coGm(scene: Scene, view: TurnView, gm: GmState, check: Tur
   return { roles, moves, log: result.calls.map(c => ({ name: c.name, args: c.args, result: typeof c.result === "string" ? c.result : JSON.stringify(c.result) })), costUsd: result.costUsd };
 }
 
-/** What a move the co-GM made comes to, for it to go on from: an ending, a new stage (its suggested roles, who arrives), a discovery made, or a check failed with nowhere to go. */
-function movedText(scene: Scene, gm: GmState, reached: string | undefined): string {
-  const open = () => openRoutes(scene, gm).map(r => r.id).join(", ") || "none";
+/**
+ * What a move the co-GM made comes to, for it to go on from: an ending, a new stage (its suggested
+ * roles, who arrives), a discovery made, or a check failed with nowhere to go; then the routes open
+ * now, and any cue still overdue after the reply to `turn`, which a co-GM that had just recorded a
+ * discovery would otherwise leave (QA round qa1-1018's probe).
+ */
+export function movedText(scene: Scene, gm: GmState, reached: string | undefined, turn: number): string {
+  const open = () => {
+    const routes = openRoutes(scene, gm);
+    const overdue = routes.filter(r => limitOf(r, gm, turn)?.overdue);
+    return `${routes.map(r => r.id).join(", ") || "none"}${overdue.length ? `. Still overdue: ${overdue.map(r => `[${r.id}]`).join(", ")}: bring ${overdue.length === 1 ? "it" : "them"} about now` : ""}`;
+  };
   const exit = scene.exits.find(e => e.id === reached);
   if (exit) return `The scene is ending: ${exit.title}. The GM closes it on the next reply.`;
   const beat = scene.beats.find(b => b.id === reached);
@@ -525,4 +537,16 @@ function movedText(scene: Scene, gm: GmState, reached: string | undefined): stri
   }
   if (beat) return `Reached "${beat.title}": the player has it now. Open routes now: ${open()}.`;
   return `Taken; the scene stays at "${stageOf(scene, gm).title}". Open routes now: ${open()}.`;
+}
+
+/**
+ * A move's reason that says what it records hasn't happened ("Not yet: Hobb hasn't been asked his
+ * master's name", "No discovery: the player hasn't found the page", "do not move this discovery"),
+ * as QA round qa1-1018's co-GM gave three times, taking a discovery the player never made. Only the
+ * plainest ways of saying it, so a reason that merely mentions what's still to come isn't caught.
+ */
+export function deniesItself(why: string): boolean {
+  return /^\W*(?:not yet|no discovery|nothing (?:has )?happened)\b/i.test(why)
+    || /\b(?:do|should|must)(?: not|n't) (?:move|take)\b/i.test(why)
+    || /\b(?:has|have)(?: not|n't) (?:yet )?happened\b/i.test(why);
 }

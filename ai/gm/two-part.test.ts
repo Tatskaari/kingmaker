@@ -11,7 +11,7 @@ import type { Scene } from "../../shared/scene/types.ts";
 import { fakeFetch, readPrep, walkTo, type FakeOptions } from "../llm/fake-openrouter.ts";
 import type { CallContext } from "../llm/openrouter.ts";
 import { CAERWYN, viewAt } from "./fixtures.ts";
-import { closingDirective, coGm, coGmInput, coGmInstructions, mouthpieceInput, mouthpieceInstructions, movedDirective, narrationSoFar, prepOf, pressureOffered, routeLine, speak, twoPartNow } from "./two-part.ts";
+import { closingDirective, coGm, coGmInput, coGmInstructions, deniesItself, mouthpieceInput, mouthpieceInstructions, movedDirective, movedText, narrationSoFar, prepOf, pressureOffered, routeLine, speak, twoPartNow } from "./two-part.ts";
 import type { TurnView } from "./view.ts";
 
 /**
@@ -176,6 +176,29 @@ test("the co-GM's tools: a route only as its condition is written, the player's 
     "A cue is brought about by taking its route",
   ]) assert.ok(tools.includes(line), line);
   assert.ok(tools.trimEnd().endsWith('Then reply "done".'));
+});
+
+test("a move whose reason says it hasn't happened is refused, a cue's aside (its move is what brings it about); a move's answer names any cue still overdue", async () => {
+  for (const why of ["No one has sought Cob or earned his trust, and the page has not been revealed; do not move this discovery.", "Not yet: Hobb has confessed his part in the loft but has not been asked for or given his master's name.", "No discovery: the player has not yet learned about or uncovered the page sewn into Cob's boot.", "Nothing has happened yet."]) assert.ok(deniesItself(why), why);
+  for (const why of ["No one caught him: Hobb got clean away up the river stairs.", "The eleventh bell is overdue and has not yet sounded in the story; bring the cue about in the next GM reply.", "Kell hasn't been told yet, but Hobb has owned to the loft in his own words.", "Hobb has broken and begun to tell what he did."]) assert.ok(!deniesItself(why), why);
+
+  const rat = sceneFile("drowned-rat");
+  const view = viewAt(rat, rat.start, { turn: 15, turnsInBeat: 0 });
+  delete view.world;
+  const gm = { ...view } as unknown as GmState;
+  const answers: string[] = [];
+  const asking: typeof fetch = async (_url, init) => {
+    const body = JSON.parse(String(init!.body)) as { input: Array<{ type?: string; output?: string }> };
+    const outputs = body.input.filter(i => i.type === "function_call_output");
+    if (outputs.length) { answers.push(...outputs.map(o => JSON.parse(o.output!) as string)); return Response.json({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: "done" }] }], usage: { cost: 0 } }); }
+    const move = (route: string, why: string) => ({ type: "function_call", call_id: route, name: "move_scene", arguments: JSON.stringify({ route_id: route, outcome: "none", why }) });
+    return Response.json({ status: "completed", output: [move("find-the-page", "No discovery: the player has not yet learned of the page."), move("find-the-heron", "Nan told them the token opens the Heron.")], usage: { cost: 0 } });
+  };
+  const answer = await coGm(rat, view, gm, undefined, { fetch: asking, apiKey: "test" });
+  assert.deepEqual(answer.moves.map(m => m.route), ["find-the-heron"], "the page isn't taken on a reason that says it wasn't found");
+  assert.match(answers[0]!, /^error: your reason says this hasn't happened, so \[find-the-page\] stays as it is/);
+  assert.match(answers[1]!, /^Reached "Where the grain goes: the Heron": the player has it now\. Open routes now: [a-z, -]+\. Still overdue: \[arlo-calls-him-out\], \[bell-rings\]: bring them about now\.$/);
+  assert.doesNotMatch(movedText(rat, gm, "the-heron", 3), /overdue/i, "nothing overdue on turn 3");
 });
 
 test("the narration is read as the reply streams: its escapes undone, an escape cut off part-way held back, nothing before it starts", () => {
