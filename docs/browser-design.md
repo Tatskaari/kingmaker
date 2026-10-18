@@ -308,7 +308,7 @@ for the page.
 ## 8. Not in this PR
 
 - The doors and lamps pictures over the map (the client already emits them; the page half is ~356 lines).
-- Problem reports (V16), the zoo (V19), a `?demo` mode, the site's pitch and roadmap pages (they stay the
+- Problem reports (V16: built since, in M5, the page downloading each one), the zoo (V19), a `?demo` mode, the site's pitch and roadmap pages (they stay the
   prototype's until the drop), a browser tab against a SpacetimeDB server, several players in one browser.
 - Server-side subscription filtering (full push is right for one browser).
 - The fight, the map's action menu, talks with Kell, invented looks: the parity verticals (V10-V13, V9's rest).
@@ -457,14 +457,15 @@ departs from the plan, and how it measures.
 
 ### Left for later
 
-- §8's list: the doors and lamps pictures, problem reports, the zoo, a tab against a SpacetimeDB server, several
+- §8's list: the doors and lamps pictures, problem reports (built since: M5), the zoo, a tab against a SpacetimeDB server, several
   players in one browser, server-side subscription filtering, the parity verticals.
 - Every e2e scenario on both hosts: the contract test is the first step.
 - A deleted game's AI docs and logs stay in IndexedDB (the AI service has no game delete).
 - A client worker ended without its `disconnect` (Play again ends the old one) stays in the push fan-out until the
   page reloads. Harmless: its rows go to a dead port.
 - The server worker logs every line of the simulation's and the AI service's to its console (with the key taken
-  out). V16's reports could keep a ring buffer instead.
+  out). V16's reports could keep a ring buffer instead. (M5 keeps one: the page host's last 300 lines, which a report's
+  game carries.)
 - The $5 ceiling counts the fake's pretend costs too (about $0.003 a turn).
 - `DATA_VERSION` (`web/server/sim-store.ts`) is bumped by hand when a table changes in a way a restore can't mend;
   a build with another version clears the saves.
