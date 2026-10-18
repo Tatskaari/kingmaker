@@ -168,7 +168,7 @@ test("the co-GM's tools: a route only as its condition is written, the player's 
   const tools = coGmInstructions(clerk, yard()).split("## Your tools\n")[1]!;
   for (const line of [
     "Take a route only when its condition has happened in the story as written, all of it. A condition about what the player does (makes the case, goes after someone, leaves) needs the player to have done it",
-    "Never call move_scene to record that something hasn't happened",
+    "Call move_scene only for a route whose moment has come, never to note that one hasn't",
     "When more than one open route fits, take the one whose ending matches what the player achieved.",
     "An overdue cue is brought about: take its route now, unless its condition says it's no longer needed.",
     "Write a role as behaviour the GM can show",
@@ -179,8 +179,25 @@ test("the co-GM's tools: a route only as its condition is written, the player's 
 });
 
 test("a move whose reason says it hasn't happened is refused, a cue's aside (its move is what brings it about); a move's answer names any cue still overdue", async () => {
-  for (const why of ["No one has sought Cob or earned his trust, and the page has not been revealed; do not move this discovery.", "Not yet: Hobb has confessed his part in the loft but has not been asked for or given his master's name.", "No discovery: the player has not yet learned about or uncovered the page sewn into Cob's boot.", "Nothing has happened yet."]) assert.ok(deniesItself(why), why);
-  for (const why of ["No one caught him: Hobb got clean away up the river stairs.", "The eleventh bell is overdue and has not yet sounded in the story; bring the cue about in the next GM reply.", "Kell hasn't been told yet, but Hobb has owned to the loft in his own words.", "Hobb has broken and begun to tell what he did."]) assert.ok(!deniesItself(why), why);
+  // The round's own: each took a discovery the player hadn't made or a way in they hadn't taken (g08, g06, g01, g05, g07, g02), then the replays'.
+  for (const why of [
+    "No one has sought Cob or earned his trust, and the page has not been revealed; do not move this discovery.",
+    "Not yet: Hobb has confessed his part in the loft but has not been asked for or given his master's name.",
+    "Scrope has explained why the true account exists and linked it to Wendell's discovery, but he has not yet explained its entries page by page, offered testimony, or otherwise",
+    "Hobb told Grunda to show the brass token and take a sack, but Grunda has not yet done so or otherwise entered; the route's condition has not happened.",
+    "Not yet: the boot has only been offered for inspection; Pip has not yet discovered that it contains Prout’s page or learned what the entries mean.",
+    "Cob's account of the late-night argument, a thump, choking, and the hoist creaking without sacks strongly points to a staged hanging, but Corvin has not yet reached the f",
+    "No discovery: the player has not yet learned about or uncovered the page sewn into Cob's boot.",
+    "Not reached; Hobb has asked what will become of him, but no fear, safe refuge, or Crown-witness option has yet been discussed.",
+    "No one has yet revealed that Hobb fears for his mother or the noose, or what could protect her or offer him a way to swear for the Crown.",
+    "Nothing has happened yet.",
+  ]) assert.ok(deniesItself(why), why);
+  for (const why of [
+    "Pip recognized that Prout was strangled and struck before being hoisted, and Kell confirmed the cord mark and head wound were not caused by hanging.",
+    "No one caught him: Hobb got clean away up the river stairs.",
+    "Kell hasn't been told, but Hobb has owned to the loft in his own words.",
+    "Hobb has broken and begun to tell what he did.",
+  ]) assert.ok(!deniesItself(why), why);
 
   const rat = sceneFile("drowned-rat");
   const view = viewAt(rat, rat.start, { turn: 15, turnsInBeat: 0 });

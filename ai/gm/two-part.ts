@@ -428,7 +428,7 @@ const CO_GM_TOOLS = `## Your tools
   - A cue is brought about by taking its route (the GM shows it in the next reply), not by writing it into someone's role.
 - move_scene: when what one of the open routes describes has happened in the story (a discovery's revelation has landed, or a cue's moment has come), take it. Only the routes listed as open can be taken. When the scene moves to a new stage, update the roles for it. Don't hold the scene at a stage the story has already moved past.
   - Take a route only when its condition has happened in the story as written, all of it. A condition about what the player does (makes the case, goes after someone, leaves) needs the player to have done it: someone else doing it for them, someone asking them to, or the player planning it isn't that.
-  - Never call move_scene to record that something hasn't happened, or "not yet": leave the route as it is.
+  - Call move_scene only for a route whose moment has come, never to note that one hasn't: a route that hasn't happened needs no call, so don't go through them one by one.
   - When more than one open route fits, take the one whose ending matches what the player achieved. Each route into an ending says what's true there: read it against the story so far (a player who got the whole story out of someone has the ending where it was told, even if the way they leave matches another route's words).
   - Each cue says how far its outer limit has run. An overdue cue is brought about: take its route now, unless its condition says it's no longer needed.
   - If a reply has already played out what an open route describes (an event a role brought about), take that route now and write the roles from after it.
@@ -541,12 +541,18 @@ export function movedText(scene: Scene, gm: GmState, reached: string | undefined
 
 /**
  * A move's reason that says what it records hasn't happened ("Not yet: Hobb hasn't been asked his
- * master's name", "No discovery: the player hasn't found the page", "do not move this discovery"),
- * as QA round qa1-1018's co-GM gave three times, taking a discovery the player never made. Only the
- * plainest ways of saying it, so a reason that merely mentions what's still to come isn't caught.
+ * master's name", "No discovery: the player hasn't found the page", "but he has not yet explained
+ * its entries", "do not move this discovery"). QA round qa1-1018's co-GM gave six in eight games,
+ * each taking a discovery the player hadn't made or a way in they hadn't taken, and its replays more.
+ * The ways of saying it are those the round used: on its 41 moves they catch the six and nothing else.
  */
 export function deniesItself(why: string): boolean {
-  return /^\W*(?:not yet|no discovery|nothing (?:has )?happened)\b/i.test(why)
-    || /\b(?:do|should|must)(?: not|n't) (?:move|take)\b/i.test(why)
-    || /\b(?:has|have)(?: not|n't) (?:yet )?happened\b/i.test(why);
+  return [
+    /^\W*(?:not (?:yet )?(?:reached|happened|landed|revealed)|not yet|no discovery|nothing (?:has )?happened)\b/i,
+    /\b(?:has|have|had|is|are|was|were)(?: not|n't) yet\b/i,
+    /\bnot yet (?:been|reached|landed|revealed|happened)\b/i,
+    /\bno one has (?:yet )?(?:revealed|discovered|found|said|told|shown|asked|offered|sought)\b/i,
+    /\b(?:do|should|must)(?: not|n't) (?:move|take)\b/i,
+    /\b(?:has|have)(?: not|n't) (?:yet )?happened\b/i,
+  ].some(p => p.test(why));
 }
