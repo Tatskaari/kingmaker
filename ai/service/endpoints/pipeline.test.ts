@@ -78,30 +78,23 @@ function turnOf(n: number, gm: GmState, rows: PlaceRows, transcript: Entry[]) {
 const opening: Entry = { turn: 0, speaker: "gm", kind: "narration", text: "Rain on the cobbles. A body hangs from the hoist." };
 const said = (n: number, text = LINE): Entry => ({ turn: n, speaker: "player:1", kind: "player", text });
 
-/** A Responses call's last developer message (the GM's note for this reply). */
-const noteOf = (body: Request) => body.input?.filter(m => m.role === "developer").at(-1)?.content ?? "";
 
-test("the opening: what bears on the scene's start is opened, the GM opens it, and its words stream to the opening's draft", async () => {
+test("the opening: the two-part GM's mouthpiece opens the scene, its words streamed to the opening's draft, and the player's doc made", async () => {
   const { campaign, fake, posts, contextFor, store } = await setUp({ replies: ["[Kell] “You took your time.” The boy in the boots lobs another stone."] });
   const req = openRequest(openingRows(initialGm({ start: "yard" }), campaign));
   const answer = await pipeline.open(req, contextFor(req.key));
 
-  const gmCall = fake.sent.find(b => b.stream)!;
   assert.deepEqual(answer.present, ["kell", "cob", "moll"]);
   assert.equal(answer.entries[0]!.text, "“You took your time.” The boy in the boots lobs another stone.");
   assert.deepEqual(answer.entries[0]!.markup?.speech.map(s => [s.speaker, s.tag]), [["kell", "Kell"]]);
-  assert.ok(answer.opened.length > 0 && answer.opened.every(n => n.turn === 0), "disclosure opened notes, on turn 0");
-  assert.equal(gmCall.instructions, prompt("gm", { tone: prompt("tone-comic") }));
-  assert.equal(gmCall.input!.at(-1)!.content, "(The player is ready. Begin.)");
-  assert.match(noteOf(gmCall), /## For this reply\nOpen the scene\. /);
-  assert.match(noteOf(gmCall), /## The world right now/);
   assert.ok(existsSync(join(store, "games", GAME, "docs", "Player", "Wren Ashdown.md")), "the player's doc is made");
   assert.deepEqual(posts.map(p => p.seq), posts.map((_, i) => i + 1));
   assert.deepEqual([posts.at(-1)!.turnId, posts.at(-1)!.done, posts.at(-1)!.text], [7, true, answer.entries[0]!.text]);
-  assert.ok(answer.usage.calls === fake.sent.length && answer.usage.byOperation["gm.opening"]?.calls === 1);
+  assert.deepEqual(Object.keys(answer.usage.byOperation), ["two-part.opening"], "the mouthpiece alone: no disclosure, which went with the old pipeline's opening");
+  assert.equal(answer.usage.calls, fake.sent.length);
 });
 
-test("the opening writes the player's backstory into their doc before disclosure reads it, and the GM's brief says who they are from it", async () => {
+test("the opening writes the player's backstory into their doc, and the mouthpiece's prep says who they are from it", async () => {
   const { campaign, fake, contextFor, store } = await setUp({ replies: ["Rain on the cobbles."] });
   const backstory = {
     text: "I'm the King's nephew, though nobody at court will say so.\n\nI owe Fat Jory three crowns.",
@@ -112,13 +105,9 @@ test("the opening writes the player's backstory into their doc before disclosure
   await pipeline.open(req, contextFor(req.key));
 
   const doc = readFileSync(join(store, "games", GAME, "docs", "Player", "Wren Ashdown.md"), "utf8");
-  const disclosure = fake.sent.find(b => (b as { state?: string }).state?.includes("# Lore: Player/Wren Ashdown.md")) as { state: string } | undefined;
-  const gmCall = fake.sent.find(b => b.stream)!;
   assert.match(doc, /## Their backstory, in their own words \(written at character creation\)/);
   assert.match(doc, /- Bonds: I owe Fat Jory three crowns\./);
-  assert.ok(disclosure?.state.includes("I owe Fat Jory three crowns."), "disclosure read the doc with the backstory in it");
-  assert.match(gmCall.input![0]!.content, /Who they are, from their own backstory: Wren Ashdown is a fen hedge wizard, quietly the King's nephew/);
-  assert.ok(gmCall.input!.some(m => m.role === "developer" && m.content.includes("I'm the King's nephew, though nobody at court will say so.")), "the GM's notes have the whole of it");
+  assert.match(fake.sent[0]!.instructions!, /Who they are, from their own backstory: Wren Ashdown is a fen hedge wizard, quietly the King's nephew/);
 });
 
 test("a turn's view has the player's backstory from their sheet: the reply's prep says who they are from it, and how to address them", async () => {

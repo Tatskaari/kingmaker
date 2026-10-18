@@ -109,7 +109,7 @@ export async function probeTurn(scene: Scene, calls: LoggedCall[], sceneRow: str
   if (!was || !loggedInput) throw new Error(`no co-GM call that answered on turn ${turn}`);
   if (!loggedInstructions) throw new Error(`no mouthpiece call on turn ${turn} to take the prep's head from`);
   const gm = stateBefore(scene, calls, sceneRow, turn, game.absent);
-  const view = { ...gm, id: "probe", sceneId: scene.id, turn, player: { ...game.player, modifiers: {} }, memory: { opened: [] }, history: [], transcript: [], owed: [] } as unknown as TurnView;
+  const view = { ...gm, id: "probe", sceneId: scene.id, turn, player: { ...game.player, modifiers: {} }, history: [], transcript: [], owed: [] } as unknown as TurnView;
   const send = context.fetch;
   const fetching = (async (url: Parameters<typeof fetch>[0], init?: RequestInit) => {
     const body = withRound(JSON.parse(String(init?.body)), { instructions: loggedInstructions, input: loggedInput });

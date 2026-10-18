@@ -294,9 +294,6 @@ export const GmState = __t.object("GmState", {
   established: __t.array(__t.string()),
   landed: __t.array(__t.string()),
   hinted: __t.array(__t.string()),
-  get opened() {
-    return __t.array(OpenedNote);
-  },
   get closing() {
     return __t.option(ExitAt);
   },
@@ -320,7 +317,6 @@ export const GmState = __t.object("GmState", {
     return __t.array(OwedRow);
   },
   fought: __t.array(__t.string()),
-  withheld: __t.array(__t.string()),
   get talk() {
     return __t.option(TalkRow);
   },
@@ -492,14 +488,6 @@ export const OnStage = __t.object("OnStage", {
   role: __t.string(),
 });
 export type OnStage = __Infer<typeof OnStage>;
-
-export const OpenedNote = __t.object("OpenedNote", {
-  path: __t.string(),
-  title: __t.string(),
-  scope: __t.string(),
-  turn: __t.u32(),
-});
-export type OpenedNote = __Infer<typeof OpenedNote>;
 
 export const OwedRow = __t.object("OwedRow", {
   from: __t.string(),

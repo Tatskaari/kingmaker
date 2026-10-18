@@ -113,7 +113,6 @@ function gmFields(gm: GmState): Record<string, unknown> {
     established: gm.established,
     patches: gm.patches.map(patchLine),
     landed: gm.landed, hinted: gm.hinted,
-    opened: gm.opened.map(o => `${o.turn}: ${o.scope}: ${o.title} (${o.path})`),
     // The world bridge's (world-bridge-design §3.3): what the last reply left hanging, a hold on the player, a fight that broke out, and who's away.
     threat: gm.threat ? `${gm.threat.turn}: ${gm.threat.kind === "attack" ? `an attack by ${gm.threat.by}` : `${gm.threat.hazard}, ${gm.threat.severity}`}` : null,
     held: gm.held ?? null,

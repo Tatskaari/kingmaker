@@ -17,7 +17,7 @@ export interface Seen { scene: number; place: number }
  * words the player's line and its mechanic the turn's (the say plan's `forced`). A talk's opening (§3.6)
  * is told its own in the request (`talk`), and keeps the answer's prep.
  */
-export interface OpenPlan { step: "open"; game: string; scene: string; turn: string; seen: Seen; aftermath?: { summary: string }; act?: { text: string; mechanic: Mechanic }; twoPart?: boolean }
+export interface OpenPlan { step: "open"; game: string; scene: string; turn: string; seen: Seen; aftermath?: { summary: string }; act?: { text: string; mechanic: Mechanic } }
 
 /**
  * A say turn's plan: the two-part GM's reply, then its settle (on the wind-down, the reply alone).

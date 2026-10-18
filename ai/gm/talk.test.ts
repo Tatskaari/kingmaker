@@ -45,7 +45,7 @@ function talking(game: string, scene: Scene = kell, fields: Partial<TurnView> = 
   return {
     ...initialGm({ start: scene.start }), id: game, sceneId: scene.id, turn: 0,
     player: { name: "Wren Ashdown", concept: "a quick-witted half-elf ranger", modifiers: {} },
-    memory: { opened: [] }, fought: [], owed: [], transcript: [], story: campaign.story,
+    fought: [], owed: [], transcript: [], story: campaign.story,
     history: [{ sceneId: "hanged-clerk", exitId: "case-made", summary: "Prout was murdered; Kell signed him in as such." }],
     ...fields,
   };
@@ -107,12 +107,11 @@ const PLAN = {
   suggestions: ["How long have you been with the watch?", "“What about the Rat?”", "What did you make of [Cob]?", "how long have you been with the watch?", "Who taught you to watch hands?", "One too many"],
 };
 
-test("the prep as the open's commit keeps it: the facts, the one thing on their card (as the scenes' cards keep a secret) and filling the talk's discovery with the ways it can come out, as readily as a talk from before left it, the deepest withheld, the opening lines", () => {
+test("the prep as the open's commit keeps it: the facts, the one thing on their card (as the scenes' cards keep a secret) and filling the talk's discovery with the ways it can come out, as readily as a talk from before left it, the deepest not this talk's, the opening lines", () => {
   const state = talking("talk-prep");
   const cob = readDoc(state.id, `${KELL}/knowledge/Cob.md`) as Doc;
   const prep = prepareTalk(state, kell, opening({ record: { count: 1, told: [], stages: { [`${KELL}/knowledge/Nan Quill.md`]: "stirred" } } }), { prep: PLAN, held: cob });
 
-  assert.deepEqual(prep.withheld, [`${KELL}/knowledge/Cob.md`]);
   assert.deepEqual(prep.confide, { note: `${KELL}/knowledge/Nan Quill.md`, topic: "the door at the Drowned Rat", what: PLAN.what });
   assert.deepEqual(prep.patches[0], { turn: 0, why: "What Sergeant Agnes Kell might open up about in this talk: the door at the Drowned Rat.", cast: { id: "kell", secrets: ["Shows: going still at the Rat's name. Opens: asking her about the Rat. First: 'I know that door.'", "Nan Quill put her out through the Rat's door twenty years ago. They tell it once, in their own words; told is told."] } });
   assert.deepEqual(prep.patches[1], {
@@ -134,7 +133,7 @@ test("the prep as the open's commit keeps it: the facts, the one thing on their 
   // Lines not suggested (the controller's setting), and nothing they'd tell: the facts say so, nothing goes on their card, and the talk's discovery isn't this talk's.
   assert.deepEqual(prepareTalk(state, kell, opening({ suggest: false }), { prep: PLAN }).suggestions, []);
   const unwilling = prepareTalk(state, kell, opening(), { prep: { ...PLAN, willing: "no" } });
-  assert.deepEqual([unwilling.patches.map(p => [p.drop, p.cast, p.fill]), unwilling.confide, unwilling.withheld], [[[TOLD, undefined, undefined]], undefined, []]);
+  assert.deepEqual([unwilling.patches.map(p => [p.drop, p.cast, p.fill]), unwilling.confide], [[[TOLD, undefined, undefined]], undefined]);
   assert.match(unwilling.established.join("\n"), /keeps their own story to themselves/);
   // What they've already told isn't theirs to tell again, whatever the prep says.
   const told = talking("talk-prep-told", kell, { talks: { kell: { count: 2, told: [{ note: `${KELL}/knowledge/Nan Quill.md`, topic: "the door", turn: 3 }] } } });

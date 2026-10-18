@@ -16,7 +16,6 @@ const busy: GmState = {
     { turn: 4, from: "doubt", to: "yard-improv-4", via: "repair", source: "repair", known: 2 },
   ],
   established: ["Prout didn't hang himself."], landed: ["not-suicide"], hinted: ["page"],
-  opened: [{ path: "Cast/Cob/knowledge/silvertop.md", title: "Silvertop", scope: "character:cob", turn: 2 }],
   closing: { exitId: "open-case", turn: 3 },
   ended: { exitId: "open-case", turn: 4 },
   pressureOffered: ["yard"],
@@ -37,7 +36,6 @@ const busy: GmState = {
   held: 4,
   brawl: { turn: 5, cause: "cast Burning Hands at Sergeant Agnes Kell", against: ["kell"], allies: [], fled: ["cob", "moll"] },
   absent: ["cob", "moll"],
-  withheld: ["Cast/Kell/Notes/The door at the Drowned Rat.md"],
   talk: { with: "kell", where: "Granary Street in Caerwyn, evening", confide: { note: "Cast/Kell/Notes/Her brother.md", topic: "her brother in the river watch", what: "Her brother drowned on duty." } },
   reached: ["yard", "murder", "doubt"],
   twoPart: {
@@ -99,11 +97,11 @@ test("a row from before the world bridge's columns (their defaults) reads as a s
   assert.deepEqual(gm.patches, busy.patches);
 });
 
-test("a row from before the town's columns (their defaults) reads as a scene that keeps nothing back and isn't a talk", () => {
-  const { withheld: _w, talk: _t, ...gmOnly } = gmToRow(1n, busy);
-  const gm = gmFromRow({ ...gmOnly, withheld: [], talk: undefined });
+test("a row from before the town's column (its default) reads as a scene that isn't a talk", () => {
+  const { talk: _t, ...gmOnly } = gmToRow(1n, busy);
+  const gm = gmFromRow({ ...gmOnly, talk: undefined });
 
-  assert.ok(!("withheld" in gm) && !("talk" in gm));
+  assert.ok(!("talk" in gm));
   assert.deepEqual(gm.absent, busy.absent);
   assert.deepEqual(gmToRow(1n, { ...busy, talk: { with: "kell", where: "the lane" } }).talk, { companion: "kell", where: "the lane", confide: undefined });
 });

@@ -1,7 +1,7 @@
 // startTalk, leaveTalk and endTalk are the prototype's src/runtime/talk.ts:57-73, 405-446 at 44c6d4a as rows: the talk is a scene of its own (a row of kind talk, its own gm_state), so the scene the story is heading for is never set aside, nor put back: nothing touches it. The facts the talk's GM takes as given, its prep and its words are the AI service's (the open's TalkPrep); the told memory is its too. Since the old pipeline's salvage (docs/migration-log.md) a talk plays on the two-part GM's steps: it opens with the companion's role (the template's start's, note -1) and its open asks the two-part GM, and it's told once its discovery is reached.
 import type { ExploreState } from "../../../shared/map/explore.ts";
 import { initialGm, type GmState } from "../../../shared/gm/state.ts";
-import { idText, playerSpeaker } from "../../../shared/protocol/keys.ts";
+import { idText } from "../../../shared/protocol/keys.ts";
 import { refusal } from "../../../shared/protocol/refusals.ts";
 import type { Mechanic } from "../../../shared/rules/types.ts";
 import { CONFIDED, talkSceneId, TOLD } from "../../../shared/scene/talk.ts";
@@ -59,7 +59,7 @@ export function openTalk(tx: TxCtx, actor: Actor, game: GameRow, ex: ExploreStat
 
   const turn = newTurn(tx, scene, host.id, 0, "replying");
   updateScene(tx, scene.id, { turnId: turn.id });
-  queueThink(tx, openScene, { step: "open", game: idText(game.id), scene: idText(scene.id), turn: idText(turn.id), seen: seenOf(tx, scene.id), ...(act ? { act } : {}), twoPart: true });
+  queueThink(tx, openScene, { step: "open", game: idText(game.id), scene: idText(scene.id), turn: idText(turn.id), seen: seenOf(tx, scene.id), ...(act ? { act } : {}) });
   tx.log(`[talk] game ${game.id}: ${sceneKey} opens (${talk.where})${act ? `, the act its first turn: ${act.text}` : ""}; actor ${actor.id ?? "?"}`);
   return sceneRow(tx, scene.id);
 }

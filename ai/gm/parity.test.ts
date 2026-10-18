@@ -45,7 +45,7 @@ const GAME = "6f0c1d2e-0000-4000-8000-00000000901d";
 /** The prototype's session, as far as the requests are made from it. */
 interface Session {
   turn: number; beat: string; turnsInBeat: number; path: GmState["path"]; established: string[];
-  patches: GmState["patches"]; landed?: string[]; hinted?: string[]; memory?: { opened: GmState["opened"] };
+  patches: GmState["patches"]; landed?: string[]; hinted?: string[];
   closing?: GmState["closing"]; pressureOffered?: string[];
   entered?: string[]; absent?: string[];
   player: { name: string; concept: string; modifiers: SheetRow["skills"]; build?: string; backstory?: Backstory };
@@ -195,7 +195,6 @@ function sceneOf(s: Session): SceneContext {
 function gmOf(s: Session): GmState {
   return {
     beat: s.beat, turnsInBeat: s.turnsInBeat, path: s.path, established: s.established, landed: s.landed ?? [], hinted: s.hinted ?? [],
-    opened: s.memory?.opened ?? [],
     ...(s.closing ? { closing: s.closing } : {}),
     pressureOffered: s.pressureOffered ?? [],
     patches: s.patches, entered: s.entered ?? [], absent: s.absent ?? [], adjustments: [], owed: [], fought: [],

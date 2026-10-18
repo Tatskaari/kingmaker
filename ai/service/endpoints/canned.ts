@@ -34,8 +34,8 @@ export const canned: Endpoints = {
     await written(ctx.stream(req.stream.turn), opening);
     // A talk keeps nothing back: on the two-part GM, its discovery isn't this talk's (ai/gm/talk.ts nothingToConfide).
     const patches = req.talk ? [{ turn: 0, why: "Canned: nothing to confide.", drop: TOLD }] : [];
-    const talk = req.talk ? { talk: { established: [], patches, withheld: [], suggestions: req.talk.suggest ? TALK_LINES : [] } } : {};
-    return { present: presentCast(scene, req.gm).map(c => c.id), entries: [opening], opened: [], ...talk, usage: noUsage() };
+    const talk = req.talk ? { talk: { established: [], patches, suggestions: req.talk.suggest ? TALK_LINES : [] } } : {};
+    return { present: presentCast(scene, req.gm).map(c => c.id), entries: [opening], ...talk, usage: noUsage() };
   },
   async reactions() {
     return { reactions: {}, usage: noUsage() };

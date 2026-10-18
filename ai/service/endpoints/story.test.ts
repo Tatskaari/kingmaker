@@ -10,7 +10,7 @@ import { readNotes } from "../../docs/notes.ts";
 import { CAERWYN, granaryYard, testStory } from "../../gm/fixtures.ts";
 import { JevDecider, LUNA_DECISIONS_MODEL } from "../../llm/decide.ts";
 import { fakeFetch, type FakeOptions, type Request } from "../../llm/fake-openrouter.ts";
-import { initialGm, type GmState, type OwedRow } from "../../../shared/gm/state.ts";
+import { initialGm, type GmState } from "../../../shared/gm/state.ts";
 import type { BoundaryRequest, Entry, OpenRequest, StreamReplyArgs } from "../../../shared/protocol/ai.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import type { Scene } from "../../../shared/scene/types.ts";
@@ -25,8 +25,10 @@ import { pipeline } from "./pipeline.ts";
 
 /**
  * The AI service's side of the whole story (story-design §4.4), on the stand-in model: the boundary
- * (its verdict, its fallbacks, presence, the docs written once for it), an opening after it, a fight's
- * aftermath, and the fake's list of endings (§1.1's recipe). The campaign is the test story
+ * (its verdict, its fallbacks, presence, the docs written once for it), a fight's aftermath, and the
+ * fake's list of endings (§1.1's recipe). (An opening after the boundary was the old pipeline's
+ * opening on the prototype's Rat, which the two-part GM can't play: it went with that opening, and
+ * the two-part GM's opening after a boundary is hosts/local.test.ts's story test's.) The campaign is the test story
  * (gm/fixtures.ts): the hanged clerk as campaigns/caerwyn has it, the Rat, the Heron and the King's
  * morning as the prototype has them; its lore is the campaign's.
  */
@@ -201,38 +203,6 @@ test("the docs are written once for a boundary: run again (an exit after the doc
   assert.equal(readDoc(game, "World/Fronts.md")!.body.split("(Ticked after The Hanged Clerk.)").length - 1, 1, "the step ticked once");
 });
 
-/** The Rat as it opens after the granary: what the boundary handed on, the story so far. */
-function ratOpening(game: string, gm: Partial<GmState> = {}): OpenRequest {
-  const rat = sceneOf("drowned-rat");
-  const state: GmState = { ...initialGm({ start: rat.start }), adjustments: VERDICT.adjustments, opening: VERDICT.opening, lead: VERDICT.lead, absent: ["cob"], ...gm };
-  const handOff = `Previous scene, "The Hanged Clerk", ended: Murder by persons unknown (hanged-clerk: open-case).\n${HANDOFF_TEXT}`;
-  return {
-    key: `${game}:s2:t0:open`, game: { id: game, campaign: "caerwyn", version: "test" }, player: { id: "1", name: "Wren Ashdown" },
-    scene: { id: "2", key: "drowned-rat", kind: "scene" }, pc: "pc:1", gm: state, world: placeRows(rat, rat.world!, "drowned-rat", state), party,
-    story: { time: "evening", day: 1, flags: {}, history: [{ sceneId: "hanged-clerk", exitId: "open-case", summary: handOff, lastMoments: ["Wren Ashdown (player): Let's go.", "Kell underlines the line twice."], journal: ["Prout was murdered. The watch has it down as persons unknown."] }], earlier: YARD.map(e => ({ ...e, scene: "hanged-clerk" })) },
-    stream: { turn: "21" },
-  };
-}
-
-test("an opening after a boundary picks up from how the last scene ended: the second branch with the rewritten opening, and the story so far in the GM's prep", async () => {
-  const game = gameOf(8);
-  const owed: OwedRow[] = [{ from: "hanged-clerk", id: "page", hinted: false, things: ["granary-yard/boots", "granary-yard/ledger-page"], holders: ["cob"], where: "a folded page sewn into the left boot's lining, in Prout's good black boots, with Cob" }];
-  const req = ratOpening(game, { owed });
-  const { ctx, fake, posts } = contextFor(game, req.key, { replies: ["The din drops by half as you come down the steps. [the landlady] “Sergeant. On duty?”"] });
-  const answer = await pipeline.open(req, ctx);
-
-  const gm = fake.sent.find(b => b.stream)!;
-  assert.match(lastNote(gm), /## For this reply\nOpen the scene: show the whole of the opening below, from its first glance to the moment it ends on\. None of it has happened yet[^\n]*The opening, as it stands after what actually happened: Open at the Rat's door at dusk\. End on the landlady asking the sergeant whether she's on duty\. Keep it to a short paragraph or two, and end on what it ends on: something the player can respond to\.$/);
-  const prep = gm.input![0]!.content;
-  assert.match(prep, /## What happened just before this scene\n[\s\S]*Previous scene, "The Hanged Clerk", ended: Murder by persons unknown \(hanged-clerk: open-case\)\.\nKell signed Prout in as murdered[\s\S]*The last moments, word for word:\n> Wren Ashdown \(player\): Let's go\./);
-  assert.match(prep, /## Where the prep is out of date\n[^\n]*\n- Kell has signed Prout in as murdered, over the Captain's order\.\n- Cob was frightened off/);
-  assert.match(prep, /- What they did and saw earlier in the story \(everything that was narrated to them\):\n {2}- The Hanged Clerk: Murder by persons unknown\. Their notebook: "Prout was murdered\. The watch has it down as persons unknown\."\n/, "the scenes played, by their titles");
-  assert.equal(gm.input!.at(-1)!.content, "(The player is ready. Begin.)", "the earlier scene's lines are the story so far, not this scene's conversation");
-  assert.deepEqual(answer.present, ["hobb", "nan-quill", "kell", "arlo", "dilly"], "Cob is absent");
-  assert.equal(answer.entries[0]!.text, "The din drops by half as you come down the steps. “Sergeant. On duty?”");
-  assert.equal(posts.at(-1)!.turnId, 21);
-});
-
 test("the aftermath of a fight streams as an opening does, and the stage manager's operations come back by game key, with the player kept in the place", async () => {
   const game = gameOf(9);
   const heron = sceneOf("heron-warehouse");
@@ -262,8 +232,7 @@ test("the aftermath of a fight streams as an opening does, and the stage manager
   assert.match(stage.input![0]!.content, /## The latest exchange\nPlayer: \(The fight is over\.\)\n\nGM: Sallow straightens his cuffs/);
   assert.match(stage.input![0]!.content, /## Settled before this exchange[^\n]*\n- The fight is over: After a short, ugly fight/);
   assert.deepEqual(answer.ops?.map(o => [o.op, o.what, o.to, o.add]), [["move", "sallow", "heron/counting-box", []], ["state", "pc:1", "", ["prone"]]]);
-  assert.deepEqual(Object.keys(answer.usage.byOperation).sort(), ["gm.aftermath", "world.stage"], "no disclosure: the prototype's aftermath opens none");
-  assert.deepEqual(answer.opened, []);
+  assert.deepEqual(Object.keys(answer.usage.byOperation).sort(), ["gm.aftermath", "world.stage"], "the aftermath and its staging alone");
 });
 
 test("the fake takes a list of choices for a question: the first of them it offers (§1.1's endings, each scene's own)", async () => {

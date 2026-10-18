@@ -1,5 +1,5 @@
 import type { Asked, Backstory, LoreIssue, Who } from "../creation/types.ts";
-import type { Confide, GmState, OpenedNote, OwedRow, ScenePatch, TalkRecord, TwoPartRole } from "../gm/state.ts";
+import type { Confide, GmState, OwedRow, ScenePatch, TalkRecord, TwoPartRole } from "../gm/state.ts";
 import type { Band } from "../gm/two-part.ts";
 import type { Markup } from "../markup.ts";
 import type { Act, BuildOption, FeatureRef, Offer, OwnPicks, Reaction, SpellRef, SrdLists, WeaponRef } from "../rules/types.ts";
@@ -151,15 +151,13 @@ export interface OpenRequest extends AiRequest {
   transcript?: Entry[];
   /** A talk's: with whom, where, their record, and what the prep reads besides the scene. */
   talk?: TalkOpen;
-  /** A scene of the story played by the two-part GM (docs/two-part-design.md): its mouthpiece speaks the opening, the roles as the scene opens its note -1. */
-  twoPart?: boolean;
 }
 /**
  * ops: an aftermath's, what the stage manager says it did to the world (at most 16, by game key),
  * applied through the gate. talk: a talk's prep, to keep. check: the two-part GM's opening called
  * one (the simulation rolls it and writes the outcome that came up, as a reply's).
  */
-export interface OpenResponse { present: string[]; entries: Reply[]; opened: OpenedNote[]; ops?: WorldOp[]; talk?: TalkPrep; check?: SpokenCheck; usage: Usage }
+export interface OpenResponse { present: string[]; entries: Reply[]; ops?: WorldOp[]; talk?: TalkPrep; check?: SpokenCheck; usage: Usage }
 
 /**
  * A talk's open (town-design §3.6; talk.ts startTalk, openTalk and plan): the companion's cast id;
@@ -176,15 +174,14 @@ export interface TalkOpen { with: string; where: string; record: TalkRecord; lea
  * GM takes as given (where and when, how often they've talked, what they've told, what they may open
  * up about now, what waits for a later talk, what they knew in the story's scenes); the prep's
  * patches (the one thing they might tell on their card, and the talk's discovery `told` filled with
- * it, or dropped with nothing to tell); what they'd tell, for the record once it's out; the notes
- * disclosure keeps out of this talk (the deepest of their story, before its time); and the opening
- * choices, two to four lines.
+ * it, or dropped with nothing to tell); what they'd tell, for the record once it's out; and the
+ * opening choices, two to four lines. (The note disclosure kept out of the talk, the deepest of their
+ * story before its time, went with disclosure: the facts say it isn't this talk's.)
  */
 export interface TalkPrep {
   established: string[];
   patches: ScenePatch[];
   confide?: Confide;
-  withheld: string[];
   suggestions: string[];
 }
 

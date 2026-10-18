@@ -1,5 +1,5 @@
 import type { Backstory } from "../docs/types.ts";
-import type { GmState, OpenedNote, OwedRow, PathStep, ScenePatch, TalkRecord, TwoPartState } from "../../shared/gm/state.ts";
+import type { GmState, OwedRow, PathStep, ScenePatch, TalkRecord, TwoPartState } from "../../shared/gm/state.ts";
 import type { Markup } from "../../shared/markup.ts";
 import type { Chapter, Entry, OpenRequest, SceneContext, SheetRow, Story as Told } from "../../shared/protocol/ai.ts";
 import { isTurnKey, keyParts } from "../../shared/protocol/keys.ts";
@@ -15,8 +15,7 @@ import type { Story } from "./story.ts";
  * The request as the GM code copied from the prototype reads it (gm-port §3): a TurnView has the
  * fields of the prototype's SessionState that code reads, under the same names, so the copies keep
  * their bodies and only their inputs change. It's built afresh from each request and thrown away
- * with it; where a copied body writes to it (the repeat guard, disclosure's notes), the endpoint
- * sends back what changed.
+ * with it; where a copied body writes to it (the repeat guard), the endpoint sends back what changed.
  *
  * People are named by the world's local ids in a view, as the copied code names them (the scene's
  * cast by their ids, the place's other people by theirs: "porter"), and by the game's keys in a
@@ -56,7 +55,6 @@ export interface TurnView {
   established: string[];
   landed: string[];
   hinted: string[];
-  memory: { opened: OpenedNote[]; withheld?: string[] };
   closing?: GmState["closing"];
   ended?: GmState["ended"];
   pressureOffered: string[];
@@ -157,7 +155,6 @@ export function viewOf(source: ViewSource, scene: Scene, story?: Story, essentia
     // (A request a job stored before M2 has no nodes reached nor a two-part GM: its beat stands for them.)
     beat: gm.beat, reached: gm.reached?.length ? gm.reached : [gm.beat], twoPart: gm.twoPart ?? { roles: {}, notes: [] },
     turnsInBeat: gm.turnsInBeat, path: gm.path, established: gm.established, landed: gm.landed, hinted: gm.hinted,
-    memory: { opened: gm.opened, ...(gm.withheld?.length ? { withheld: gm.withheld } : {}) },
     ...(gm.closing ? { closing: gm.closing } : {}), ...(gm.ended ? { ended: gm.ended } : {}),
     pressureOffered: gm.pressureOffered, patches: gm.patches, entered: gm.entered,
     // (A request a job stored before the story unit has none of what a boundary hands on.)

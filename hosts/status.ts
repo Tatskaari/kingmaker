@@ -9,7 +9,7 @@ import { readStackFile } from "./dev/stack-file.ts";
  * The GM's side of a game (full-gm-design §4.4), as the prototype's `scene status` and
  * `scene memories` show it: where the scene stands in its beats, its path, what's reached, each
  * person's role and the closing on its way (the two-part GM's), the scene's patches, the memory
- * reviews, the notes disclosure opened, the background jobs in flight, what the boundary handed on
+ * reviews, the background jobs in flight, what the boundary handed on
  * to the scene and the story between scenes (story-design §4.1: the lead, the chapters, the quests,
  * the flags, who walks with the player, the attitudes); or, with --notes (--memories, its old name),
  * the GM's notes on each person, in full. It reads the running dev stack: its private rows as the

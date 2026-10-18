@@ -49,7 +49,7 @@ export function backstoryOp(req: BackstoriesRequest): BackstoryOp {
 type Need = [what: string, has: (request: unknown) => boolean];
 
 /** The GM's bookkeeping as the view copies it (gm/view.ts): its beat, its count, and its lists. */
-const GM_LISTS = ["path", "established", "landed", "hinted", "opened", "pressureOffered", "patches", "entered", "absent"];
+const GM_LISTS = ["path", "established", "landed", "hinted", "pressureOffered", "patches", "entered", "absent"];
 /** The world's rows as rowsToWorld reads them: the place, and a list of each component. */
 const WORLD_LISTS = ["entity", "position", "area", "material", "health", "stack", "surface", "creature", "playerCharacter", "gear", "narrative", "gmNote", "worldLog"];
 

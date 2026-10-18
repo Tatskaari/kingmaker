@@ -2,9 +2,9 @@
 
 Part of the [architecture overview](../../ARCHITECTURE.md), and of [ai/](../README.md): the AI service's docs service.
 
-The lore as linked Markdown documents, a copy of it for each game that play writes to, who may read what, what the GM is shown of it each turn, and the GM's notes on each person, which are what people remember. It's V1's docs service, rebuilt for scenes. The reviews always run after a turn; disclosure runs for the old pipeline's GM (a talk); the fronts, the boundary and companion talks use the store too.
+The lore as linked Markdown documents, a copy of it for each game that play writes to, who may read what, what the GM is shown of it (the memory block, in a fight's aftermath), and the GM's notes on each person, which are what people remember. It's V1's docs service, rebuilt for scenes. The reviews always run after a turn; the fronts, the boundary and companion talks use the store too. (Progressive disclosure, each turn's notes opened for the old pipeline's GM, went with its scene steps: docs/migration-log.md, M2's "The old pipeline's salvage".)
 
-It's handed what it needs of the game, never the game itself: disclosure and the memory reviews take a view of the game's working set ([types.ts](types.ts): the game's id and turn, the scene, the people present, the player, the transcript as the models read it, and the notes disclosure has open or withheld), and what disclosure keeps comes back as a value for the game to keep. The GM pipeline makes the view from each request ([gm/working-set.ts](../gm/working-set.ts)) and calls in here. (The prototype called it through adapters at its old paths, src/lore, until it was retired.)
+It's handed what it needs of the game, never the game itself: the memory block and the memory reviews take a view of the game's working set ([types.ts](types.ts): the game's id and turn, the scene, the people present, the player, the transcript as the models read it). The GM pipeline makes the view from each request ([gm/working-set.ts](../gm/working-set.ts)) and calls in here. (The prototype called it through adapters at its old paths, src/lore, until it was retired.)
 
 ```sh
 npm run status -- --game <n> --notes       # on a running dev stack: the GM's notes on each person in that game
@@ -15,7 +15,6 @@ npm run status -- --game <n> --notes       # on a running dev stack: the GM's no
 The authored lore, a campaign's `lore/` (Caerwyn's is [campaigns/caerwyn/lore](../../campaigns/caerwyn/lore/index.md)), is the seed: Markdown files with a frontmatter line per key, linked to each other by relative links. Each game gets an overlay, `runs/sessions/<id>/docs/`, and every write goes there (copy on write), so play changes that game's lore and never the authored files. Both places are [config.ts](config.ts)'s, each a volume ([volumes.ts](volumes.ts): a folder on disk, or docs in memory, synchronous as the service is): by default the campaign's lore and `runs/sessions/<id>/docs/` folders (`KM_RUNS_DIR` moves runs/), made on the first read, and `configureDocs` moves them, as volumes or as folders by path. The AI service serves a campaign version's lore/ and each game's copy from its stores; a host with no file system (the page's server worker) gives volumes in memory. A folder asks for Node's fs when it's first read (`process.getBuiltinModule`) rather than importing it, so the service bundles for a browser with no `node:` import. On top of the store sit:
 
 - **access by scope:** what each person in a scene, and the GM, may read;
-- **progressive disclosure:** before each reply, Jev opens the linked notes that bear on the moment;
 - **the GM's notes on each person:** one living note per person per game ([notes.ts](notes.ts)), in the third person: how they stand with the player now and why, what they've seen the player do, what they've learned, promises made by them or to them, and what they did;
 - **the reviews:** after each reply, in the background, they bring the notes on the people present up to date and record what play has made true in the lore;
 - **the boundary's records:** the scene as played, what its ending says of each person (in their notes), and the fronts' clocks.
@@ -26,11 +25,11 @@ The authored lore, a campaign's `lore/` (Caerwyn's is [campaigns/caerwyn/lore](.
 |---|---|
 | [docs.ts](docs.ts) | The store: `readDoc` (the overlay first, then lore/), `writeDoc` (the overlay only), `seedDoc` (as authored), `parseDoc` (the frontmatter), `permitted` (who may read), `linksIn` (a doc's links), `characterEntry` (a cast id's lore entry), `errandsOf` (what someone does next if nobody stops them: their `gm.md`'s "What they do next"), the story index (`savePlayedScene`), the player's doc, `searchDocs`, `editDoc`, `createDoc` |
 | [notes.ts](notes.ts) | The GM's notes on a person, one per game: where they are (`notesPath`), reading them from the game's copy only (`readNotes`, `notesDoc`), as a model reads them (`notesText`, and `gmNotes(game, id)`, what a GM part is given), and an update (`note`: the standing set, a line rewritten, taken out or added, a full part giving up its oldest line) |
-| [disclosure.ts](disclosure.ts) | `disclose` (each turn, per scope), `keepOpened`, `withhold`, and `memoryBrief` (what the old pipeline's GM is shown, in a stable part and a live part) |
+| [disclosure.ts](disclosure.ts) | `memoryBrief`: what the old pipeline's GM is shown in a fight's aftermath, in a stable part and a live part, from each person's scope. Disclosure itself (`disclose`, `keepOpened`, `withhold`) went with the old pipeline |
 | [reviews.ts](reviews.ts) | The attention filter (`attend`, its categories brought to the notes' parts), the notes review (one structured call, `memory-review.md`) and the world-facts agent with its tools (`reviewTurn`) |
 | [backstory.ts](backstory.ts) | Character creation's backstory: `draftBackstory` (one from the concept and build), `workIn` (notes made a story, keeping every name, place and number), `checkLore` (what doesn't fit the world, with a fix: checked against `canonFor`, the public lore only, and the story's `PREMISE`, never a GM's or a character's own doc, since what it says goes to the player as written), `applyFix`, `premiseSlips`, `finishBackstory` (who they are and their traits, for the sheet and the GM), and `MOST_WORDS` |
 | [fronts.ts](fronts.ts) | `frontsText` and `moveFronts`: steps ticked and struck, and bills added, in this game's copy of a fronts doc |
-| [types.ts](types.ts) | What it's handed: the working set (`WorkingSet`: the game, the turn, the scene, the player, who's present, the transcript, what disclosure keeps), and the backstory's shape |
+| [types.ts](types.ts) | What it's handed: the working set (`WorkingSet`: the game, the turn, the scene, the player, who's present, the transcript), and the backstory's shape |
 | [config.ts](config.ts) | Where the authored lore and each game's copy are, as volumes (`DocsVolume`, `docsConfig`, `configureDocs`) |
 | [volumes.ts](volumes.ts) | The volumes: `folderVolume` (a folder on disk), `memoryVolume` (a map, each write handed on to a host's write-behind) |
 | [paths.ts](paths.ts) | The posix paths the AI service names docs and files by, with no `node:path` (held to Node's by its test) |
@@ -45,21 +44,17 @@ The authored lore, a campaign's `lore/` (Caerwyn's is [campaigns/caerwyn/lore](.
 | Any lore path | The world-facts agent's edits and new docs | as written | `editDoc`, `createDoc` |
 | `World/Fronts.md` | The story's fronts, as this game has moved them | gm | `moveFronts` at a boundary; the world-facts agent mid-scene |
 
-**What disclosure keeps,** which the game holds and hands back in each working set (`memory`): `opened` (the notes opened in this scene, with their scope and turn, 24 at most) and `withheld` (notes kept out of it however relevant they get: a talk's held story). `keepOpened` and `withhold` return it changed. The simulation keeps both in the scene's GM bookkeeping (`GmState`'s `opened` and `withheld`, [shared/gm/state.ts](../../shared/gm/state.ts)), so the next scene starts with none.
-
 ## How it fits
 
 ```mermaid
 flowchart TB
-  seed[("lore/<br/>authored, never written")] --> disclose
-  overlay[("runs/sessions/…/docs/<br/>this game's copy")] --> disclose
-  subgraph turn [each turn]
-    disclose["disclose<br/>Jev opens linked notes, per scope"] --> brief["memoryBrief<br/>lore first, the GM's notes last"] --> reply["the GM's reply"]
-  end
-  subgraph later [after the turn, in the background]
+  seed[("lore/<br/>authored, never written")] --> brief
+  overlay[("runs/sessions/…/docs/<br/>this game's copy")] --> brief
+  brief["memoryBrief<br/>lore first, the GM's notes last"] --> reply["a fight's aftermath"]
+  subgraph later [after each turn, in the background]
     attend["attend<br/>Jev flags the moment"] --> agents["the reviews<br/>the notes on the people, world facts"]
   end
-  reply --> attend
+  turn["a turn, once it's over"] --> attend
   agents -->|"note, edit_doc, create_doc"| overlay
   boundary["a scene boundary"] -->|"the played scene, what the ending says of each person, the fronts"| overlay
   overlay -->|"gmNotes"| cogm["the two-part co-GM's input, a talk"]
@@ -67,16 +62,15 @@ flowchart TB
 
 | Caller | Uses |
 |---|---|
-| [service/endpoints/turn.ts](../service/endpoints/turn.ts) | `disclose` before an opening and alongside each turn's decide (the old pipeline's, which nothing plays since the old pipeline's salvage; the two-part GM discloses nothing); `keepOpened` |
-| [gm/voice.ts](../gm/voice.ts) | `memoryBrief`, in every reply of the old pipeline's GM (a talk's, and a fight's aftermath) |
+| [gm/voice.ts](../gm/voice.ts) | `memoryBrief`, in the old pipeline's GM's reply: a fight's aftermath |
 | [gm/two-part.ts](../gm/two-part.ts) | `gmNotes`: the co-GM's input has the GM's notes on each person on stage (`notesOnPeople`); the mouthpiece reads none |
 | [service/endpoints/remember.ts](../service/endpoints/remember.ts) | `reviewTurn`, after each turn (`POST /v1/turns/remember`), with the request's call context (`calls`) |
 | [gm/boundary.ts](../gm/boundary.ts) | At a boundary: `errandsOf` (for the verdict: what the people the story goes on with do in the time between), `savePlayedScene`, `note` (what the ending says of each person, and the time between), `frontsText` and `moveFronts` |
-| [gm/talk.ts](../gm/talk.ts) | A companion's talk: their lore entry and notes (`characterEntry`, `seedDoc`), the GM's notes on them (`gmNotes`, and `note` for what they told), and `withhold` |
+| [gm/talk.ts](../gm/talk.ts) | A companion's talk: their lore entry and notes (`characterEntry`, `seedDoc`), the GM's notes on them (`gmNotes`, and `note` for what they told) |
 | [gm/knowledge.ts](../gm/knowledge.ts) | `playerDocPath` and `readDoc`: the player's own doc, for the GM's note of what the player knows (until M2, the notes on a reply's marks linked into the lore with `listDocs` and `seedDoc` too) |
 | [service/endpoints/backstories.ts](../service/endpoints/backstories.ts) | Character creation's backstory: `draftBackstory`, `workIn`, `checkLore`, `finishBackstory` (`applyFix` is shared/creation's) |
 
-It calls [the model client](../llm/README.md) (`JevDecider` for disclosure and the attention filter, `respondJson` for the notes review, `runTools` for the world-facts agent) and [the prompts](../prompts/README.md) (the reviews'), and nothing outside ai/ and shared/. Who is present and the transcript come in the working set. The prototype's lite memory (`remember.ts`, `rememberTurn` and `rememberScene`, which nothing in the game called) went when the memories became the GM's notes (docs/migration-log.md, "The old pipeline's salvage").
+It calls [the model client](../llm/README.md) (`JevDecider` for the attention filter, `respondJson` for the notes review, `runTools` for the world-facts agent) and [the prompts](../prompts/README.md) (the reviews'), and nothing outside ai/ and shared/. Who is present and the transcript come in the working set. The prototype's lite memory (`remember.ts`, `rememberTurn` and `rememberScene`, which nothing in the game called) went when the memories became the GM's notes (docs/migration-log.md, "The old pipeline's salvage").
 
 ## How it works
 
@@ -86,12 +80,11 @@ It calls [the model client](../llm/README.md) (`JevDecider` for disclosure and t
 - **`permitted`** ([docs.ts:89](docs.ts#L89)). The GM reads everything. A `gm` doc is the GM's alone; a `public` doc is anyone's; a `private` doc is only its `readers`'.
 - **Defaults.** A doc with no frontmatter counts as `gm`; one with frontmatter but no `visibility` counts as `public`.
 
-### Disclosure
+### The memory block
 
-- **Where each scope starts** ([disclosure.ts:25](disclosure.ts#L25)). Each person present starts with their lore entry (`Cast/<Name>/private.md`, found by its `character` id) and the GM's notes on them (from the game's copy only). The GM starts with the player's doc, the story index and the scene's `lore` docs.
-- **Each turn,** alongside the decision. For each scope, the unopened notes linked from what it has open, and that it may read, go to Jev: a yes-or-no question per link, one call per scope and round, all scopes at once. A note opens above 0.7 (`OPEN_THRESHOLD`), four at most per scope per round, over two rounds; a note opened in the first round brings its own links into the second.
-- **Open for the scene.** Opened notes stay open until the scene ends (24 at most). A note at 0.9 or more (`URGENT`) is clearly about this moment, and the reply is told to let it show.
-- **What the GM reads** (`memoryBrief`, [disclosure.ts:114](disclosure.ts#L114)): a block per scope, so it can keep straight who knows what. `stable` is each person's lore entry and the GM's own notes (the player's doc, the scene's `lore` docs), sent before the conversation. `live` is the GM's notes on each person from play, the notes opened and the story index, sent after it. Its words are otherwise the prototype's, which the parity test holds the old pipeline to.
+- **Where each scope starts** ([disclosure.ts](disclosure.ts) `scopes`). Each person present starts with their lore entry (`Cast/<Name>/private.md`, found by its `character` id) and the GM's notes on them (from the game's copy only). The GM starts with the player's doc, the story index and the scene's `lore` docs.
+- **What the GM reads** (`memoryBrief`): a block per scope, so it can keep straight who knows what. `stable` is each person's lore entry and the GM's own notes (the player's doc, the scene's `lore` docs), sent before the conversation. `live` is the GM's notes on each person from play and the story index, sent after it. Its words are otherwise the prototype's.
+- **Disclosure went** with the old pipeline's scene steps: each turn, Jev opened the notes linked from what a scope had open that bore on the moment (above 0.7, four a scope a round, over two rounds), and they stayed open for the scene, in `live`. The two-part GM reads no memory block: its cards and prep carry each person, and its co-GM has the GM's notes on them.
 
 ### The GM's notes on a person
 
@@ -134,13 +127,13 @@ The fronts move in the same crossing. `moveFronts` ([fronts.ts:25](fronts.ts#L25
 
 ### A companion's stories: told, now, held
 
-Talks ([gm/talk.ts](../gm/talk.ts)) keep a companion's stories with the store. `confidences` lists the private notes linked from their lore entry that they haven't told yet. A story they tell goes in the GM's notes on them (a line under what they did) as well as the talk record, and the talk's plan reads those notes for how things stand. The deepest is held until the third talk: the GM is told its title and summary and to turn the question aside, and `withhold` ([disclosure.ts:101](disclosure.ts#L101)) keeps the note itself out of disclosure.
+Talks ([gm/talk.ts](../gm/talk.ts)) keep a companion's stories with the store. `confidences` lists the private notes linked from their lore entry that they haven't told yet. A story they tell goes in the GM's notes on them (a line under what they did) as well as the talk record, and the talk's plan reads those notes for how things stand. The deepest is held until the third talk: the GM is told its title and summary and to turn the question aside. (`withhold` kept the note itself out of disclosure too, until disclosure went.)
 
 ## Where to look first
 
 - **Access.** A new doc's `visibility` and `readers`, and any change to `permitted` or `parseDoc`. A private note whose frontmatter loses its `visibility` becomes everyone's.
 - **What the reviews can write.** The notes review's schema takes only the people present and the five parts; the world-facts agent's tools and their handlers ([reviews.ts](reviews.ts)) take paths from the model, and refuse a notes path.
-- **The thresholds:** `OPEN_THRESHOLD` (0.7), `PER_ROUND` (4), `MAX_OPEN` (24) and `URGENT` (0.9) in disclosure.ts; `FLAG_THRESHOLD` (0.4) in reviews.ts.
+- **The threshold:** `FLAG_THRESHOLD` (0.4) in reviews.ts.
 - **The stable and live parts of `memoryBrief`.** Something that changes every turn, put in `stable`, spoils the GM's prompt cache on every turn.
 - **Writes go to the overlay.** `writeDoc` writes only to this game's copy. Nothing should write under lore/.
 
@@ -162,7 +155,6 @@ The prototype's memory evals (`src/eval/memory-eval.ts`, `memory-run.ts`: does s
 - **Search isn't ranked.** `searchDocs` counts the query's words in each doc, across every `.md` under lore/.
 - **The registry is the authored lore's.** `characterEntry` scans lore/ once per process, so a lore entry created in play isn't found.
 - **The held story is cut, not annotated.** The GM knows its title and summary, and nothing else of it. A fast GM asked about something it can't see tends to invent it or deny it, and the reviews then record the invention.
-- **Always Jev.** Disclosure and the attention filter make their own `JevDecider`; the approach's decider never reaches them.
-- **Reviews run late.** A review reads its turn's snapshot but writes into the live overlay, perhaps after the next turn's disclosure has already read it.
-- **The reviews' judgement isn't unit-tested.** The notes ([notes.test.ts](notes.test.ts)), the notes review's writing and rewriting through the remember endpoint ([background.test.ts](../service/endpoints/background.test.ts)), disclosure, the memory block and what disclosure keeps ([working-set.test.ts](working-set.test.ts)), the fronts, the backstory, and the boundary's notes and `errandsOf` through the boundary's tests ([gm/crossing.test.ts](../gm/crossing.test.ts), [gm/boundary.test.ts](../gm/boundary.test.ts)) are; what the attention filter flags and what the notes review writes are the models', probed live (docs/migration-log.md).
-- **A working set is a copy.** The prototype's view read its session as the docs service asked, so disclosure's second round saw the turn as it stood by then; the working set a request sends is a copy, so a second round sees the turn as it was sent.
+- **Always Jev.** The attention filter makes its own `JevDecider`; the approach's decider never reaches it.
+- **Reviews run late.** A review reads its turn's snapshot but writes into the live overlay, perhaps after the next turn has already read the notes.
+- **The reviews' judgement isn't unit-tested.** The notes ([notes.test.ts](notes.test.ts)), the notes review's writing and rewriting through the remember endpoint ([background.test.ts](../service/endpoints/background.test.ts)), the memory block ([working-set.test.ts](working-set.test.ts)), the fronts, the backstory, and the boundary's notes and `errandsOf` through the boundary's tests ([gm/crossing.test.ts](../gm/crossing.test.ts), [gm/boundary.test.ts](../gm/boundary.test.ts)) are; what the attention filter flags and what the notes review writes are the models', probed live (docs/migration-log.md).

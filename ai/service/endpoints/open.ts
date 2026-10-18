@@ -4,29 +4,30 @@ import { openingDirective } from "../../gm/directives.ts";
 import { nothingToConfide, planTalk, prepareTalk, talkFacts, talkOpening } from "../../gm/talk.ts";
 import { speak } from "../../gm/two-part.ts";
 import { keysOf, openSource, type TurnView, type ViewSource } from "../../gm/view.ts";
-import { gmReply, replyOf } from "../../gm/voice.ts";
+import { replyOf } from "../../gm/voice.ts";
 import type { Markup } from "../../../shared/markup.ts";
 import type { OpenRequest, OpenResponse, TalkOpen, TalkPrep } from "../../../shared/protocol/ai.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import type { Scene } from "../../../shared/scene/types.ts";
 import { opToGame } from "../../../shared/world/rows.ts";
 import type { AiContext, Handler } from "../context.ts";
-import { director, disclosed, sceneAndView, withOpened } from "./turn.ts";
+import { director, sceneAndView } from "./turn.ts";
 
 /**
- * POST /v1/scenes/open (v0-design §5.3, gm-port §5): the scene's opening. The player's doc is made
- * if it's missing, with their backstory in it when they wrote one at character creation (v1-design
- * §3.7: the GM's notes and its note of what the player knows both read it, so it's written before
- * disclosure), what bears on the scene's start is opened, and the GM opens the scene, its words
- * streamed to the opening's draft with who says each line. The answer says who's here, the opening
- * (who says each line by the game's keys) and the lore notes disclosure opened, for the simulation
- * to commit. After a boundary the opening picks up from how the last
- * scene ended, as the boundary rewrote it (the opening directive's second branch: story-design §4.4).
+ * POST /v1/scenes/open (v0-design §5.3, gm-port §5): the scene's opening, by the two-part GM. The
+ * player's doc is made if it's missing, with their backstory in it when they wrote one at character
+ * creation (v1-design §3.7: the memory reviews and the GM's note of what the player knows read it),
+ * and the mouthpiece opens the scene, its words streamed to the opening's draft with who says each
+ * line. The answer says who's here and the opening (who says each line by the game's keys), and a
+ * check it calls, for the simulation to commit. After a boundary the opening picks up from how the
+ * last scene ended, as the boundary rewrote it (the opening directive's second branch: story-design
+ * §4.4). (The old pipeline's opening, `gm.opening` after disclosure opened what bore on the scene's
+ * start, went with its scene steps: docs/migration-log.md, M2's "The old pipeline's salvage".)
  *
  * With `aftermath`, the scene picks up after a fight instead (the prototype's resumeAfterFight): the
  * GM narrates the aftermath (`gm.aftermath`), streamed as an opening is, and the stage manager's
  * operations for what it narrated come back with it (`ops`, by the game's keys), for the simulation
- * to apply through its gate. No disclosure: the prototype's resumeAfterFight opens none.
+ * to apply through its gate.
  *
  * With `talk`, a talk with a companion opens (town-design §3.6: talk.ts startTalk and openTalk): the
  * GM takes as given what startTalk set (where and when, how often they've talked, where the story
@@ -34,10 +35,9 @@ import { director, disclosed, sceneAndView, withOpened } from "./turn.ts";
  * does, beside the talk's prep: which of their notes are still theirs to tell (talk.sift), then the
  * one thing they might open up about this time and the opening lines (talk.plan). The greeting is the
  * two-part GM's mouthpiece's (`two-part.opening`), from the companion's opening role (note -1) and
- * the talk's opening, as every talk's has been since the old pipeline's salvage. The answer's `talk`
- * is what the prep came to (prepare: the talk's discovery filled with it), for the open's commit to
- * keep; a prep that fails leaves the facts as the talk opened, and nothing kept back (the discovery
- * dropped). No disclosure, as openTalk opens none, and the earlier talks' entries join the view's
+ * the talk's opening. The answer's `talk` is what the prep came to (prepare: the talk's discovery
+ * filled with it), for the open's commit to keep; a prep that fails leaves the facts as the talk
+ * opened, with nothing to confide (the discovery dropped). The earlier talks' entries join the view's
  * transcript (the prep reads them).
  */
 export const open: Handler<OpenRequest, OpenResponse> = async (req, ctx) => {
@@ -46,32 +46,21 @@ export const open: Handler<OpenRequest, OpenResponse> = async (req, ctx) => {
   if (req.aftermath) return aftermath(req, req.aftermath.summary, ctx, scene, view, byKey);
   if (req.talk) return twoPartTalk(req, req.talk, ctx, scene, view, byKey);
   writePlayerBackstory(view.id, view.player);
-  if (req.twoPart) return twoPartOpening(req, ctx, scene, view, byKey);
-
-  const opened = await disclosed(scene, view, "", ctx.calls);
-  withOpened(view, opened);
-
-  const sink = ctx.stream(req.stream.turn);
-  const spoken = await gmReply(scene, view, [openingDirective(scene, view)], { operation: "gm.opening", calls: ctx.calls, setting: ctx.campaign.title, onText: (text, markup) => sink.show(text, markup && byKey(markup)) });
-  const opening = replyOf(spoken, byKey);
-  await sink.finish(opening.text, opening.markup);
-
-  return { present: presentCast(scene, view).map(c => c.id), entries: [opening], opened, usage: ctx.usage() };
+  return twoPartOpening(req, ctx, scene, view, byKey);
 };
 
 /**
  * A scene of the story's opening, by the two-part GM (docs/two-part-design.md, step 6): the
  * mouthpiece speaks it, streamed to the opening's draft, from the roles the simulation gave everyone
  * present as it opened (the co-GM's note -1: their stage's cast note, else their attitude), the
- * opening directive as the boundary left it (its rewritten opening, after the story so far). No
- * disclosure: the two-part GM reads no memories. A check it calls comes back for the simulation to
- * roll, as a reply's does.
+ * opening directive as the boundary left it (its rewritten opening, after the story so far). A check
+ * it calls comes back for the simulation to roll, as a reply's does.
  */
 async function twoPartOpening(req: OpenRequest, ctx: AiContext, scene: Scene, view: TurnView, byKey: (markup: Markup) => Markup): Promise<OpenResponse> {
   const sink = ctx.stream(req.stream.turn);
   const spoke = await speak(scene, view, [openingDirective(scene, view)], { operation: "two-part.opening", calls: ctx.calls, byKey, onText: (text, markup) => sink.show(text, markup && byKey(markup)) });
   await sink.finish(spoke.narration.text, spoke.narration.markup);
-  return { present: presentCast(scene, view).map(c => c.id), entries: [spoke.narration], opened: [], ...(spoke.check ? { check: spoke.check } : {}), usage: ctx.usage() };
+  return { present: presentCast(scene, view).map(c => c.id), entries: [spoke.narration], ...(spoke.check ? { check: spoke.check } : {}), usage: ctx.usage() };
 }
 
 /** The scene after a fight: the aftermath streamed to its turn's draft, and what the stage manager made of it. */
@@ -82,7 +71,7 @@ async function aftermath(req: OpenRequest, summary: string, ctx: AiContext, scen
   await sink.finish(said.text, said.markup);
   const ops = await staging;
 
-  return { present: presentCast(scene, view).map(c => c.id), entries: [said], opened: [], ops: ops.map(op => opToGame(op, view.world!, keysOf(openSource(req)))), usage: ctx.usage() };
+  return { present: presentCast(scene, view).map(c => c.id), entries: [said], ops: ops.map(op => opToGame(op, view.world!, keysOf(openSource(req)))), usage: ctx.usage() };
 }
 
 /** The story so far with the companion's earlier talks in it, as the prototype's transcript has them: what the prep reads of them (earlierTalks), each entry with its talk's key (a talk the story's entries have already, not twice). */
@@ -109,7 +98,7 @@ async function twoPartTalk(req: OpenRequest, open: TalkOpen, ctx: AiContext, sce
   ]);
   if (greeting.status === "rejected") throw greeting.reason;
   await sink.finish(greeting.value.narration.text, greeting.value.narration.markup);
-  const talk: TalkPrep = prep.status === "fulfilled" ? prepareTalk(view, scene, open, prep.value) : { established: view.established, patches: [nothingToConfide(view.turn)], withheld: [], suggestions: [] };
+  const talk: TalkPrep = prep.status === "fulfilled" ? prepareTalk(view, scene, open, prep.value) : { established: view.established, patches: [nothingToConfide(view.turn)], suggestions: [] };
 
-  return { present: presentCast(scene, view).map(c => c.id), entries: [greeting.value.narration], opened: [], talk, usage: ctx.usage() };
+  return { present: presentCast(scene, view).map(c => c.id), entries: [greeting.value.narration], talk, usage: ctx.usage() };
 }

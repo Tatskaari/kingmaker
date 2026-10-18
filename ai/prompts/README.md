@@ -33,7 +33,7 @@ Each file is the standing brief for one role: how the GM runs the table ([gm.md]
 Much of what the models are told isn't here. Written in the code instead:
 
 - **the GM's brief and per-turn note:** `sceneBrief` and `nowNote` ([gm/brief.ts](../gm/brief.ts)), and the directives that say what was decided ([gm/directives.ts](../gm/directives.ts));
-- **the decider's questions:** the director ([gm/director.ts](../gm/director.ts)), disclosure and the attention filter ([docs/](../docs/));
+- **the decider's questions:** the director's parked questions ([gm/director.ts](../gm/director.ts)) and the attention filter ([docs/](../docs/));
 - **the boundary:** the hand-off, the verdict and the fronts ([gm/boundary.ts](../gm/boundary.ts));
 - **the stage manager** ([gm/stage.ts](../gm/stage.ts)), **a talk's plan and lines** ([gm/talk.ts](../gm/talk.ts)), and **the suggested lines' brief and judge** ([gm/suggest.ts](../gm/suggest.ts));
 - **the builds** ([rules/builds.ts](../rules/builds.ts)), **the backstory** ([docs/backstory.ts](../docs/backstory.ts)) and **the look inventions** ([look/invent.ts](../look/invent.ts)).

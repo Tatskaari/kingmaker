@@ -4,7 +4,7 @@ import type { ToolCall } from "./tools.ts";
  * A stand-in for OpenRouter, for tests that play real turns with no network (src/report/report.test.ts):
  * the game's own calls, through its own code, answered here.
  *
- * - The Decisions API (the decider, disclosure): every question gets its quietest choice (none,
+ * - The Decisions API (the decider): every question gets its quietest choice (none,
  *   not_yet, on_track, in_character...), or its first; or the choice `choices` names for it, or of
  *   a list it names, the first the question offers (`"ending": ["open-case", "hobb-talks"]` ends
  *   each scene at the first of them it has).

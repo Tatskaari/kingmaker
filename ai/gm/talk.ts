@@ -312,8 +312,8 @@ export async function planTalk(state: TurnView, scene: Scene, talk: TalkOpen, ho
  * what the GM takes as given; that one thing fills the talk's discovery (its revelation, and its
  * paths: how it shows before it comes out, and the heart of it, earned as readily as the plan says,
  * or readier where a talk from before left it nearer), and goes on their card as the scenes' cards
- * have a secret (a tell, then the thing itself); the deepest, held back, is named as not this talk's
- * and its note withheld. With nothing to confide, the discovery isn't this talk's. Returned for the
+ * have a secret (a tell, then the thing itself); the deepest, held back, is named as not this talk's.
+ * With nothing to confide, the discovery isn't this talk's. Returned for the
  * open's commit to keep (the prototype wrote it to the session); the opening choices only when lines
  * are suggested (the controller's setting).
  */
@@ -323,11 +323,11 @@ export function prepareTalk(state: TurnView, scene: Scene, talk: TalkOpen, plann
   const record = talk.record;
   const suggestions = talk.suggest ? choices(prep.suggestions ?? []) : [];
   const told = (prep.told ?? []).map(t => t.trim().replace(/\.$/, "")).filter(Boolean);
-  // The deepest stays out of the talk however it comes up: named as not this talk's, and its note withheld.
-  const withheld = held ? [held.path] : [];
+  // The deepest stays out of the talk however it comes up: named as not this talk's (its note was
+  // withheld from disclosure too, until disclosure went).
   const note = prep.willing === "yes" ? confidences(state, talk.with).find(d => d.path === prep.note && d.path !== held?.path) : undefined;
   const knew = knewThere(state, talk.with, name);
-  if (!note || !prep.what?.trim()) return { established: [...facts(state, name, record, talk.where, talk.lead, told, undefined, held), ...knew], patches: [nothingToConfide(state.turn)], withheld, suggestions };
+  if (!note || !prep.what?.trim()) return { established: [...facts(state, name, record, talk.where, talk.lead, told, undefined, held), ...knew], patches: [nothingToConfide(state.turn)], suggestions };
   const topic = prep.topic?.trim() || titleOf(note);
   const what = prep.what.trim();
   const confide: Confide = { note: note.path, topic, what };
@@ -337,7 +337,7 @@ export function prepareTalk(state: TurnView, scene: Scene, talk: TalkOpen, plann
     // Once it's out, the co-GM takes the way into it (never on the player's say-so): the talk's record and the GM's notes on them have it then.
     { turn: state.turn, why: `${topic}: what ${name} might confide in this talk, and the ways it can come out.`, fill: { id: TOLD, revelation: what, paths: confidePaths(talk.with, prep, what, ready) } },
   ];
-  return { established: [...facts(state, name, record, talk.where, talk.lead, told, topic, held), ...knew], patches, confide, withheld, suggestions };
+  return { established: [...facts(state, name, record, talk.where, talk.lead, told, topic, held), ...knew], patches, confide, suggestions };
 }
 
 /** Nothing to confide this time (unwilling, nothing left to tell, or a prep that failed): the talk's discovery isn't this talk's, nor the way into it. */
@@ -415,8 +415,7 @@ export function talkLore(scene: Scene, view: TurnView): string | undefined {
 /**
  * The GM's notes on the companion from play (docs/notes.ts gmNotes: how they stand with the player
  * and why, what they've seen the player do and learned, the promises, what they did), for a talk's
- * mouthpiece, in its per-turn note, as the old talk's GM had their memory index (and each turn what
- * disclosure opened of it); the co-GM has them among the notes on the people here (two-part.ts
+ * mouthpiece, in its per-turn note, as the old talk's GM had their memory index; the co-GM has them among the notes on the people here (two-part.ts
  * notesOnPeople). None for a scene that isn't a talk.
  */
 export function talkNotes(scene: Scene, view: TurnView): string | undefined {

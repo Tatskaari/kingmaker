@@ -4,11 +4,11 @@ import type { Path } from "../scene/document.ts";
 import type { Beat, Essential, Scene, Transition } from "../scene/types.ts";
 
 /**
- * The GM's bookkeeping for a scene: where it stands in its beats, what's been settled, the notes
- * open, the endings coming, what the story handed on to it at the boundary before it (story-design
- * §4.1), a talk's own state (town-design §3.6), and the two-part GM's (its co-GM's roles and notes). The simulation keeps it in
- * the private `gm_state` table, a column a field, and sends it whole in every request to the AI
- * service. The field names are the prototype's (src/runtime/session.ts), so the code copied from it
+ * The GM's bookkeeping for a scene: where it stands in its beats, what's been settled, the endings
+ * coming, what the story handed on to it at the boundary before it (story-design §4.1), a talk's own
+ * state (town-design §3.6), and the two-part GM's (its co-GM's roles and notes). The simulation
+ * keeps it in the private `gm_state` table, a column a field, and sends it whole in every request
+ * to the AI service. The field names are the prototype's (src/runtime/session.ts), so the code copied from it
  * reads this unchanged.
  */
 export interface GmState {
@@ -24,8 +24,6 @@ export interface GmState {
   landed: string[];
   /** The essentials a reply has already pointed towards: a nudge is given once, not repeated. */
   hinted: string[];
-  /** The notes disclosure has open for the scene, the newest 24. */
-  opened: OpenedNote[];
   /** The story reached an ending; the next player turn is the wind-down, then the scene closes. */
   closing?: { exitId: string; turn: number };
   /** The ending this turn's reply closes the scene on. */
@@ -60,8 +58,6 @@ export interface GmState {
   entered: string[];
   // A talk with a companion between scenes (town-design §3.6; the prototype's session.ts:268, 333),
   // under the prototype's names: absent in a scene that has none.
-  /** Notes disclosure keeps out of the scene (memory.withheld): a talk's, the deepest of the companion's story before its time. */
-  withheld?: string[];
   /** A talk's own: with whom (their cast id), where and when, and the one thing they might open up about this time. */
   talk?: TalkState;
   // The two-part GM's (docs/two-part-design.md): what its co-GM keeps between turns.
@@ -122,9 +118,6 @@ export interface OwedRow { from: string; id: string; hinted: boolean; things: st
  */
 export interface PathStep { turn: number; from: string; to: string; via: string; roll?: RollResult; source: "pre" | "post" | "repair"; known?: number }
 
-/** A note disclosure has opened for a scope (`p`: how sure it was, on the turn it opened; not kept). */
-export interface OpenedNote { path: string; title: string; scope: string; turn: number; p?: number }
-
 
 /** Changes made to the scene's prep during play (a talk's, the boundary's; the old co-GM's until it went): src/runtime/session.ts:104-121. */
 export interface ScenePatch {
@@ -148,7 +141,7 @@ export interface ScenePatch {
 /** A scene's bookkeeping as it opens: its start reached and its stage, nothing else yet. */
 export function initialGm(scene: Pick<Scene, "start">): GmState {
   return {
-    beat: scene.start, reached: [scene.start], turnsInBeat: 0, path: [], established: [], landed: [], hinted: [], opened: [],
+    beat: scene.start, reached: [scene.start], turnsInBeat: 0, path: [], established: [], landed: [], hinted: [],
     pressureOffered: [], patches: [],
     adjustments: [], owed: [], fought: [], absent: [], entered: [],
     twoPart: { roles: {}, notes: [] },
@@ -169,7 +162,6 @@ export interface GmRow {
   established: string[];
   landed: string[];
   hinted: string[];
-  opened: Array<{ path: string; title: string; scope: string; turn: number }>;
   closing: { exitId: string; turn: number } | undefined;
   ended: { exitId: string; turn: number } | undefined;
   pressureOffered: string[];
@@ -185,7 +177,6 @@ export interface GmRow {
   held: number | undefined;
   brawl: Brawl | undefined;
   absent: string[];
-  withheld: string[];
   /** TalkState, `with` as `companion`; confide an empty option when there's none. */
   talk: { companion: string; where: string; confide: Confide | undefined } | undefined;
   /** The nodes reached, in order: empty in a row from before them, read as the stage alone. */
@@ -214,7 +205,6 @@ export function gmToRow(sceneId: bigint, gm: GmState): GmRow {
     sceneId, beat: gm.beat, turnsInBeat: gm.turnsInBeat,
     path: gm.path.map(pathRowOf),
     established: [...gm.established], landed: [...gm.landed], hinted: [...gm.hinted],
-    opened: gm.opened.map(({ path, title, scope, turn }) => ({ path, title, scope, turn })),
     closing: gm.closing ? { ...gm.closing } : undefined,
     ended: gm.ended ? { ...gm.ended } : undefined,
     pressureOffered: [...gm.pressureOffered],
@@ -228,7 +218,6 @@ export function gmToRow(sceneId: bigint, gm: GmState): GmRow {
     held: gm.held,
     brawl: gm.brawl ? brawlOf(gm.brawl) : undefined,
     absent: [...gm.absent],
-    withheld: [...(gm.withheld ?? [])],
     talk: gm.talk ? { companion: gm.talk.with, where: gm.talk.where, confide: gm.talk.confide ? { ...gm.talk.confide } : undefined } : undefined,
     reached: [...gm.reached],
     twoPart: {
@@ -247,7 +236,6 @@ export function gmFromRow(row: GmRow): GmState {
     beat: row.beat, turnsInBeat: row.turnsInBeat,
     path: row.path.map(pathStepOf),
     established: [...row.established], landed: [...row.landed], hinted: [...row.hinted],
-    opened: row.opened.map(n => ({ ...n })),
     ...(row.closing ? { closing: { ...row.closing } } : {}),
     ...(row.ended ? { ended: { ...row.ended } } : {}),
     pressureOffered: [...row.pressureOffered],
@@ -261,8 +249,7 @@ export function gmFromRow(row: GmRow): GmState {
     ...(row.held !== undefined ? { held: row.held } : {}),
     ...(row.brawl ? { brawl: brawlOf(row.brawl) } : {}),
     absent: [...row.absent],
-    // A row read from an older module (the dev tools' SQL) may lack the town's columns: none yet.
-    ...(row.withheld?.length ? { withheld: [...row.withheld] } : {}),
+    // A row read from an older module (the dev tools' SQL) may lack the town's column: none yet.
     ...(row.talk ? { talk: { with: row.talk.companion, where: row.talk.where, ...(row.talk.confide ? { confide: { ...row.talk.confide } } : {}) } } : {}),
     // A row from before M2 has no nodes reached: its stage stands for them.
     reached: row.reached?.length ? [...row.reached] : [row.beat],

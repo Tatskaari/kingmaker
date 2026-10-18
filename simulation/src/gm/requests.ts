@@ -42,7 +42,6 @@ export function openCall(tx: TxCtx, plan: OpenPlan): AiCall {
     stream: { turn: plan.turn },
     ...(plan.aftermath ? { aftermath: plan.aftermath, transcript: entriesOf(tx, at.scene.id) } : {}),
     ...(at.scene.kind === "talk" ? { talk: talkOpen(tx, at) } : {}),
-    ...(plan.twoPart && !plan.aftermath ? { twoPart: true } : {}),
   };
   return { endpoint: STEP_ENDPOINT.open, key, timeoutMs: STEP_TIMEOUT_MS.open, request };
 }

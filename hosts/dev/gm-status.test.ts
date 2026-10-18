@@ -11,7 +11,7 @@ function rows(gm: Row = {}, more: Partial<StatusRows> = {}): StatusRows {
     game: { id: 1, uid: "g1-abc" },
     scene: { id: 7, scene_key: "hanged-clerk", status: "live", turns: 2 },
     gm: {
-      scene_id: 7, beat: "yard", turns_in_beat: 2, path: [], established: [], landed: [], hinted: [], opened: [],
+      scene_id: 7, beat: "yard", turns_in_beat: 2, path: [], established: [], landed: [], hinted: [],
       closing: null, ended: null, pressure_offered: [],
       // The full GM's column as a V1 database has it once migrated: its default.
       patches: "[]",
@@ -36,7 +36,7 @@ test("a V1 game: the prototype's fields, and the full GM's there and empty", () 
   assert.deepEqual(status, {
     game: 1, uid: "g1-abc", scene: "hanged-clerk", status: "live", turn: 2,
     beat: "yard", turnsInBeat: 2, path: [], ended: null,
-    established: [], patches: [], landed: [], hinted: [], opened: [],
+    established: [], patches: [], landed: [], hinted: [],
     threat: null, held: null, brawl: null, absent: [],
     adjustments: [], opening: null, lead: null, owed: [], fought: [],
     reached: ["yard"], closing: null, roles: [], coGmNote: null, moved: null, heldOnce: null,
@@ -103,7 +103,6 @@ test("the scene's patches and the memory reviews, summarised as the prototype's 
   const status = statusOf(rows({
     path: [{ turn: 3, from: "yard", to: "yard", via: "ruling", roll, source: "pre", known: 2 }],
     patches: JSON.stringify(patches),
-    opened: [{ path: "Cast/Agnes Kell/memories/what-the-investigator-did.md", title: "What the investigator did", scope: "kell", turn: 4 }],
   }, {
     reviews: [
       { turn: 1, flags: ["seen", "promise"], reviews: [{ kind: "notes", changes: ['note cob seen: added "Was given a crown by the investigator for nothing."'] }] },
@@ -118,7 +117,6 @@ test("the scene's patches and the memory reviews, summarised as the prototype's 
 
   assert.deepEqual(status.path, ["3: yard -> yard via ruling (pre) [sleight_of_hand 19/12]"]);
   assert.deepEqual(status.patches, ["yard + The player waits in the loft to see who comes back for the boots."]);
-  assert.deepEqual(status.opened, ["4: kell: What the investigator did (Cast/Agnes Kell/memories/what-the-investigator-did.md)"]);
   assert.deepEqual(status.memoryReviews, ['1: seen, promise — note cob seen: added "Was given a crown by the investigator for nothing."', "2: nothing flagged", "3: improvised_detail [lore failed: tool limit reached]"]);
   assert.deepEqual(status.jobs, ["remember/remember: waiting, attempt 2 (503 from the AI service)"]);
   assert.deepEqual(status.latency, { avgFirstTextMs: 4000 });

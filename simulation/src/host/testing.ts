@@ -95,7 +95,7 @@ export const DEFAULTS: {
   open: OpenResponse; reactions: ReactionsResponse; reply: ReplyResponse; settle: SettleResponse; suggest: SuggestResponse;
   remember: RememberResponse; boundary: (request: BoundaryRequest) => BoundaryResponse; look: LooksResponse;
 } = {
-  open: { present: ["kell", "cob", "moll"], entries: [{ speaker: "gm", kind: "narration", text: "Sergeant Kell looks up from her notebook as you come through the gate. \"You'll be the King's investigator.\"" }], opened: [], usage: usage(2, 0.002) },
+  open: { present: ["kell", "cob", "moll"], entries: [{ speaker: "gm", kind: "narration", text: "Sergeant Kell looks up from her notebook as you come through the gate. \"You'll be the King's investigator.\"" }], usage: usage(2, 0.002) },
   reactions: { reactions: {}, usage: usage(0, 0) },
   reply: { entries: [{ speaker: "gm", kind: "narration", text: "Kell taps her pencil on the notebook. \"Noted.\"" }], gm: {}, firstTextMs: 3, usage: usage(1, 0.001) },
   settle: { ops: [], coGm: { roles: {}, moves: [], log: [] }, usage: usage(2, 0.0007) },

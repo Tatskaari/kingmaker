@@ -34,7 +34,6 @@ test("a scene of the story opens on the two-part GM: everyone present has a role
   const { host, script, scene } = await yard();
   const now = sceneNow(host, scene.id);
   const open = script.to("open")[0]!.body as OpenRequest;
-  assert.equal(open.twoPart, true);
   assert.deepEqual(Object.keys(open.gm.twoPart.roles), ["kell", "cob", "moll"], "Tull comes with the dead-cart");
   assert.match(open.gm.twoPart.roles.cob!.conversation_role, /^Characterise: stones and cheek/);
   assert.deepEqual(now.gm.twoPart.notes.map(n => n.turn), [-1]);

@@ -179,7 +179,6 @@ const PathStep = t.object("PathStep", {
   source: t.string(),
   known: t.option(t.u32()),
 });
-const OpenedNote = t.object("OpenedNote", { path: t.string(), title: t.string(), scope: t.string(), turn: t.u32() });
 const ExitAt = t.object("ExitAt", { exitId: t.string(), turn: t.u32() });
 /** Something the story still owes the player (shared/gm/state.ts OwedRow): its things by entity key, outermost first, and who holds them. */
 const OwedRow = t.object("OwedRow", {
@@ -218,8 +217,6 @@ export const gmState = table({ name: "gm_state" }, {
   established: t.array(t.string()),
   landed: t.array(t.string()),
   hinted: t.array(t.string()),
-  /** The newest 24. */
-  opened: t.array(OpenedNote),
   closing: t.option(ExitAt),
   ended: t.option(ExitAt),
   pressureOffered: t.array(t.string()),
@@ -243,8 +240,6 @@ export const gmState = table({ name: "gm_state" }, {
   owed: t.array(OwedRow).default([]),
   /** The combat exits already fought (the stand-in's). */
   fought: t.array(t.string()).default([]),
-  /** Notes disclosure keeps out of the scene: a talk's, the deepest of the companion's story before its time. */
-  withheld: t.array(t.string()).default([]),
   /** A talk's own: none in a scene of the story. */
   talk: t.option(TalkRow).default(undefined),
   /** The nodes the scene has reached, in order, its start first (shared/scene/beats.ts). None in a scene from before M2: its beat stands for them. */

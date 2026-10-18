@@ -51,7 +51,7 @@ export const isNotesPath = (path: string): boolean => /^(?:Cast|characters)\/.+\
 
 const none = (): Notes => ({ standing: [], seen: [], learned: [], promises: [], did: [] });
 
-/** Someone's notes as a doc of the game's copy (the old pipeline's disclosure starts each person's scope with it), or undefined when they have none. */
+/** Someone's notes as a doc of the game's copy (the memory block starts each person's scope with it), or undefined when they have none. */
 export function notesDoc(game: string, id: string): Doc | undefined {
   const path = notesPath(id);
   const text = docsConfig().overlay(game).read(path);

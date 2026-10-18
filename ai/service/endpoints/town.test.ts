@@ -110,7 +110,6 @@ function talkOpen(n: number, record: TalkRecord, suggest = true): OpenRequest {
     key: `${GAME}:s${10 + n}:t0:open`, game, player, scene: { id: String(10 + n), key: talkSceneId("kell", n), kind: "talk" }, pc: "pc:1",
     gm: talkGm(n), world: TOWN, party: [WIZARD], story: STORY, stream: { turn: "50" },
     talk: { with: "kell", where: "Granary Street in Caerwyn, evening", record, lead: "Kell is going down the river stairs to the Drowned Rat.", earlier: [], suggest },
-    twoPart: true,
   };
 }
 
@@ -163,7 +162,6 @@ test("a talk's open on the two-part GM: the mouthpiece streams Kell's greeting (
   assert.deepEqual(prep.suggestions, PLAN.suggestions);
   assert.ok(prep.suggestions.length >= 2 && prep.suggestions.length <= 4);
   // The deepest of her story (the stand-in's sift picks the first note: Cob) waits for a later talk.
-  assert.deepEqual(prep.withheld, [`${KELL}/knowledge/Cob.md`]);
   const facts = prep.established.join("\n");
   assert.match(facts, /This is the first time Wren Ashdown has stopped for a word with Sergeant Agnes Kell between scenes\./);
   assert.match(facts, /may open up about is the door at the Drowned Rat \(what they're keeping back: on their card, and the talk's discovery\), a piece at a time as the player earns it/);
@@ -171,7 +169,7 @@ test("a talk's open on the two-part GM: the mouthpiece streams Kell's greeting (
   assert.match(facts, /Where the story goes next, and how the time since passed, as Wren Ashdown knows it: Kell is going down the river stairs to the Drowned Rat\./);
 });
 
-test("the third talk: the deepest may come out (nothing withheld) and the plan reads the GM's truth; lines only when the controller has them suggested; a prep that fails keeps the facts the talk opened on, with nothing to confide", async () => {
+test("the third talk: the deepest may come out (nothing held back) and the plan reads the GM's truth; lines only when the controller has them suggested; a prep that fails keeps the facts the talk opened on, with nothing to confide", async () => {
   const third = setUp({ replies: [GREETING], byName: { talk: PLAN } });
   const opened = talkOpen(3, { count: 3, told: [{ note: `${KELL}/knowledge/Wendell Prout.md`, topic: "why Prout's case matters to her", turn: 9 }] }, false);
   const earlier: Entry[] = [
@@ -180,7 +178,7 @@ test("the third talk: the deepest may come out (nothing withheld) and the plan r
   ];
   const req = { ...opened, talk: { ...opened.talk!, earlier } };
   const prep = (await pipeline.open(req, third.contextFor(req.key))).talk!;
-  assert.deepEqual(prep.withheld, []);
+  assert.doesNotMatch(prep.established.join("\n"), /Not in this talk, however it comes up/);
   const planned = inputOf(formatted(third.fake, "talk")[0]!);
   assert.match(planned, /## The truth about them \(the GM's notes\)/);
   assert.match(planned, /## What they've already told the player of their own story\n- why Prout's case matters to her/);
@@ -190,7 +188,7 @@ test("the third talk: the deepest may come out (nothing withheld) and the plan r
 
   const failing = setUp({ replies: [GREETING], capped: { talk: 0.001 } });
   const failed = (await pipeline.open(talkOpen(2, { count: 2, told: [] }), failing.contextFor(`${GAME}:s12:t0:open`))).talk!;
-  assert.deepEqual([failed.patches.map(p => p.drop), failed.confide, failed.withheld, failed.suggestions], [[TOLD], undefined, [], []], "the talk's discovery isn't this talk's");
+  assert.deepEqual([failed.patches.map(p => p.drop), failed.confide, failed.suggestions], [[TOLD], undefined, []], "the talk's discovery isn't this talk's");
   assert.match(failed.established.join("\n"), /keeps their own story to themselves/);
 });
 
@@ -198,7 +196,7 @@ test("the third talk: the deepest may come out (nothing withheld) and the plan r
 function afterOpen(prep: TalkPrep): GmState {
   const gm = talkGm();
   return {
-    ...gm, established: prep.established, patches: prep.patches, withheld: prep.withheld,
+    ...gm, established: prep.established, patches: prep.patches,
     talk: { with: "kell", where: "Granary Street in Caerwyn, evening", ...(prep.confide ? { confide: prep.confide } : {}) },
   };
 }
@@ -327,5 +325,5 @@ test("the service: a looks request with no things, or a talk with someone who ha
 
   const opened = await post("/v1/scenes/open", { ...talkOpen(1, { count: 1, told: [] }), key: `${GAME}:s22:t0:open` });
   assert.equal(opened.status, 200);
-  assert.deepEqual(opened.body.talk, { established: [], patches: [{ turn: 0, why: "Canned: nothing to confide.", drop: TOLD }], withheld: [], suggestions: ["How are you keeping?", "What do you make of it all?"] });
+  assert.deepEqual(opened.body.talk, { established: [], patches: [{ turn: 0, why: "Canned: nothing to confide.", drop: TOLD }], suggestions: ["How are you keeping?", "What do you make of it all?"] });
 });
