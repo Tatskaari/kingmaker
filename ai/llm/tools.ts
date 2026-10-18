@@ -20,6 +20,13 @@ export async function runTools(request: {
   model?: string; effort?: Effort; maxTurns?: number;
   /** Whose calls these are, when they're kept apart from the process's (the AI service's requests). */
   calls?: CallContext;
+  /**
+   * How long a round may take before it's asked again, once (a provider that stalls usually answers
+   * the second time), and how long the whole loop may take, every round and its retry in it. Without
+   * them a round has 180 s and the loop no limit, as it always had: a background review can wait, a
+   * think on a turn's way (the two-part GM's co-GM, M2) can't.
+   */
+  roundMs?: number; deadlineMs?: number;
 }, call: (name: string, args: Record<string, unknown>) => Promise<unknown>): Promise<{ text: string; calls: ToolCall[]; costUsd: number; latencyMs: number }> {
   const model = request.model ?? LUNA;
   const context = request.calls;
@@ -27,19 +34,14 @@ export async function runTools(request: {
   const calls: ToolCall[] = [];
   let costUsd = 0, corrections = 0;
   const started = performance.now();
+  const deadline = request.deadlineMs === undefined ? Infinity : started + request.deadlineMs;
   for (let turn = 0; turn < (request.maxTurns ?? 12); turn++) {
     const body = {
       model, instructions: request.instructions, input: items, store: false, include: ["reasoning.encrypted_content"],
       reasoning: { effort: request.effort ?? "medium" },
       tools: request.tools.map(t => ({ type: "function", name: t.name, description: t.description, parameters: t.parameters, strict: false })),
     };
-    const response = await fetchWithRetry("https://openrouter.ai/api/v1/responses", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${context?.apiKey ?? apiKey()}`, "Content-Type": "application/json", "X-Title": "Kingmaker V2 PoC" },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(180_000),
-    }, request.operation, context);
-    const json = await response.json() as { status?: string; output?: OutputItem[]; usage?: { cost?: number }; error?: { message?: string }; incomplete_details?: { reason?: string } };
+    const { response, json } = await round(request.operation, body, context, request.roundMs ?? 180_000, deadline);
     if (!response.ok || json.status !== "completed") {
       logCall({ provider: "openrouter", operation: request.operation, model, error: json.error?.message ?? `status ${json.status} ${json.incomplete_details?.reason ?? ""}` }, context);
       throw new Error(`${request.operation}: ${json.error?.message ?? json.status ?? `HTTP ${response.status}`}`);
@@ -70,4 +72,32 @@ export async function runTools(request: {
     }
   }
   throw new Error(`${request.operation}: tool limit reached; review incomplete`);
+}
+
+type RoundJson = { status?: string; output?: OutputItem[]; usage?: { cost?: number }; error?: { message?: string }; incomplete_details?: { reason?: string } };
+
+/**
+ * One round's request and its answer, read whole: given `ms` (and no later than the deadline), and
+ * asked once more when it isn't answered in time while the deadline leaves room for it. A round
+ * past both is the loop's failure, in so many words.
+ */
+async function round(operation: string, body: Record<string, unknown>, context: CallContext | undefined, ms: number, deadline: number): Promise<{ response: Response; json: RoundJson }> {
+  for (let attempt = 0; ; attempt++) {
+    const left = deadline - performance.now();
+    const wait = Math.max(1, Math.min(ms, left));
+    try {
+      const response = await fetchWithRetry("https://openrouter.ai/api/v1/responses", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${context?.apiKey ?? apiKey()}`, "Content-Type": "application/json", "X-Title": "Kingmaker V2 PoC" },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(wait),
+      }, operation, context);
+      return { response, json: await response.json() as RoundJson };
+    } catch (error) {
+      if ((error as Error).name !== "TimeoutError") throw error;
+      const room = deadline - performance.now() > 1000;
+      logCall({ provider: "openrouter", operation, ...(attempt === 0 && room ? { warning: `a round had no answer in ${Math.round(wait)} ms: asked again` } : { error: `no answer in ${Math.round(wait)} ms` }) }, context);
+      if (attempt > 0 || !room) throw new Error(`${operation}: no answer in ${Math.round(wait)} ms`);
+    }
+  }
 }

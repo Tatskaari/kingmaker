@@ -422,6 +422,17 @@ export function coGmInstructions(scene: Scene, view: TurnView): string {
 }
 
 /**
+ * The co-GM is on the turn's way (the next line's reply waits for its note), so it can't wait as a
+ * background review does: a round with no answer in 20 s is asked again once, and the whole loop
+ * has 45 s, inside the settle's minute (shared/protocol/ai.ts STEP_TIMEOUT_MS), so the simulation
+ * never sends the settle again while it's still thinking. Past either it fails, and the turn goes
+ * on with the stage manager's work and everyone's roles as they were. (M2's live game had a round
+ * hang for 180 s, the tool loop's old limit, holding the turn three minutes.)
+ */
+export const CO_GM_ROUND_MS = 20_000;
+export const CO_GM_DEADLINE_MS = 45_000;
+
+/**
  * The co-GM after a reply: the roles it set (the latest for each person) and the moves it made, each
  * taken with beats.ts takeRoute on a copy of the bookkeeping as it went (so it was answered at once,
  * and the simulation, taking them again on its rows, gets the same), and what it called, in order.
@@ -430,7 +441,7 @@ export async function coGm(scene: Scene, view: TurnView, gm: GmState, check: Tur
   let state = structuredClone(gm);
   const roles: Record<string, TwoPartRole> = {};
   const moves: CoGmAnswer["moves"] = [];
-  const result = await runTools({ operation: "two-part.co-gm", instructions: coGmInstructions(scene, view), input: coGmInput(scene, view, check), tools: [UPDATE_ROLE, MOVE_SCENE], effort: "low", maxTurns: 16, calls }, async (name, args) => {
+  const result = await runTools({ operation: "two-part.co-gm", instructions: coGmInstructions(scene, view), input: coGmInput(scene, view, check), tools: [UPDATE_ROLE, MOVE_SCENE], effort: "low", maxTurns: 16, roundMs: CO_GM_ROUND_MS, deadlineMs: CO_GM_DEADLINE_MS, calls }, async (name, args) => {
     if (name === "move_scene") {
       const outcome: RouteOutcome = args.outcome === "success" || args.outcome === "failure" ? args.outcome : "none";
       const route = String(args.route_id);
