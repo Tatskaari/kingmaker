@@ -286,12 +286,20 @@ test("a move whose reason says it hasn't happened is refused, a cue's aside (its
     "Not reached; Hobb has asked what will become of him, but no fear, safe refuge, or Crown-witness option has yet been discussed.",
     "No one has yet revealed that Hobb fears for his mother or the noose, or what could protect her or offer him a way to swear for the Crown.",
     "Nothing has happened yet.",
+    // QA round qa2-1018's (g08's true book, taken a turn before it was read) and its probes'.
+    "The ledger has not been read or explained page by page, and no witness has yet sworn to its contents; Scrope has only offered it.",
+    "Cob told Bartholomew that the huge man with a bandaged right hand was in the loft, but Big Hobb Mallory has not been named or identified as the Drowned Rat's champion.",
+    "Cob testified that the huge man with a bandaged right hand was in the loft with the gentleman when Prout was killed, but nobody has yet named him Big Hobb Mallory or identified where to find him.",
+    "Cob testified that the enormous man with a bandaged right hand was present during the killing, but neither Cob nor Kell has yet identified him as Big Hobb Mallory or linked him to the Drowned Rat.",
+    "Sallow reaches for the ledger; neither Sallow nor the Crakes have drawn blades, so the fight route has not occurred.",
   ]) assert.ok(deniesItself(why), why);
   for (const why of [
     "Pip recognized that Prout was strangled and struck before being hoisted, and Kell confirmed the cord mark and head wound were not caused by hanging.",
     "No one caught him: Hobb got clean away up the river stairs.",
     "Kell hasn't been told, but Hobb has owned to the loft in his own words.",
     "Hobb has broken and begun to tell what he did.",
+    "Pip slipped in past Saul's deaf side; neither the Crakes nor Hep has yet noticed her.",
+    "Nobody has yet stopped them: Pip walks out of the land door with the true book under her arm.",
   ]) assert.ok(!deniesItself(why), why);
 
   const rat = sceneFile("drowned-rat");
