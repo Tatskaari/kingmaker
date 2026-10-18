@@ -37,6 +37,7 @@ test("a visit to the combat ring: a zoo game as a ready-made fighter, on the rin
   assert.deepEqual([fight.title, fight.place, fight.mapKey, fight.status], ["The combat ring", "the combat ring", "ring", "on"]);
   const board = boardOfRow(fight);
   assert.deepEqual(board.zoo, { exhibit: "ring", foes: "sallow" }, "the exhibit's first line-up, when none is picked");
+  assert.equal(board.time, "afternoon", "at the ring's scene's time of day, for the board's light");
   const who = Object.values(board.units).map(u => [u.id, u.side, u.role, `${u.at.x},${u.at.y}`]).sort();
   assert.deepEqual(who, [
     ["crake-1", "enemy", "bruiser", "6,3"], ["crake-2", "enemy", "bruiser", "10,3"], ["kell", "ally", "ally", "8,9"],

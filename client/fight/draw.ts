@@ -52,7 +52,7 @@ export function drawFight(model: FightModel, size: Viewport, options: DrawOption
   const hazards = { dust, fire, ...(board.flags["dust_exploded"] ? { scorched: dust } : {}) };
   const lit = Object.values(board.props).some(p => p.lit && p.state === "standing");
   const opts: RenderOptions = {
-    roofs: false, time: lit ? "night" : "afternoon", focus: pc, reveal: Object.values(play.stances).map(s => s.at), hazards, effects,
+    roofs: false, time: board.time ?? (lit ? "night" : "afternoon"), focus: pc, reveal: Object.values(play.stances).map(s => s.at), hazards, effects,
     t: options.t, ...(options.glyphs ? { glyphs: options.glyphs } : {}), ...(options.color === false ? { color: false } : {}), ...(options.pick ? { pick: options.pick } : {}),
     ...(marks.length ? { marks } : {}), ...(aimed?.at ? { cursor: aimed.at } : {}), ...(model.hover && !model.aim ? { hover: model.hover } : {}),
     ...(Object.keys(play.flash).length ? { flash: play.flash } : {}),

@@ -1,6 +1,7 @@
 // After the prototype's src/game/combat/model.ts at bc2ab1f: Side, Role, UnitState, Unit, Prop and LogLine as they are (LogLine's "said" kind is a typed line's, V13's, and goes); CombatG as FightBoard (the engine's campaign, its rng and the map are kept apart: fight_rules has the campaign, the fight row the map), with the setup's flags it plays by. New (M6, docs/combat-design.md): the fight's setup, its events (each one moment the screen plays, with its caption) and the player's options as the fight row carries them.
 import type { CombatantSetup, MapActor, Tile2 } from "../map/types.ts";
 import type { MapFile } from "../map/tiles.ts";
+import type { TimeOfDay } from "../scene/files.ts";
 
 /**
  * A fight on a map, as the simulation keeps it and a client reads it (docs/combat-design.md): who's
@@ -121,6 +122,8 @@ export interface FightBoard {
   fast?: boolean;
   /** The setup's: the zoo's exhibit and line-up it was set out from (M6), for fighting it again. */
   zoo?: ZooFight;
+  /** The setup's: when it happens, for the board's light (the zoo's ring in the afternoon); none, and a screen goes by its lights. */
+  time?: TimeOfDay;
 }
 
 /** Which of the zoo's exhibits a fight was set out from, and with which line-up of foes (shared/zoo/exhibits.ts). */
@@ -155,6 +158,8 @@ export interface FightSetup {
   fast?: boolean;
   /** The zoo's exhibit and line-up it's set out from (M6): a zoo fight, which the screen offers to fight again or with other foes. */
   zoo?: ZooFight;
+  /** When it happens (its scene's time of day), for the board's light. */
+  time?: TimeOfDay;
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -81,6 +81,7 @@ function openIn(tx: TxCtx, game: GameRow, player: PlayerRow, exhibit: Exhibit, l
  */
 export function exhibitSetup(tx: TxCtx, game: GameRow, exhibit: Exhibit, lineUp: LineUp, player: { name: string }, options: { fast?: boolean } = {}): FightSetup {
   const layout = layoutOf(tx, game, exhibit, lineUp);
+  const time = documentOf(sceneDefOf(tx, game, exhibit.scene)).time;
   return {
     title: exhibit.title,
     place: lowerFirst(layout.place.name),
@@ -96,6 +97,7 @@ export function exhibitSetup(tx: TxCtx, game: GameRow, exhibit: Exhibit, lineUp:
     fresh: true,
     ...(options.fast ? { fast: true } : {}),
     zoo: { exhibit: exhibit.id, foes: lineUp.id },
+    ...(time ? { time } : {}),
   };
 }
 
