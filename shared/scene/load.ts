@@ -70,6 +70,7 @@ function routeOf(e: Route): SceneRoute {
     ...(d.skill ? { skill: d.skill, dc: d.dc } : {}),
     ...(d.onFailure ? { onFailure: d.onFailure } : {}),
     ...(d.establishes?.length ? { establishes: [...d.establishes] } : {}),
+    ...(d.phase === "cue" && d.limit?.length ? { limit: d.limit.map(l => ({ exchanges: l.exchanges, ...(l.after ? { after: l.after } : {}), ...(l.until?.length ? { until: [...l.until] } : {}) })) } : {}),
   };
 }
 

@@ -596,10 +596,15 @@
       "type": "smoothstep",
       "label": "The noon bell",
       "data": {
-        "condition": "Once the player has the Hobb lead and has had their chances at the rest (talking Cob and Moll round, the body, Kell, the loft), or the investigation has stalled with nothing the player is pursuing. The noon bell is the outer limit: the cart comes then whatever has happened.",
+        "condition": "Once the player has the Hobb lead and has had their chances at the rest (talking Cob and Moll round, the body, Kell, the loft), or the investigation has stalled with nothing the player is pursuing. The noon bell is the outer limit, about twelve exchanges into the scene: the cart comes then, whatever has happened.",
         "phase": "cue",
         "skill": "",
-        "dc": 12
+        "dc": 12,
+        "limit": [
+          {
+            "exchanges": 12
+          }
+        ]
       }
     },
     {

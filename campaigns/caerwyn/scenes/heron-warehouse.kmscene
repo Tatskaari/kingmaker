@@ -1242,7 +1242,19 @@
         "condition": "The midnight bell: lavender on the air a minute before him, then the Master in at the land door. Bring it on once the player has had their chances before it (got in or tried to, looked about, had a word with Saul, Hep, Scrope or Hobb, a go at the book), or is waiting on the wharf or in hiding to see who comes, or has been caught and is being held for the Master. A player working the floor with their head down while they wait for a word, a look at the book or a chance at it isn't waiting for the Master: the floor gets its exchanges first. The bell is the outer limit: after a good while on the wharf without getting in (six exchanges or so), or a good while inside (five or so), he comes, whatever has happened.",
         "phase": "cue",
         "skill": "",
-        "dc": 12
+        "dc": 12,
+        "limit": [
+          {
+            "exchanges": 6,
+            "until": [
+              "floor"
+            ]
+          },
+          {
+            "exchanges": 5,
+            "after": "floor"
+          }
+        ]
       }
     },
     {
@@ -1340,10 +1352,16 @@
       "type": "smoothstep",
       "label": "The second bell",
       "data": {
-        "condition": "The second bell: the last sacks go down, the hatches go on, and the Patience casts off on the ebb with the King's grain aboard. Bring it on once the Master has been here a good while (six exchanges or so), or the player is hiding or dithering with nothing in hand and nothing they're waiting for. A player waiting for a moment they've named (the Master at the book to initial the page, a chance at the book, the moment to signal Kell) isn't dithering: that moment comes first. A player with the true book in hand and nobody holding them is leaving with it: that's 'Out with the true book', not this.",
+        "condition": "The second bell: the last sacks go down, the hatches go on, and the Patience casts off on the ebb with the King's grain aboard. Bring it on once the Master has been here a good while (six exchanges or so), or the player is hiding or dithering with nothing in hand and nothing they're waiting for. A player waiting for a moment they've named (the Master at the book to initial the page, a chance at the book, the moment to signal Kell) isn't dithering: that moment comes first. A player with the true book in hand and nobody holding them is leaving with it: that's 'Out with the true book', not this. The outer limit: eight exchanges after the Master comes in, the second bell rings, whatever is happening.",
         "phase": "cue",
         "skill": "",
-        "dc": 12
+        "dc": 12,
+        "limit": [
+          {
+            "exchanges": 8,
+            "after": "midnight"
+          }
+        ]
       }
     },
     {

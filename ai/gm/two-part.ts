@@ -1,11 +1,11 @@
-// Copied from PR #666's src/runtime/two-part.ts at origin/claude/two-part-gm c749270: FORMAT and SCHEMA (the reply format), routeLine, mouthpieceInstructions, characters, mouthpieceInput with gmText, speak, movedDirective, the wind-down's words (twoPartTurn's), the co-GM's tools (UPDATE_ROLE, MOVE_SCENE, CO_GM_TOOLS), coGmInput and coGm, whole but at the seams docs/two-part-design.md names. It reads a TurnView (gm/view.ts) for the session. Where the scene is, is shared/scene/beats.ts's (its stage, the routes open, a route taken) in place of the beat and its transitions; the prep ({{beats}}) is the scene format's, rendered as the design orders it, in place of beatsBlock; {{characters}} has the cards' whyHere and limits too, and the co-GM's each person's role palette and the clues via them. speak doesn't roll: the check comes back with its five outcomes, and the simulation rolls it; the narration streams through the game's markup (who says each line) as it's written. The per-turn note is twoPartNow, nowNote's copy (brief.ts) with the open routes. The co-GM's moves are beats.ts's takeRoute on a copy of the request's bookkeeping, and its answer is the roles it set and the moves it made, for the simulation to make again. The speakers paragraph is gm.md's, appended after the format.
+// Copied from PR #666's src/runtime/two-part.ts at origin/claude/two-part-gm c749270: FORMAT and SCHEMA (the reply format), routeLine, mouthpieceInstructions, characters, mouthpieceInput with gmText, speak, movedDirective, the wind-down's words (twoPartTurn's), the co-GM's tools (UPDATE_ROLE, MOVE_SCENE, CO_GM_TOOLS), coGmInput and coGm, whole but at the seams docs/two-part-design.md names. It reads a TurnView (gm/view.ts) for the session. Where the scene is, is shared/scene/beats.ts's (its stage, the routes open, a route taken) in place of the beat and its transitions; the prep ({{beats}}) is the scene format's, rendered as the design orders it, in place of beatsBlock; {{characters}} has the cards' whyHere and limits too, and the co-GM's each person's role palette and the clues via them. speak doesn't roll: the check comes back with its five outcomes, and the simulation rolls it; the narration streams through the game's markup (who says each line) as it's written. The per-turn note is twoPartNow, nowNote's copy (brief.ts) with the open routes. The co-GM's moves are beats.ts's takeRoute on a copy of the request's bookkeeping, and its answer is the roles it set and the moves it made, for the simulation to make again. The speakers paragraph is gm.md's, appended after the format. The co-GM's tools section, its input and its moves' answers have what QA round qa1-1018 showed they needed (docs/migration-log.md, M2's fixes from it): the turns counted, each cue's outer limit and whether it's overdue, what's true at each ending a route goes to, how to take a route, and a move whose own reason denies it refused.
 
 import { titleCase } from "../../shared/dice.ts";
 import type { GmState, TwoPartRole } from "../../shared/gm/state.ts";
 import { BANDS, type Band } from "../../shared/gm/two-part.ts";
 import type { Markup } from "../../shared/markup.ts";
 import type { CoGmAnswer, Reply, SpokenCheck, TurnCheck } from "../../shared/protocol/ai.ts";
-import { enteringAt, isDiscovery, isEvent, openRoutes, reachedOf, stageOf, takeRoute, targetsOf, type RouteOutcome } from "../../shared/scene/beats.ts";
+import { enteringAt, isDiscovery, isEvent, limitOf, openRoutes, reachedOf, reachedTurns, stageOf, takeRoute, targetsOf, type RouteOutcome } from "../../shared/scene/beats.ts";
 import { presentCast } from "../../shared/scene/graph.ts";
 import { unnamed } from "../../shared/scene/names.ts";
 import { SKILLS, type Character, type Exit, type Scene, type SceneRoute, type Skill } from "../../shared/scene/types.ts";
@@ -80,9 +80,12 @@ const listed = (scene: Scene, ids: string[]) => ids.map(id => named(scene, id)).
 /**
  * A route as the prep and the co-GM's input put it, with its id (the co-GM's handle on it): where
  * it goes from and to, what it needs reached first, its dice or that it's a cue, then ". When: "
- * and what has to have happened. The fake model reads this line (ai/llm/fake-openrouter.ts).
+ * and what has to have happened. The fake model reads this line (ai/llm/fake-openrouter.ts). The
+ * co-GM's open routes say more after it: into a discovery, its revelation (`revelation`); into an
+ * ending, how it went and what's true there (`ending`); and for a cue, how far its outer limit has
+ * run after the reply to `now.turn`, and whether it's overdue (`now`: limitOf).
  */
-export function routeLine(scene: Scene, r: SceneRoute, options: { revelation?: boolean } = {}): string {
+export function routeLine(scene: Scene, r: SceneRoute, options: { revelation?: boolean; ending?: boolean; now?: Where & Pick<GmState, "path"> & { turn: number } } = {}): string {
   const target = scene.beats.find(b => b.id === r.target);
   const needs = r.requires?.length ? `, once ${listed(scene, r.requires)} ${r.requires.length === 1 ? "is" : "are"} reached` : "";
   const how = r.skill
@@ -90,7 +93,38 @@ export function routeLine(scene: Scene, r: SceneRoute, options: { revelation?: b
     : r.phase === "cue" ? "; a cue: bring it about when its moment comes" : "";
   const discovery = !!target && isDiscovery(target);
   const when = r.condition.trim() || (discovery ? `its revelation has landed with the player${options.revelation && target.revelation ? ` (${target.revelation})` : ""}` : r.label);
-  return `- [${r.id}] from ${named(scene, r.source)} to ${named(scene, r.target)}${needs}${how}. When: ${when}`;
+  const exit = options.ending ? scene.exits.find(e => e.id === r.target) : undefined;
+  const more = [
+    ...(options.now ? [limitLine(scene, r, options.now)].filter(Boolean) : []),
+    ...(exit ? [`It's ${exit.result === "good" ? "a good" : exit.result === "bad" ? "a bad" : "a mixed"} ending. What's true there: ${exit.outcome}`] : []),
+  ];
+  return `- [${r.id}] from ${named(scene, r.source)} to ${named(scene, r.target)}${needs}${how}. When: ${more.length ? `${sentence(when)} ${more.join(" ")}` : when}`;
+}
+
+/** What the bookkeeping these read: the nodes reached and the stage. */
+type Where = Pick<GmState, "reached" | "beat">;
+
+/** Text ending as a sentence does, so more can follow it. */
+const sentence = (s: string) => (/[.!?]["'’”)\]]*$/.test(s.trim()) ? s.trim() : `${s.trim()}.`);
+
+const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] ?? "th"}`;
+
+/**
+ * A cue's outer limit as the co-GM reads it after the reply to `now.turn`: each count with how far
+ * it has run (which of its exchanges the next reply is), one whose beat isn't reached yet or that a
+ * beat has stopped saying so; then, once one still running has run out, that it's overdue. Empty
+ * for a route with none.
+ */
+function limitLine(scene: Scene, r: SceneRoute, now: Where & Pick<GmState, "path"> & { turn: number }): string {
+  const limit = limitOf(r, now, now.turn);
+  if (!limit) return "";
+  const counts = limit.counts.map(c => {
+    const what = c.after ? `${c.exchanges} after ${named(scene, c.after)}` : `${c.exchanges} exchanges into the scene`;
+    if (c.stopped) return `${what} (stopped: ${named(scene, c.stopped)} is reached)`;
+    if (c.next === undefined) return `${what} (not reached yet)`;
+    return `${what} (${c.after ? `reached on turn ${c.reachedOn}: the next reply is the ${ordinal(Math.max(1, c.next))} after it` : `the next reply is the ${ordinal(Math.max(1, c.next))}`})`;
+  });
+  return `Its outer limit, whichever runs out first: ${counts.join(", or ")}.${limit.overdue ? " Overdue: bring it about now." : ""}`;
 }
 
 /** The routes into a node, as the prep lists them under it. */
@@ -333,14 +367,16 @@ export function narrationSoFar(raw: string): string | undefined {
 /**
  * The scene moved on after the last reply (the co-GM took a route to an event), so this reply shows
  * it: the stage it's at now, and whoever that brings on, seen arriving. Moved on silently, the
- * corporal and his cart were simply in the lane, never seen coming.
+ * corporal and his cart were simply in the lane, never seen coming. One the story has already
+ * played (a role brought it about before the co-GM took its route) isn't played again: in QA round
+ * qa1-1018 Arlo made his third challenge twice, once by his role and again when it was moved to.
  */
 export function movedDirective(scene: Scene, view: TurnView): string | undefined {
   const moved = view.twoPart.moved;
   const stage = stageOf(scene, view);
   if (!moved || moved !== stage.id) return undefined;
   const arriving = enteringAt(scene, stage.id).map(c => c.called ?? c.name);
-  return `The scene has just moved on to "${stage.title}": ${stage.direction} Answer the player's turn first; then let it show in this reply${arriving.length ? `: ${arriving.join(" and ")} arrive${arriving.length === 1 ? "s" : ""} now, seen arriving` : ""}.`;
+  return `The scene has just moved on to "${stage.title}": ${stage.direction} Answer the player's turn first; then let it show in this reply${arriving.length ? `: ${arriving.join(" and ")} arrive${arriving.length === 1 ? "s" : ""} now, seen arriving` : ""}. If an earlier reply has already played it, it has happened: go on from it, and don't play it again.`;
 }
 
 /**
@@ -380,17 +416,25 @@ const MOVE_SCENE: ToolDef = {
     properties: {
       route_id: { type: "string", description: "The route's id, in square brackets in your prep." },
       outcome: { type: "string", enum: ["success", "failure", "none"], description: "For a route the dice decide: how the GM's check on it went. Otherwise 'none'." },
-      why: { type: "string", description: "What happened in the story that takes this route, in a sentence." },
+      why: { type: "string", description: "What happened in the story that takes this route, in a sentence. (Never what hasn't happened: then don't call move_scene.)" },
     },
   },
 };
 
 const CO_GM_TOOLS = `## Your tools
 - update_character_role: each character's role for the GM's next reply. While the scene is at a stage (where it starts, or the latest of its events), that stage's suggested roles are your default for each character; what a character remembers, wants, has been promised or owes, and what just happened, can give them a better reason, and then that wins. Keep each role to what they do or could reveal next, and what they hold back for now.
-- move_scene: when what one of the open routes describes has happened in the story (a discovery's revelation has landed, or a cue's moment has come), take it. Only the routes listed as open can be taken. When the scene moves to a new stage, update the roles for it. Don't hold the scene at a stage the story has already moved past; don't take a route for something that hasn't happened yet.
+  - Write a role as behaviour the GM can show (what they do, say or want next, what they won't say) and what they hold back, never as analysis of the game: the GM voices what it's given, so "the promise has found his fear" ends up said aloud. Leave routes, beats and discoveries out of it.
+  - Once something has happened in the story (a challenge made, a name given, a secret told), move everyone's role past it: nobody's role still has it to do, or it gets played twice.
+  - A cue is brought about by taking its route (the GM shows it in the next reply), not by writing it into someone's role.
+- move_scene: when what one of the open routes describes has happened in the story (a discovery's revelation has landed, or a cue's moment has come), take it. Only the routes listed as open can be taken. When the scene moves to a new stage, update the roles for it. Don't hold the scene at a stage the story has already moved past.
+  - Take a route only when its condition has happened in the story as written, all of it. A condition about what the player does (makes the case, goes after someone, leaves) needs the player to have done it: someone else doing it for them, someone asking them to, or the player planning it isn't that.
+  - Call move_scene only for a route whose moment has come, never to note that one hasn't: a route that hasn't happened needs no call, so don't go through them one by one.
+  - When more than one open route fits, take the one whose ending matches what the player achieved. Each route into an ending says what's true there: read it against the story so far (a player who got the whole story out of someone has the ending where it was told, even if the way they leave matches another route's words).
+  - Each cue says how far its outer limit has run. An overdue cue is brought about: take its route now, unless its condition says it's no longer needed.
+  - If a reply has already played out what an open route describes (an event a role brought about), take that route now and write the roles from after it.
 Then reply "done".`;
 
-function coGmInput(scene: Scene, view: TurnView, check: TurnCheck | undefined): Message[] {
+export function coGmInput(scene: Scene, view: TurnView, check: TurnCheck | undefined): Message[] {
   const stage = stageOf(scene, view);
   const present = presentCast(scene, view);
   const open = openRoutes(scene, view);
@@ -398,15 +442,24 @@ function coGmInput(scene: Scene, view: TurnView, check: TurnCheck | undefined): 
   const notes = Object.entries(stage.cast ?? {}).filter(([id]) => present.some(c => c.id === id));
   return [{ role: "user", content: [
     `# The scene so far\n\n${scriptTranscript(scene, view)}`,
-    `# Where the scene is: ${stage.title} [${stage.id}]\nIt has been here for ${view.turnsInBeat} exchange${view.turnsInBeat === 1 ? "" : "s"}. Reached so far: ${reachedOf(view).map(id => `[${id}]`).join(", ")}.${notes.length ? `\nSuggested roles while it's here:\n${notes.map(([id, n]) => `- ${id}: ${n}`).join("\n")}` : ""}`,
+    `# Where the scene is: ${stage.title} [${stage.id}]\nIt's turn ${view.turn}: the scene has had ${view.turn} exchange${view.turn === 1 ? "" : "s"} since the opening (turn 0), and it has been at this stage for ${view.turnsInBeat} of them. Reached so far: ${reachedAt(view)}.${notes.length ? `\nSuggested roles while it's here:\n${notes.map(([id, n]) => `- ${id}: ${n}`).join("\n")}` : ""}`,
     `# The targets\nThe discoveries not reached yet:\n${targetsOf(scene, view).map(b => `- ${b.title} [${b.id}]${b.required ? " (required)" : ""}: ${b.revelation}`).join("\n") || "- (none: every discovery is reached)"}`,
-    `# Open routes\n${open.map(r => routeLine(scene, r, { revelation: true })).join("\n") || "- (none)"}`,
+    `# Open routes\n${open.map(r => routeLine(scene, r, { revelation: true, ending: true, now: view })).join("\n") || "- (none)"}`,
     ...(check ? [`# This turn's check\nThe GM called ${titleCase(check.skill)} DC ${check.dc}, and the roll came to ${check.total}: a ${check.success ? "success" : "failure"} (${check.band.replace("_", " ")}).${dice.length ? ` It is the check of ${dice.map(r => `[${r.id}]`).join(" and ")}: take ${dice.length === 1 ? "it" : "the one the player was attempting"} with outcome ${check.success ? "success" : "failure"} if that's what the player was attempting.` : ""}`] : []),
     ...(view.established.length ? [`# Established in play\n${view.established.map(f => `- ${f}`).join("\n")}`] : []),
     `# Current character roles\n\n${rolesBody(scene, view.twoPart.roles)}`,
     `# Who's on stage now\n${present.map(c => `- ${c.name} [${c.id}]`).join("\n")}`,
     `The GM's reply to turn ${view.turn} is the latest exchange. Update the roles that need it, and move the scene on if a route's moment has come.`,
   ].join("\n\n") }];
+}
+
+/** The nodes reached, in order, each with the turn it was reached on (the turn whose reply its move followed): "[start] (at the opening), [murder] (on turn 7)". The fake co-GM reads their ids off this line. */
+function reachedAt(view: TurnView): string {
+  const turns = reachedTurns(view);
+  return reachedOf(view).map((id, i) => {
+    const on = turns.get(id);
+    return `[${id}]${i === 0 ? " (at the opening)" : on === undefined ? "" : ` (on turn ${on})`}`;
+  }).join(", ");
 }
 
 /** Each person's role as the co-GM's note has it, without its heading. */
@@ -446,11 +499,14 @@ export async function coGm(scene: Scene, view: TurnView, gm: GmState, check: Tur
     if (name === "move_scene") {
       const outcome: RouteOutcome = args.outcome === "success" || args.outcome === "failure" ? args.outcome : "none";
       const route = String(args.route_id);
+      const why = String(args.why ?? "");
+      // A cue's move is what brings it about; any other records what has happened, and one whose reason says it hasn't is refused.
+      if (scene.routes.find(r => r.id === route)?.phase !== "cue" && deniesItself(why)) return `error: your reason says this hasn't happened, so [${route}] stays as it is: a move records what has happened in the story. If it has happened, say what happened; if not, leave it.`;
       const taken = takeRoute(scene, state, route, outcome, view.turn);
       if ("error" in taken) return `error: ${taken.error}`;
       state = taken.gm;
-      moves.push({ route, outcome, why: String(args.why ?? "") });
-      return movedText(scene, state, taken.reached);
+      moves.push({ route, outcome, why });
+      return movedText(scene, state, taken.reached, view.turn);
     }
     const id = String(args.char_id);
     if (!scene.cast.some(c => c.id === id)) return `error: no character "${id}" (ids: ${scene.cast.map(c => c.id).join(", ")})`;
@@ -460,9 +516,18 @@ export async function coGm(scene: Scene, view: TurnView, gm: GmState, check: Tur
   return { roles, moves, log: result.calls.map(c => ({ name: c.name, args: c.args, result: typeof c.result === "string" ? c.result : JSON.stringify(c.result) })), costUsd: result.costUsd };
 }
 
-/** What a move the co-GM made comes to, for it to go on from: an ending, a new stage (its suggested roles, who arrives), a discovery made, or a check failed with nowhere to go. */
-function movedText(scene: Scene, gm: GmState, reached: string | undefined): string {
-  const open = () => openRoutes(scene, gm).map(r => r.id).join(", ") || "none";
+/**
+ * What a move the co-GM made comes to, for it to go on from: an ending, a new stage (its suggested
+ * roles, who arrives), a discovery made, or a check failed with nowhere to go; then the routes open
+ * now, and any cue still overdue after the reply to `turn`, which a co-GM that had just recorded a
+ * discovery would otherwise leave (QA round qa1-1018's probe).
+ */
+export function movedText(scene: Scene, gm: GmState, reached: string | undefined, turn: number): string {
+  const open = () => {
+    const routes = openRoutes(scene, gm);
+    const overdue = routes.filter(r => limitOf(r, gm, turn)?.overdue);
+    return `${routes.map(r => r.id).join(", ") || "none"}${overdue.length ? `. Still overdue: ${overdue.map(r => `[${r.id}]`).join(", ")}: bring ${overdue.length === 1 ? "it" : "them"} about now` : ""}`;
+  };
   const exit = scene.exits.find(e => e.id === reached);
   if (exit) return `The scene is ending: ${exit.title}. The GM closes it on the next reply.`;
   const beat = scene.beats.find(b => b.id === reached);
@@ -472,4 +537,22 @@ function movedText(scene: Scene, gm: GmState, reached: string | undefined): stri
   }
   if (beat) return `Reached "${beat.title}": the player has it now. Open routes now: ${open()}.`;
   return `Taken; the scene stays at "${stageOf(scene, gm).title}". Open routes now: ${open()}.`;
+}
+
+/**
+ * A move's reason that says what it records hasn't happened ("Not yet: Hobb hasn't been asked his
+ * master's name", "No discovery: the player hasn't found the page", "but he has not yet explained
+ * its entries", "do not move this discovery"). QA round qa1-1018's co-GM gave six in eight games,
+ * each taking a discovery the player hadn't made or a way in they hadn't taken, and its replays more.
+ * The ways of saying it are those the round used: on its 45 moves they catch the six and nothing else.
+ */
+export function deniesItself(why: string): boolean {
+  return [
+    /^\W*(?:not (?:yet )?(?:reached|happened|landed|revealed)|not yet|no discovery|nothing (?:has )?happened)\b/i,
+    /\b(?:has|have|had|is|are|was|were)(?: not|n't) yet\b/i,
+    /\bnot yet (?:been|reached|landed|revealed|happened)\b/i,
+    /\bno one has (?:yet )?(?:revealed|discovered|found|said|told|shown|asked|offered|sought)\b/i,
+    /\b(?:do|should|must)(?: not|n't) (?:move|take)\b/i,
+    /\b(?:has|have)(?: not|n't) (?:yet )?happened\b/i,
+  ].some(p => p.test(why));
 }

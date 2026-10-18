@@ -11,7 +11,7 @@ import type { Scene } from "../../shared/scene/types.ts";
 import { fakeFetch, readPrep, walkTo, type FakeOptions } from "../llm/fake-openrouter.ts";
 import type { CallContext } from "../llm/openrouter.ts";
 import { CAERWYN, viewAt } from "./fixtures.ts";
-import { closingDirective, coGm, coGmInstructions, mouthpieceInput, mouthpieceInstructions, movedDirective, narrationSoFar, prepOf, pressureOffered, routeLine, speak, twoPartNow } from "./two-part.ts";
+import { closingDirective, coGm, coGmInput, coGmInstructions, deniesItself, mouthpieceInput, mouthpieceInstructions, movedDirective, movedText, narrationSoFar, prepOf, pressureOffered, routeLine, speak, twoPartNow } from "./two-part.ts";
 import type { TurnView } from "./view.ts";
 
 /**
@@ -74,6 +74,7 @@ test("once the co-GM has moved the scene on, the next reply shows it, with whoev
   assert.equal(movedDirective(clerk, view), undefined, "nothing to show until the co-GM has moved it");
   view.twoPart.moved = "cart-arrives";
   assert.match(movedDirective(clerk, view)!, /moved on to "The dead-cart arrives"[\s\S]*the corporal with the dead-cart's order arrives now, seen arriving|moved on to "The dead-cart arrives"[\s\S]*arrives now, seen arriving/);
+  assert.match(movedDirective(clerk, view)!, /seen arriving\. If an earlier reply has already played it, it has happened: go on from it, and don't play it again\.$/, "a move the story had already played (Arlo's third challenge, qa1-1018 g08) isn't played twice");
 });
 
 test("the prep in the design's order: the scene (its truth and clock, what locals know, the player), where it starts, the discoveries with their paths, the events, the endings; never the people, the old endings or the table rules", () => {
@@ -123,6 +124,98 @@ test("a route into a discovery is taken once its revelation has landed: the co-G
   assert.equal(routeLine(clerk, find), "- [find-murder] from Stones at a hanged man [start] to The victim was murdered [murder]. When: its revelation has landed with the player");
   assert.match(routeLine(clerk, find, { revelation: true }), /When: its revelation has landed with the player \(Prout didn't hang himself: he was struck and strangled, then hoisted up on the sack hoist to look like a suicide\.\)$/);
   assert.doesNotMatch(twoPartNow(clerk, yard(), []), /struck and strangled/);
+});
+
+test("the co-GM's input counts the turns: the scene's turn, the turn each node was reached on, and how far each open cue's outer limit has run, overdue once the next reply reaches it; the mouthpiece's note has none of it", () => {
+  const rat = sceneFile("drowned-rat");
+  const view = viewAt(rat, rat.start, { turn: 0, turnsInBeat: 0 });
+  delete view.world;
+  let gm = { ...view } as unknown as GmState;
+  for (const [turn, route] of [[6, "arlo-calls-him-out"], [9, "find-the-heron"]] as const) {
+    const taken = takeRoute(rat, gm, route, "none", turn);
+    if ("error" in taken) assert.fail(taken.error);
+    gm = taken.gm;
+  }
+  const at = (turn: number) => ({ ...view, ...gm, turn, turnsInBeat: turn - 7 }) as unknown as TurnView;
+  const input = (turn: number) => coGmInput(rat, at(turn), undefined)[0]!.content;
+  assert.match(input(13), /^# Where the scene is: Arlo's third challenge \[arlos-challenge\]\nIt's turn 13: the scene has had 13 exchanges since the opening \(turn 0\), and it has been at this stage for 6 of them\. Reached so far: \[start\] \(at the opening\), \[arlos-challenge\] \(on turn 6\), \[the-heron\] \(on turn 9\)\.$/m);
+  const bell = (turn: number) => input(turn).split("\n").find(l => l.startsWith("- [bell-rings]"))!;
+  assert.match(bell(13), /it rings then, whatever is happening\. Not needed once Hobb has fled\. Its outer limit, whichever runs out first: 15 exchanges into the scene \(the next reply is the 14th\), or 8 after Arlo's third challenge \[arlos-challenge\] \(reached on turn 6: the next reply is the 7th after it\)\.$/);
+  assert.match(bell(14), /\(reached on turn 6: the next reply is the 8th after it\)\. Overdue: bring it about now\.$/, "eight after Arlo's challenge: it rings in the next reply");
+  const fresh = coGmInput(rat, { ...view, turn: 3 } as TurnView, undefined)[0]!.content.split("\n").find(l => l.startsWith("- [bell-rings]"))!;
+  assert.match(fresh, /or 8 after Arlo's third challenge \[arlos-challenge\] \(not reached yet\)\.$/);
+  const talking = takeRoute(rat, { ...view } as unknown as GmState, "hobb-breaks", "none", 3);
+  if ("error" in talking) assert.fail(talking.error);
+  const arlo = coGmInput(rat, { ...view, ...talking.gm, turn: 9 } as unknown as TurnView, undefined)[0]!.content.split("\n").find(l => l.startsWith("- [arlo-calls-him-out]"))!;
+  assert.match(arlo, /Its outer limit, whichever runs out first: 6 exchanges into the scene \(stopped: I only held the rope \[hobb-talking\] is reached\)\.$/, "not once Hobb is talking: past its six, and not overdue");
+  const note = twoPartNow(rat, at(14), []);
+  assert.match(note, /- \[bell-rings\] [^\n]*it rings then, whatever is happening\. Not needed once Hobb has fled\.\n/, "the mouthpiece's route line is as it was");
+  assert.doesNotMatch(note, /Its outer limit, whichever|Overdue|on turn 6/);
+});
+
+test("an open route into an ending says how it went and what's true there, for the co-GM; the mouthpiece's note and the prep keep the line as it was", () => {
+  const view = yard({ reached: ["start", "murder", "hobb", "cart-arrives"], beat: "cart-arrives", turn: 14 });
+  const lines = coGmInput(clerk, view, undefined)[0]!.content.split("\n");
+  const signed = clerk.routes.find(r => r.id === "signed-murder")!;
+  assert.equal(lines.find(l => l.startsWith("- [signed-murder]")), `${routeLine(clerk, signed)} It's a good ending. What's true there: ${clerk.exits.find(e => e.id === "murder-unknown")!.outcome}`);
+  assert.match(lines.find(l => l.startsWith("- [signed-suicide]"))!, /\. It's a mixed ending\. What's true there: The player has the Hobb lead but couldn't show murder/);
+  assert.match(lines.find(l => l.startsWith("- [case-lost]"))!, /\. It's a bad ending\. What's true there: The player failed/);
+  assert.doesNotMatch(twoPartNow(clerk, view, []), /What's true there/);
+  assert.doesNotMatch(prepOf(clerk, view, { coGm: true }), /It's a good ending/, "the prep has the endings under their own headings");
+});
+
+test("the co-GM's tools: a route only as its condition is written, the player's own act for a condition about it; no move for what hasn't happened; the ending the player achieved; an overdue cue brought about; roles as behaviour, moved past what has happened", () => {
+  const tools = coGmInstructions(clerk, yard()).split("## Your tools\n")[1]!;
+  for (const line of [
+    "Take a route only when its condition has happened in the story as written, all of it. A condition about what the player does (makes the case, goes after someone, leaves) needs the player to have done it",
+    "Call move_scene only for a route whose moment has come, never to note that one hasn't",
+    "When more than one open route fits, take the one whose ending matches what the player achieved.",
+    "An overdue cue is brought about: take its route now, unless its condition says it's no longer needed.",
+    "Write a role as behaviour the GM can show",
+    "move everyone's role past it: nobody's role still has it to do",
+    "A cue is brought about by taking its route",
+  ]) assert.ok(tools.includes(line), line);
+  assert.ok(tools.trimEnd().endsWith('Then reply "done".'));
+});
+
+test("a move whose reason says it hasn't happened is refused, a cue's aside (its move is what brings it about); a move's answer names any cue still overdue", async () => {
+  // The round's own: each took a discovery the player hadn't made or a way in they hadn't taken (g08, g06, g01, g05, g07, g02), then the replays'.
+  for (const why of [
+    "No one has sought Cob or earned his trust, and the page has not been revealed; do not move this discovery.",
+    "Not yet: Hobb has confessed his part in the loft but has not been asked for or given his master's name.",
+    "Scrope has explained why the true account exists and linked it to Wendell's discovery, but he has not yet explained its entries page by page, offered testimony, or otherwise",
+    "Hobb told Grunda to show the brass token and take a sack, but Grunda has not yet done so or otherwise entered; the route's condition has not happened.",
+    "Not yet: the boot has only been offered for inspection; Pip has not yet discovered that it contains Prout’s page or learned what the entries mean.",
+    "Cob's account of the late-night argument, a thump, choking, and the hoist creaking without sacks strongly points to a staged hanging, but Corvin has not yet reached the f",
+    "No discovery: the player has not yet learned about or uncovered the page sewn into Cob's boot.",
+    "Not reached; Hobb has asked what will become of him, but no fear, safe refuge, or Crown-witness option has yet been discussed.",
+    "No one has yet revealed that Hobb fears for his mother or the noose, or what could protect her or offer him a way to swear for the Crown.",
+    "Nothing has happened yet.",
+  ]) assert.ok(deniesItself(why), why);
+  for (const why of [
+    "Pip recognized that Prout was strangled and struck before being hoisted, and Kell confirmed the cord mark and head wound were not caused by hanging.",
+    "No one caught him: Hobb got clean away up the river stairs.",
+    "Kell hasn't been told, but Hobb has owned to the loft in his own words.",
+    "Hobb has broken and begun to tell what he did.",
+  ]) assert.ok(!deniesItself(why), why);
+
+  const rat = sceneFile("drowned-rat");
+  const view = viewAt(rat, rat.start, { turn: 15, turnsInBeat: 0 });
+  delete view.world;
+  const gm = { ...view } as unknown as GmState;
+  const answers: string[] = [];
+  const asking: typeof fetch = async (_url, init) => {
+    const body = JSON.parse(String(init!.body)) as { input: Array<{ type?: string; output?: string }> };
+    const outputs = body.input.filter(i => i.type === "function_call_output");
+    if (outputs.length) { answers.push(...outputs.map(o => JSON.parse(o.output!) as string)); return Response.json({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: "done" }] }], usage: { cost: 0 } }); }
+    const move = (route: string, why: string) => ({ type: "function_call", call_id: route, name: "move_scene", arguments: JSON.stringify({ route_id: route, outcome: "none", why }) });
+    return Response.json({ status: "completed", output: [move("find-the-page", "No discovery: the player has not yet learned of the page."), move("find-the-heron", "Nan told them the token opens the Heron.")], usage: { cost: 0 } });
+  };
+  const answer = await coGm(rat, view, gm, undefined, { fetch: asking, apiKey: "test" });
+  assert.deepEqual(answer.moves.map(m => m.route), ["find-the-heron"], "the page isn't taken on a reason that says it wasn't found");
+  assert.match(answers[0]!, /^error: your reason says this hasn't happened, so \[find-the-page\] stays as it is/);
+  assert.match(answers[1]!, /^Reached "Where the grain goes: the Heron": the player has it now\. Open routes now: [a-z, -]+\. Still overdue: \[arlo-calls-him-out\], \[bell-rings\]: bring them about now\.$/);
+  assert.doesNotMatch(movedText(rat, gm, "the-heron", 3), /overdue/i, "nothing overdue on turn 3");
 });
 
 test("the narration is read as the reply streams: its escapes undone, an escape cut off part-way held back, nothing before it starts", () => {

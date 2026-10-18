@@ -696,10 +696,15 @@
       "type": "smoothstep",
       "label": "Master Sallow steps in",
       "data": {
-        "condition": "Only while Master Sallow is free this morning (not in a cell, not fled). The player asks for him to be made to explain himself in front of the King ('call him in', 'ask him where the grain went'), or says his name where the gallery can hear; or the King sends for him of his own accord, once he has heard a case against an officer of the Crown (he likes to hear everyone); or Sallow comes in by himself, to have the King's ear before the investigator has finished. No dice: the King grants it at once ('Garran, ask Master Sallow to step in'). The outer limit: if he's free and hasn't been in by the time the Marshal calls fifteen minutes, he knocks and comes in to pay his respects before the procession, and to offer to look into any irregularities himself, after the Assembly.",
+        "condition": "Only while Master Sallow is free this morning (not in a cell, not fled). The player asks for him to be made to explain himself in front of the King ('call him in', 'ask him where the grain went'), or says his name where the gallery can hear; or the King sends for him of his own accord, once he has heard a case against an officer of the Crown (he likes to hear everyone); or Sallow comes in by himself, to have the King's ear before the investigator has finished. No dice: the King grants it at once ('Garran, ask Master Sallow to step in'). The outer limit: if he's free and hasn't been in by the time the Marshal calls fifteen minutes (about eight exchanges into the scene), he knocks and comes in to pay his respects before the procession, and to offer to look into any irregularities himself, after the Assembly.",
         "phase": "cue",
         "skill": "",
-        "dc": 12
+        "dc": 12,
+        "limit": [
+          {
+            "exchanges": 8
+          }
+        ]
       }
     },
     {
@@ -722,10 +727,18 @@
       "type": "smoothstep",
       "label": "What's to be done",
       "data": {
-        "condition": "The player has told the King what they found (who killed Prout, and why) and shown or named what proof they have, in their own way, and asks him for something: to act today, to arrest or charge Sallow, to set the record straight, to keep a promise. Or they've been talking a good while (about four exchanges) without coming to the point. If Sallow is in the room, he has his say first (his own route). The outer limit: the Marshal calls five minutes, and the King asks, gently, what he is to do.",
+        "condition": "The player has told the King what they found (who killed Prout, and why) and shown or named what proof they have, in their own way, and asks him for something: to act today, to arrest or charge Sallow, to set the record straight, to keep a promise. Or they've been talking a good while (about four exchanges) without coming to the point. If Sallow is in the room, he has his say first (his own route). The outer limit: the Marshal calls five minutes (about twelve exchanges into the scene, unless Sallow is in the room, when his own route has it), and the King asks, gently, what he is to do.",
         "phase": "cue",
         "skill": "",
-        "dc": 12
+        "dc": 12,
+        "limit": [
+          {
+            "exchanges": 12,
+            "until": [
+              "face-to-face"
+            ]
+          }
+        ]
       }
     },
     {
@@ -738,7 +751,13 @@
         "condition": "Sallow has been in the room a good while (about four exchanges) and answered for himself, giving himself away or not, or the player has finished with him: the Marshal calls the time, and the King turns back to the investigator to ask what he is to do.",
         "phase": "cue",
         "skill": "",
-        "dc": 12
+        "dc": 12,
+        "limit": [
+          {
+            "exchanges": 4,
+            "after": "face-to-face"
+          }
+        ]
       }
     },
     {

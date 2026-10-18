@@ -98,6 +98,17 @@ test("the routes: none leaves an ending, what one requires is a beat, and only a
   ]);
 });
 
+test("a cue's outer limit counts from and until beats; every cue of the campaign has one", () => {
+  const limits = changed(SCENE, s => { route(s, "cart-comes").data.limit = [{ exchanges: 12, after: "murder-unknown" }, { exchanges: 6, until: ["start"] }]; });
+  assert.deepEqual(sceneChecks(limits), [
+    "scenes/hanged-clerk.kmscene: route cart-comes's outer limit counts from or until murder-unknown, which isn't a beat",
+    "scenes/hanged-clerk.kmscene: route cart-comes's outer limit counts from or until start, which isn't a beat",
+  ]);
+  const cues = Object.entries(files).filter(([path]) => path.endsWith(".kmscene")).flatMap(([path, text]) => (JSON.parse(text!).edges as any[]).filter(e => e.data.phase === "cue").map(e => [path, e.id, e.data.limit?.length ?? 0]));
+  assert.ok(cues.length >= 8, `the campaign's cues: ${cues.length}`);
+  assert.deepEqual(cues.filter(([, , counts]) => !counts), [], "every cue says when it comes whatever is happening, in exchanges");
+});
+
 test("a discovery: a revelation, two paths or more, three for a required one with one free of dice, each path whole and via the cast or a thing; never behind a roll alone", () => {
   const paths = changed(SCENE, s => {
     node(s, "murder").paths = node(s, "murder").paths.slice(0, 1);
