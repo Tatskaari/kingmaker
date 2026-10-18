@@ -9,8 +9,8 @@ import {AddPicker,Checkbox,Chips,ChoiceField,IdField,ItemCard,LoreLinks,NumberFi
 import type {Option} from './fields.tsx';
 import {EffectsEditor} from './effects.tsx';
 import {FactsField} from './facts.tsx';
-import {EXIT_KINDS,ORDER,SKILLS,addRoute,idProblem,isBeat,isDiscovery,isEnding,isStart,makeDiscovery,makeEvent,moveRoutes,nodeKind,optionalList,removeNodes,removeRoutes,renameNode,renameRoute,retitleNode,setArrival,setNodeField,setRouteField,titleOf,updateNode,updateRoute,withKey} from './model.ts';
-import type {BeatData,Connection,EndingData,NodeKind,Path,Route,SceneDocument,SceneNode,StartData} from './model.ts';
+import {EXIT_KINDS,ORDER,SKILLS,addRoute,changeKind,idProblem,isBeat,isDiscovery,isEnding,isStart,kindLosses,moveRoutes,nodeKind,optionalList,removeNodes,removeRoutes,renameNode,renameRoute,retitleNode,setArrival,setNodeField,setRouteField,titleOf,updateNode,updateRoute,withKey} from './model.ts';
+import type {BeatData,Connection,EndingData,NewNodeKind,NodeKind,Path,Route,SceneDocument,SceneNode,StartData} from './model.ts';
 
 export const KIND_LABELS:Record<NodeKind,string>={start:'Start',discovery:'Discovery',event:'Event',ending:'Ending'};
 const SKILL_LABEL=(skill:string)=>skill.replace(/_/g,' ').replace(/^./,letter=>letter.toUpperCase());
@@ -55,7 +55,7 @@ export function NodeInspector({node}:{node:SceneNode}){
   };
   return <div className={`node-inspector ${kind}`} data-node={node.id}>
     <header className="inspector-header">
-      {isBeat(node)&&<BeatKind node={node}/>}
+      {kind!=='start'&&<NodeKindField node={node}/>}
       <IdField id={node.id} problem={next=>idProblem(next,doc.nodes.map(other=>other.id),node.id)} onRename={next=>{edit(scene=>renameNode(scene,node.id,next));renamed('node',node.id,next)}} warning={RENAME_NODE}/>
     </header>
     <TextField label="Title" field="title" value={node.data.title} onChange={value=>edit(scene=>retitleNode(scene,node.id,value))}/>
@@ -72,26 +72,32 @@ export function NodeInspector({node}:{node:SceneNode}){
   </div>;
 }
 
-/** A beat's kind, chosen: a discovery (with a revelation) or an event (without). What the other kind has no use for goes, after asking. */
-function BeatKind({node}:{node:SceneNode<BeatData>}){
+/** What each kind is, for the choice of a node's kind and the question before it changes. */
+const KIND_OPTIONS:Array<{value:NewNodeKind;label:string;detail:string}>=[
+  {value:'discovery',label:'Discovery',detail:'Something the player can come to understand, by any of its paths.'},
+  {value:'event',label:'Event',detail:'A turn the scene takes, and its new situation from then on.'},
+  {value:'ending',label:'Ending',detail:'One of the only ways the scene can end: good, mixed or bad, and what it does to the story.'},
+];
+const KIND_QUESTION:Record<NewNodeKind,{article:string;what:string;why:string}>={
+  discovery:{article:'a discovery',what:'something the player can come to understand',why:'a discovery is never the scene\'s stage'},
+  event:{article:'an event',what:'a turn the scene takes',why:'an event has none'},
+  ending:{article:'an ending',what:'one of the only ways the scene can end',why:'an ending has none, and no route leaves one'},
+};
+
+/** A node's kind, chosen (the start stays the start): a discovery, an event or an ending. What the new kind has no use for goes, after asking. */
+function NodeKindField({node}:{node:SceneNode}){
   const {doc,edit,confirm}=useScene();
-  const kind=isDiscovery(node)?'discovery':'event';
-  const change=(next:string)=>{
-    if(next===kind)return;
-    const d=node.data,title=d.title||node.id;
-    if(next==='event'){
-      const losing=[d.revelation?.trim()?'its revelation':'',d.paths?.length?`its ${d.paths.length} path${d.paths.length===1?'':'s'}`:'',d.required?'its required mark':''].filter(Boolean);
-      if(!losing.length){edit(scene=>makeEvent(scene,node.id));return}
-      confirm({title:'Make it an event?',confirmLabel:'Make it an event',description:`Make “${title}” an event, a turn the scene takes? ${sentence(losing)} go${losing.length===1?'es':''}: an event has none. You can undo this.`,onConfirm:()=>edit(scene=>makeEvent(scene,node.id))});
-      return;
-    }
-    const arriving=doc.cast.filter(member=>member.enters===node.id).length,roles=Object.keys(d.cast??{}).length;
-    const losing=[d.pressure!==undefined?'its pressure':'',roles?`its ${roles} conversation role${roles===1?'':'s'}`:'',arriving?`its ${arriving} arrival${arriving===1?'':'s'} (they're here from the start instead)`:''].filter(Boolean);
-    if(!losing.length){edit(scene=>makeDiscovery(scene,node.id));return}
-    confirm({title:'Make it a discovery?',confirmLabel:'Make it a discovery',description:`Make “${title}” a discovery, something the player can come to understand? ${sentence(losing)} go${losing.length===1?'es':''}: a discovery is never the scene's stage. You can undo this.`,onConfirm:()=>edit(scene=>makeDiscovery(scene,node.id))});
+  const kind=nodeKind(node);
+  const change=(value:string)=>{
+    const to=value as NewNodeKind;
+    if(to===kind)return;
+    const losing=kindLosses(doc,node.id,to),go=()=>edit(scene=>changeKind(scene,node.id,to));
+    if(!losing.length){go();return}
+    const {article,what,why}=KIND_QUESTION[to];
+    confirm({title:`Make it ${article}?`,confirmLabel:`Make it ${article}`,description:`Make “${node.data.title||node.id}” ${article}, ${what}? ${sentence(losing)} go${losing.length===1?'es':''}: ${kind==='ending'?'only an ending has them':why}. You can undo this.`,onConfirm:go});
   };
   return <div className="beat-kind">
-    <ChoiceField label="Kind" field="kind" value={kind} options={[{value:'discovery',label:'Discovery',detail:'Something the player can come to understand, by any of its paths.'},{value:'event',label:'Event',detail:'A turn the scene takes, and its new situation from then on.'}]} onChange={change}/>
+    <ChoiceField label="Kind" field="kind" value={kind} options={KIND_OPTIONS} onChange={change}/>
   </div>;
 }
 const sentence=(parts:string[])=>{const text=parts.length>1?`${parts.slice(0,-1).join(', ')} and ${parts.at(-1)}`:parts[0]??'';return text.charAt(0).toUpperCase()+text.slice(1)};

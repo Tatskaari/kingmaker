@@ -386,7 +386,8 @@ test('add a discovery and route it from the start, its ids slugs of its title; a
   await inspector(page).getByLabel('Title',{exact:true}).fill('Up in the tally loft');
   const scene=await saved(page);
   expect(node(scene,'the-tally-loft')).toEqual({id:'the-tally-loft',type:'story',position:node(scene,'the-tally-loft').position,data:{kind:'beat',title:'Up in the tally loft',description:'',revelation:'Someone dragged Prout across the loft to the hoist.',paths:[],lore:[]}});
-  expect(route(scene,'find-the-tally-loft')).toEqual({id:'find-the-tally-loft',source:'start',target:'the-tally-loft',type:'smoothstep',label:'Find The tally loft',data:{condition:'',phase:'outcome',skill:'',dc:12}});
+  // The route into it was labelled from its title, and keeps up with it.
+  expect(route(scene,'find-the-tally-loft')).toEqual({id:'find-the-tally-loft',source:'start',target:'the-tally-loft',type:'smoothstep',label:'Find Up in the tally loft',data:{condition:'',phase:'outcome',skill:'',dc:12}});
   await expect(card(page,'the-tally-loft')).toContainText('Up in the tally loft');
   await problems(page,2);
   await view(page,'Problems').click();
@@ -401,6 +402,13 @@ test('add a discovery and route it from the start, its ids slugs of its title; a
   await expect(card(page,'the-tally-loft')).toHaveClass(/\bevent\b/);
   await inspector(page).getByRole('radio',{name:'Discovery'}).check();
   await expect.poll(async()=>node(await saved(page),'the-tally-loft').data).toEqual({kind:'beat',title:'Up in the tally loft',description:'',revelation:'',paths:[],lore:[]});
+  // An ending too, and back: nothing written goes, so nothing's asked.
+  await inspector(page).getByRole('radio',{name:'Ending'}).check();
+  await expect.poll(async()=>node(await saved(page),'the-tally-loft').data).toEqual({kind:'exit',title:'Up in the tally loft',description:'',closing:'',result:'good',exitKind:'progress',lore:[]});
+  await expect(card(page,'the-tally-loft')).toHaveClass(/\bending\b/);
+  await expect(inspector(page).getByRole('radio',{name:'Good'})).toBeChecked();
+  await inspector(page).getByRole('radio',{name:'Discovery'}).check();
+  await expect.poll(async()=>node(await saved(page),'the-tally-loft').data).toEqual({kind:'beat',title:'Up in the tally loft',description:'',revelation:'',paths:[],lore:[]});
   // Its id, renamed only by asking: the route into it follows.
   await inspector(page).getByRole('button',{name:'Rename id the-tally-loft'}).click();
   await inspector(page).getByLabel('New id',{exact:true}).fill('loft');
@@ -408,6 +416,31 @@ test('add a discovery and route it from the start, its ids slugs of its title; a
   await expect.poll(async()=>route(await saved(page),'find-the-tally-loft').target).toBe('loft');
   await expect(page.locator('.node-inspector[data-node="loft"]')).toBeVisible();
   await expect(card(page,'loft')).toBeVisible();
+});
+
+test('an ending made a beat, and a beat an ending: asked first, what the new kind has no use for goes, and what named it as the old one',async({page})=>{
+  // The failed ending made an event: its closing and effects go.
+  await select(page,'failed');
+  await inspector(page).getByRole('radio',{name:'Event'}).click();
+  const asked=page.getByRole('alertdialog',{name:'Make it an event?'});
+  await expect(asked).toContainText('Its closing and its 4 effects go: only an ending has them.');
+  await asked.getByRole('button',{name:'Make it an event'}).click();
+  await expect.poll(async()=>node(await saved(page),'failed').data).toEqual({kind:'beat',title:'Failed',description:node(clerk(),'failed').data.description,lore:[]});
+  await expect(card(page,'failed')).toHaveClass(/\bevent\b/);
+  await undo(page);
+  await expect.poll(async()=>node(await saved(page),'failed').data).toEqual(node(clerk(),'failed').data);
+  // The dead-cart made an ending: its stage goes, and its routes out with it (no route leaves an ending).
+  await select(page,'cart-arrives');
+  await inspector(page).getByRole('radio',{name:'Ending'}).click();
+  const ending=page.getByRole('alertdialog',{name:'Make it an ending?'});
+  await expect(ending).toContainText('Its pressure, its 4 conversation roles, its 1 arrival (they\'re here from the start instead) and its 2 routes out (no route leaves an ending) go');
+  await ending.getByRole('button',{name:'Make it an ending'}).click();
+  await expect(card(page,'cart-arrives')).toHaveClass(/\bending\b/);
+  const after=await saved(page);
+  expect(node(after,'cart-arrives').data).toMatchObject({kind:'exit',closing:'',result:'good',exitKind:'progress'});
+  expect(after.edges.map((e:any)=>e.id)).toEqual(['find-murder','find-motive','find-hobb','cart-comes','case-lost']);
+  expect(person(after,'tull').enters).toBeUndefined();
+  await expect(inspector(page).locator('[data-field="result"]')).toBeVisible();
 });
 
 test('a route\'s requires, roll and facts, each with [+ Add …]; and an ending\'s next',async({page})=>{

@@ -533,6 +533,80 @@ export function makeDiscovery(doc:SceneDocument,id:string):SceneDocument{
   return {...next,cast:next.cast.map(member=>member.enters===id?withKey(member,'enters',undefined,ORDER.cast):member)};
 }
 
+/** What only a beat has, and what only an ending has: each goes when the node becomes the other. */
+const BEAT_ONLY=['revelation','paths','required','cast','pressure','establishes','carry'];
+const ENDING_ONLY=['closing','result','exitKind','next','effects'];
+
+/**
+ * A beat made an ending: what only a beat has goes (its revelation, paths and required mark, its
+ * conversation roles and pressure, the facts it settles, what the story carries), and it's a good
+ * progress ending with no closing yet, as a new one is. No route leaves an ending, so its routes out
+ * go; a route that required it requires it no more (only a beat is required), and whoever arrived there
+ * is here from the start. Its title, description, lore and its routes in stay.
+ */
+export function makeEnding(doc:SceneDocument,id:string):SceneDocument{
+  const node=doc.nodes.find(other=>other.id===id);
+  if(!node||!isBeat(node))return doc;
+  const next=updateNode(doc,id,data=>{
+    let ending=withKey(data,'kind','exit',ORDER.exit) as NodeData;
+    for(const key of BEAT_ONLY)ending=withKey(ending,key,undefined,ORDER.exit);
+    for(const [key,value] of [['closing',''],['result','good'],['exitKind','progress']] as const)ending=withKey(ending,key,value,ORDER.exit);
+    return ending;
+  });
+  const edges=next.edges.filter(route=>route.source!==id).map(route=>{
+    if(!route.data.requires?.includes(id))return route;
+    return {...route,data:withKey(route.data,'requires',optionalList(route.data.requires.filter(other=>other!==id)),ORDER.route)};
+  });
+  return {...next,edges,cast:next.cast.map(member=>member.enters===id?withKey(member,'enters',undefined,ORDER.cast):member)};
+}
+
+/** An ending made a beat, a discovery (an empty revelation and no paths yet) or an event: what only an ending has goes (its closing, result, exit kind, next scene and effects). The rest stays. */
+export function makeBeat(doc:SceneDocument,id:string,kind:'discovery'|'event'):SceneDocument{
+  const node=doc.nodes.find(other=>other.id===id);
+  if(!node||!isEnding(node))return doc;
+  return updateNode(doc,id,data=>{
+    let beat=withKey(data,'kind','beat',ORDER.beat) as NodeData;
+    for(const key of ENDING_ONLY)beat=withKey(beat,key,undefined,ORDER.beat);
+    if(kind==='discovery')beat=withKey(withKey(beat,'revelation','',ORDER.beat),'paths',[],ORDER.beat);
+    return beat;
+  });
+}
+
+/** A node made another kind, a discovery, an event or an ending, losing what the new kind has no use for (the start stays the start: a scene has exactly one). */
+export function changeKind(doc:SceneDocument,id:string,kind:NewNodeKind):SceneDocument{
+  const node=doc.nodes.find(other=>other.id===id);
+  if(!node||isStart(node)||nodeKind(node)===kind)return doc;
+  if(kind==='ending')return makeEnding(doc,id);
+  if(isEnding(node))return makeBeat(doc,id,kind);
+  return kind==='event'?makeEvent(doc,id):makeDiscovery(doc,id);
+}
+
+/**
+ * What a node would lose by becoming another kind, in words, for the author to be asked first ([] when
+ * nothing they wrote goes): its fields the new kind has no use for, and what else in the scene goes
+ * with it (an ending's routes out, what required it, who arrived there).
+ */
+export function kindLosses(doc:SceneDocument,id:string,kind:NewNodeKind):string[]{
+  const node=doc.nodes.find(other=>other.id===id);
+  if(!node||isStart(node)||nodeKind(node)===kind)return [];
+  const count=(n:number,one:string,many=`${one}s`)=>`${n} ${n===1?one:many}`;
+  if(isEnding(node)){
+    const d=node.data;
+    return [d.closing.trim()?'its closing':'',d.effects?.length?`its ${count(d.effects.length,'effect')}`:'',d.next?'its next scene':''].filter(Boolean);
+  }
+  const d=(node as SceneNode<BeatData>).data;
+  const revelation=[d.revelation?.trim()?'its revelation':'',d.paths?.length?`its ${count(d.paths.length,'path')}`:'',d.required?'its required mark':''];
+  const stage=[d.pressure!==undefined?'its pressure':'',Object.keys(d.cast??{}).length?`its ${count(Object.keys(d.cast??{}).length,'conversation role')}`:''];
+  const arriving=doc.cast.filter(member=>member.enters===id).length;
+  const arrivals=arriving?`its ${count(arriving,'arrival')} (they're here from the start instead)`:'';
+  if(kind==='event')return revelation.filter(Boolean);
+  if(kind==='discovery')return [...stage,arrivals].filter(Boolean);
+  const out=doc.edges.filter(route=>route.source===id).length,requiring=doc.edges.filter(route=>route.data.requires?.includes(id)).length;
+  return [...revelation,...stage,arrivals,
+    d.establishes?.length?`the ${count(d.establishes.length,'fact')} it settles`:'',d.carry?'what the story carries of it':'',
+    out?`its ${count(out,'route')} out (no route leaves an ending)`:'',requiring?`what ${count(requiring,'route')} require${requiring===1?'s':''} of it`:''].filter(Boolean);
+}
+
 // ---------------------------------------------------------------------------------------------
 // A new scene.
 

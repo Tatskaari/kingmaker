@@ -13,7 +13,7 @@ const bundle=async entry=>{
 };
 const model=await bundle('../src/scene/model.ts');
 const {campaignRootOf,contextOf,readCampaign,sceneKeyOf}=await bundle('../src/scene/campaign.ts');
-const {openSceneFile,serializeScene,SceneOpenError,withKey,ORDER,setSceneField,setNodeField,setRouteField,setCastField,addNode,addRoute,addCast,removeNodes,removeCast,addFact,removeFact,renameFact,settlesOf,testsOf,idProblem,renameNode,renameRoute,renameCast,makeEvent,makeDiscovery,moveRoutes,skeletonScene,slugOf,uniqueId,problemsOf,shapeOf,setArrival,freePosition,retitleNode}=model;
+const {openSceneFile,serializeScene,SceneOpenError,withKey,ORDER,setSceneField,setNodeField,setRouteField,setCastField,addNode,addRoute,addCast,removeNodes,removeCast,addFact,removeFact,renameFact,settlesOf,testsOf,idProblem,renameNode,renameRoute,renameCast,makeEvent,makeDiscovery,moveRoutes,skeletonScene,slugOf,uniqueId,problemsOf,shapeOf,setArrival,freePosition,retitleNode,changeKind,kindLosses}=model;
 
 const CAMPAIGN=new URL('../../../campaigns/caerwyn/',import.meta.url);
 const TESTDATA=new URL('../../../shared/scene/testdata/',import.meta.url);
@@ -246,6 +246,39 @@ test('a beat\'s kind changes with its revelation: an event has no paths, a disco
   assert.equal(data.pressure,undefined);
   assert.equal(discovery.cast.find(member=>member.id==='tull').enters,undefined,'who arrived there is here from the start');
   assert.deepEqual(shapeOf(discovery),[]);
+});
+
+test('a node changes kind, a beat to an ending and back, losing what the new kind has no use for and what named it as the old one',()=>{
+  const nodeOf=(doc,id)=>doc.nodes.find(node=>node.id===id);
+  // The dead-cart made an ending: its pressure, roles and arrival go, and its routes out (none leaves an ending).
+  assert.deepEqual(kindLosses(clerk(),'cart-arrives','ending'),['its pressure','its 4 conversation roles','its 1 arrival (they\'re here from the start instead)','its 2 routes out (no route leaves an ending)']);
+  const ending=changeKind(clerk(),'cart-arrives','ending');
+  assert.deepEqual(nodeOf(ending,'cart-arrives').data,{kind:'exit',title:'The dead-cart arrives',description:nodeOf(clerk(),'cart-arrives').data.description,closing:'',result:'good',exitKind:'progress',lore:[]});
+  assert.deepEqual(ending.edges.map(route=>route.id),['find-murder','find-motive','find-hobb','cart-comes','case-lost']);
+  assert.equal(ending.cast.find(member=>member.id==='tull').enters,undefined);
+  assert.deepEqual(shapeOf(ending),[]);
+  // A discovery made an ending: what required it requires it no more (only a beat is required).
+  assert.deepEqual(kindLosses(clerk(),'hobb','ending'),['its revelation','its 4 paths','its required mark','the 1 fact it settles','what the story carries of it','what 2 routes require of it']);
+  const hobb=changeKind(clerk(),'hobb','ending');
+  assert.deepEqual(hobb.edges.find(route=>route.id==='signed-murder').data.requires,['murder']);
+  assert.equal(hobb.edges.find(route=>route.id==='signed-suicide').data.requires,undefined);
+  assert.deepEqual(shapeOf(hobb),[]);
+  // An ending made a beat: its closing, effects and next scene go; a discovery's revelation and paths are to write.
+  assert.deepEqual(kindLosses(clerk(),'murder-unknown','event'),['its closing','its 6 effects','its next scene']);
+  const discovery=changeKind(clerk(),'failed','discovery');
+  assert.deepEqual(nodeOf(discovery,'failed').data,{kind:'beat',title:'Failed',description:nodeOf(clerk(),'failed').data.description,revelation:'',paths:[],lore:[]});
+  assert.deepEqual(Object.keys(nodeOf(changeKind(clerk(),'failed','event'),'failed').data),['kind','title','description','lore']);
+  assert.deepEqual(shapeOf(discovery),[]);
+  // And back: a fresh ending loses nothing it was given; beats switch as before; the start stays the start.
+  assert.deepEqual(kindLosses(ending,'cart-arrives','event'),[]);
+  assert.deepEqual(nodeOf(changeKind(ending,'cart-arrives','event'),'cart-arrives').data,{kind:'beat',title:'The dead-cart arrives',description:nodeOf(clerk(),'cart-arrives').data.description,lore:[]});
+  assert.deepEqual(kindLosses(clerk(),'murder','event'),['its revelation','its 5 paths']);
+  const doc=clerk();
+  assert.equal(changeKind(doc,'start','ending'),doc);
+  assert.equal(changeKind(doc,'murder','discovery'),doc);
+  // Unknown keys stay where they were.
+  const marked=setNodeField(doc,'failed','tone','grim');
+  assert.deepEqual(Object.keys(nodeOf(changeKind(marked,'failed','discovery'),'failed').data),['kind','title','description','revelation','paths','lore','tone']);
 });
 
 test('a new scene is the format\'s skeleton: a start, a discovery, an ending and a route, its ids slugs of their titles',()=>{
