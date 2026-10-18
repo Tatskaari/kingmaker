@@ -6,7 +6,7 @@
 // each line, what the player sees), with the fight's own instructions (ai/prompts/combat-gm.md) in
 // place of the reply format, and the fight as it stands after the scene's history.
 
-import { ACTION_VERBS, ACTS_A_TURN, COMBAT_OUTCOMES, COMBAT_VERBS, SIDE_PICKS, type CombatOutcome, type CombatVerb, type SidePick } from "../../shared/gm/combat.ts";
+import { ACTION_VERBS, ACTS_A_TURN, BESIDE_FEET, COMBAT_OUTCOMES, COMBAT_VERBS, SIDE_PICKS, type CombatOutcome, type CombatVerb, type SidePick } from "../../shared/gm/combat.ts";
 import type { Markup } from "../../shared/markup.ts";
 import type { CombatAction, CombatDone, CombatFighter, CombatMove, CombatView, Reply } from "../../shared/protocol/ai.ts";
 import { SKILLS, type Scene, type Skill } from "../../shared/scene/types.ts";
@@ -132,7 +132,7 @@ function fighterLine(f: CombatFighter, now: boolean, all: CombatFighter[]): stri
   const side = f.id === "player" ? "" : f.side === "party" ? ", with the player" : ", against the player";
   const state = f.out ? (f.out === "fled" ? "fled: out of the fight" : "gave up: out of the fight") : f.down ? "down: 0 hit points, out cold" : `${f.hurt}, HP ${f.hp}/${f.max}, AC ${f.ac}${f.conditions?.length ? `, ${f.conditions.join(", ")}${f.conditions.includes("prone") ? " (on the ground: getting up, stand, takes half their move)" : ""}` : ""}`;
   const reach = f.out ? "" : `; ${f.reach.melee ? "melee, reach 5 ft" : `ranged, ${f.reach.feet} ft`}, moves ${f.reach.speed} ft`;
-  const apart = f.out ? "" : Object.entries(f.feet).filter(([id]) => all.some(o => o.id === id && !o.out)).map(([id, ft]) => `${nameIn(all, id)} ${ft <= 5 ? "beside them" : `${ft} ft`}`).join(", ");
+  const apart = f.out ? "" : Object.entries(f.feet).filter(([id]) => all.some(o => o.id === id && !o.out)).map(([id, ft]) => `${nameIn(all, id)} ${ft <= BESIDE_FEET ? "beside them" : `${ft} ft`}`).join(", ");
   return `- ${name} [${f.id}]${side}, initiative ${f.initiative}: ${state}${reach}${apart ? `. From: ${apart}` : ""}${now ? "  ◀ their turn now" : ""}`;
 }
 
@@ -287,7 +287,7 @@ function checkMove(combat: CombatView, args: Record<string, unknown>): void {
   // hobo2-1018: a second move to the man he was already beside was a dash, which spent the swing.
   const to = String(args.target).trim();
   const feet = combat.fighters.find(f => f.id === combat.whose)?.feet[to];
-  if (!args.away && feet !== undefined && feet <= 7) throw new InvalidToolArguments(`${whose.name} is beside ${combat.fighters.find(f => f.id === to)?.name ?? to} already: no need to move. Go on with what they do.`);
+  if (!args.away && feet !== undefined && feet <= BESIDE_FEET) throw new InvalidToolArguments(`${whose.name} is beside ${combat.fighters.find(f => f.id === to)?.name ?? to} already: no need to move. Go on with what they do.`);
 }
 
 /** A held call as the move it is. */

@@ -172,6 +172,11 @@ test("the fake GM plays a turn: closes on its target, attacks, ends the turn; an
   assert.deepEqual(kells.move, { kind: "act", act: { action: "move", target: "cob", narration: "Sergeant Agnes Kell closes in." } });
   const over = await combatMove(clerk, yard(), fight("cob", { over: { outcome: "won", why: "Cob is down" } }), { calls, byKey });
   assert.equal(over.move.kind, "end_combat");
+  // Beside its target already, it doesn't close in (a move to someone beside them is refused): it swings.
+  const close = fight("cob");
+  close.fighters = close.fighters.map(f => (f.id === "cob" ? { ...f, feet: { ...f.feet, player: 5 } } : f));
+  const swung = await combatMove(clerk, yard(), close, { calls, byKey });
+  assert.deepEqual(swung.move, { kind: "act", act: { action: "attack", target: "player", narration: "Cob swings." } });
 });
 
 test("roll_for_initiative held to who's here: names read as ids, nobody on both sides, none without a foe", () => {

@@ -6,7 +6,7 @@
 // player's turn hands the scene back to them (their next line is their turn). The fight's end goes
 // on to the settle, so the stage manager and the co-GM pick the scene up from how it went.
 
-import { ACTS_A_TURN, nextTurn, overOf, whoseTurn, type CombatState, type Fighter } from "../../../shared/gm/combat.ts";
+import { ACTS_A_TURN, BESIDE_FEET, nextTurn, overOf, whoseTurn, type CombatState, type Fighter } from "../../../shared/gm/combat.ts";
 import { diceLine } from "../../../shared/gm/two-part.ts";
 import type { CombatAction, CombatDone, CombatFighter, CombatNewcomer, CombatResponse, Initiative, Outcome } from "../../../shared/protocol/ai.ts";
 import { idOf } from "../../../shared/protocol/keys.ts";
@@ -31,8 +31,8 @@ import type { Next } from "./move.ts";
 import type { CombatPlan, SayPlan } from "./plans.ts";
 import { atTurn, resolveAct, type At } from "./say-commits.ts";
 
-/** Close enough for a blow at arm's length: toward() stops 3 ft short, and the world rounds. */
-const SLACK = 2;
+/** Close enough for a blow at arm's length: toward() stops 3 ft short, and the world rounds (shared/gm/combat.ts BESIDE_FEET, 5 ft and this). */
+const SLACK = BESIDE_FEET - 5;
 
 /**
  * A fight breaks out (the reply's roll_for_initiative, or the co-GM's move into an event with a

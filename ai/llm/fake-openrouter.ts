@@ -222,8 +222,12 @@ function combatRound(body: Request, sides: NonNullable<FakeOptions["sides"]>): u
   const standing = (f: { state: string }) => !/^(fled|gave up|down)/.test(f.state);
   const target = whose?.foe ? "player" : fighters.find(f => f.foe && standing(f))?.id;
   const done = /## This turn so far\n([\s\S]*)$/.exec(note)?.[1]?.split("\n").filter(l => /^\d+\. /.test(l)).length ?? 0;
-  if (!whose || !target || done >= 2) return call("end_turn", { narration: `${whose?.name ?? "They"} steps back, breathing hard.` });
-  if (done === 0) return call("move_towards", { target, narration: `${whose.name} closes in.` });
+  // Beside the target already (the note's "From: … beside them"), there's no closing in: a move to them is refused.
+  const label = target === "player" ? "you" : fighters.find(f => f.id === target)?.name.split(" (")[0];
+  const beside = !!label && whose?.state.includes(`${label} beside them`);
+  const attacked = /perform_action attack/.test(note.split("## This turn so far")[1] ?? "");
+  if (!whose || !target || done >= 2 || attacked) return call("end_turn", { narration: `${whose?.name ?? "They"} steps back, breathing hard.` });
+  if (done === 0 && !beside) return call("move_towards", { target, narration: `${whose.name} closes in.` });
   return call("perform_action", { action: "attack", target, narration: `${whose.name} swings.` });
 }
 

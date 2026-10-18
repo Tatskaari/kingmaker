@@ -36,6 +36,14 @@ export const COMBAT_VERBS: readonly CombatVerb[] = ["attack", "cast", "grapple",
 /** The verbs that take a turn's action: one a turn. */
 export const ACTION_VERBS: ReadonlySet<CombatVerb> = new Set(["attack", "cast", "grapple", "shove", "check", "flee", "surrender"]);
 
+/**
+ * Close enough to strike at arm's length, in the world's feet: a melee blow's 5 ft, and the 2 more
+ * the world's moves leave (toward() stops 3 ft short, and the world rounds). The fight note's
+ * "beside them" and the move that isn't needed agree on it (QA: a GM told "6 ft" was refused a move
+ * as "beside already").
+ */
+export const BESIDE_FEET = 7;
+
 /** perform_action calls a turn may make before it has to end. */
 export const ACTS_A_TURN = 3;
 
