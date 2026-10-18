@@ -128,6 +128,16 @@ export function exhibitLayout(exhibit: Exhibit, lineUp: LineUp, files: ExhibitFi
   };
 }
 
+/** Where a scene exhibit starts the player (docs/combat-gm.md): the map that lays its scene's place, and the tile its place starts them on. */
+export function exhibitStart(exhibit: Exhibit, files: ExhibitFiles): { map: MapFile; player: Tile2 } {
+  const scene = files.scenes.find(s => s.id === exhibit.scene);
+  const place = scene && files.places.find(p => p.key === scene.place);
+  const laid = scene && layingRegion(files.maps, scene.id);
+  const spot = place?.people.player?.at;
+  if (!laid || !spot) throw new Error(`the exhibit ${exhibit.id}'s scene has no place laid on a map that starts the player`);
+  return { map: laid.map, player: feetToTile(laid.region, { x: spot[0], y: spot[1] }) };
+}
+
 /** The map and region that lay a scene's place: a region with its sceneId and a worldOrigin. */
 export function layingRegion(maps: MapFile[], sceneId: string): { map: MapFile; region: PlaceRegion } | undefined {
   for (const map of maps) {

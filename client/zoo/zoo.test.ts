@@ -22,7 +22,7 @@ test("the zoo as installed: its combat ring and line-ups, and who a visitor can 
   assert.equal(zooOf({ campaigns: [CAERWYN] }), undefined);
   const zoo = zooOf({ campaigns: [CAERWYN, ZOO_ROW] })!;
   assert.equal(zoo.title, "The zoo");
-  assert.deepEqual(zoo.exhibits.map(e => [e.id, e.title]), [["ring", "The combat ring"]]);
+  assert.deepEqual(zoo.exhibits.map(e => [e.id, e.title]), [["ring", "The combat ring"], ["toll", "The Crakes' toll"]]);
   assert.deepEqual(zoo.builds.map(b => b.title), ["The fighter", "The wizard", "The rogue"]);
   assert.match(zoo.builds[0]!.concept, /ex-sergeant of the river watch/);
   assert.equal(firstBuild(zoo), "fighter");

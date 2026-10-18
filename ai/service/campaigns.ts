@@ -21,9 +21,10 @@ import type { CampaignStore, DocsStore, VersionFiles } from "./stores.ts";
  * `creation`, v1-design §3.9: <campaign>.kmscenario, docs/scenario-format.md). A version never changes once installed (a release bumps it), so its
  * scenes are kept once read: the one cache of a game's content the service allows.
  *
- * The docs service has one lore root per process, so V0's service serves one campaign version: the
- * first request or PUT sets it, and a request for another gets 409 other_campaign (restart the
- * service to serve a new version).
+ * The docs service reads each game's lore from its own campaign's version (docs/combat-gm.md: the
+ * zoo served beside the story), so a service serves every version installed: a request sets its
+ * game's lore, and what's read with no game (character creation's world, the cast's entries) is the
+ * version the latest request or PUT named. (V0's served one version, and refused another with 409.)
  */
 
 /** An installed campaign version, as the endpoints read it. */
@@ -47,26 +48,26 @@ export interface Campaign {
 export interface Campaigns {
   /** A version installed from its files (PUT), every scene loaded with its words first. */
   put(campaign: string, version: string, files: Record<string, string>): Promise<CampaignPutAnswer>;
-  /** The version a request names, with the docs service pointed at its lore (400 not installed, 409 another is served). */
-  use(campaign: string, version: string): Campaign;
+  /** The version a request names, with the docs service pointed at its lore, the game's own when it's named (400 not installed). */
+  use(campaign: string, version: string, game?: string): Campaign;
   /** The installed versions, "caerwyn@0.1.0". */
   list(): string[];
 }
 
 export function campaigns(store: CampaignStore, docs: DocsStore): Campaigns {
   const read = new Map<string, Campaign>();
+  const lores = new Map<string, DocsVolume>();
   let serving: string | undefined;
 
-  /** The docs service's lore, set once: this version's lore/, and each game's copy in the docs store. */
-  const serve = (campaign: string, version: string, files: VersionFiles) => {
+  /** The docs service's lore: this version's lore/ (the game's, when it's named), and each game's copy in the docs store. */
+  const serve = (campaign: string, version: string, files: VersionFiles, game?: string) => {
     const id = `${campaign}@${version}`;
+    const lore = lores.get(id) ?? loreOf(files);
+    lores.set(id, lore);
+    if (game) configureDocs({ gameLore: { game, lore } });
     if (serving === id) return;
-    configureDocs({ lore: loreOf(files), overlay: game => docs.overlay(game) });
+    configureDocs({ lore, overlay: game => docs.overlay(game) });
     serving = id;
-  };
-  const refuseOther = (campaign: string, version: string) => {
-    const id = `${campaign}@${version}`;
-    if (serving && serving !== id) throw new Failure(409, "other_campaign", `this AI service serves ${serving}, not ${id}: restart it to serve another version`);
   };
 
   return {
@@ -79,21 +80,20 @@ export function campaigns(store: CampaignStore, docs: DocsStore): Campaigns {
       // The talk template loads with its words too, its placeholders as they are (town-design §3.6).
       if (file.talk) sceneFrom(file.talk, path => files[path]);
       checkVocabulary(files);
-      refuseOther(campaign, version);
 
       await store.put(campaign, version, files);
       read.delete(`${campaign}@${version}`);
+      lores.delete(`${campaign}@${version}`);
       serve(campaign, version, store.files(campaign, version)!);
 
       return { campaign, version, files: Object.keys(files).length, scenes: scenes.map(s => s.id) };
     },
 
-    use(campaign, version) {
+    use(campaign, version, game) {
       checkNames(campaign, version);
       const files = store.files(campaign, version);
       if (!files) throw new Failure(400, "bad_request", `campaign ${campaign}@${version} isn't installed here: PUT /v1/campaigns/${campaign}/${version} first`);
-      refuseOther(campaign, version);
-      serve(campaign, version, files);
+      serve(campaign, version, files, game);
 
       const id = `${campaign}@${version}`;
       const cached = read.get(id) ?? campaignAt(files, campaign, version);

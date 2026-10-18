@@ -14,6 +14,7 @@ import { creationKey } from "../../shared/protocol/keys.ts";
 import { initialGm } from "../../shared/gm/state.ts";
 import { withTestClerk } from "../gm/fixtures.ts";
 import { campaigns } from "./campaigns.ts";
+import { listDocs } from "../docs/docs.ts";
 import { readConfig } from "./config.ts";
 import { Failure, type Endpoints } from "./context.ts";
 import { canned } from "./endpoints/canned.ts";
@@ -379,15 +380,19 @@ test("health says what the ceiling is and what today's calls have cost", async (
   assert.deepEqual(JSON.parse((await ai.answer({ method: "GET", path: "/v1/health", headers: {}, body: "" })).body).budget, { dailyUsd: 5, spentToday: 0.0125 });
 });
 
-test("a version other than the one served is 409 other_campaign: the docs service has one lore root", async () => {
-  const { ai } = service();
-  await ai.answer(put());
+test("two versions served side by side (the zoo beside the story, docs/combat-gm.md): each game reads the lore of its own campaign's version", async () => {
+  const { ai, stores } = service();
+  assert.equal((await ai.answer(put())).status, 200);
   const files = withTestClerk(filesOf(CAERWYN));
   files["caerwyn.kmscenario"] = files["caerwyn.kmscenario"]!.replace('"0.1.0"', '"0.2.0"');
-  const other = await ai.answer(put("0.2.0", files));
+  files["lore/Only In Two.md"] = "---\nsummary: \"only in 0.2.0\"\n---\n# Only in two\n";
+  assert.equal((await ai.answer(put("0.2.0", files))).status, 200, "another version installs beside the first");
 
-  assert.equal(other.status, 409);
-  assert.equal(JSON.parse(other.body).error.code, "other_campaign");
+  const served = campaigns(stores.campaigns, stores.docs);
+  served.use("caerwyn", "0.1.0", "game-one");
+  served.use("caerwyn", "0.2.0", "game-two");
+  assert.ok(listDocs("game-two").includes("Only In Two.md"));
+  assert.ok(!listDocs("game-one").includes("Only In Two.md"), "the first game still reads its own version's lore");
 });
 
 test("anything an endpoint throws but a refusal is 500 model_failed, and nothing is stored", async () => {

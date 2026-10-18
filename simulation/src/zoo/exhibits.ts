@@ -3,14 +3,15 @@ import type { Identity } from "spacetimedb";
 import type { FightSetup } from "../../../shared/fight/types.ts";
 import { andList, refusal } from "../../../shared/protocol/refusals.ts";
 import type { CampaignFile } from "../../../shared/scene/files.ts";
-import { exhibitIn, exhibitLayout, exhibitsOf, lineUpOf, ZOO, type Exhibit, type ExhibitFiles, type LineUp } from "../../../shared/zoo/exhibits.ts";
+import { exhibitIn, exhibitLayout, exhibitStart, exhibitsOf, lineUpOf, ZOO, type Exhibit, type ExhibitFiles, type LineUp } from "../../../shared/zoo/exhibits.ts";
 import { actorOf, Refused, type TxCtx } from "../context.ts";
 import { boardOfRow, fightOf } from "../fight/rows.ts";
 import { startFight } from "../fight/start.ts";
 import { characterName, createGame, makeCharacterRows } from "../games/create.ts";
 import { deleteGameRows } from "../games/delete.ts";
 import { mapFilesOf } from "../map/rows.ts";
-import { putOnMap } from "../map/start.ts";
+import { openLead } from "../map/lead.ts";
+import { buildLead, putOnMap } from "../map/start.ts";
 import { gameRow, playerRow, type CampaignRow, type GameRow, type PlayerRow } from "../rows.ts";
 import { buildOf, buildsOf, campaignFile, campaignNamed, campaignOfGame, documentOf, placeFileOf, sceneDefOf } from "../scenes.ts";
 
@@ -38,18 +39,34 @@ export function visitZooReducer(tx: TxCtx, sender: Identity, args: VisitArgs): v
   const campaign = campaignNamed(tx, ZOO);
   const file = campaignFile(campaign);
   const exhibit = exhibitNamed(file, args.exhibit);
-  const lineUp = lineUpNamed(exhibit, args.foes);
+  const lineUp = exhibit.fight ? lineUpNamed(exhibit, args.foes) : undefined;
   const build = buildNamed(campaign, args.build);
   const name = characterName(args.name || VISITOR);
 
   leaveEarlierVisits(tx, sender);
   const { game, player } = createGame(tx, campaign, sender, { name, concept: build.concept });
   makeCharacterRows(tx, player, build.build, file.level);
-  const layout = layoutOf(tx, game, exhibit, lineUp);
-  putOnMap(tx, game, layout.map.id, layout.player);
-
-  openIn(tx, gameRow(tx, game.id), playerRow(tx, player.id), exhibit, lineUp, args.fast ?? false);
+  if (lineUp) {
+    const layout = layoutOf(tx, game, exhibit, lineUp);
+    putOnMap(tx, game, layout.map.id, layout.player);
+    openIn(tx, gameRow(tx, game.id), playerRow(tx, player.id), exhibit, lineUp, args.fast ?? false);
+  } else openSceneExhibit(tx, sender, gameRow(tx, game.id), exhibit);
   tx.log(`[zoo] game ${game.id}: ${name} (${args.build}) visits ${exhibit.id}`);
+}
+
+/**
+ * A scene exhibit (the Crakes' toll: docs/combat-gm.md), opened as the story opens a scene: the
+ * player on the map that lays its place, where the place starts them, the scene their lead, waiting
+ * there and opened at once, so the GM plays it from its opening.
+ */
+function openSceneExhibit(tx: TxCtx, sender: Identity, game: GameRow, exhibit: Exhibit): void {
+  const scene = documentOf(sceneDefOf(tx, game, exhibit.scene));
+  const files: ExhibitFiles = { scenes: [scene], places: scene.place ? [placeFileOf(tx, game, scene.place)] : [], maps: mapFilesOf(tx, game) };
+  const start = exhibitStart(exhibit, files);
+  putOnMap(tx, game, start.map.id, start.player);
+  tx.db.game.id.update({ ...gameRow(tx, game.id), leadScene: exhibit.scene });
+  buildLead(tx, gameRow(tx, game.id), exhibit.scene);
+  openLead(tx, actorOf(tx, sender), gameRow(tx, game.id));
 }
 
 /**
@@ -61,6 +78,8 @@ export function visitZooReducer(tx: TxCtx, sender: Identity, args: VisitArgs): v
 export function openExhibitReducer(tx: TxCtx, sender: Identity, args: OpenArgs): void {
   const { game, player } = hostsGame(tx, sender);
   const exhibit = exhibitNamed(campaignFile(campaignOfGame(tx, game)), args.exhibit, game);
+  // A scene exhibit plays once a visit: it's visited again from the zoo's menu.
+  if (!exhibit.fight) throw new Refused(refusal("not_now", { text: `(${exhibit.title} plays once a visit: open it again from the zoo.)` }));
   const last = lastFight(tx, game, exhibit);
   const lineUp = lineUpNamed(exhibit, args.foes || last?.foes);
 

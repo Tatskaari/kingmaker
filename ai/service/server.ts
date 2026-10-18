@@ -163,7 +163,7 @@ export function aiService(options: ServiceOptions): AiService {
     checkRequest(parts.step, body);
     const step = parts.step;
     const attempt = Number(request.headers[HEADERS.attempt]) || 1;
-    const campaign = options.campaigns.use(body.game.campaign, body.game.version);
+    const campaign = options.campaigns.use(body.game.campaign, body.game.version, body.game.id);
     const started = performance.now();
 
     const answered = await byKey(key, await sha256(request.body), () => run(THINKS[endpoint], parts, body, campaign, attempt, started));

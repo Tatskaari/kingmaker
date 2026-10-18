@@ -1,0 +1,115 @@
+{
+  "format": "kingmaker",
+  "version": 2,
+  "kind": "place",
+  "id": "toll",
+  "title": "The ring's gate",
+  "description": "The combat ring after hours: raked sand inside a low stone wall, two stone pillars, a cooling brazier, and the gate in the south wall with the Crakes leaning on it.",
+  "size": {
+    "w": 80,
+    "h": 60
+  },
+  "areas": [
+    {
+      "id": "sand",
+      "name": "the sand",
+      "rect": {
+        "x": 5,
+        "y": 5,
+        "w": 70,
+        "h": 50
+      },
+      "description": "Raked smooth this morning, scuffed now."
+    },
+    {
+      "id": "gate",
+      "name": "the gate",
+      "rect": {
+        "x": 35,
+        "y": 55,
+        "w": 5,
+        "h": 5
+      },
+      "description": "A timber gate in the south wall, the only way out, with two large men leaning on it."
+    }
+  ],
+  "things": [
+    {
+      "id": "brazier",
+      "name": "a brazier",
+      "in": "sand",
+      "at": [
+        22,
+        42
+      ],
+      "size": "medium",
+      "material": "iron",
+      "tags": [
+        "fire",
+        "light"
+      ],
+      "states": [
+        "lit"
+      ],
+      "description": "An iron brazier on three legs, its coals cooling and ticking."
+    },
+    {
+      "id": "pillar-west",
+      "name": "a stone pillar",
+      "kind": "feature",
+      "in": "sand",
+      "at": [
+        27,
+        27
+      ],
+      "size": "huge",
+      "material": "stone",
+      "tags": [
+        "cover"
+      ],
+      "description": "A squat stone pillar, chipped at shoulder height."
+    },
+    {
+      "id": "tin-cup",
+      "name": "a tin cup",
+      "kind": "item",
+      "in": "crake-1",
+      "size": "tiny",
+      "material": "iron",
+      "description": "A dented tin cup with a few coins in it, for the toll."
+    }
+  ],
+  "people": {
+    "player": {
+      "in": "sand",
+      "at": [
+        37,
+        27
+      ]
+    },
+    "kell": {
+      "in": "sand",
+      "at": [
+        42,
+        27
+      ],
+      "note": "at the investigator's shoulder"
+    },
+    "crake-1": {
+      "in": "sand",
+      "at": [
+        35,
+        52
+      ],
+      "note": "leaning on the gate, jingling the tin cup"
+    },
+    "crake-2": {
+      "in": "sand",
+      "at": [
+        42,
+        52
+      ],
+      "note": "leaning on the gate post"
+    }
+  }
+}
