@@ -1,4 +1,4 @@
-// Copied from the prototype's src/runtime/speakers.ts at 44c6d4a, whole and unchanged.
+// Copied from the prototype's src/runtime/speakers.ts at 44c6d4a, whole, but that quoteSpeaker's sentence leading into a line starts after the line before it (QA round qa1-1018: Hobb's whisper went to Hep, whose line came just before).
 
 /**
  * Who says a quoted line in the GM's prose: by its speaker's tag when the GM wrote one
@@ -307,8 +307,12 @@ export function quoteSpeaker(text: string, start: number, end: number, people: S
   // The sentence leading into the quote: the one it's in, or the one before when it opens one (a
   // sentence ends at its stop, its closing quote included, and an earlier line's words don't count).
   // A line that opens its paragraph after one that ended on a line said has none.
-  const before = text.slice(Math.max(0, start - 200), start);
-  if (/[”"]\s*\n\s*$/.test(before)) return undefined;
+  const window = text.slice(Math.max(0, start - 200), start);
+  if (/[”"]\s*\n\s*$/.test(window)) return undefined;
+  // Only the narration since the line before, when there is some: blanked out, that line's closing
+  // stop went with it, and "…shut!” Hobb lowers his voice." read as one sentence that Hep began.
+  const since = window.slice(Math.max(window.lastIndexOf("”"), window.lastIndexOf("\"")) + 1);
+  const before = /[.!?…]/.test(since) || since.trim().length > 2 ? since : window;
   const sentences = unquoted(before.toLowerCase()).split(/(?<=[.!?…:][”"’]?)\s+|\n+/);
   const lead = (sentences.at(-1)?.trim() ? sentences.at(-1) : sentences.at(-2)) ?? "";
   const going = leadingPronoun(lead, people);
