@@ -241,8 +241,8 @@ test("the instructions after the user's prompt: the GM decides when to roll, reg
   assert.match(mouthpiece, /\n- `narration`: [^\n]*With a check, it's the setup alone, a few sentences written as if you don't yet know how the roll goes, and it stops at the attempt: [^\n]*Nothing the roll is for comes before the dice: not whether it works \(a lock holding or giving, a gap squeezed through, a mark made out\)/);
   assert.match(mouthpiece, /\n- `outcomes`: null without a check\. With one, its five outcomes, and everything the roll decides is in them\.[^\n]*Each one follows on from the setup as you wrote it and never undoes it: [^\n]*an offer made there is still on the table after a failure[^\n]* And each says only what the roll decided, once: never what the setup has already said\./);
   // The check decided first, then the narration, then the outcomes, as the reply is written (a closing that may wait says whether it closed, last).
-  assert.deepEqual(Object.keys((replySchema(false) as { properties: object }).properties), ["check", "narration", "outcomes"]);
-  assert.deepEqual((replySchema(true) as { required: string[] }).required, ["check", "narration", "outcomes", "closes"]);
+  assert.deepEqual(Object.keys((replySchema(false) as { properties: object }).properties), ["check", "roll_for_initiative", "narration", "outcomes"]);
+  assert.deepEqual((replySchema(true) as { required: string[] }).required, ["check", "roll_for_initiative", "narration", "outcomes", "closes"]);
   // Nobody recites their own terms; the player character's body is the player's; the scene stays in its place.
   assert.match(mouthpiece, /- What would win someone over [^\n]*Nobody states their own terms or price unasked, or says their card's words for what would open them/);
   assert.match(mouthpiece, /\n\n## The player character\nTheir body and mind are the player's\. Never give them a wound, an ache, tiredness, fear or any other condition that play [^\n]* or the rules [^\n]* haven't given them/);

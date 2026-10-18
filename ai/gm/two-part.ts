@@ -4,7 +4,7 @@ import { titleCase } from "../../shared/dice.ts";
 import type { GmState, TwoPartRole } from "../../shared/gm/state.ts";
 import { BANDS, type Band } from "../../shared/gm/two-part.ts";
 import type { Markup } from "../../shared/markup.ts";
-import type { CoGmAnswer, Reply, SpokenCheck, TurnAct, TurnCheck } from "../../shared/protocol/ai.ts";
+import type { CoGmAnswer, Initiative, Reply, SpokenCheck, TurnAct, TurnCheck } from "../../shared/protocol/ai.ts";
 import { endingNeeds, enteringAt, isDiscovery, isEvent, limitOf, openRoutes, owedLeads, reachedOf, reachedTurns, stageOf, takeRoute, targetsOf, type RouteOutcome } from "../../shared/scene/beats.ts";
 import type { Path } from "../../shared/scene/document.ts";
 import { presentCast } from "../../shared/scene/graph.ts";
@@ -149,9 +149,11 @@ const OUTCOMES = { type: "object", additionalProperties: false, required: [...BA
  * written makes the narration the setup. The narration still streams, a few tokens in.
  */
 const SCHEMA = {
-  type: "object", additionalProperties: false, required: ["check", "narration", "outcomes"],
+  type: "object", additionalProperties: false, required: ["check", "roll_for_initiative", "narration", "outcomes"],
   properties: {
     check: { anyOf: [{ type: "null" }, { type: "object", additionalProperties: false, required: ["skill", "dc"], properties: { skill: { type: "string", enum: [...SKILLS] }, dc: { type: "integer" } } }] },
+    // docs/combat-gm.md: a fight breaking out at the end of this reply, decided before a word of it.
+    roll_for_initiative: { anyOf: [{ type: "null" }, { type: "object", additionalProperties: false, required: ["foes", "allies", "why"], properties: { foes: { type: "array", items: { type: "string" } }, allies: { type: "array", items: { type: "string" } }, why: { type: "string" } } }] },
     narration: { type: "string" },
     outcomes: { anyOf: [{ type: "null" }, OUTCOMES] },
   },
@@ -439,11 +441,23 @@ function waitingEndings(scene: Scene, view: TurnView, who: Character[]): Array<{
     .filter(x => x.missing.length);
 }
 
-/** What's ours after the user's prompt: the reply format (a talk's has no dice), who says each line, what the player sees and hears (and the player character, and where the scene plays), and the companion. */
+/**
+ * A fight breaking out (docs/combat-gm.md): the reply's roll_for_initiative, which switches the
+ * scene from the conversation's turns to everyone's in initiative order, each narrated by the GM.
+ */
+const FIGHT_START = `## When a fight breaks out
+- \`roll_for_initiative\` comes after \`check\`, before the narration: null unless a fight starts in this reply. A fight is when someone means to hurt someone and blows are about to be traded with nobody backing off: they attack and won't be talked down, or the player attacks someone who fights back. Then fill it in: \`foes\`, the ids (or names) of the people who'll fight the player; \`allies\`, those who'll fight beside them (the companion, if they would); \`why\`, a few words on what it's about. The player is always in it. Leave \`check\` null then.
+- Your narration takes the fight up to its first blow and stops there, ending on "Roll for initiative!". From then on the game goes round everyone in initiative order, and you narrate each turn as it comes, with the dice deciding what lands.
+- Not for a shove, a slap or a scuffle that's over as soon as it starts, nor a threat that can still be talked down: those are the conversation's, with a check if it could go either way.`;
+
+/** What's ours after the user's prompt: the reply format (a talk's has no dice), a fight breaking out (not in a talk), who says each line, what the player sees and hears (and the player character, and where the scene plays), and the companion. */
 export function mouthpieceRules(scene: Scene, view: TurnView): string {
   const companion = companionNote(scene, view);
-  return [scene.companion ? TALK_FORMAT : FORMAT, SPEAKERS, SEEN, ...(companion ? [companion] : [])].join("\n\n");
+  return [...(scene.companion ? [TALK_FORMAT] : [FORMAT, FIGHT_START]), SPEAKERS, SEEN, ...(companion ? [companion] : [])].join("\n\n");
 }
+
+/** What the combat GM keeps of the mouthpiece's: who says each line, and what the player sees and hears (docs/combat-gm.md). */
+export const SPOKEN_RULES = (): string => [SPEAKERS, SEEN].join("\n\n");
 
 export function mouthpieceInstructions(scene: Scene, view: TurnView): string {
   return `${prompt("two-part-gm", { tone: tone(), beats: prepOf(scene, view), characters: charactersOf(scene, view) })}\n\n${mouthpieceRules(scene, view)}`;
@@ -653,7 +667,7 @@ export function pressureOffered(scene: Scene, view: Pick<TurnView, "reached" | "
 }
 
 /** A GM turn as the player read it: its dice lines and what was said, the speakers tagged as the GM writes them. */
-function gmText(scene: Scene, view: TurnView, entries: TurnView["transcript"]): string {
+export function gmText(scene: Scene, view: TurnView, entries: TurnView["transcript"]): string {
   return entries.filter(e => e.kind !== "player" && e.kind !== "system").map(e => (e.kind === "roll" ? `🎲 ${e.text}` : asWritten(scene, view, e))).join("\n\n");
 }
 
@@ -680,7 +694,7 @@ export function mouthpieceInput(scene: Scene, view: TurnView, directive: string[
 // --- Speaking ---------------------------------------------------------------------------------
 
 /** What the mouthpiece said: its narration as the screen has it, the check it called with the five outcomes, whether a closing closed, and what it cost. */
-export interface Spoke { narration: Reply; check?: SpokenCheck; closes: boolean; costUsd: number; firstTextMs: number | null }
+export interface Spoke { narration: Reply; check?: SpokenCheck; closes: boolean; initiative?: Initiative; costUsd: number; firstTextMs: number | null }
 
 /** How the mouthpiece is asked: its operation, the request's calls, a reply as it's written, and whether a closing may wait once. */
 export interface SpeakHow { operation: string; calls: CallContext; byKey(markup: Markup): Markup; onText?: (text: string, markup?: Markup) => void; mayHold?: boolean }
@@ -702,7 +716,7 @@ export async function speak(scene: Scene, view: TurnView, directive: string[], h
     json: { name: "reply", schema }, calls: how.calls,
     ...(show ? { onText: (raw: string) => { const said = narrationOf(raw); if (said) show(asKnown(said.text, unheard, { partial: !said.done }).text); } } : {}),
   });
-  const out = JSON.parse(result.text) as { check: { skill: Skill; dc: number } | null; narration: string; outcomes?: Record<Band, string> | null; closes?: boolean };
+  const out = JSON.parse(result.text) as { check: { skill: Skill; dc: number } | null; roll_for_initiative?: Initiative | null; narration: string; outcomes?: Record<Band, string> | null; closes?: boolean };
   const said = (text: string): Reply => {
     const { text: words, marked } = readReply(scene, view, text.trim());
     return { speaker: "gm", kind: "narration", text: words, ...(marked.speech.length ? { markup: how.byKey({ speech: marked.speech }) } : {}) };
@@ -714,7 +728,26 @@ export async function speak(scene: Scene, view: TurnView, directive: string[], h
   // Each outcome's names as the player knows them, and its failures kept from sending away whoever holds what the player still needs.
   const outcomes = whole ? inReach(scene, view, Object.fromEntries(BANDS.map(b => [b, asKnown(out.outcomes![b], after).text])) as Record<Band, string>) : undefined;
   const check = whole && outcomes ? { skill: out.check!.skill, dc: out.check!.dc, outcomes: Object.fromEntries(BANDS.map(b => [b, said(outcomes[b])])) as Record<Band, Reply> } : undefined;
-  return { narration: said(narration.text), ...(check ? { check } : {}), closes: out.closes !== false, costUsd: result.costUsd, firstTextMs: result.firstTextMs };
+  const initiative = dice ? fightOf(scene, view, out.roll_for_initiative) : undefined;
+  return { narration: said(narration.text), ...(check && !initiative ? { check } : {}), ...(initiative ? { initiative } : {}), closes: out.closes !== false, costUsd: result.costUsd, firstTextMs: result.firstTextMs };
+}
+
+/**
+ * The reply's roll_for_initiative, held to who's here (docs/combat-gm.md): each side by the cast's ids
+ * (a name, or what the player calls them, read as their id), someone on neither side and present
+ * left out of it, the player in it always. None without a foe here.
+ */
+export function fightOf(scene: Scene, view: TurnView, asked: Initiative | null | undefined): Initiative | undefined {
+  if (!asked) return undefined;
+  const present = presentCast(scene, view);
+  const idOf = (said: string) => {
+    const s = said.trim().toLowerCase();
+    return present.find(c => c.id.toLowerCase() === s || c.name.toLowerCase() === s || (c.called ?? "").toLowerCase() === s || c.name.toLowerCase().split(/\s+/).includes(s))?.id;
+  };
+  const ids = (list: unknown) => [...new Set((Array.isArray(list) ? list : []).map(x => idOf(String(x))).filter((x): x is string => !!x))];
+  const foes = ids(asked.foes);
+  const allies = ids(asked.allies).filter(id => !foes.includes(id));
+  return foes.length ? { foes, allies, why: String(asked.why ?? "").trim() } : undefined;
 }
 
 /**

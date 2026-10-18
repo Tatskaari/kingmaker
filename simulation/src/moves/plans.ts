@@ -1,4 +1,5 @@
-import type { Outcome, TurnAct, TurnCheck } from "../../../shared/protocol/ai.ts";
+import type { CombatOutcome } from "../../../shared/gm/combat.ts";
+import type { CombatDone, CombatFighter, Outcome, TurnAct, TurnCheck } from "../../../shared/protocol/ai.ts";
 import type { Act, Mechanic } from "../../../shared/rules/types.ts";
 
 /**
@@ -26,7 +27,7 @@ export interface OpenPlan { step: "open"; game: string; scene: string; turn: str
  * step: world-bridge-design §3.4).
  */
 export interface SayPlan {
-  step: "act" | "reactions" | "reply" | "settle";
+  step: "act" | "reactions" | "reply" | "settle" | "combat";
   game: string; scene: string; turn: string; n: number; player: string;
   input: string;
   /** settledFacts(gm) at the turn's start: the stage manager's `settled`. */
@@ -58,7 +59,12 @@ export interface SayPlan {
   read?: Mechanic;
   /** The check the two-part GM's mouthpiece called this turn, as rolled, for the co-GM. */
   check?: TurnCheck;
+  /** A fight's step (docs/combat-gm.md): the combat GM's next move, on whoever's turn it is. */
+  combat?: CombatPlan;
 }
+
+/** What a fight's step keeps in the say plan: the step's count in this turn (its key's), what's been done this turn, and the fight as it stood when the step was asked for. */
+export interface CombatPlan { k: number; done: CombatDone[]; fighters: CombatFighter[]; over?: { outcome: CombatOutcome; why: string } }
 
 /** A turn's suggested lines (v5-design §3.4): one think, POST /v1/turns/suggest, for its k-th ask (from 1). */
 export interface SuggestPlan { step: "suggest"; game: string; scene: string; turn: string; n: number; ask: number }

@@ -78,6 +78,12 @@ export const canned: Endpoints = {
   async looks() {
     return { looks: {}, usage: noUsage() };
   },
+  // A fight in the conversation, canned (the canned GM never starts one): each turn ends at once, and the fight when it's over.
+  async combat(req) {
+    const narration = "(The AI service is canned: the turn passes.)";
+    const move = req.combat.over ? { kind: "end_combat" as const, outcome: req.combat.over.outcome, narration } : { kind: "end_turn" as const, narration };
+    return { move, entries: [{ speaker: "gm", kind: "narration", text: narration }], usage: noUsage() };
+  },
 
   characters: characters(() => null),
 

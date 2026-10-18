@@ -259,6 +259,8 @@ export const gmState = table({ name: "gm_state" }, {
   reached: t.array(t.string()).default([]),
   /** The two-part GM's: each person's role, the co-GM's notes by turn, the stage it moved to, a wind-down held once. None in a scene from before M2: nothing yet. */
   twoPart: t.option(TwoPart).default(undefined),
+  /** JSON: CombatState (shared/gm/combat.ts), a fight in the conversation in progress; "" when there's none (docs/combat-gm.md). */
+  combat: t.string().default(""),
 });
 
 /** Who's on a scene's stage: no one and nothing is on two at once. */

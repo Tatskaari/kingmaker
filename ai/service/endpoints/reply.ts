@@ -37,7 +37,9 @@ export const reply: Handler<ReplyRequest, ReplyResponse> = async (req, ctx) => {
 
   return {
     entries: [spoke.narration], gm: offered ? { offered } : {}, firstTextMs: sink.firstTextMs(),
-    ...(spoke.check ? { check: spoke.check } : {}), ...(closing ? { closes: !mayHold || spoke.closes } : {}), usage: ctx.usage(),
+    ...(spoke.check ? { check: spoke.check } : {}), ...(closing ? { closes: !mayHold || spoke.closes } : {}),
+    // A fight breaking out (docs/combat-gm.md): not on a closing, which ends the scene.
+    ...(spoke.initiative && !closing ? { initiative: spoke.initiative } : {}), usage: ctx.usage(),
   };
 };
 

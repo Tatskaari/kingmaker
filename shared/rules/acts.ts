@@ -971,3 +971,103 @@ export function useItem(rules: Rules, state: RulesSession, instanceId: string): 
     status: statusText,
   };
 }
+
+// ---------------------------------------------------------------------------------------------
+// A fight in the conversation (docs/combat-gm.md, new): initiative for everyone in it, a blow from
+// anyone at anyone (the player, the cast, the companion), and how each of them stands. The player's
+// own acts in it are the acts above (attack, castSpell, wrestle, useFeature); these are the rest.
+
+/** Who's in the fight: the player ("player"), or one of the cast. */
+export type FightMember = Character | "player";
+
+/** Someone's initiative: the d20, their modifier, the total. */
+export interface InitiativeRoll { id: string; roll: number; modifier: number; total: number }
+
+/** How someone in the fight stands now, by the rules: hit points, armour class, and the word for it. */
+export interface Standing { id: string; hp: number; max: number; ac: number; hurt: "unhurt" | "hurt" | "badly hurt" | "down" }
+
+const memberId = (m: FightMember) => (m === "player" ? "player" : m.id);
+
+/** The engine's character for someone in the fight, made the first time they're needed. */
+function engineIdOf(ctx: Ctx, state: RulesSession, m: FightMember): string {
+  return m === "player" ? state.rules!.pc : ensureNpc(ctx, state, m);
+}
+
+/**
+ * Initiative for everyone in the fight, rolled once: a d20 plus their initiative modifier (their
+ * Dexterity's, as the engine's sheet has it), from the session's dice. Highest first; a tie goes to
+ * the higher modifier, then to the player.
+ */
+export function rollInitiative(rules: Rules, state: RulesSession, members: FightMember[]): { rolls: InitiativeRoll[]; lines: string[] } {
+  const ctx = opened(rules, state);
+  const random = rng(state.seed + 7919 * ++state.rollCount);
+  const rolls = members.map(m => {
+    const modifier = sheetOf(ctx, engineIdOf(ctx, state, m)).initiative.modifier;
+    const roll = 1 + Math.floor(random() * 20);
+    return { id: memberId(m), roll, modifier, total: roll + modifier };
+  });
+  close(rules, state, ctx);
+  rolls.sort((a, b) => b.total - a.total || b.modifier - a.modifier || (a.id === "player" ? -1 : b.id === "player" ? 1 : 0));
+  const name = (id: string) => {
+    const m = members.find(x => x !== "player" && x.id === id);
+    return m && m !== "player" ? calledBy(state, m) : "You";
+  };
+  const lines = rolls.map(r => `Initiative: ${name(r.id)}: ${r.roll} ${signed(r.modifier)} = ${r.total}`);
+  return { rolls, lines };
+}
+
+/**
+ * Someone in the fight attacks someone else in it with their weapon (the cast's statblock weapon; the
+ * player's own blows are attack's): the engine's attack, its dice lines and account, the hurt in the
+ * world. A player dropped to 0 is knocked senseless (stable), as a blow outside a fight does.
+ */
+export function blowBetween(rules: Rules, state: RulesSession, attacker: Character, target: FightMember): RulesOutcome {
+  const ctx = opened(rules, state);
+  const from = ensureNpc(ctx, state, attacker);
+  const at = engineIdOf(ctx, state, target);
+  const weapon = state.rules!.npcs[attacker.id]!.weapon;
+  const events = ctx.apply(ctx.engine.plan.attack(ctx.campaign.state, { attackerId: from, targetId: at, weaponInstanceId: weapon }).events);
+  const weaponName = (id: string) => ctx.engine.content.items.get(ctx.campaign.state.itemInstances[id]?.definitionId ?? id)?.name ?? "Attack";
+  const { lines, account } = describe(ctx, state, events, weaponName);
+  if (target !== "player" && state.world) syncBeings(ctx, state, state.world, [{ id: target.id, engine: at }]);
+  const pcDown = target === "player" && ctx.campaign.state.characters[at]!.hp.current <= 0;
+  if (pcDown) { ctx.apply([event(ctx.E, "Stabilized", { targetId: at })]); endRage(ctx, state); }
+  const statusText = status(ctx, state.rules!.pc);
+  close(rules, state, ctx);
+  const hitPlayer = target === "player" && events.some(e => e.type === "DamageApplied");
+  return {
+    lines: [...lines, ...(hitPlayer ? [`${state.player.name}: ${statusText}`] : [])],
+    directive: `${capitalise(account.join("; "))}.${pcDown ? " The player drops to 0 hit points: knocked senseless." : ""}`,
+    ...(target === "player" ? { status: statusText } : {}),
+    ...(pcDown ? { down: true } : {}),
+  };
+}
+
+/**
+ * How far someone in the fight reaches with their weapon and how far they move in a turn: a melee
+ * weapon reaches 5 ft (a thrown one as far as its normal range, thrown), a ranged one its normal
+ * range; the speed is their walking speed (the statblock's, or the player's sheet).
+ */
+export function reachOf(rules: Rules, state: RulesSession, m: FightMember, weaponId?: string): { melee: boolean; feet: number; speed: number } {
+  const ctx = opened(rules, state);
+  const id = engineIdOf(ctx, state, m);
+  const c = ctx.campaign.state.characters[id]!;
+  const instance = m === "player" ? (weaponId && c.inventory.includes(weaponId) ? weaponId : c.equipped.mainHand) : state.rules!.npcs[m.id]!.weapon;
+  const def = instance ? ctx.engine.content.items.get(ctx.campaign.state.itemInstances[instance]?.definitionId ?? "") as (Dnd.ItemDef & { attackKind?: string; rangeNormal?: number }) | undefined : undefined;
+  const speed = Number(sheetOf(ctx, id).speeds?.walk ?? 30);
+  close(rules, state, ctx);
+  const melee = def?.attackKind !== "ranged";
+  return { melee, feet: melee ? 5 : Number(def?.rangeNormal ?? 30), speed };
+}
+
+/** How everyone in the fight stands now, by the rules (each made in the engine if they weren't yet). */
+export function standings(rules: Rules, state: RulesSession, members: FightMember[]): Standing[] {
+  const ctx = opened(rules, state);
+  const out = members.map(m => {
+    const id = engineIdOf(ctx, state, m);
+    const c = ctx.campaign.state.characters[id]!;
+    return { id: memberId(m), hp: Math.max(0, c.hp.current), max: c.hp.max, ac: sheetOf(ctx, id).ac.total, hurt: hurt(c) as Standing["hurt"] };
+  });
+  close(rules, state, ctx);
+  return out;
+}

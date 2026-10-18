@@ -1,6 +1,7 @@
 import type { Asked, Backstory, LoreIssue, Who } from "../creation/types.ts";
 import type { Confide, GmState, OwedRow, ScenePatch, TalkRecord, TwoPartRole } from "../gm/state.ts";
 import type { Band } from "../gm/two-part.ts";
+import type { CombatOutcome, CombatState, CombatVerb, Side } from "../gm/combat.ts";
 import type { Markup } from "../markup.ts";
 import type { Act, BuildOption, FeatureRef, Mechanic, Offer, OwnPicks, Reaction, SpellRef, SrdLists, WeaponRef } from "../rules/types.ts";
 import type { RouteOutcome } from "../scene/beats.ts";
@@ -22,7 +23,7 @@ import type { CreationStep, Step } from "./keys.ts";
 
 export type Endpoint =
   | "/v1/scenes/open" | "/v1/turns/act" | "/v1/turns/reactions" | "/v1/turns/reply" | "/v1/turns/settle" | "/v1/turns/suggest"
-  | "/v1/turns/remember" | "/v1/scenes/boundary" | "/v1/looks"
+  | "/v1/turns/remember" | "/v1/scenes/boundary" | "/v1/looks" | "/v1/turns/combat"
   | "/v1/characters" | "/v1/backstories";
 
 /**
@@ -33,12 +34,12 @@ export type Endpoint =
  */
 export const STEP_ENDPOINT: Record<Step | CreationStep, Endpoint> = {
   open: "/v1/scenes/open", act: "/v1/turns/act", reactions: "/v1/turns/reactions", reply: "/v1/turns/reply", settle: "/v1/turns/settle",
-  suggest: "/v1/turns/suggest", remember: "/v1/turns/remember", boundary: "/v1/scenes/boundary", look: "/v1/looks",
+  suggest: "/v1/turns/suggest", remember: "/v1/turns/remember", boundary: "/v1/scenes/boundary", look: "/v1/looks", combat: "/v1/turns/combat",
   offer: "/v1/characters", pick: "/v1/characters", own: "/v1/characters",
   draft: "/v1/backstories", work: "/v1/backstories", check: "/v1/backstories", traits: "/v1/backstories",
 };
 export const STEP_TIMEOUT_MS: Record<Step | CreationStep, number> = {
-  open: 60_000, act: 20_000, reactions: 20_000, reply: 60_000, settle: 60_000, suggest: 30_000, remember: 170_000, boundary: 120_000, look: 30_000,
+  open: 60_000, act: 20_000, reactions: 20_000, reply: 60_000, settle: 60_000, suggest: 30_000, remember: 170_000, boundary: 120_000, look: 30_000, combat: 60_000,
   offer: 60_000, pick: 60_000, own: 30_000, draft: 60_000, work: 60_000, check: 60_000, traits: 60_000,
 };
 
@@ -237,7 +238,40 @@ export interface ReplyRequest extends AiRequest { turn: TurnContext; outcome: Ou
  * it and writes the dice line and the one that came up); closes: a closing that may wait once says
  * whether it closed (false: it waits).
  */
-export interface ReplyResponse { entries: Reply[]; gm: { offered?: string }; firstTextMs: number | null; check?: SpokenCheck; closes?: boolean; usage: Usage }
+export interface ReplyResponse { entries: Reply[]; gm: { offered?: string }; firstTextMs: number | null; check?: SpokenCheck; closes?: boolean; initiative?: Initiative; usage: Usage }
+
+/**
+ * The mouthpiece's roll_for_initiative (docs/combat-gm.md): a fight breaks out at the end of this
+ * reply, with these of the cast against the player and these beside them (the player is always in it).
+ */
+export interface Initiative { foes: string[]; allies: string[]; why: string }
+
+/** What someone does on their turn in a fight: perform_action's verb, at whom, what with (move_towards is a move, `away` backing off), and the narration up to the attempt. */
+export interface CombatAction { action: CombatVerb; target?: string; spell?: string; weapon?: string; feature?: string; skill?: Skill; dc?: number; away?: boolean; narration: string }
+
+/** An action taken this turn: what was asked, the dice lines, what the rules decided (or why they refused it). */
+export interface CombatDone { act: CombatAction; lines: string[]; result: string; refused?: boolean }
+
+/** Someone in the fight as the GM sees them: who, which side, how they stand, whether they're out of it, their weapon's reach and their speed, and how far they are from each of the others (in the place's world, feet). */
+export interface CombatFighter { id: string; name: string; side: Side; initiative: number; hurt: string; hp?: number; max?: number; ac: number; down: boolean; out?: string; reach: { melee: boolean; feet: number; speed: number }; feet: Record<string, number> }
+
+/**
+ * The fight as the combat step sees it: its state, everyone in it, whose turn it is, what's been
+ * done this turn and with what result, and, once the rules say it's over, how.
+ */
+export interface CombatView { state: CombatState; fighters: CombatFighter[]; whose: string; done: CombatDone[]; over?: { outcome: CombatOutcome; why: string } }
+
+/** POST /v1/turns/combat: the fight's next tool call, on whoever's turn it is (the player's line in `turn`, on theirs). */
+export interface CombatRequest extends AiRequest { turn: TurnContext; combat: CombatView }
+
+/** The GM's next move in the fight: an action to resolve, the end of the turn, or the end of the fight, each with its narration. */
+export type CombatMove =
+  | { kind: "act"; act: CombatAction }
+  | { kind: "end_turn"; narration: string }
+  | { kind: "end_combat"; outcome: CombatOutcome; narration: string };
+
+/** The move, and its narration as the screen has it (who says each line). */
+export interface CombatResponse { move: CombatMove; entries: Reply[]; usage: Usage }
 
 /** A check the two-part GM's mouthpiece called: its skill and DC, and its five outcomes (shared/gm/two-part.ts BANDS), each the next words of the reply. */
 export interface SpokenCheck { skill: Skill; dc: number; outcomes: Record<Band, Reply> }

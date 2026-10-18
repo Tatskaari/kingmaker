@@ -1,0 +1,226 @@
+// New (docs/combat-gm.md): the GM in a fight in the conversation. Once the mouthpiece has rolled for
+// initiative, the scene goes round everyone in initiative order, and each turn is the GM's to play
+// and narrate through three tools: perform_action (an act the rules resolve: the loop stops on it,
+// the simulation rolls it, and the GM is asked again with what came of it), end_turn and end_combat.
+// The GM is the mouthpiece's (the user's two-part prompt, the scene's prep and its people, who says
+// each line, what the player sees), with the fight's own instructions (ai/prompts/combat-gm.md) in
+// place of the reply format, and the fight as it stands after the scene's history.
+
+import { ACTION_VERBS, ACTS_A_TURN, COMBAT_OUTCOMES, COMBAT_VERBS, type CombatOutcome, type CombatVerb } from "../../shared/gm/combat.ts";
+import type { Markup } from "../../shared/markup.ts";
+import type { CombatAction, CombatDone, CombatFighter, CombatMove, CombatView, Reply } from "../../shared/protocol/ai.ts";
+import { SKILLS, type Scene, type Skill } from "../../shared/scene/types.ts";
+import type { CallContext, Message } from "../llm/openrouter.ts";
+import { InvalidToolArguments, runTools, type ToolDef } from "../llm/tools.ts";
+import { prompt } from "../prompts/index.ts";
+import { sceneEntries } from "./brief.ts";
+import { charactersOf, gmText, mouthpieceInput, prepOf, SPOKEN_RULES } from "./two-part.ts";
+import { asKnown, unheardOf } from "./unheard.ts";
+import { readReply } from "./voice.ts";
+import type { TurnView } from "./view.ts";
+
+const NARRATION = { type: "string" };
+
+export const PERFORM_ACTION: ToolDef = {
+  name: "perform_action",
+  description: "Someone does something on their turn that the rules decide (or the fight needs to know about). The game rolls it at once and answers with the dice and what came of it; then go on, with another perform_action or end_turn. One call at a time.",
+  parameters: {
+    type: "object", additionalProperties: false, required: ["action", "narration"],
+    properties: {
+      action: {
+        type: "string", enum: COMBAT_VERBS.filter(v => v !== "move"),
+        description: "attack: a blow or a shot with a weapon (the cast use their own; a melee blow needs them within 5 ft: move_towards first). cast: a spell (the player's, by its id). grapple, shove: hands on someone within 5 ft (the player's). feature: a class feature (the player's, by its id). check: a stunt the dice decide (the player's: skill and dc). flee: running from the fight (they leave it). surrender: giving up (they're out of it). other: anything else (dodging, helping, a shout, picking something up).",
+      },
+      target: { type: "string", description: "Who it's aimed at: an id from the fight (\"player\" for the player character), or a thing's id; omit when it's at nobody." },
+      spell: { type: "string", description: "cast: the spell's id, as the player's sheet has it." },
+      weapon: { type: "string", description: "attack (the player's): the weapon's id, when it isn't their main one; \"improvised\" for a stool, a bottle, a stone." },
+      feature: { type: "string", description: "feature: the feature's id, as the player's sheet has it." },
+      skill: { type: "string", enum: [...SKILLS], description: "check: the skill." },
+      dc: { type: "integer", description: "check: the DC (10 easy, 13 moderate, 15 hard, 18 very hard)." },
+      narration: { ...NARRATION, description: "What the table hears as they make the attempt, up to the moment the dice decide it: the swing, the aim, the words of the spell. Never whether it works. One or two sentences." },
+    },
+  },
+};
+
+export const MOVE_TOWARDS: ToolDef = {
+  name: "move_towards",
+  description: "Someone moves on their turn, up to their speed: towards someone or something (they stop beside them, if they can get there), or with away: true, back from them. The game moves them in the place and answers with where they've got to. Once a turn; a second move is a dash, which takes their action.",
+  parameters: {
+    type: "object", additionalProperties: false, required: ["target", "narration"],
+    properties: {
+      target: { type: "string", description: "Whom or what they move towards (or away from): an id from the fight (\"player\" for the player character), or a thing's or a place's id from the world." },
+      away: { type: "boolean", description: "true: backing off from the target instead." },
+      narration: { ...NARRATION, description: "How they move, in a sentence: the dash across the floor, the step back, the shove through the crowd." },
+    },
+  },
+};
+
+export const END_TURN: ToolDef = {
+  name: "end_turn",
+  description: "This person's turn is over. The next in the initiative order goes next.",
+  parameters: {
+    type: "object", additionalProperties: false, required: ["narration"],
+    properties: { narration: { ...NARRATION, description: "What came of their turn, as the rules decided it (each hit, miss, wound and fall told in the fiction), and anything said. A couple of sentences; nothing of the next person's turn." } },
+  },
+};
+
+export const END_COMBAT: ToolDef = {
+  name: "end_combat",
+  description: "The fight is over: the rules say one side can't fight on, or it stops in the fiction (a surrender, the player getting away, everyone backing off, someone talking it down). The scene goes back to conversation.",
+  parameters: {
+    type: "object", additionalProperties: false, required: ["outcome", "narration"],
+    properties: {
+      outcome: { type: "string", enum: [...COMBAT_OUTCOMES], description: "won: the player's side beat them. lost: the player is down or their side beaten. yielded: the other side gave up. fled: the player got away. stopped: both sides stopped." },
+      narration: { ...NARRATION, description: "How it ends: what came of this last turn, who's standing, who's down, who ran or gave up, and where that leaves everyone. Then stop, for the player." },
+    },
+  },
+};
+
+/** The fight's instructions: the mouthpiece's prompt with the scene's prep and people, the fight's, then who says each line and what the player sees. */
+export function combatInstructions(scene: Scene, view: TurnView): string {
+  return [prompt("two-part-gm", { tone: prompt("tone-comic"), beats: prepOf(scene, view), characters: charactersOf(scene, view) }), prompt("combat-gm"), SPOKEN_RULES()].join("\n\n");
+}
+
+/**
+ * The fight's input: the scene's history as the mouthpiece reads it, what's been narrated in this
+ * turn so far (the fight's earlier turns since the player's line), then the fight as it stands.
+ */
+export function combatInput(scene: Scene, view: TurnView, combat: CombatView): Message[] {
+  const input = mouthpieceInput(scene, view, []);
+  const now = sceneEntries(view).filter(e => e.turn === view.turn && e.kind !== "player" && e.kind !== "system");
+  if (view.turn > 0 && now.length) input.push({ role: "assistant", content: gmText(scene, view, now) });
+  input.push({ role: "system", content: fightNote(view, combat) });
+  return input;
+}
+
+/** The fight as it stands, for the GM: the round, everyone in order and how they stand, whose turn it is and what they can do, what they've done so far, or that it's over. */
+export function fightNote(view: TurnView, combat: CombatView): string {
+  const whose = fighterOf(combat, combat.whose);
+  const parts = [
+    `## The fight: round ${combat.state.round}${combat.state.why ? ` (${combat.state.why})` : ""}`,
+    `In initiative order (it holds every round):\n${combat.fighters.map(f => fighterLine(f, f.id === combat.whose && !combat.over, combat.fighters)).join("\n")}`,
+    combat.over ? overNote(combat) : turnNote(view, combat, whose),
+    ...(combat.done.length ? [`## This turn so far\n${combat.done.map(doneLine).join("\n")}`] : []),
+  ];
+  return parts.join("\n\n");
+}
+
+function fighterLine(f: CombatFighter, now: boolean, all: CombatFighter[]): string {
+  const name = f.id === "player" ? "You, the player character" : f.name;
+  const side = f.id === "player" ? "" : f.side === "party" ? ", with the player" : ", against the player";
+  const state = f.out ? (f.out === "fled" ? "fled: out of the fight" : "gave up: out of the fight") : f.down ? "down: 0 hit points, out cold" : `${f.hurt}, HP ${f.hp}/${f.max}, AC ${f.ac}`;
+  const reach = f.out ? "" : `; ${f.reach.melee ? "melee, reach 5 ft" : `ranged, ${f.reach.feet} ft`}, moves ${f.reach.speed} ft`;
+  const apart = f.out ? "" : Object.entries(f.feet).filter(([id]) => all.some(o => o.id === id && !o.out)).map(([id, ft]) => `${nameIn(all, id)} ${ft <= 5 ? "beside them" : `${ft} ft`}`).join(", ");
+  return `- ${name} [${f.id}]${side}, initiative ${f.initiative}: ${state}${reach}${apart ? `. From: ${apart}` : ""}${now ? "  ◀ their turn now" : ""}`;
+}
+
+const nameIn = (all: CombatFighter[], id: string) => (id === "player" ? "you" : all.find(f => f.id === id)?.name ?? id);
+
+function turnNote(view: TurnView, combat: CombatView, whose: CombatFighter): string {
+  const used = actionUsed(combat);
+  const limit = combat.done.length >= ACTS_A_TURN ? "\nThat's all for this turn: call end_turn." : used ? "\nTheir action is used: anything more this turn is a move or something small (other), or call end_turn." : "";
+  if (whose.id === "player") {
+    const line = sceneEntries(view).filter(e => e.turn === view.turn && e.kind === "player").map(e => e.text).pop() ?? "";
+    return `## It's the player's turn\nThey said: «${line}»\nDo what they said and nothing more: a move_towards for where they go and a perform_action for each thing they do that the rules decide, as their character can (${sheetLine(view)}), then end_turn. What they only say needs no action: answer it in end_turn.${limit}`;
+  }
+  const side = whose.side === "party" ? "with the player" : "against the player";
+  return `## It's ${whose.name}'s turn [${whose.id}], ${side}\nPlay it as ${whose.name} would, from who they are and how the fight is going for them now: move_towards someone if they need to close in (a melee blow needs them beside their target) or back off, a perform_action for what they do (attack with their weapon, flee, surrender, or other), then end_turn. They may talk, back off, run or give up instead of attacking.${limit}`;
+}
+
+function overNote(combat: CombatView): string {
+  return `## The fight is over\nBy the rules: ${combat.over!.why}. Call end_combat (outcome ${combat.over!.outcome}) and narrate how it ends, including what came of the last turn.`;
+}
+
+const doneLine = (d: CombatDone, i: number) => `${i + 1}. ${d.act.action === "move" ? `move_towards ${d.act.target}${d.act.away ? " (away)" : ""}` : `perform_action ${d.act.action}${d.act.target ? ` at ${d.act.target}` : ""}`}${d.act.spell ? ` (${d.act.spell})` : ""}: «${d.act.narration}»\n   ${d.refused ? "Refused by the rules" : "The rules"}: ${[...d.lines.map(l => `🎲 ${l}`), d.result].filter(Boolean).join(" · ")}`;
+
+/** What the player's character can do, from their sheet. */
+function sheetLine(view: TurnView): string {
+  const r = view.rules;
+  const list = (name: string, xs: Array<{ id: string; name: string }> | undefined) => (xs?.length ? `${name}: ${xs.map(x => `${x.name} [${x.id}]`).join(", ")}` : "");
+  return [list("spells ready", r?.spells), list("weapons", r?.weapons), list("features", r?.features)].filter(Boolean).join("; ") || "no spells, weapons or features on their sheet";
+}
+
+const fighterOf = (combat: CombatView, id: string): CombatFighter => combat.fighters.find(f => f.id === id) ?? combat.fighters[0]!;
+
+/** How the combat GM is asked: the request's calls, and the game's keys for who says each line. */
+export interface CombatHow { calls: CallContext; byKey(markup: Markup): Markup }
+
+/**
+ * The GM's next move in the fight: one tool call, held to the fight (an action of a verb the turn
+ * can still take, by someone who can take it; nothing but end_combat once it's over), each wrong
+ * call answered in the loop so the GM can put it right. A reply in words alone is its turn's end
+ * (or the fight's, once it's over).
+ */
+export async function combatMove(scene: Scene, view: TurnView, combat: CombatView, how: CombatHow): Promise<{ move: CombatMove; entries: Reply[]; costUsd: number }> {
+  const tools = combat.over ? [END_COMBAT] : [PERFORM_ACTION, MOVE_TOWARDS, END_TURN, END_COMBAT];
+  const result = await runTools({
+    operation: combat.whose === "player" ? "combat.player" : "combat.turn", instructions: combatInstructions(scene, view), input: combatInput(scene, view, combat), tools,
+    effort: "low", maxTurns: 4, calls: how.calls, roundMs: 20_000, deadlineMs: 45_000, parallel: false, stop: () => true,
+  }, async (name, args) => { checkCall(combat, name, args); return { ok: true }; });
+  const move = result.stopped ? moveOf(result.stopped.name, result.stopped.args) : wordsAlone(combat, result.text);
+  const narration = "narration" in move ? move.narration : move.act.narration;
+  return { move, entries: narration.trim() ? [spoken(scene, view, narration, how.byKey)] : [], costUsd: result.costUsd };
+}
+
+/** A tool call held to the fight: wrong ones are answered in the loop (InvalidToolArguments) for the GM to put right. */
+export function checkCall(combat: CombatView, name: string, args: Record<string, unknown>): void {
+  const narration = typeof args.narration === "string" ? args.narration.trim() : "";
+  if (!narration) throw new InvalidToolArguments(`${name} needs its narration.`);
+  if (combat.over && name !== "end_combat") throw new InvalidToolArguments(`The fight is over (${combat.over.why}): call end_combat.`);
+  if (name === "end_combat" && !COMBAT_OUTCOMES.includes(args.outcome as CombatOutcome)) throw new InvalidToolArguments(`end_combat's outcome is one of ${COMBAT_OUTCOMES.join(", ")}.`);
+  if (name === "move_towards") return checkMove(combat, args);
+  if (name !== "perform_action") return;
+  const action = args.action as CombatVerb;
+  if (!COMBAT_VERBS.includes(action)) throw new InvalidToolArguments(`perform_action's action is one of ${COMBAT_VERBS.join(", ")}.`);
+  const whose = fighterOf(combat, combat.whose);
+  if (combat.done.length >= ACTS_A_TURN) throw new InvalidToolArguments("That's all for this turn: call end_turn.");
+  if (ACTION_VERBS.has(action) && actionUsed(combat)) throw new InvalidToolArguments(`${whose.name} has used their action this turn: a move or something small (other), or end_turn.`);
+  if (whose.id !== "player" && ["cast", "grapple", "shove", "feature", "check"].includes(action)) throw new InvalidToolArguments(`${whose.name} can attack with their weapon, move, flee, surrender or do something else (other): the rules don't have ${action} for them.`);
+  if (["attack", "grapple", "shove"].includes(action) && typeof args.target !== "string") throw new InvalidToolArguments(`${action} needs a target: an id from the fight.`);
+  if (action === "attack" && whose.id !== "player" && !combat.fighters.some(f => f.id === args.target)) throw new InvalidToolArguments(`${whose.name}'s attack is at someone in the fight: ${combat.fighters.filter(f => f.id !== whose.id).map(f => f.id).join(", ")}.`);
+  if (action === "cast" && typeof args.spell !== "string") throw new InvalidToolArguments("cast needs the spell's id.");
+  if (action === "feature" && typeof args.feature !== "string") throw new InvalidToolArguments("feature needs the feature's id.");
+  if (action === "check" && (!SKILLS.includes(args.skill as Skill) || !Number.isInteger(args.dc))) throw new InvalidToolArguments("check needs a skill and an integer dc.");
+}
+
+/** Whether this turn has used its action already: an action verb, or a second move (a dash). */
+function actionUsed(combat: CombatView): boolean {
+  const done = combat.done.filter(d => !d.refused);
+  return done.some(d => ACTION_VERBS.has(d.act.action)) || done.filter(d => d.act.action === "move").length > 1;
+}
+
+/** move_towards held to the turn: a target, at most two moves (the second a dash, the turn's action). */
+function checkMove(combat: CombatView, args: Record<string, unknown>): void {
+  const whose = fighterOf(combat, combat.whose);
+  if (typeof args.target !== "string" || !args.target.trim()) throw new InvalidToolArguments("move_towards needs a target: an id from the fight or the world.");
+  if (combat.done.length >= ACTS_A_TURN) throw new InvalidToolArguments("That's all for this turn: call end_turn.");
+  const moves = combat.done.filter(d => !d.refused && d.act.action === "move").length;
+  if (moves >= 2 || (moves === 1 && actionUsed(combat))) throw new InvalidToolArguments(`${whose.name} has moved as far as they can this turn: call end_turn.`);
+}
+
+/** A held call as the move it is. */
+function moveOf(name: string, args: Record<string, unknown>): CombatMove {
+  const narration = String(args.narration ?? "").trim();
+  if (name === "end_turn") return { kind: "end_turn", narration };
+  if (name === "end_combat") return { kind: "end_combat", outcome: args.outcome as CombatOutcome, narration };
+  if (name === "move_towards") return { kind: "act", act: { action: "move", target: String(args.target).trim(), ...(args.away === true ? { away: true } : {}), narration } };
+  const text = (k: string) => (typeof args[k] === "string" && (args[k] as string).trim() ? { [k]: (args[k] as string).trim() } : {});
+  const act: CombatAction = {
+    action: args.action as CombatVerb, narration, ...text("target"), ...text("spell"), ...text("weapon"), ...text("feature"),
+    ...(args.action === "check" ? { skill: args.skill as Skill, dc: Number(args.dc) } : {}),
+  };
+  return { kind: "act", act };
+}
+
+/** A reply in words with no tool: the turn's end, or the fight's once it's over. Nothing at all is a failure. */
+function wordsAlone(combat: CombatView, text: string): CombatMove {
+  if (!text.trim()) throw new Error("combat: the GM made no move");
+  return combat.over ? { kind: "end_combat", outcome: combat.over.outcome, narration: text.trim() } : { kind: "end_turn", narration: text.trim() };
+}
+
+/** The narration as the screen has it: names the player hasn't heard swapped for what they'd call them, and who says each line. */
+function spoken(scene: Scene, view: TurnView, text: string, byKey: (markup: Markup) => Markup): Reply {
+  const known = asKnown(text.trim(), unheardOf(scene, view));
+  const { text: words, marked } = readReply(scene, view, known.text);
+  return { speaker: "gm", kind: "narration", text: words, ...(marked.speech.length ? { markup: byKey({ speech: marked.speech }) } : {}) };
+}

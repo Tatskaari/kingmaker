@@ -26,6 +26,7 @@ import { syncStage } from "../world/stage.ts";
 import { keysIn, lookForNew } from "./looks.ts";
 import type { Next } from "./move.ts";
 import type { SayPlan } from "./plans.ts";
+import { combatTurnPlan, startCombat } from "./combat.ts";
 import { atTurn, beforeReply, endScene, noteReply, resolveAct, type At } from "./say-commits.ts";
 import { suggestAfter } from "./suggest.ts";
 
@@ -57,6 +58,8 @@ export function twoPartStart(tx: TxCtx, scene: SceneRow, graph: Scene, gm: GmSta
     ...(gm.closing ? { windDown: { exit: gm.closing.exitId } } : {}),
   };
   const rules = first?.directives.length ? { rulesFirst: { directives: first.directives, down: first.down, shielded: first.shielded } } : {};
+  // A fight on (docs/combat-gm.md): the line is the player's turn in it, the GM's to play through its tools.
+  if (gm.combat && !gm.closing) { putGm(tx, scene.id, gm); return combatTurnPlan(tx, { scene, graph, gm }, { ...base, ...rules, step: "combat", windDown: false, outcome, lines: outcome.lines }); }
   const forced = turn.mechanic && !gm.closing ? JSON.parse(turn.mechanic) as Mechanic : undefined;
   const resolved = forced ? resolveAct(tx, { scene, graph, gm }, { n: turn.n, input: line, ...rules }, forced, outcome) : undefined;
   const acting = forced || gm.closing ? undefined : actingIn(tx, scene, line);
@@ -134,6 +137,8 @@ export function afterTwoPartReply(tx: TxCtx, plan: SayPlan, answer: ReplyRespons
   noteHeard(tx, at.scene, at.graph);
 
   if (plan.outcome?.windDown) return windDown(tx, at, plan, answer.closes !== false || !!at.gm.twoPart.held);
+  // The reply rolled for initiative (docs/combat-gm.md): the fight takes the scene's turns from here.
+  if (answer.initiative) return startCombat(tx, at, { ...plan, lines: [...plan.lines, ...spoken.lines] }, answer.initiative);
 
   // A talk's lines to choose come with its settle (talk.suggest: town-design §3.6), not the suggest job.
   if (at.scene.kind !== "talk") suggestAfter(tx, at.scene, turnId);

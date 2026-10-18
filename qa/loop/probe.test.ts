@@ -93,7 +93,7 @@ test("a reply asked again: the per-turn note's routes as the rebuilt bookkeeping
   assert.equal(tried.error, undefined);
   assert.equal(tried.replied?.narration, "“Big Hobb Mallory,” Kell says.", "the speakers' tags out, as the transcript keeps it");
   const [asked, coGmAsked] = sent;
-  assert.deepEqual(asked!.text?.format?.schema?.required, ["check", "narration", "outcomes"], "a reply in this checkout's format, which its instructions ask for, and not a closing that may wait");
+  assert.deepEqual(asked!.text?.format?.schema?.required, ["check", "roll_for_initiative", "narration", "outcomes"], "a reply in this checkout's format, which its instructions ask for, and not a closing that may wait");
   assert.doesNotMatch(String(asked!.input.at(-2)?.content), /## For this reply/);
   assert.match(String(asked!.input.at(-2)?.content), /- \[find-motive\]/);
   const said = String(coGmAsked!.input[0]!.content);

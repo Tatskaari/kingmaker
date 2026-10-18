@@ -27,7 +27,13 @@ export async function runTools(request: {
    * think on a turn's way (the two-part GM's co-GM, M2) can't.
    */
   roundMs?: number; deadlineMs?: number;
-}, call: (name: string, args: Record<string, unknown>) => Promise<unknown>): Promise<{ text: string; calls: ToolCall[]; costUsd: number; latencyMs: number }> {
+  /**
+   * A call that ends the loop once its arguments pass (the combat GM's, docs/combat-gm.md: an action
+   * the simulation resolves before the GM goes on, the end of a turn or of the fight): the loop
+   * returns it as `stopped`, with no output sent back. `parallel: false` asks for one call a round.
+   */
+  stop?: (name: string) => boolean; parallel?: boolean;
+}, call: (name: string, args: Record<string, unknown>) => Promise<unknown>): Promise<{ text: string; calls: ToolCall[]; costUsd: number; latencyMs: number; stopped?: ToolCall }> {
   const model = request.model ?? LUNA;
   const context = request.calls;
   const items: Array<Record<string, unknown>> = request.input.map(m => ({ role: m.role, content: m.content }));
@@ -40,6 +46,7 @@ export async function runTools(request: {
       model, instructions: request.instructions, input: items, store: false, include: ["reasoning.encrypted_content"],
       reasoning: { effort: request.effort ?? "medium" },
       tools: request.tools.map(t => ({ type: "function", name: t.name, description: t.description, parameters: t.parameters, strict: false })),
+      ...(request.parallel === false ? { parallel_tool_calls: false } : {}),
     };
     const { response, json } = await round(request.operation, body, context, request.roundMs ?? 180_000, deadline);
     if (!response.ok || json.status !== "completed") {
@@ -64,6 +71,10 @@ export async function runTools(request: {
         if (!request.tools.some(t => t.name === fc.name)) throw new InvalidToolArguments(`Tool unavailable in this review: ${fc.name}`);
         result = await call(fc.name!, args);
         calls.push({ name: fc.name!, args, result });
+        if (request.stop?.(fc.name!)) {
+          logCall({ provider: "openrouter", operation: request.operation, model, effort: body.reasoning.effort, request: { instructions: request.instructions.slice(0, 400), input: request.input }, calls, text: "", latencyMs: Math.round(performance.now() - started), costUsd }, context);
+          return { text: "", calls, costUsd, latencyMs: performance.now() - started, stopped: calls[calls.length - 1]! };
+        }
       } catch (error) {
         if (!(error instanceof InvalidToolArguments || error instanceof SyntaxError) || corrections++ >= 2) throw error;
         result = { ok: false, error: "invalid_tool_arguments", instruction: error.message };

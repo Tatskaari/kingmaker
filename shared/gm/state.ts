@@ -1,4 +1,5 @@
 import type { RollResult } from "../dice.ts";
+import type { CombatState } from "./combat.ts";
 import type { Brawl, Threat } from "../rules/types.ts";
 import type { Path } from "../scene/document.ts";
 import type { Beat, Essential, Scene, Transition } from "../scene/types.ts";
@@ -63,6 +64,8 @@ export interface GmState {
   // The two-part GM's (docs/two-part-design.md): what its co-GM keeps between turns.
   /** Each person's role as the co-GM last set it, the co-GM's notes for the turns after it, the stage it last moved the scene to (the next reply shows it), and a wind-down held once. */
   twoPart: TwoPartState;
+  /** A fight in the conversation, while it's on (docs/combat-gm.md): who's in it in initiative order, the round, whose turn. */
+  combat?: CombatState;
 }
 
 /** A person's conversation role as the two-part GM's co-GM keeps it (its update_character_role's fields). */
@@ -184,6 +187,8 @@ export interface GmRow {
   reached: string[];
   /** TwoPartState: the roles a row a person, moved an empty option; none in a row from before M2. */
   twoPart: TwoPartRow | undefined;
+  /** JSON: CombatState; "" (or none, in a row from before it) when there's no fight on. */
+  combat: string;
 }
 
 export interface TwoPartRow {
@@ -227,6 +232,7 @@ export function gmToRow(sceneId: bigint, gm: GmState): GmRow {
       moved: gm.twoPart.moved,
       held: !!gm.twoPart.held,
     },
+    combat: gm.combat ? JSON.stringify(gm.combat) : "",
   };
 }
 
@@ -255,6 +261,7 @@ export function gmFromRow(row: GmRow): GmState {
     // A row from before M2 has no nodes reached: its stage stands for them.
     reached: row.reached?.length ? [...row.reached] : [row.beat],
     twoPart: twoPartOf(row.twoPart),
+    ...(row.combat ? { combat: JSON.parse(row.combat) as CombatState } : {}),
   };
 }
 
