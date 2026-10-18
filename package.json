@@ -26,6 +26,7 @@
     "live": "node --no-warnings --import tsx hosts/live-run.ts",
     "loop": "node --no-warnings --import tsx hosts/loop.ts",
     "client": "node --experimental-ffi --no-warnings --import tsx hosts/client.tsx",
+    "zoo": "node --experimental-ffi --no-warnings --import tsx hosts/client.tsx zoo",
     "build:web": "node --no-warnings --import tsx hosts/web/build.ts",
     "build:site": "node --no-warnings --import tsx hosts/web/build-site.ts",
     "web:serve": "node --no-warnings --import tsx hosts/web/serve.ts",

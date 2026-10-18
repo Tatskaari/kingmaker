@@ -777,6 +777,91 @@ export const placeTick = table({ name: "place_tick" }, {
 });
 
 // ---------------------------------------------------------------------------------------------
+// A fight on a map (M6, docs/combat-design.md): the board and whose turn it is, the engine's campaign
+// it's played on, its moments a row each, and the clock that plays the other side's turns. A game
+// keeps its latest fight only: starting one takes the last one's rows away.
+
+/**
+ * A fight, the player's: where it is, its map (the campaign's by key, or one of its own), on, over
+ * (its end on screen until the player goes back to the map) or done, how it ended, the round, whose
+ * turn, the initiative order, its last moment's number, the board (JSON: shared/fight/types.ts
+ * FightBoard), the player's options on their turn (JSON: FightOptions, "" while it isn't theirs) and
+ * how it went (JSON: FightResult, once it's over).
+ */
+export const fight = table({ name: "fight", public: true }, {
+  id: t.u64().primaryKey().autoInc(),
+  gameId: t.u64().index("btree"),
+  /** The player whose fight it is: they act on their turns. */
+  playerId: t.u64(),
+  /** "The wolf run". */
+  title: t.string(),
+  /** Where it is, for its lines: "the Arena". */
+  place: t.string(),
+  /** The campaign's map it's fought on (its key), when it is. */
+  mapKey: t.option(t.string()),
+  /** JSON: shared/map/tiles.ts MapFile, its own map when it isn't the campaign's (a zoo ring's). */
+  map: t.option(t.string()),
+  /** on, over, done. */
+  status: t.string(),
+  /** victory, defeat, surrender, fled, yielded: once it's over. */
+  outcome: t.option(t.string()),
+  round: t.u32(),
+  /** Whose turn it is: a unit's id ("" once it's over). */
+  turn: t.string(),
+  /** The units' ids in initiative order. */
+  order: t.array(t.string()),
+  /** Its last moment's number (fight_event.seq). */
+  seq: t.u32(),
+  /** JSON: FightBoard. */
+  board: t.string(),
+  /** JSON: FightOptions on the player's turn; "" otherwise. */
+  options: t.string(),
+  /** JSON: FightResult, once it's over. */
+  result: t.option(t.string()),
+  startedAt: t.timestamp(),
+  /** Bumped by every write. */
+  rev: t.u32(),
+});
+
+/** The rules engine's campaign a fight is played on (the player's own, copied as it started): the truth about hit points, slots, conditions and the encounter. */
+export const fightRules = table({ name: "fight_rules" }, {
+  fightId: t.u64().primaryKey(),
+  gameId: t.u64().index("btree"),
+  /** serializeCampaign: the engine's event log. */
+  campaign: t.string(),
+});
+
+/** A moment of a fight, in order (docs/combat-design.md §3): what the screen plays, and the log's lines. */
+export const fightEvent = table({ name: "fight_event", public: true }, {
+  id: t.u64().primaryKey().autoInc(),
+  fightId: t.u64().index("btree"),
+  gameId: t.u64().index("btree"),
+  /** Per fight, from 1. */
+  seq: t.u32(),
+  round: t.u32(),
+  /** Whose turn it happened on (a unit's id; "" before the first). */
+  turn: t.string(),
+  /** start, turn, move, attack, cast, dash, dodge, disengage, wrestle, use, say, nerve, yield, flee, walk-off, arrest, hazard, pass, over. */
+  kind: t.string(),
+  /** Who did it: a unit's id. */
+  actor: t.option(t.string()),
+  /** Who or what it was aimed at: a unit's or a prop's id. */
+  target: t.option(t.string()),
+  /** One line in the house style. */
+  caption: t.string(),
+  /** JSON: shared/fight/types.ts FightEventDetail (the path, the rolls, the hits, the area, the lines). */
+  detail: t.string(),
+  at: t.timestamp(),
+});
+
+/** The schedule table that runs fight_step: the next of the other side's turns, once the last has had its time on screen (shared/fight/pace.ts). One row a fight at most. */
+export const fightClock = table({ name: "fight_clock" }, {
+  scheduledId: t.u64().primaryKey().autoInc(),
+  scheduledAt: t.scheduleAt(),
+  fightId: t.u64(),
+});
+
+// ---------------------------------------------------------------------------------------------
 // Character creation and the rules engine (v1-design §3.1, §3.5).
 
 /**
@@ -900,6 +985,8 @@ export const GameSummary = t.row("GameSummary", {
   /** Whether it has set off (begin), or is still the sheet. */
   begun: t.bool(),
   lastPlayedAt: t.timestamp(),
+  /** The campaign's key ("caerwyn"; "zoo" for a zoo visit, which the title keeps apart: M6). */
+  campaign: t.string(),
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -915,6 +1002,7 @@ const spacetimedb = schema(
     creation, rulesState,
     explore,
     talkRecord, lookInvention, placeTick,
+    fight, fightRules, fightEvent, fightClock,
   },
   {
     /** Set at publish (`AI_URL=… spacetime publish …`, or --env-only). */

@@ -1,4 +1,4 @@
-// Copied from the prototype's src/game/look/effects.ts at 44c6d4a, whole, unchanged.
+// Copied from the prototype's src/game/look/effects.ts at 44c6d4a, whole; new (M6's fight screen): a blow's slash between two anchors, a flight's time given (`ms`, a fight's pace fitting it to its beat) and a thrown thing's arc (`arc`: an arrow flies flat).
 import { DAMAGE_COLOR, FLAME_LIGHT, FLAME_RAMPS, mix, ramp, rgbOf, type FlameName, type RGB } from "./color.ts";
 import { clamp01, hash01, noise3, rng, smoothstep } from "./noise.ts";
 
@@ -10,6 +10,7 @@ import { clamp01, hash01, noise3, rng, smoothstep } from "./noise.ts";
  *   fx.effect("bolt", { from, to, color: "#9ad8ff" });
  *   fx.effect("explosion", { at, radius: 15 });
  *   fx.effect("splash", { at });                 // also: sparks, smoke, steam, shockwave, flash, throw, douse, ignite, debris, poof
+ *   fx.effect("slash", { from, to, glyph: "\\|/" }); // a blow's flash between two, frame by frame
  *   fx.float(elm, "28", { damage: "fire" });     // a damage number that rises and fades
  *   fx.bark("kell", "Was that strictly necessary?");
  *   fx.alert("cob");                             // a "!" over his head
@@ -26,7 +27,7 @@ export interface Vec { x: number; y: number }
 /** A place in the world (feet), or someone or something by id (their position is looked up each frame). */
 export type Anchor = Vec | { id: string };
 
-export type EffectKind = "fireball" | "bolt" | "explosion" | "splash" | "sparks" | "smoke" | "steam" | "dust" | "shockwave" | "flash" | "throw" | "douse" | "ignite" | "debris" | "poof" | "embers" | "lightning";
+export type EffectKind = "fireball" | "bolt" | "explosion" | "splash" | "sparks" | "smoke" | "steam" | "dust" | "shockwave" | "flash" | "throw" | "douse" | "ignite" | "debris" | "poof" | "embers" | "lightning" | "slash";
 
 export interface EffectOptions {
   at?: Anchor;
@@ -36,8 +37,12 @@ export interface EffectOptions {
   radius?: number;
   color?: string;
   flame?: FlameName;
-  /** Glyph for a thrown thing. */
+  /** Glyph for a thrown thing; a slash's frames, one after another. */
   glyph?: string;
+  /** How long a flight (a bolt, a thrown thing) or a slash takes, in ms, in place of its own pace. */
+  ms?: number;
+  /** A thrown thing's arc, in feet up at its highest (6 unless said: an arrow flies flat, 0). */
+  arc?: number;
   /** More or fewer particles (1 = normal). */
   amount?: number;
   seed?: number;
@@ -282,7 +287,7 @@ export class Effects {
         const to = o.to ?? at;
         const from = o.from ?? at;
         const c = color ?? C("#9ad8ff");
-        const travel = this.projectile(from, to, t0, random, { glyph: "*", colors: [C("#ffffff"), c], trail: [C("#ffffff"), c, mix(c, C("#000000"), 0.6)], speed: 130, arc: 0, glow: true });
+        const travel = this.projectile(from, to, t0, random, { glyph: "*", colors: [C("#ffffff"), c], trail: [C("#ffffff"), c, mix(c, C("#000000"), 0.6)], speed: 130, arc: 0, glow: true, ...(o.ms ? { ms: o.ms } : {}) });
         this.sparksAt(to, t0 + travel, random, n(12), [C("#ffffff"), c, mix(c, C("#202020"), 0.5)]);
         this.lights.push({ born: t0 + travel, life: 380, at: to, radius: 14, color: c, intensity: 1.2, curve: "flash" });
         return travel + 500;
@@ -352,8 +357,16 @@ export class Effects {
       case "throw": {
         const to = o.to ?? at;
         const from = o.from ?? at;
-        const travel = this.projectile(from, to, t0, random, { glyph: o.glyph ?? "•", colors: [color ?? C("#c8c0b0")], speed: 55, arc: 6, glow: false });
+        const travel = this.projectile(from, to, t0, random, { glyph: o.glyph ?? "•", colors: [color ?? C("#c8c0b0")], speed: 55, arc: o.arc ?? 6, glow: false, ...(o.ms ? { ms: o.ms } : {}) });
         return travel;
+      }
+      case "slash": {
+        // A blow's flash: one cell between the two, a little nearer the one struck, its frames one after another, bright.
+        const from = o.from ?? at, to = o.to ?? at;
+        const life = o.ms ?? 300;
+        const c = color ?? C("#e8eef4");
+        this.particles.push({ ...this.p(t0, life, from, { glyphs: o.glyph ?? "\\|/", colors: [C("#ffffff"), c, mix(c, C("#000000"), 0.25)], glow: true, layer: 1 }), path: { from, to, arc: 0, at: 0.6 }, z: 0, fade: false });
+        return life;
       }
     }
     return 0;
@@ -392,10 +405,10 @@ export class Effects {
   }
 
   /** Something flying from a to b (a bolt's head, a thrown stone): its trail follows it. Returns the flight time. */
-  private projectile(from: Anchor, to: Anchor, t0: number, random: () => number, o: { glyph: string; colors: RGB[]; trail?: readonly RGB[]; speed: number; arc: number; glow: boolean }): number {
+  private projectile(from: Anchor, to: Anchor, t0: number, random: () => number, o: { glyph: string; colors: RGB[]; trail?: readonly RGB[]; speed: number; arc: number; glow: boolean; ms?: number }): number {
     const a = isId(from) ? undefined : from, b = isId(to) ? undefined : to;
     const dist = a && b ? Math.hypot(b.x - a.x, b.y - a.y) : 30;
-    const travel = Math.max(140, Math.min(900, (dist / o.speed) * 1000));
+    const travel = o.ms ?? Math.max(140, Math.min(900, (dist / o.speed) * 1000));
     this.particles.push({ ...this.p(t0, travel, from, { glyphs: o.glyph, colors: o.colors, glow: o.glow, layer: 1 }), path: { from, to, arc: o.arc }, z: 2, fade: false });
     if (o.glow && o.trail) {
       // A comet's head: a dimmer cell either side of the bright one, so it reads at speed.

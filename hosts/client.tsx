@@ -11,6 +11,7 @@ import { registerLookCanvas } from "../client/look/opentui.ts";
 import { connect } from "../client/net/connection.ts";
 import { ownerAt, ownerFor } from "../client/net/owner.ts";
 import { keepToken, serverFor, sessionAt } from "../client/net/session.ts";
+import { visit } from "../client/zoo/zoo.ts";
 import { configureTerminal } from "./terminal.ts";
 
 /**
@@ -29,6 +30,10 @@ const USAGE = `Kingmaker: the client
   npm run client -- --session <name> --join <game>
                                          watch someone's game (the number in their side panel)
   npm run client -- --demo               the title, a character made and a scene, canned: no server
+  npm run zoo [-- <exhibit>] [--build fighter|wizard|rogue] [--foes <line-up>] [--session <name>]
+                                         the zoo (its menu; or straight into an exhibit, the combat ring: ring) as
+                                         a ready-made character (the fighter unless said), in the session zoo unless
+                                         said; --zoo <exhibit> does the same from npm run client
 
 --url and --db choose the server (else KM_STDB_URL and KM_STDB_DB, else the running dev stack's,
 found in runs/dev/stack.json or the folder --stack names, else ws://127.0.0.1:3300 and kingmaker).
@@ -47,7 +52,7 @@ async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<void> {
   const game = await backendFor(args, env);
   const intent = await started(game, args, campaign).catch((error: unknown) => { game.close(); throw error; });
 
-  await play(game, intent, campaign);
+  await play(game, intent, campaign, { zooMenu: args.zoo === "" });
 }
 
 /** Refuses without a terminal on both ends: the headless client is for that. */
@@ -58,13 +63,20 @@ function needTerminal(): void {
 }
 
 function argsOf(argv: string[]) {
-  return parseArgs({
+  const parsed = parseArgs({
     args: argv,
+    allowPositionals: true,
     options: {
       session: { type: "string" }, new: { type: "string" }, build: { type: "string" }, campaign: { type: "string" },
       join: { type: "string" }, demo: { type: "boolean" }, url: { type: "string" }, db: { type: "string" }, stack: { type: "string" }, help: { type: "boolean", short: "h" },
+      zoo: { type: "string" }, foes: { type: "string" },
     },
   });
+  // npm run zoo [-- <exhibit>]: the zoo, its menu or an exhibit (the client's own --zoo <exhibit> too), in the session zoo unless said.
+  const [verb, exhibit] = parsed.positionals;
+  if (verb !== undefined && verb !== "zoo") throw new Error(`There's no "${verb}" for the client: it takes options (--help says which).`);
+  const zoo = verb === "zoo" ? (exhibit ?? "") : parsed.values.zoo;
+  return { ...parsed, values: { ...parsed.values, zoo, session: parsed.values.session ?? (zoo !== undefined ? "zoo" : undefined) } };
 }
 
 /** The demo, or the server as the session's identity (its token kept for the next run). */
@@ -87,6 +99,12 @@ async function backendFor(args: Args, env: NodeJS.ProcessEnv): Promise<Backend> 
  * watch (the game); a character from a sentence (its creation: three builds that fit); else the title.
  */
 async function started(game: Backend, args: Args, campaign: string): Promise<Intent> {
+  if (args.zoo) {
+    // Straight into an exhibit: a visit as a ready-made character, the fighter unless --build says.
+    const refused = await visit(game, { exhibit: args.zoo, build: args.build ?? "fighter", foes: args.foes });
+    if (refused) throw new Error(refused.text);
+    return "game";
+  }
   if (args.new !== undefined) {
     const who = newGameOf(args.new, args.build ?? "", campaign);
     const refused = args.build
@@ -104,8 +122,8 @@ async function started(game: Backend, args: Args, campaign: string): Promise<Int
   return "title";
 }
 
-/** The screens, over the game: the app's model follows the rows and makes the moves, until the player quits. */
-async function play(game: Backend, intent: Intent, campaign: string): Promise<void> {
+/** The screens, over the game: the app's model follows the rows and makes the moves, until the player quits (`zooMenu`: the title with the zoo's menu open). */
+async function play(game: Backend, intent: Intent, campaign: string, opening: { zooMenu?: boolean } = {}): Promise<void> {
   // The scene's place paints itself, live (<lookCanvas>).
   registerLookCanvas();
   const renderer = await createCliRenderer({ exitOnCtrlC: false, autoFocus: false });
@@ -120,6 +138,7 @@ async function play(game: Backend, intent: Intent, campaign: string): Promise<vo
   process.on("unhandledRejection", say);
   process.on("uncaughtException", say);
 
+  if (opening.zooMenu) app.title.openZoo();
   root.render(<App app={app} />);
 }
 

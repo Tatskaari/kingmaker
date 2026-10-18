@@ -28,20 +28,29 @@ export function startOnMap(tx: TxCtx, game: GameRow, campaign: CampaignRow): boo
   const mapKey = file.start.map;
   if (!mapKey) return false;
 
+  tx.db.game.id.update({ ...gameRow(tx, game.id), leadScene: file.firstScene });
+  putOnMap(tx, game, mapKey, startTile(file.start.at));
+
+  buildLead(tx, gameRow(tx, game.id), file.firstScene);
+  return true;
+}
+
+/**
+ * The game's host on one of its campaign's maps, at a tile facing south (the prototype's
+ * newExploration): their explore row, the map's own place their seat's, its clock ticking. The story's
+ * start (startOnMap) leads somewhere from there; a zoo visit (zoo/visit.ts) has no lead.
+ */
+export function putOnMap(tx: TxCtx, game: GameRow, mapKey: string, at: Tile2): void {
   useMaps(mapFilesOf(tx, game));
   const host = playerRow(tx, game.hostId);
   const town = mapPlaceOf(tx, game, mapKey);
-  tx.db.game.id.update({ ...gameRow(tx, game.id), leadScene: file.firstScene });
   tx.db.explore.insert({
-    playerId: host.id, gameId: game.id, map: mapKey, at: startTile(file.start.at), facing: { x: 0, y: 1 }, steps: 0, hidden: false, scene: undefined,
+    playerId: host.id, gameId: game.id, map: mapKey, at: { ...at }, facing: { x: 0, y: 1 }, steps: 0, hidden: false, scene: undefined,
     followers: [], quips: 0, lastQuip: undefined, styles: [], acts: 0, said: "", log: [],
     rested: undefined, spotted: undefined, lifted: undefined, fight: undefined,
   });
   tx.db.player.id.update({ ...host, placeId: town.id, sceneId: undefined });
   keepTicking(tx, town.id);
-
-  buildLead(tx, gameRow(tx, game.id), file.firstScene);
-  return true;
 }
 
 /**

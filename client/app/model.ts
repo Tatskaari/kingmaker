@@ -3,9 +3,12 @@ import { mapMove, type Backend, type HomeRows } from "../backend.ts";
 import { CreationModel } from "../creation/model.ts";
 import { ExploreModel } from "../explore/model.ts";
 import type { ExploreView } from "../explore/rows.ts";
+import { FightModel } from "../fight/model.ts";
+import type { FightView } from "../fight/view.ts";
 import { SceneModel, type SheetShown } from "../scene/model.ts";
 import type { SceneView } from "../scene/view.ts";
 import { TitleModel } from "../title/model.ts";
+import { fightZoo } from "../zoo/zoo.ts";
 
 /**
  * Which screen is up (v1-design §3.10): the title, character creation's six, or the game, from the
@@ -27,7 +30,7 @@ export type Intent = "title" | "new" | "creation" | "game";
  */
 export type Surface = "terminal" | "page";
 
-export type Screen ="title" | "create" | "creating" | "choose" | "custom" | "backstory" | "created" | "scene" | "explore";
+export type Screen ="title" | "create" | "creating" | "choose" | "custom" | "backstory" | "created" | "scene" | "explore" | "fight";
 
 /** What the title says when the game the player was in has gone from the server. */
 export const GONE = "(The game's server no longer has that game: carry on another, or start a new one.)";
@@ -44,6 +47,8 @@ export interface ScreenRows {
   scene: boolean;
   /** The seat's game is walked on a map, and its rows are in (map-design §3.6): the explore screen has something to draw. */
   explore?: boolean;
+  /** The seat's game has a fight on, or its end still on screen, and its rows are in (M6): the fight's screen has something to draw. */
+  fight?: boolean;
 }
 
 /** What the creating screen waits through: the three builds measured, the GM picking one, the character written into the story. */
@@ -75,13 +80,15 @@ function creationScreen(c: ScreenRows["creation"]): Screen {
 }
 
 /**
- * The game: its scene once it has begun and its rows are in; the map between scenes when the seat
- * has no scene and the game is walked on a map (an ended scene stays up until the player goes back
- * to the map: walk out moves the seat); before it has begun, the sheet the engine made (or the
- * creating screen while it comes).
+ * The game: a fight while it's on and its end until the player goes back to the map (M6: nothing
+ * else can be done meanwhile); its scene once it has begun and its rows are in; the map between
+ * scenes when the seat has no scene and the game is walked on a map (an ended scene stays up until
+ * the player goes back to the map: walk out moves the seat); before it has begun, the sheet the
+ * engine made (or the creating screen while it comes).
  */
 function gameScreen(rows: ScreenRows): Screen {
   if (!rows.seat) return "title";
+  if (rows.fight) return "fight";
   if (rows.seat.sceneId !== undefined && rows.scene) return "scene";
   if (rows.seat.sceneId === undefined && rows.explore) return "explore";
   return rows.sheet ? "created" : "creating";
@@ -127,6 +134,8 @@ export class AppModel implements AppPart {
   scene?: SceneModel;
   /** The map between scenes, once the seat's game is walked on one: a new model for each game. */
   explore?: ExploreModel;
+  /** The seat's game's fight, while it's on or its end is on screen: a new model for each fight. */
+  fight?: FightModel;
   /** The player asked to leave: the host takes the screen down. */
   quitting = false;
   problem: string | undefined;
@@ -155,6 +164,8 @@ export class AppModel implements AppPart {
     this.followScene(view);
     const map = backend.explore();
     this.followMap(map);
+    // A fight already on as the client comes up starts where it is; one that starts while it's up is played from its first moment.
+    this.followFight(backend.fight?.(), false);
     this.shown = this.screenNow(view, map);
     this.noteRefusal();
     backend.onChange(() => this.update());
@@ -175,6 +186,7 @@ export class AppModel implements AppPart {
 
   /** Something went wrong in the client itself: said on the scene's status line, or on the title's or creation's error line. */
   trouble(words: string): void {
+    if (this.shown === "fight" && this.fight) { this.fight.say(words); return; }
     if (this.shown === "scene" && this.scene) { this.scene.status = words; this.scene.emit(); return; }
     if (this.shown === "explore" && this.explore) { this.explore.say(words); this.explore.emit(); return; }
     this.problem = words;
@@ -224,6 +236,7 @@ export class AppModel implements AppPart {
     this.followScene(view);
     const map = this.backend.explore();
     this.followMap(map);
+    this.followFight(this.backend.fight?.(), true);
     this.shown = this.screenNow(view, map);
     if (this.intent === "game" && was !== "title" && this.shown === "title") this.problem = GONE;
     this.emit();
@@ -281,6 +294,22 @@ export class AppModel implements AppPart {
     }, () => this.backend.explore(), () => this.sheetShown());
   }
 
+  /**
+   * The fight's model, fed its rows as they change; a new one for another fight (played from its
+   * first moment when `fresh`: it began while the client was up), none once it's done.
+   */
+  private followFight(view: FightView | undefined, fresh: boolean): void {
+    if (!view) { this.fight?.close(); this.fight = undefined; return; }
+    if (this.fight && this.fight.view.id === view.id && this.fight.view.game === view.game) { this.fight.update(view); return; }
+    this.fight?.close();
+    this.fight = new FightModel(view, {
+      move: m => mapMove(this.backend, m),
+      turn: act => this.backend.act("fightTurn", { act }),
+      out: () => this.backend.walk({ toward: OUT }),
+      quit: () => this.go("title"),
+    }, { fromStart: fresh, sheet: () => this.sheetShown(), zoo: fightZoo(this.backend, () => this.rows) });
+  }
+
   /** The seat's sheet for /sheet: none while the engine hasn't made one (a spectator's seat has none of its own). */
   private sheetShown(): SheetShown | undefined {
     const data = this.creation.sheet;
@@ -289,6 +318,6 @@ export class AppModel implements AppPart {
 
   private screenNow(view: SceneView | undefined, map: ExploreView | undefined): Screen {
     const { creation, seat, sheet } = this.rows;
-    return screenOf({ ...(creation ? { creation } : {}), ...(seat ? { seat } : {}), sheet: !!sheet?.data, scene: !!view, explore: !!map }, this.intent);
+    return screenOf({ ...(creation ? { creation } : {}), ...(seat ? { seat } : {}), sheet: !!sheet?.data, scene: !!view, explore: !!map, fight: !!this.fight }, this.intent);
   }
 }

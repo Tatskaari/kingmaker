@@ -95,4 +95,9 @@ export const TABLES: { [T in TableName]: TableMeta<T> } = {
 
   explore: { primaryKey: "playerId", indexes: ["gameId"], public: true },
   placeTick: { primaryKey: "scheduledId", autoInc: true },
+
+  fight: { primaryKey: "id", autoInc: true, indexes: ["gameId"], public: true },
+  fightRules: { primaryKey: "fightId", indexes: ["gameId"] },
+  fightEvent: { primaryKey: "id", autoInc: true, indexes: ["fightId", "gameId"], public: true },
+  fightClock: { primaryKey: "scheduledId", autoInc: true },
 };

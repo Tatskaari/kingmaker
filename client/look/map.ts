@@ -5,7 +5,7 @@ import { lookOf, type Cell, type Look, type TimeOfDay } from "./appearance.ts";
 import { FLAME_LIGHT, hexOf, mix, rgbOf, type FlameName } from "./color.ts";
 import type { GlyphSet } from "./glyphs.ts";
 import { clamp01, noise1, noise2, seedOf } from "./noise.ts";
-import { CAST_LOOKS } from "./people.ts";
+import { CAST_LOOKS, isCast } from "./people.ts";
 import { surfacesOf, type CloudPatch, type SurfacePatch } from "./surfaces.ts";
 import { cloudCell, flameCell, groundCell, surfaceCell, type Ground, type TCell } from "./terrain.ts";
 
@@ -58,9 +58,12 @@ export interface ActorLook extends Cell {
 export function actorLook(actor: MapActor, frame: LookFrame): ActorLook {
   const kind = actor.kind === "player" ? "player" : actor.kind;
   const authored = !actor.ref && actor.kind !== "player";
+  // One of a kind the cast table has by number ("crake-2", a Crake) keeps a letter and a colour of its
+  // own where it has them, so two of a kind (a fight's two Crakes) can be told apart.
+  const numbered = !!actor.ref && !CAST_LOOKS[actor.ref] && isCast(actor.ref);
   const look = lookOf({
     name: actor.name, kind, id: actor.ref ?? actor.id, ...(actor.ref && CAST_LOOKS[actor.ref] ? { cast: actor.ref } : {}), ...(actor.states ? { states: actor.states } : {}),
-    ...(actor.kind === "player" ? { player: true } : {}), ...(authored && actor.glyph ? { glyph: actor.glyph } : {}), ...(authored && actor.color ? { color: actor.color } : {}),
+    ...(actor.kind === "player" ? { player: true } : {}), ...((authored || numbered) && actor.glyph ? { glyph: actor.glyph } : {}), ...((authored || numbered) && actor.color ? { color: actor.color } : {}),
   }, { t: frame.t, time: frame.time, glyphs: frame.glyphs, seed: seedOf(actor.id) });
   const out: ActorLook = {
     glyph: look.glyph, fg: look.fg, ...(look.bg ? { bg: look.bg } : {}), ...(look.bold ? { bold: true } : {}),

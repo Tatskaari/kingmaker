@@ -49,7 +49,7 @@ export const CLIENT_VIEWS = {
 /**
  * The public tables a client reads, by their SQL names, each with its accessor in the bindings and
  * its primary key: the campaigns, the games and their scenes, the story's, the places with their
- * worlds' rows, and the map's.
+ * worlds' rows, the map's, and a fight's (M6).
  */
 export const PUBLIC_TABLES = {
   campaign: { accessor: "campaign", key: "id" },
@@ -84,6 +84,8 @@ export const PUBLIC_TABLES = {
   world_log: { accessor: "worldLog", key: "id" },
   map_def: { accessor: "mapDef", key: "id" },
   explore: { accessor: "explore", key: "playerId" },
+  fight: { accessor: "fight", key: "id" },
+  fight_event: { accessor: "fightEvent", key: "id" },
 } as const;
 
 /** Every table and view a client watches (the client's Watched): the only ones that cross. */
@@ -105,9 +107,9 @@ export type Rejection = Refusal | { code: "error"; text: string };
 
 /**
  * The moves a client makes as itself, by their names in the bindings (and the memory host's Caller):
- * a scene's, the map's (its action menu's too: town-design §3.2), character creation's, the games'
- * and the story's between scenes. Never installCampaign, dispatchWaiting, setDiceSeed or streamReply,
- * which aren't a player's.
+ * a scene's, the map's (its action menu's too: town-design §3.2), character creation's, the games',
+ * the story's between scenes, and a fight's (M6: a zoo ring started, the fight's own acts). Never
+ * installCampaign, dispatchWaiting, setDiceSeed or streamReply, which aren't a player's.
  */
 export const PLAYER_MOVES = [
   "newGame", "joinGame", "say", "retryTurn", "setSuggestions",
@@ -116,6 +118,7 @@ export const PLAYER_MOVES = [
   "startCreation", "creationBack", "chooseBuild", "makeOwn", "pickOwn", "takeOwn", "setBackstory", "draftBackstory", "workInBackstory",
   "takeProposal", "leaveProposal", "finishBackstory", "acceptFix", "rewriteIssue", "skipBackstory", "chooseAgain",
   "begin", "continueGame", "deleteGame", "carryOn", "fightItOut",
+  "startRing", "fightTurn", "visitZoo", "openExhibit",
 ] as const;
 
 /** The moves only the database's owner may make, for testing (story-design §4.5: /end): a host makes them as the owner, when it allows them. */

@@ -20,6 +20,7 @@ import {
 } from "./e2e/kit.ts";
 import { backToTheMap, inTheLane, mapTimes } from "./e2e/map.ts";
 import { theTown } from "./e2e/town.ts";
+import { aFightInTheRing } from "./e2e/fight.ts";
 import { configureTerminal } from "./terminal.ts";
 
 /**
@@ -50,8 +51,11 @@ import { configureTerminal } from "./terminal.ts";
  * refused with no clear line and writing nothing, then catching the watch house door from the street,
  * the guards shouting, a spectator's map drawing it and the town's clock burning it on; an act at
  * Kell opening the yard as its first turn; an invented look; and a talk with Kell between scenes,
- * bringing up what she remembers, that leaves the waiting Rat as it was. Host mode in CI; namespace
- * mode where 11.0.0.1 isn't this machine's.
+ * bringing up what she remembers, that leaves the waiting Rat as it was. A fight (e2e/fight.ts, M6:
+ * docs/combat-design.md): one of the zoo's rings, the other side's turns played one at a time by
+ * fight_step on SpacetimeDB's schedule with their moments, a spectator seeing the same, the player's
+ * act and auto to the end, and out back to the map. Host mode in CI; namespace mode where 11.0.0.1
+ * isn't this machine's.
  *
  * M2 took out what the two-part GM hasn't got: the notes on marked words (B now joins once the
  * opening is in; the line and the fault that waited on the notes wait on the settle and the lines),
@@ -63,8 +67,9 @@ import { configureTerminal } from "./terminal.ts";
  * docs' references to the others still hold.
  *
  * The dice are never SpacetimeDB's randomness: step 1 fixes them as the owner (set_dice_seed), and a
- * step that checks what its own dice gave (the town's Fire Bolt, the risky act's check) fixes them
- * again just before it makes its game, so each run rolls the same, and asserts what they give.
+ * step that checks what its own dice gave (the town's Fire Bolt, the risky act's check, the ring's
+ * fight in a game of its own) fixes them again just before it makes its game, so each run rolls the
+ * same, and asserts what they give.
  *
  *   npm run e2e [-- --port 3310] [--ai-port 8797] [--root runs/e2e] [--mode host|namespace]
  *
@@ -145,6 +150,7 @@ try {
   await theWholeStory(stack, flags.root, lead, b, FAKE);
   await latencies(stack, a);
   await theTown(stack, flags.root, lead, b, FAKE);
+  await aFightInTheRing(stack, lead, b);
 
   a.conn.close();
   b.conn.close();
@@ -161,13 +167,19 @@ console.log(passed ? `\nPASS: every step, in ${elapsed()}` : "\nFAIL");
 process.exit(passed ? 0 : 1);
 
 // ---------------------------------------------------------------------------------------------
-// The steps (v0-design §10.4, v5-design §4.4); V1's, 15 to 21, are e2e/creation.ts's, the GM's, 22 to 24, e2e/gm.ts's, the world's, 26, 28 and 30, e2e/world.ts's, the whole story's, 31 to 34, e2e/story.ts's, and the town's, 36 to 39, e2e/town.ts's.
+// The steps (v0-design §10.4, v5-design §4.4); V1's, 15 to 21, are e2e/creation.ts's, the GM's, 22 to 24, e2e/gm.ts's, the world's, 26, 28 and 30, e2e/world.ts's, the whole story's, 31 to 34, e2e/story.ts's, the town's, 36 to 39, e2e/town.ts's, and the fight's, 40, e2e/fight.ts's.
 
-/** 1. The stack is up (--fresh); the campaign goes into both; the dice are fixed for the run, as only the owner may; the doctor finds all well. */
+/**
+ * 1. The stack is up (--fresh); the campaign goes into both, and the zoo (M6) into the module beside it,
+ * as the dev stack installs them; the dice are fixed for the run, as only the owner may; the doctor
+ * finds all well.
+ */
 async function installedAndWell(stack: Stack): Promise<void> {
-  step(`1. Up in ${stack.mode} mode, the campaign installed, the dice fixed, the doctor`);
+  step(`1. Up in ${stack.mode} mode, the campaign installed (and the zoo), the dice fixed, the doctor`);
   const installed = await stack.install(join(import.meta.dirname, "..", "campaigns", "caerwyn"));
   ok(`${installed.id} installed in both`);
+  const zoo = await stack.install(join(import.meta.dirname, "..", "campaigns", "zoo"));
+  check(`${zoo.id} installed in the module alone (no GM plays it: the AI service is never given it)`, zoo.structure.ok && zoo.words.ok && "skipped" in zoo.words);
   await fixDice(stack, DICE);
   ok(`the dice fixed as the owner (set_dice_seed ${DICE}): each game's seed from it, so every run rolls the same`);
   const refused = await stack.call("set_dice_seed", { seed: { none: [] } }, "ai").then(() => undefined, (e: unknown) => (e instanceof CallError ? refusalIn(e.body) : undefined));

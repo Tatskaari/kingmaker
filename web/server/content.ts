@@ -17,6 +17,8 @@ export interface Content {
   prompts: Record<string, string>;
   /** hosts/dev/fake.json as it is (its `about` too): what Play with the fake GM plays, as devFake() has it. */
   fake: FakeOptions;
+  /** campaigns/zoo's files by their path in it (M6): the zoo, installed in the simulation beside the campaign (no GM plays it, so the AI service never has it). */
+  zoo?: Record<string, string>;
 }
 
 /** content.json couldn't be had: the site was published again since the page opened, say. The page offers a reload. */

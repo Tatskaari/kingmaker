@@ -1,4 +1,4 @@
-// Copied from the prototype's src/game/map/render.ts at 44c6d4a, whole; its imports at the seams: the world and the map's types and tiles from v2/shared, Span and StyledLine from client/ui/types.ts, raiseFor from the look layer's cast.ts (the prototype's looks.ts).
+// Copied from the prototype's src/game/map/render.ts at 44c6d4a, whole; its imports at the seams: the world and the map's types and tiles from v2/shared, Span and StyledLine from client/ui/types.ts, raiseFor from the look layer's cast.ts (the prototype's looks.ts). New (M6's fight screen): `flash`, someone lit up as a blow lands.
 import type { SceneWorld } from "../../shared/world/scene-world.ts";
 import type { MapActor, Region, StoryState, Tile2, TileMap } from "../../shared/map/types.ts";
 import type { Span, StyledLine } from "../ui/types.ts";
@@ -77,6 +77,8 @@ export interface RenderOptions {
   hazards?: { fire?: Tile2[]; dust?: Tile2[]; scorched?: Tile2[] };
   /** The tile under the pointer: everything drawn for it is lit up. */
   hover?: Tile2;
+  /** Someone lit up this frame, by their id (a fight's hit landing): their glyph in these colours, never darkened. */
+  flash?: Record<string, { fg: string; bg: string }>;
   /** Filled in with what's drawn where, for the mouse (see Picks). */
   pick?: Picks;
 }
@@ -580,7 +582,9 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
     if (a.kind === "player") {
       const r = sr - standing - raiseFor(a.name, states);
       // Out of sight (hidden), you're greyer, and you don't shine.
-      if (states.includes("hidden")) put(sc, r, "@", "#8c96a6", "#1e2026", { bold: true });
+      const lit = options.flash?.[a.id];
+      if (lit) put(sc, r, "@", lit.fg, lit.bg, { bold: true, glow: true });
+      else if (states.includes("hidden")) put(sc, r, "@", "#8c96a6", "#1e2026", { bold: true });
       else put(sc, r, "@", a.color ?? "#d0d0d0", "#3a3418", { bold: true, glow: true });
       me = { x: sc, y: r, depth, at, actor: a };
       return;
@@ -627,7 +631,9 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
     if (stacked) { put(sc, gy - 1, look.glyph, scaleRGB(rgbOf(look.fg), 1.1), undefined, { floor: BLOCK_FLOOR }); put(sc + (hash(at.x, at.y) % 2 ? 1 : -1), gy, look.glyph, scaleRGB(rgbOf(look.fg), 0.85), undefined, { floor: BLOCK_FLOOR }); }
     // Someone you can see stays findable in any light (the light pass's shadeBeing); the hidden stay faint.
     const being = person && look.alpha >= 1;
-    put(sc, gy, look.glyph, fg, look.bg, { bold: !!look.bold, glow: look.glow, floor: person ? BEING_FLOOR : 0, being });
+    const lit = options.flash?.[a.id];
+    if (lit) put(sc, gy, look.glyph, lit.fg, lit.bg, { bold: true, glow: true, being });
+    else put(sc, gy, look.glyph, fg, look.bg, { bold: !!look.bold, glow: look.glow, floor: person ? BEING_FLOOR : 0, being });
     // The fallen have a mark at their feet, so they don't pass for the standing.
     if (person && states.some(s => FALLEN.has(s))) put(sc + 1, gy, "_", fg, undefined, { floor: BEING_FLOOR, being });
     if (look.above) put(sc, gy - (stacked || big?.parts.some(p => p.dx === 0 && p.dy === -1) ? 2 : 1), look.above.glyph, look.above.fg, undefined, { bold: true, glow: true });

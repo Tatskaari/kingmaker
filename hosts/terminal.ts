@@ -10,8 +10,9 @@ import { setPace, type Pace } from "../client/pace.ts";
  * once read from the environment and the disk itself, which a page has neither of. The glyph set
  * (KM_GLYPHS, or the environment's best guess: Kingmaker Glyphs when its font is installed here),
  * the invented looks kept in a file (KM_LOOK_CACHE, or runs/look-cache.json) and the pace
- * (KM_APP_STEP_MS, KM_APP_TALK_MS). So the terminal client, and the headless ones that draw the map
- * and the places as text, draw as they did.
+ * (KM_APP_STEP_MS, KM_APP_TALK_MS, and KM_REDUCED_MOTION=1 for a fight's moves shown at their ends
+ * with their captions, not played out). So the terminal client, and the headless ones that draw the
+ * map and the places as text, draw as they did.
  */
 export function configureTerminal(env: NodeJS.ProcessEnv): void {
   setGlyphSet(detectGlyphSet(env, kingmakerFontHere()).set);
@@ -46,10 +47,11 @@ export function lookFile(path: string): LookStore {
   };
 }
 
-/** The pace the environment asks for: KM_APP_STEP_MS and KM_APP_TALK_MS where they're set, the client's own otherwise. */
-function paceOf(env: NodeJS.ProcessEnv): Partial<Pace> {
+/** The pace the environment asks for: KM_APP_STEP_MS, KM_APP_TALK_MS and KM_REDUCED_MOTION where they're set, the client's own otherwise. */
+export function paceOf(env: NodeJS.ProcessEnv): Partial<Pace> {
   return {
     ...(env.KM_APP_STEP_MS !== undefined ? { stepMs: Number(env.KM_APP_STEP_MS) } : {}),
     ...(env.KM_APP_TALK_MS !== undefined ? { talkMs: Number(env.KM_APP_TALK_MS) } : {}),
+    ...(env.KM_REDUCED_MOTION !== undefined ? { reducedMotion: !/^(0|false|no|off|)$/i.test(env.KM_REDUCED_MOTION.trim()) } : {}),
   };
 }

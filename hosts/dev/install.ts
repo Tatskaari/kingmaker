@@ -9,7 +9,9 @@ import { call } from "./spacetime.ts";
  * A campaign installed into a running stack (v0-design §8): checked, then its words to the AI
  * service (PUT /v1/campaigns/<id>/<version>, every file of the folder: it needs the graph as well as
  * the prose), then its structure to the module (install_campaign, as the owner). Re-installing a
- * version replaces it, so the dev host runs this at every start.
+ * version replaces it, so the dev host runs this at every start. A campaign no GM plays (its
+ * scenario's gm "none": the zoo, M6) goes to the module alone: the AI service serves one campaign,
+ * the story's, and is never asked about one with no GM.
  */
 
 /** Where a stack is, and as whom the install calls it: the AI service with the bearer, the module as its owner. */
@@ -18,8 +20,8 @@ export interface InstallTarget { http: string; aiFromHost: string; owner: { toke
 export interface Installed {
   /** "caerwyn@0.1.0" */
   id: string;
-  /** What the AI service stored, or why it didn't. */
-  words: { ok: true; answer: CampaignPutAnswer } | { ok: false; error: string };
+  /** What the AI service stored, or why it didn't; or that it wasn't sent, no GM playing the campaign. */
+  words: { ok: true; answer: CampaignPutAnswer } | { ok: true; skipped: true } | { ok: false; error: string };
   /** Whether the module installed the structure, or why it didn't. */
   structure: { ok: true } | { ok: false; error: string };
 }
@@ -31,16 +33,16 @@ export async function installCampaign(dir: string, target: InstallTarget): Promi
   if (problems.length) throw new Error(`${dir} doesn't pass its check:\n  ${problems.join("\n  ")}`);
   const pack = packOf(files);
 
-  const words = await putWords(target, pack.campaign.id, pack.campaign.version, files);
+  const words: Installed["words"] = pack.campaign.gm === "none" ? { ok: true, skipped: true } : await putWords(target, pack.campaign.id, pack.campaign.version, files);
   const structure = await installStructure(target, installArgsOf(pack));
 
   return { id: campaignId(pack.campaign), words, structure };
 }
 
-/** "caerwyn 0.1.0 installed in both", or what went wrong where. */
+/** "caerwyn 0.1.0 installed in both" ("zoo 0.1.0 installed in the module" for one no GM plays), or what went wrong where. */
 export function describeInstall(installed: Installed): string {
   const [name, version] = installed.id.split("@");
-  if (installed.words.ok && installed.structure.ok) return `${name} ${version} installed in both`;
+  if (installed.words.ok && installed.structure.ok) return `${name} ${version} installed in ${"skipped" in installed.words ? "the module (no GM plays it)" : "both"}`;
   return [
     installed.words.ok ? "" : `the AI service didn't take its words: ${installed.words.error}`,
     installed.structure.ok ? "" : `the module didn't take its structure: ${installed.structure.error}`,

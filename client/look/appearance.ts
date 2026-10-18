@@ -130,7 +130,9 @@ const BURN_LIGHT: Record<string, number> = { tiny: 5, small: 8, medium: 12, larg
 const bases = new Map<string, { base: BaseLook; version: number }>();
 
 export function baseLook(thing: Lookable): BaseLook {
-  const key = `${thing.name}|${thing.kind ?? ""}|${(thing.tags ?? []).join(",")}|${thing.material ?? ""}|${thing.created ? "c" : ""}|${thing.cast ?? ""}|${thing.player ? "p" : ""}|${thing.glyph ?? ""}|${thing.color ?? ""}|${thing.quantity ?? ""}|${thing.size ?? ""}`;
+  // The cast as computeBase reads it: named, or inferred from a cast id (so "crake-2" and someone else called the same aren't one look).
+  const cast = thing.cast ?? (thing.id && isCast(thing.id) ? thing.id : "");
+  const key = `${thing.name}|${thing.kind ?? ""}|${(thing.tags ?? []).join(",")}|${thing.material ?? ""}|${thing.created ? "c" : ""}|${cast}|${thing.player ? "p" : ""}|${thing.glyph ?? ""}|${thing.color ?? ""}|${thing.quantity ?? ""}|${thing.size ?? ""}`;
   const hit = bases.get(key);
   // Guesses are revisited when the model's answers land; everything else is final.
   if (hit && (hit.base.source !== "guess" || hit.version === inventionVersion())) return hit.base;
@@ -163,7 +165,8 @@ function computeBase(thing: Lookable): BaseLook {
   if (cast && beingKind) {
     const look = castLook(cast, thing.name);
     const sprite = look.km ?? kmFor(parsed, kind === "creature" ? undefined : "person", true, thing.name, kind);
-    return person(parsed, { glyph: { ascii: look.glyph, ...(sprite ? { km: sprite } : {}) }, fg: look.color, bold: true, source: "cast" });
+    // A letter and a colour of its own for one of a kind by number (map.ts actorLook), else the cast's.
+    return person(parsed, { glyph: { ascii: thing.glyph ?? look.glyph, ...(sprite ? { km: sprite } : {}) }, fg: thing.color ?? look.color, bold: true, source: "cast" });
   }
 
   const match = matchRole(parsed, tags, kind);

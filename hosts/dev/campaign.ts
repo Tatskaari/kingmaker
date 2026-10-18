@@ -8,6 +8,7 @@ import {
 } from "../../shared/scene/scenario.ts";
 import { flowProblems, mapRuleProblems, placeRuleProblems, scenarioRuleProblems, type ScenarioCampaign, type ScenarioProblem } from "../../shared/scene/scenario-rules.ts";
 import { sceneRuleProblems, sceneStoryProblems, talkTemplateProblems, type SceneContext } from "../../shared/scene/rules.ts";
+import { exhibitProblems, exhibitShapeProblems } from "../../shared/zoo/exhibits.ts";
 import { VOCABULARY, vocabularyOf } from "../../ai/gm/story.ts";
 import { campaignOf, packOf, scenarioPathOf, scenePath, type CampaignFiles } from "./pack.ts";
 import { vocabularyProblems } from "./vocabulary.ts";
@@ -81,6 +82,7 @@ export function checkCampaign(files: CampaignFiles, rules: RulesPack = vendoredP
 
   return [
     ...lines(scenarioRuleProblems(campaign)),
+    ...exhibitLines(read.scenario, pack, scenario),
     ...rulesPackProblems(pack, rules, scenario),
     ...creationProblems(pack.campaign.creation, files, scenario),
     ...shaped.flatMap(s => s.problems.map(p => `${scenePath(s.key)}: ${p}`)),
@@ -156,11 +158,23 @@ export function describePack(pack: CampaignPack, files: CampaignFiles): string {
   const vocabulary = files[VOCABULARY] === undefined ? undefined : vocabularyOf(files[VOCABULARY]);
   return `${pack.campaign.id} ${pack.campaign.version}: ${count(scenes.length, "scene")} (${count(beats, "beat")}, ${count(routes, "route")}, ${count(endings, "ending")}), `
     + `${pack.campaign.talk ? "a talk template, " : ""}${count(pack.places.length, "place")}, ${pack.maps.length ? `${count(pack.maps.length, "map")}, ` : ""}${count(lore, "lore doc")}, ${count(Object.keys(pack.builds).length, "build")}, ${count(Object.keys(pack.looks).length, "look")}`
+    + (pack.campaign.exhibits?.length ? `, ${count(pack.campaign.exhibits.length, "exhibit")}` : "")
     + (vocabulary && !Array.isArray(vocabulary) ? `, the vocabulary of ${count(vocabulary.scenes.length, "scene")} (${vocabulary.source})` : "");
 }
 
 // ---------------------------------------------------------------------------------------------
 // The checks, a part of the pack each.
+
+/**
+ * The zoo's exhibits (the scenario's `exhibits`, shared/zoo/exhibits.ts): of their shape, then each held
+ * to the files it names (its scene, the scene's cast and place, the map laying the place, where everyone
+ * in each line-up's fight starts). A campaign without exhibits has nothing to hold.
+ */
+function exhibitLines(scenario: ScenarioDocument, pack: CampaignPack, at: string): string[] {
+  const shape = exhibitShapeProblems((scenario as { exhibits?: unknown }).exhibits);
+  if (shape.length) return shape.map(p => `${at}: ${p}`);
+  return exhibitProblems(pack.campaign, pack).map(p => `${at}: exhibit ${p.exhibit ?? "?"}${p.lineUp ? `, line-up ${p.lineUp}` : ""}: ${p.message}`);
+}
 
 /** The rules engine's pack the scenario names is the vendored one (the rest of the scenario's own rules are scenario-rules.ts's). */
 function rulesPackProblems(pack: CampaignPack, rules: RulesPack, at: string): string[] {

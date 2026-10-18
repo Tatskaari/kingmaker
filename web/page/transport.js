@@ -176,6 +176,10 @@ export function workerTransport(handlers, options) {
     worker.postMessage({
       type: "start", port: port1, cols: message.cols, rows: message.rows, ...(message.window ? { window: message.window } : {}),
       ...(options.glyphs ? { glyphs: options.glyphs } : {}),
+      // The browser's reduced motion: a fight's moves shown at their ends with their captions, not played out.
+      ...(globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? { reducedMotion: true } : {}),
+      // The zoo (?zoo, ?zoo=<exhibit>): the client opens its menu, or visits the exhibit (as options.build, against options.foes).
+      ...(options.zoo !== undefined ? { zoo: options.zoo, ...(options.build ? { build: options.build } : {}), ...(options.foes ? { foes: options.foes } : {}) } : {}),
     }, [port1]);
     return port2;
   }
@@ -185,7 +189,7 @@ export function workerTransport(handlers, options) {
     server = new Worker(new URL(`./server-worker.js${VERSION}`, import.meta.url), { type: "module" });
     server.onmessage = event => fromServer(event.data);
     server.onerror = () => handlers.message({ type: "error", reload: true, message: UNSTARTED });
-    server.postMessage({ type: "start", port, ...(key ? { key } : {}), ...(fake ? { fake } : {}) }, [port]);
+    server.postMessage({ type: "start", port, ...(key ? { key } : {}), ...(fake ? { fake } : {}), ...(options.seed !== undefined ? { seed: options.seed } : {}) }, [port]);
   }
 
   /** What the client worker says: the terminal's bytes, its first screen, its end, what went wrong. */

@@ -221,6 +221,58 @@ export const FeatureRef = __t.object("FeatureRef", {
 });
 export type FeatureRef = __Infer<typeof FeatureRef>;
 
+export const Fight = __t.object("Fight", {
+  id: __t.u64(),
+  gameId: __t.u64(),
+  playerId: __t.u64(),
+  title: __t.string(),
+  place: __t.string(),
+  mapKey: __t.option(__t.string()),
+  map: __t.option(__t.string()),
+  status: __t.string(),
+  outcome: __t.option(__t.string()),
+  round: __t.u32(),
+  turn: __t.string(),
+  order: __t.array(__t.string()),
+  seq: __t.u32(),
+  board: __t.string(),
+  options: __t.string(),
+  result: __t.option(__t.string()),
+  startedAt: __t.timestamp(),
+  rev: __t.u32(),
+});
+export type Fight = __Infer<typeof Fight>;
+
+export const FightClock = __t.object("FightClock", {
+  scheduledId: __t.u64(),
+  scheduledAt: __t.scheduleAt(),
+  fightId: __t.u64(),
+});
+export type FightClock = __Infer<typeof FightClock>;
+
+export const FightEvent = __t.object("FightEvent", {
+  id: __t.u64(),
+  fightId: __t.u64(),
+  gameId: __t.u64(),
+  seq: __t.u32(),
+  round: __t.u32(),
+  turn: __t.string(),
+  kind: __t.string(),
+  actor: __t.option(__t.string()),
+  target: __t.option(__t.string()),
+  caption: __t.string(),
+  detail: __t.string(),
+  at: __t.timestamp(),
+});
+export type FightEvent = __Infer<typeof FightEvent>;
+
+export const FightRules = __t.object("FightRules", {
+  fightId: __t.u64(),
+  gameId: __t.u64(),
+  campaign: __t.string(),
+});
+export type FightRules = __Infer<typeof FightRules>;
+
 export const Flag = __t.object("Flag", {
   id: __t.u64(),
   gameId: __t.u64(),
@@ -266,6 +318,7 @@ export const GameSummary = __t.object("GameSummary", {
   hook: __t.string(),
   begun: __t.bool(),
   lastPlayedAt: __t.timestamp(),
+  campaign: __t.string(),
 });
 export type GameSummary = __Infer<typeof GameSummary>;
 

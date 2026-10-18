@@ -26,9 +26,9 @@ function markPresent(tx: TxCtx, playerId: bigint): void {
   if (!player.online) tx.db.player.id.update({ ...player, online: true });
 }
 
-/** The game, if it has set off (not_begun otherwise): a scene opened, or the lead waiting on the map. */
+/** The game, if it has set off (not_begun otherwise): a scene opened, or the lead waiting on the map, or (a zoo visit, M6, which has no lead) its host on a map. */
 function begun(tx: TxCtx, game: GameRow): GameRow {
-  if (![...tx.db.scene.gameId.filter(game.id)].length) throw new Refused(refusal("not_begun"));
+  if (![...tx.db.scene.gameId.filter(game.id)].length && !tx.db.explore.playerId.find(game.hostId)) throw new Refused(refusal("not_begun"));
   return game;
 }
 

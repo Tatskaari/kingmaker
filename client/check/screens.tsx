@@ -18,7 +18,8 @@
  * considered rolls.) Then V1's: the
  * title, character creation's six screens and the sheet (check/creation.tsx). Then the story's:
  * the way on between scenes, Kell's talk, the card, the notebook, the quests, the fight's card and
- * The End (check/story-screens.tsx). (The prototype's src/app/smoke/screens-check.tsx, for this client.)
+ * The End (check/story-screens.tsx). Last, a fight on the map played out, from a recorded fight's rows
+ * (check/fight-screens.tsx). (The prototype's src/app/smoke/screens-check.tsx, for this client.)
  *
  *   npm run screens        (node --experimental-ffi --no-warnings --import tsx client/check/screens.tsx [--show])
  */
@@ -36,6 +37,8 @@ import { checkMap } from "./map-screens.tsx";
 import { checkStory } from "./story-screens.tsx";
 import { checkPlace } from "./place-screens.tsx";
 import { checkTown } from "./town-screens.tsx";
+import { checkFight } from "./fight-screens.tsx";
+import { checkZoo, checkZooFight } from "./zoo-screens.tsx";
 import { YARD, yardRows } from "./fixture.ts";
 
 const show = process.argv.includes("--show");
@@ -585,6 +588,14 @@ await checkStory(checks, show);
 
 // The action menu, aiming, a talk's choices, the card's word with Kell and the map's fight card (the town's).
 await checkTown(checks, show);
+
+// A fight on the map, played out (M6): the other side's moves as they come, a bite landing, the player's turn and its targets, the log, finishing and skipping, the start, reduced motion, the end, a spectator's.
+await checkFight(checks, show);
+
+// The zoo on the title (M6): its line and z, its menu (the combat ring, then who to be), a visit made, Esc back, not installed.
+await checkZoo(checks, show);
+// A zoo fight on the fight's screen (M6): n again, o other foes, Enter again once it's over.
+await checkZooFight(checks, show);
 
 let failed = 0;
 for (const [what, ok] of checks) {

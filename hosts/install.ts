@@ -9,6 +9,7 @@ import { readStackFile } from "./dev/stack-file.ts";
  * for a campaign changed while the stack runs. The stack is found through <root>/stack.json.
  *
  *   npm run install-campaign -- campaigns/caerwyn [--root runs/dev]
+ *   npm run install-campaign -- campaigns/zoo      (no GM plays it: the module alone)
  */
 
 const V2 = resolve(import.meta.dirname, "..");
@@ -29,7 +30,7 @@ if (!stack) {
 try {
   const installed = await installCampaign(resolve(dir), stack);
   console.log(`${dir}: ${describeInstall(installed)}`);
-  if (installed.words.ok) console.log(`  the AI service stored ${installed.words.answer.files} files; scenes with their words: ${installed.words.answer.scenes.join(", ")}`);
+  if (installed.words.ok && "answer" in installed.words) console.log(`  the AI service stored ${installed.words.answer.files} files; scenes with their words: ${installed.words.answer.scenes.join(", ")}`);
   process.exit(installed.words.ok && installed.structure.ok ? 0 : 1);
 } catch (e) {
   console.error((e as Error).message);

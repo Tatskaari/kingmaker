@@ -10,7 +10,7 @@ import { configureTerminal, lookFile } from "./terminal.ts";
 
 /**
  * A terminal host sets the client as the client used to set itself (browser-design §4.1): the glyph
- * set from KM_GLYPHS, the pace from KM_APP_STEP_MS and KM_APP_TALK_MS, the invented looks from
+ * set from KM_GLYPHS, the pace from KM_APP_STEP_MS, KM_APP_TALK_MS and KM_REDUCED_MOTION, the invented looks from
  * KM_LOOK_CACHE's file. Without a host (a page), the client draws with ascii, at its own pace, its
  * looks in memory.
  */
@@ -19,18 +19,18 @@ const SWAN: CachedInvention = { glyph: "v", color: "white", motion: "still", lig
 
 test("a terminal host sets the glyph set, the pace and the looks' file from the environment; without one, ascii, the client's pace and looks in memory", t => {
   const dir = mkdtempSync(join(tmpdir(), "km-terminal-"));
-  t.after(() => { rmSync(dir, { recursive: true, force: true }); setGlyphSet(undefined); setPace({ stepMs: 45, talkMs: 700 }); setLookCache(undefined); });
+  t.after(() => { rmSync(dir, { recursive: true, force: true }); setGlyphSet(undefined); setPace({ stepMs: 45, talkMs: 700, reducedMotion: false }); setLookCache(undefined); });
 
   assert.equal(glyphSet(), "ascii");
-  assert.deepEqual(pacing(), { stepMs: 45, talkMs: 700 });
+  assert.deepEqual(pacing(), { stepMs: 45, talkMs: 700, reducedMotion: false });
   assert.equal(invented("swan"), undefined);
 
   const file = join(dir, "looks.json");
   writeFileSync(file, JSON.stringify({ version: 1, looks: { swan: SWAN } }));
-  configureTerminal({ KM_GLYPHS: "plain", KM_APP_STEP_MS: "5", KM_APP_TALK_MS: "0", KM_LOOK_CACHE: file });
+  configureTerminal({ KM_GLYPHS: "plain", KM_APP_STEP_MS: "5", KM_APP_TALK_MS: "0", KM_REDUCED_MOTION: "1", KM_LOOK_CACHE: file });
 
   assert.equal(glyphSet(), "plain");
-  assert.deepEqual(pacing(), { stepMs: 5, talkMs: 0 });
+  assert.deepEqual(pacing(), { stepMs: 5, talkMs: 0, reducedMotion: true });
   assert.deepEqual(invented("swan"), SWAN);
 });
 

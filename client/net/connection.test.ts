@@ -31,6 +31,8 @@ function standIn(t: TestContext) {
     playerCharacter: rows(), gear: rows(), narrative: rows(), worldLog: rows(),
     // The map's (map-design §3.6): watched, and none of it in (the game isn't on a map).
     mapDef: rows(), explore: { ...rows(), playerId: { find: () => undefined } },
+    // A fight's (M6): watched, and none in.
+    fight: rows(), fightEvent: rows(),
     game: { ...rows(), id: { find: (id: bigint) => (id === 3n ? { id: 3n, time: "morning" } : undefined) } },
     scene: { ...rows(), id: { find: (id: bigint) => (id === 7n ? { id: 7n, title: "The Hanged Clerk", hook: "", status: "live", controllerId: 1n, turnId: undefined, placeId: 9n } : undefined) } },
   };

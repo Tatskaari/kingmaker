@@ -7,6 +7,7 @@ import { campaignId, packOf, type CampaignPack, type InstallArgs } from "../../s
 import { effectiveScene } from "../../shared/scene/graph.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
 import { validateScene } from "../../shared/scene/types.ts";
+import { exhibitProblems, exhibitShapeProblems } from "../../shared/zoo/exhibits.ts";
 import { isAdmin } from "./access.ts";
 import { Refused, type TxCtx } from "./context.ts";
 
@@ -56,7 +57,15 @@ function packProblem(tx: TxCtx, args: InstallArgs, pack: CampaignPack): string |
     const problem = buildProblem(tx.rules().content, build);
     if (problem) return `build ${id}: ${problem}`;
   }
-  return mapsProblem(pack);
+  return mapsProblem(pack) ?? exhibitsProblem(pack);
+}
+
+/** An exhibit of the zoo's (shared/zoo/exhibits.ts) not of the shape, or naming what its files haven't got. */
+function exhibitsProblem(pack: CampaignPack): string | undefined {
+  const shape = exhibitShapeProblems(pack.campaign.exhibits)[0];
+  if (shape) return shape;
+  const problem = exhibitProblems(pack.campaign, pack)[0];
+  return problem ? `exhibit ${problem.exhibit ?? "?"}: ${problem.message}` : undefined;
 }
 
 /** A map that doesn't build, or a start on a map the pack hasn't got. */

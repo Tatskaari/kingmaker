@@ -48,6 +48,7 @@ import DispatchWaitingReducer from "./dispatch_waiting_reducer";
 import DraftBackstoryReducer from "./draft_backstory_reducer";
 import EndSceneReducer from "./end_scene_reducer";
 import FightItOutReducer from "./fight_it_out_reducer";
+import FightTurnReducer from "./fight_turn_reducer";
 import FinishBackstoryReducer from "./finish_backstory_reducer";
 import HideReducer from "./hide_reducer";
 import InstallCampaignReducer from "./install_campaign_reducer";
@@ -57,6 +58,7 @@ import LeapReducer from "./leap_reducer";
 import LeaveProposalReducer from "./leave_proposal_reducer";
 import MakeOwnReducer from "./make_own_reducer";
 import NewGameReducer from "./new_game_reducer";
+import OpenExhibitReducer from "./open_exhibit_reducer";
 import PickOwnReducer from "./pick_own_reducer";
 import RestReducer from "./rest_reducer";
 import RetryTurnReducer from "./retry_turn_reducer";
@@ -68,12 +70,14 @@ import SetDiceSeedReducer from "./set_dice_seed_reducer";
 import SetSuggestionsReducer from "./set_suggestions_reducer";
 import SkipBackstoryReducer from "./skip_backstory_reducer";
 import StartCreationReducer from "./start_creation_reducer";
+import StartRingReducer from "./start_ring_reducer";
 import StreamReplyReducer from "./stream_reply_reducer";
 import TakeOwnReducer from "./take_own_reducer";
 import TakeProposalReducer from "./take_proposal_reducer";
 import TravelReducer from "./travel_reducer";
 import UseFeatureReducer from "./use_feature_reducer";
 import UseItemReducer from "./use_item_reducer";
+import VisitZooReducer from "./visit_zoo_reducer";
 import WalkReducer from "./walk_reducer";
 import WorkInBackstoryReducer from "./work_in_backstory_reducer";
 
@@ -88,6 +92,8 @@ import ChapterRow from "./chapter_table";
 import CreatureRow from "./creature_table";
 import EntityRow from "./entity_table";
 import ExploreRow from "./explore_table";
+import FightRow from "./fight_table";
+import FightEventRow from "./fight_event_table";
 import FlagRow from "./flag_table";
 import FollowerRow from "./follower_table";
 import GameRow from "./game_table";
@@ -221,6 +227,37 @@ const tablesSchema = __schema({
       { name: 'explore_player_id_key', constraint: 'unique', columns: ['playerId'] },
     ],
   }, ExploreRow),
+  fight: __table({
+    name: 'fight',
+    indexes: [
+      { accessor: 'gameId', name: 'fight_game_id_idx_btree', algorithm: 'btree', columns: [
+        'gameId',
+      ] },
+      { accessor: 'id', name: 'fight_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'fight_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, FightRow),
+  fightEvent: __table({
+    name: 'fight_event',
+    indexes: [
+      { accessor: 'fightId', name: 'fight_event_fight_id_idx_btree', algorithm: 'btree', columns: [
+        'fightId',
+      ] },
+      { accessor: 'gameId', name: 'fight_event_game_id_idx_btree', algorithm: 'btree', columns: [
+        'gameId',
+      ] },
+      { accessor: 'id', name: 'fight_event_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'fight_event_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, FightEventRow),
   flag: __table({
     name: 'flag',
     indexes: [
@@ -621,6 +658,7 @@ const reducersSchema = __reducers(
   __reducerSchema("draft_backstory", DraftBackstoryReducer),
   __reducerSchema("end_scene", EndSceneReducer),
   __reducerSchema("fight_it_out", FightItOutReducer),
+  __reducerSchema("fight_turn", FightTurnReducer),
   __reducerSchema("finish_backstory", FinishBackstoryReducer),
   __reducerSchema("hide", HideReducer),
   __reducerSchema("install_campaign", InstallCampaignReducer),
@@ -630,6 +668,7 @@ const reducersSchema = __reducers(
   __reducerSchema("leave_proposal", LeaveProposalReducer),
   __reducerSchema("make_own", MakeOwnReducer),
   __reducerSchema("new_game", NewGameReducer),
+  __reducerSchema("open_exhibit", OpenExhibitReducer),
   __reducerSchema("pick_own", PickOwnReducer),
   __reducerSchema("rest", RestReducer),
   __reducerSchema("retry_turn", RetryTurnReducer),
@@ -641,12 +680,14 @@ const reducersSchema = __reducers(
   __reducerSchema("set_suggestions", SetSuggestionsReducer),
   __reducerSchema("skip_backstory", SkipBackstoryReducer),
   __reducerSchema("start_creation", StartCreationReducer),
+  __reducerSchema("start_ring", StartRingReducer),
   __reducerSchema("stream_reply", StreamReplyReducer),
   __reducerSchema("take_own", TakeOwnReducer),
   __reducerSchema("take_proposal", TakeProposalReducer),
   __reducerSchema("travel", TravelReducer),
   __reducerSchema("use_feature", UseFeatureReducer),
   __reducerSchema("use_item", UseItemReducer),
+  __reducerSchema("visit_zoo", VisitZooReducer),
   __reducerSchema("walk", WalkReducer),
   __reducerSchema("work_in_backstory", WorkInBackstoryReducer),
 );

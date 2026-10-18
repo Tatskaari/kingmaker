@@ -19,9 +19,10 @@ export const CONTENT = [
   { dir: "campaigns/caerwyn", include: /\.(md|json|kmscene|kmscenario|kmmap|kmplace)$/, what: "the campaign's Markdown and JSON, and its scenario, scenes, maps and places" },
   { dir: "ai/prompts", include: /^(?!README\.md$).*\.md$/, what: "the prompts" },
   { dir: "hosts/dev", include: /^fake\.json$/, what: "the fake model's options" },
+  { dir: "campaigns/zoo", include: /\.(md|json|kmscene|kmscenario|kmmap|kmplace)$/, what: "the zoo's Markdown and JSON, and its scenario, scene, map and place (M6)" },
 ] as const;
 
-const [CAMPAIGN, PROMPTS, FAKE] = CONTENT;
+const [CAMPAIGN, PROMPTS, FAKE, ZOO] = CONTENT;
 
 /** content.json's contents, from the repo's folders (`v2`: its root). */
 export function readContent(v2: string): Content {
@@ -30,6 +31,7 @@ export function readContent(v2: string): Content {
     campaign: filesUnder(v2, CAMPAIGN.dir, CAMPAIGN.include),
     prompts: Object.fromEntries(prompts),
     fake: JSON.parse(readFileSync(join(v2, FAKE.dir, "fake.json"), "utf8")) as FakeOptions,
+    zoo: filesUnder(v2, ZOO.dir, ZOO.include),
   };
 }
 
@@ -39,6 +41,7 @@ export function contentPaths(content: Content): string[] {
     ...Object.keys(content.campaign).map(path => `${CAMPAIGN.dir}/${path}`),
     ...Object.keys(content.prompts).map(name => `${PROMPTS.dir}/${name}.md`),
     ...(content.fake ? [`${FAKE.dir}/fake.json`] : []),
+    ...Object.keys(content.zoo ?? {}).map(path => `${ZOO.dir}/${path}`),
   ];
 }
 
