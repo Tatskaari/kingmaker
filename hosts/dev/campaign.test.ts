@@ -163,6 +163,16 @@ test("every story scene's clock moves a step at a time and is felt before it str
   assert.deepEqual([route(king, "send-for-sallow").data.limit[0].exchanges, route(king, "time-presses").data.limit[0].exchanges], [8, 12], "fifteen minutes and five, as the cues count them");
 });
 
+test("the Rat says once, plainly, how Arlo's challenges count and what the third refusal costs (QA round qa2-1018's g04: his third challenge made early, two refusals said after it, then staged again)", () => {
+  const rat = JSON.parse(files[RAT]!);
+  const start = node(rat, "start").description;
+  assert.equal(JSON.stringify(rat).split("how they count").length - 1, 1, "said in one place");
+  assert.match(start, /Arlo's challenges, and how they count: Hobb has refused him twice tonight already, before the player came in[^]*Arlo's next challenge is the third, and it's an event of its own, Arlo's third challenge \[arlos-challenge\]: until it comes[^]*he doesn't put his elbow on Hobb's table\. It comes once[^]*If Hobb refuses it, that's his third refusal, and by the house custom it costs him the champion's chair there and then[^]*There's no fourth challenge\./);
+  assert.match(node(rat, "start").cast.arlo, /hasn't made his third challenge yet/, "the co-GM's first role for him doesn't bring it about");
+  assert.match(node(rat, "arlos-challenge").description, /It happens once, whichever way it goes\.$/);
+  for (const c of rat.cast.filter((c: any) => c.id === "arlo")) assert.match(`${c.wants} ${c.whyHere}`, /Hobb is on two/, "his card counts as the prep does");
+});
+
 test("the Heron's bells are felt coming, and Hep's count falls each time she calls it (QA round qa2-1018: 'Forty to the hatch!' five times over, and no word of the tide all scene)", () => {
   const heron = JSON.parse(files[HERON]!);
   const hep = heron.cast.find((c: any) => c.id === "hep");
