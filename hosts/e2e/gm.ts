@@ -11,44 +11,34 @@ import type { Game } from "./creation.ts";
 import { callLog, check, doneTurn, Failed, mapUntil, nextTurn, note, ok, restartAi, seconds, step, turnOf, until, type Player } from "./kit.ts";
 
 /**
- * The e2e's steps for the full GM (full-gm-design §4.4), after V1's: a memory kept and brought back,
- * the co-GM steering the scene, a risky act the GM rules on (and the plain check rolled when the
- * ruling takes too long), and walking out of the place. On the fake model with fake.json's quiet
- * answers for the full GM (the attention filter flags only what was witnessed, the memories agent
- * saves one memory for Kell, the co-GM finds the scene on track, the ruling is a contest with Cob),
- * each step's recipe on top of them (onTop), so its own choices keep the quiet ones.
+ * The e2e's steps for the GM (full-gm-design §4.4, two-part-design.md), after V1's: a memory kept, the
+ * co-GM steering the scene (its roles and its moves), and a risky act the mouthpiece calls a check on.
+ * On the fake model with fake.json's quiet answers for the full GM (the attention filter flags only
+ * what was witnessed, the memories agent saves one memory for Kell), the co-GM kept still unless a
+ * step's recipe moves it, each step's recipe on top of them (onTop), so its own choices keep the quiet
+ * ones. (Until M2: the old co-GM's review merged at a turn's start, a ruling before the reply and the
+ * plain check when it was too slow, and walking out of the place on an ending of the player's own,
+ * step 25: the two-part GM has none of them. The memory brought back went with them, since the
+ * two-part GM reads no memories: a talk does, step 39.)
  */
 
 /** Step 20 left $10 in today's ledger, so the AI service keeps its ceiling raised from here on. */
 export const RAISED = { KM_AI_DAILY_USD: "100" };
 const WREN = { campaign: "caerwyn", name: "Wren Ashdown", concept: "a hedge wizard from the fens", build: "wizard" };
 
-/**
- * The co-GM's answer for step 23: on track (so it runs only every third turn), with a note for the
- * GM, a whisper for Moll, a canon line, and a way from the yard to the doubt beat, tried by the
- * player with no check; the decider takes that way (improv-3-0) once it's on offer, and the quiet
- * choice until then.
- */
-const STEERING: FakeOptions = {
-  byName: {
-    co_gm_notes: {
-      assessment: "The investigator is going round the edges of the yard; Moll's story is the way in.",
-      status: "on_track",
-      notes: "Let Kell keep pointing the investigator at the girl on the wall.",
-      whispers: [{ to: "moll", note: "She wants to be asked about the jump, so she can tell it bigger." }],
-      relocations: [], no_but: [],
-      canon: ["Cob keeps his left boot laced tighter than his right."],
-      move_to: null, move_to_because: null, add_beat: null,
-      add_transitions: [{ beat: "yard", when: "The player presses Moll on what she could really have seen from the wall.", on: "attempt", to: "doubt", check: null, why: "A way into doubt through Moll's story." }],
-    },
-  },
-  choices: { attempt: "improv-3-0" },
-};
+/** The role the co-GM gives Moll every turn in step 23. */
+const MOLL = { status: "On the yard wall, heels drumming", mental_state: "Itching to be asked", conversation_role: "She wants to be asked about the jump, so she can tell it bigger." };
 
-/** 22. A memory, kept and brought back: the review after a line writes Kell's note, and the next line's reply has it. */
+/**
+ * The co-GM's recipe for step 23: Moll's role every turn, and its walk to murder by persons unknown,
+ * a route a line (the discovery the ending needs first).
+ */
+const STEERING: FakeOptions = { coGm: { endings: ["murder-unknown"], roles: { moll: MOLL } } };
+
+/** 22. A memory, kept: the review after a line writes Kell's note into the game's docs. */
 export async function aMemory(stack: Stack, root: string, a: Player, fake: FakeOptions): Promise<Game> {
-  step("22. A memory, kept and brought back");
-  await restartAi(stack, onTop(fake, STEERING), RAISED);
+  step("22. A memory, kept");
+  await restartAi(stack, fake, RAISED);
   const game = await aNewGame(stack, a);
   const n = nextTurn(a);
   check("A says a line", (await a.conn.say("(I crouch and press a silver crown into the boy's hand) Get yourself something hot, lad. No questions.")) === undefined);
@@ -62,70 +52,59 @@ export async function aMemory(stack: Stack, root: string, a: Player, fake: FakeO
   const index = existsSync(join(dir, "index.md")) ? readFileSync(join(dir, "index.md"), "utf8") : "";
   check(`Kell's note is in the game's docs (${notes.join(", ") || "none"}), linked from her index`, notes.length === 1 && index.includes(`(${notes[0]})`) && index.includes("What the investigator did"));
   check("the note is in her words", readFileSync(join(dir, notes[0]!), "utf8").includes("I watched what the King’s investigator did"));
-
-  const m = nextTurn(a);
-  check("A says the next line", (await a.conn.say("Sergeant, who found him?")) === undefined);
-  await doneTurn(a, m);
-  const told = modelInput(root, game, "gm.reply", keyOf(game, m, "reply"));
-  check("the next line's gm.reply input lists Kell's memory", /remembers \(index[^\n]*\n(?:- .*\n)*- \[What the investigator did\]/.test(told));
   return game;
 }
 
 /**
- * 23. The co-GM steers (STEERING): its review after turn 3 (the backstop) waits in a co_gm_result
- * row; the next line's start merges it, and its decide takes the new way; the whisper steers one
- * reply and lapses, the note two.
+ * 23. The co-GM steers (STEERING): after each reply, beside the stage manager, it gives Moll her role,
+ * which gm_state keeps and its note for the next turn carries, so the next reply reads it before the
+ * player's line; and it walks the scene on a route a line, each move taken again on the rows (the
+ * path, what's reached): the dead-cart's arrival moves the stage and brings Tull on with his stage
+ * note as his role, and the next reply is told to show it, once.
  */
-export async function theCoGmSteers(stack: Stack, root: string, a: Player, game: Game): Promise<void> {
+export async function theCoGmSteers(stack: Stack, root: string, a: Player, game: Game, fake: FakeOptions): Promise<void> {
   step("23. The co-GM steers");
+  await restartAi(stack, onTop(fake, STEERING), RAISED);
   const n = nextTurn(a);
-  check(`turn ${n} is the scene's third: the co-GM's backstop`, n === 3);
   check("A says a line", (await a.conn.say("Moll, where were you when they found him?")) === undefined);
   await doneTurn(a, n);
-  const row = await eventually(`the co-GM's review of turn ${n}`, 20_000, async () => (await reviewRows(stack, game)).find(r => Number(r.turn) === n));
-  const kept = JSON.parse(String(row.review)) as { status: string; patches: unknown[]; whispers: unknown[] };
-  check(`a co_gm_result row for turn ${n}: ${kept.status}, ${kept.patches.length} patch, ${kept.whispers.length} whisper, not merged`, kept.patches.length === 1 && kept.whispers.length === 1 && row.merged_turn === null);
-  const waiting = await gmOf(stack, game);
-  check("gm_state is as it was: no notes, whispers, canon or patches yet", !waiting.notes && !waiting.whispers.length && !waiting.canon.length && !waiting.patches.length);
+  const first = await gmOf(stack, game);
+  check(`Moll's role is the co-GM's: "${first.twoPart.roles.moll?.conversation_role}"`, first.twoPart.roles.moll?.conversation_role === MOLL.conversation_role && first.twoPart.roles.moll.status === MOLL.status);
+  check(`its move is on the rows: ${first.path.map(p => `${p.turn}: ${p.from} -> ${p.to} via ${p.via}`).join("; ")}; reached ${first.reached.join(", ")}`, first.path.at(-1)?.via === "find-hobb" && first.path.at(-1)?.turn === n && first.reached.includes("hobb"));
 
   const m = n + 1;
   check("A says the next line", (await a.conn.say("Moll, you never saw him jump from up there. What did you see?")) === undefined);
   await doneTurn(a, m);
-  const merged = await gmOf(stack, game);
-  check(`turn ${m}'s start merged it: notes (turn ${merged.notesTurn}), the whisper for ${merged.whispers.map(w => w.to).join()}, the canon, the patch ${merged.patches.map(p => p.transition?.transition.id).join()}`,
-    merged.notesTurn === n && !!merged.notes && merged.whispers.length === 1 && merged.whispers[0]!.to === "moll" && merged.canon.length === 1 && merged.patches.length === 1 && merged.lastRepairTurn === n);
-  const step4 = merged.path.find(p => p.turn === m);
-  check(`its decide took the co-GM's way: ${step4 ? `${step4.from} -> ${step4.to} via ${step4.via}` : "no step"}; the beat ${merged.beat}`, step4?.via === "improv-3-0" && merged.beat === "doubt");
-  const after = await reviewRows(stack, game);
-  check(`the row is marked merged at turn ${m}`, Number(after.find(r => Number(r.turn) === n)?.merged_turn) === m);
-  const told4 = modelInput(root, game, "gm.reply", keyOf(game, m, "reply"));
-  check("turn 4's gm.reply input has the co-GM's notes and Moll's whisper", told4.includes("## Notes from your co-GM") && told4.includes("On Moll's mind: She wants to be asked about the jump"));
+  const told = modelInput(root, game, "two-part.reply", keyOf(game, m, "reply"));
+  check(`turn ${m}'s reply read the co-GM's note for it, Moll's role in it`, told.includes(`Co-GM note, before turn ${m}`) && told.includes(`Character role for Moll:\nStatus: ${MOLL.status}\nMental state: ${MOLL.mental_state}\nConversation role: ${MOLL.conversation_role}`));
 
-  const five = m + 1;
-  check("A says another line", (await a.conn.say("Kell, write that down.")) === undefined);
-  await doneTurn(a, five);
-  const told5 = modelInput(root, game, "gm.reply", keyOf(game, five, "reply"));
-  const lapsed = await gmOf(stack, game);
-  check("at turn 5 the whisper has lapsed, and the note still steers", !lapsed.whispers.length && !!lapsed.notes && told5.includes("## Notes from your co-GM") && !told5.includes("On Moll's mind"));
+  const cart = m + 1;
+  check("A says another line", (await a.conn.say("Is that the dead-cart I hear in the lane?")) === undefined);
+  await doneTurn(a, cart);
+  const moved = await gmOf(stack, game);
+  check(`the stage moved to ${moved.beat} (${moved.twoPart.moved ? "to show" : "nothing to show"}), Tull brought on: "${moved.twoPart.roles.tull?.conversation_role.slice(0, 40)}…"`,
+    moved.path.at(-1)?.via === "cart-comes" && moved.beat === "cart-arrives" && moved.twoPart.moved === "cart-arrives" && /^Helmet off to the dead/.test(moved.twoPart.roles.tull?.conversation_role ?? ""));
+  check("Tull is in the world, and on stage", (await stack.sql(`SELECT * FROM entity WHERE game_id = ${game.id}`)).some(e => e.key === "tull") && a.conn.view()!.present.some(p => p.key === "tull"));
 
-  const six = five + 1;
-  check("A says another line", (await a.conn.say("Cob, did you see anyone go up to the loft?")) === undefined);
-  await doneTurn(a, six);
-  const told6 = modelInput(root, game, "gm.reply", keyOf(game, six, "reply"));
-  const gone = await gmOf(stack, game);
-  check("at turn 6 the note has lapsed too", !gone.notes && gone.notesTurn === null && !told6.includes("## Notes from your co-GM"));
+  const after = cart + 1;
+  check("A says another line", (await a.conn.say("Corporal, a word before you take him.")) === undefined);
+  await doneTurn(a, after);
+  const shown = modelInput(root, game, "two-part.reply", keyOf(game, after, "reply"));
+  const done = await gmOf(stack, game);
+  check("the reply after the move was told to show it, Tull seen arriving; shown, it's done with", /The scene has just moved on to "[^"]+": [\s\S]*arrives now, seen arriving/.test(shown) && done.twoPart.moved === undefined);
 }
 
 /**
- * 24. A considered act (roll_call: new): both clients see the turn considering, then the ruling's
- * dice line before the reply, which is told the ruling stands. Then the ruling stalls past a 2 s
- * deadline (KM_CONSIDER_DEADLINE_MS): the plain check is rolled instead, and no ruling is kept.
+ * 24. A risky act the GM calls a check on (the mouthpiece's recipe: Sleight of Hand, DC 12, on every
+ * reply but an opening or a closing): both clients see the turn go replying, settling, done (no
+ * deciding or considering), and its rows: the narration setting it up, the dice line (rolled by the
+ * simulation from the game's dice, through the rules engine on the player's sheet) with how far it
+ * made or missed it, and the outcome that came up; the co-GM is told how it went. (Until M2 the old
+ * pipeline ruled on the act before the reply, and rolled a plain check when the ruling was too slow.)
  */
-export async function aConsideredAct(stack: Stack, root: string, a: Player, b: Player, fake: FakeOptions): Promise<Game> {
-  step("24. A risky act the GM rules on");
-  // Every line wants a roll no route covers, and none is the same push again (a ruling that failed is a try the decider could match).
-  const considered = onTop(fake, { choices: { roll_call: "new", same_again: "new" } });
-  await restartAi(stack, considered, RAISED);
+export async function aRiskyCheck(stack: Stack, root: string, a: Player, b: Player, fake: FakeOptions): Promise<Game> {
+  step("24. A risky act the GM calls a check on");
+  await restartAi(stack, onTop(fake, { mouthpiece: { check: { skill: "sleight_of_hand", dc: 12 } } }), RAISED);
   const game = await aNewGame(stack, a);
   check("B's join_game is made", (await b.conn.joinGame(game.id)) === undefined);
   await until(b, "B to see the scene", 10_000, r => r.game.id === game.id && r.scene.status === "live");
@@ -137,48 +116,14 @@ export async function aConsideredAct(stack: Stack, root: string, a: Player, b: P
   await until(b, `B to see turn ${n} done`, 10_000, r => turnOf(r, n)?.phase === "done");
   for (const [p, i] of [[a, from.a], [b, from.b]] as const) {
     const phases = phasesOf(p, i, game, n);
-    check(`${p.name} saw turn ${n} go ${phases.join(", ")}`, phases.slice(0, 3).join() === "deciding,considering,replying");
+    check(`${p.name} saw turn ${n} go ${phases.join(", ")}`, phases.slice(-3).join() === "replying,settling,done" && !phases.includes("deciding") && !phases.includes("considering"));
   }
   const lines = linesOf(rows, n);
-  check(`the dice line came before the reply: "${lines.find(l => l.kind === "roll")?.text}"`, lines.map(l => l.kind).join() === "player,roll,narration" && /^Sleight Of Hand check .* vs DC 12: (success|failure)/.test(lines[1]!.text));
-  const ruled = await gmOf(stack, game);
-  const ruling = ruled.rulings[0];
-  check(`gm_state.rulings has it: ${ruling ? `${ruling.turn}: ${ruling.act} -> ${ruling.skill} DC ${ruling.dc}, ${ruling.went}` : "none"}`, ruled.rulings.length === 1 && ruling!.turn === n && ruling!.kind === "roll" && ruling!.dc === 12);
-  check("the reply was told the ruling stands", modelInput(root, game, "gm.reply", keyOf(game, n, "reply")).includes("Decided, and it stands"));
-
-  await restartAi(stack, onTop(considered, { stall: ["ruling"] }), { ...RAISED, KM_CONSIDER_DEADLINE_MS: "2000" });
-  ok("the AI service restarted with the ruling stalled and KM_CONSIDER_DEADLINE_MS=2000");
-  const m = n + 1;
-  const at = a.events.length;
-  check("A says another risky line", (await a.conn.say("(I try the other boot while he looks at the gate)")) === undefined);
-  const plain = await doneTurn(a, m);
-  const considering = a.events.slice(at).find(e => e.table === "turn" && e.row.n === m && e.row.phase === "considering")?.at;
-  const rolled = a.events.slice(at).find(e => e.table === "transcript" && e.op === "insert" && e.row.turn === m && e.row.kind === "roll")?.at;
-  const took = considering !== undefined && rolled !== undefined ? rolled - considering : Number.NaN;
-  // The deadline is 2 s here and 12 s by default: the bound shows it was this one, with room for a busy machine.
-  check(`the plain check was rolled ${seconds(took)} after the turn began considering: "${linesOf(plain, m).find(l => l.kind === "roll")?.text}"`, took < 8_000 && linesOf(plain, m).map(l => l.kind).join() === "player,roll,narration");
-  const after = await gmOf(stack, game);
-  check(`no ruling kept: ${after.rulings.length} as before; the path's step ${after.path.find(p => p.turn === m)?.via}`, after.rulings.length === 1 && after.path.find(p => p.turn === m)?.via === "freeform");
+  const dice = lines.find(l => l.kind === "roll")?.text ?? "";
+  check(`the narration, the dice line ("${dice}"), then the outcome that came up`, lines.map(l => l.kind).join() === "player,narration,roll,narration" && /^Sleight Of Hand .*DC 12.*\((badly|narrowly|only just|cleanly|with room to spare)\)\.$/.test(dice));
+  const told = modelInput(root, game, "two-part.co-gm", keyOf(game, n, "settle"));
+  check("the co-GM was told how it went", told.includes("# This turn's check\nThe GM called Sleight Of Hand DC 12, and the roll came to "));
   return game;
-}
-
-/** 25. Walking out (choices.left: gone): the scene ends on an ending of the player's own. */
-export async function walkingOut(stack: Stack, a: Player, b: Player, game: Game, fake: FakeOptions): Promise<void> {
-  step("25. Walking out of the place");
-  await restartAi(stack, onTop(fake, { choices: { left: "gone" } }), RAISED);
-  const n = nextTurn(a);
-  check("A walks out", (await a.conn.say("(I nod to the sergeant and walk out of the yard, back towards the palace)")) === undefined);
-  const rows = await until(a, "the scene to end", 60_000, r => r.scene.status === "ended" && r);
-  await doneTurn(a, n);
-  const last = [...rows.transcript].sort((x, y) => x.seq - y.seq).at(-1)!;
-  check(`"${last.text}" closes the transcript`, last.kind === "system" && last.text === "Scene ends: An ending of their own");
-  const gm = await gmOf(stack, game);
-  const out = gm.path.at(-1);
-  check(`the path's last step: ${out ? `${out.from} -> ${out.to} via ${out.via}` : "none"}`, out?.via === "left-the-place" && out.to === "own-ending" && gm.ended?.exitId === "own-ending");
-  await until(b, "B to see the scene end", 10_000, r => r.scene.status === "ended");
-  ok("B saw it end too");
-  const queued = (await stack.sql("SELECT * FROM job")).filter(j => String(j.scene_id) === String(game.scene) && String(j.move) === "repair");
-  check("no co-GM is asked after the scene's end", queued.length === 0 && !(await reviewRows(stack, game)).some(r => Number(r.turn) === n));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -219,10 +164,6 @@ export async function eventually<T>(what: string, ms: number, test: () => T | un
 export async function gmOf(stack: Stack, game: Game): Promise<GmState> {
   const [row] = await stack.sql(`SELECT * FROM gm_state WHERE scene_id = ${game.scene}`);
   return gmFromRow(camel(row) as GmRow);
-}
-
-async function reviewRows(stack: Stack, game: Game): Promise<Array<Record<string, unknown>>> {
-  return stack.sql(`SELECT * FROM co_gm_result WHERE scene_id = ${game.scene}`);
 }
 
 /** The game's memory-reviews.jsonl, in the AI service's store. */

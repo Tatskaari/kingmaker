@@ -10,9 +10,9 @@ import { devFake, onTop } from "./dev/fake.ts";
 import type { Mode } from "./dev/mode.ts";
 import { startStack, type Stack } from "./dev/stack.ts";
 import { aConceptToTheOpening, checksBesideAStream, continueAndDelete, creationFake, restartedMidBuilds, theCeiling, type Game } from "./e2e/creation.ts";
-import { aConsideredAct, aMemory, theCoGmSteers, walkingOut } from "./e2e/gm.ts";
+import { aMemory, aRiskyCheck, gmOf, theCoGmSteers } from "./e2e/gm.ts";
 import { theWholeStory } from "./e2e/story.ts";
-import { aBlowLeftHanging, beforeTheGmSpeaks, fireBurnsOn, keptReactions, rowForRow } from "./e2e/world.ts";
+import { beforeTheGmSpeaks, fireBurnsOn, rowForRow } from "./e2e/world.ts";
 import {
   aiLog as aiLogIn, callLog as callLogOf, check, doneTurn, elapsed, escaped, Failed, millis, modelCalls as modelCallsOf, moduleLog, nextTurn, ok, pause,
   player, restartAi, seconds, step, turnOf, until, type Player,
@@ -23,37 +23,43 @@ import { configureTerminal } from "./terminal.ts";
 
 /**
  * The end to end test (v0-design §10.4, v5-design §4.4, v1-design §4.3, full-gm-design §4.4,
- * world-bridge-design §3.4, story-design §5): a line in a scene, a character made from a concept, the
- * full GM, spells and blows in the scene's world, and the whole story, through every part. A real
- * SpacetimeDB with the module, the AI
- * service as a node process on the fake model, and clients on the client's own connection,
+ * world-bridge-design §3.4, story-design §5, two-part-design.md): a line in a scene, a character made
+ * from a concept, the GM's co-GM and checks, the rules in the scene's world, and the whole story,
+ * through every part, the scenes played by the two-part GM. A real SpacetimeDB with the module, the
+ * AI service as a node process on the fake model, and clients on the client's own connection,
  * recording every row event they see. V0's steps: the AI service killed mid-reply and restarted
  * mid-reply (as the dev host's k and r), the AI service gone after it kept an answer, SpacetimeDB
- * restarted mid-think, an ending. V5's: the reply as drawn throughout (who says each line as it
- * streams, the lines suggested after it); then a line said while the world settles, a suggested
- * line said by its number, lines whose moment has passed, the lines kept by the AI service as it
- * died, and the lines turned off and on (the notes on marked words went in M2, and their steps with
- * them: B now joins once the opening is in, and the line and the fault wait on the settle and the
- * lines instead). V1's (e2e/creation.ts): a
- * concept to the opening, the AI service gone after it kept the lore check, SpacetimeDB restarted
- * while the builds are made, a character made and checks rolled beside another game's stream, the
- * daily ceiling, continue and delete. The map's (e2e/map.ts, map-design §4): each game starts on
- * the campaign's map, in the granary lane, and is walked or talked into its scene (step 2 talks to
- * Kell; step 17 walks in with a spectator seeing the same walk; C's game walks in), then back to the
- * map after the ending, the yard locked once you're out and the Rat shut in the morning (14a), and
- * the map moves' times (35). The full GM's (e2e/gm.ts): a memory kept and brought back, the co-GM
- * steering, a risky act ruled (and the plain check when the ruling is too slow), and walking out of
- * the place. The world bridge's (e2e/world.ts): a spell resolved before the GM speaks and the people
- * who saw it reacting, a blow left hanging landing first next turn, fire burning on, the AI service
- * gone after it kept the reactions, and the spectator's world row for row the lead's. The whole
- * story's (e2e/story.ts): one game from the yard to The End, each scene's end crossing the boundary,
- * the lead walked to on the map, a scene ended by the owner, the fight's stand-in, a summons, a
- * spectator following. The town's (e2e/town.ts, town-design §4), after the times: the action menu's
- * Fire Bolt refused with no clear line and writing nothing, then catching the watch house door from
- * the street, the guards shouting, a spectator's map drawing it and the town's clock burning it on;
- * an act at Kell opening the yard as its first turn; an invented look; and a talk with Kell between
- * scenes that leaves the waiting Rat as it was. Host mode in CI; namespace mode where 11.0.0.1 isn't
- * this machine's.
+ * restarted mid-think (the settle), an ending (the co-GM walking the scene to it). V5's: the reply as
+ * drawn throughout (who says each line as it streams, the lines suggested after it); then a line
+ * said while the world settles, a suggested line said by its number, lines whose moment has passed,
+ * the lines kept by the AI service as it died, and the lines turned off and on. V1's
+ * (e2e/creation.ts): a concept to the opening, the AI service gone after it kept the lore check,
+ * SpacetimeDB restarted while the builds are made, a character made and checks rolled beside another
+ * game's stream, the daily ceiling, continue and delete. The map's (e2e/map.ts, map-design §4): each
+ * game starts on the campaign's map, in the granary lane, and is walked or talked into its scene
+ * (step 2 talks to Kell; step 17 walks in with a spectator seeing the same walk; C's game walks in),
+ * then back to the map after the ending, the yard locked once you're out and the Rat shut in the
+ * morning (14a), and the map moves' times (35). The GM's (e2e/gm.ts): a memory kept, the co-GM
+ * steering (roles and moves), and a risky act the mouthpiece calls a check on. The world's
+ * (e2e/world.ts): a spell from the lane resolved before the GM speaks, fire burning on, and the
+ * spectator's world row for row the lead's. The whole story's (e2e/story.ts): one game from the yard
+ * to The End, the co-GM walking each scene to its ending, each scene's end crossing the boundary, the
+ * lead walked to on the map, a scene ended by the owner, the fight's stand-in, a summons, a spectator
+ * following. The town's (e2e/town.ts, town-design §4), after the times: the action menu's Fire Bolt
+ * refused with no clear line and writing nothing, then catching the watch house door from the street,
+ * the guards shouting, a spectator's map drawing it and the town's clock burning it on; an act at
+ * Kell opening the yard as its first turn; an invented look; and a talk with Kell between scenes,
+ * bringing up what she remembers, that leaves the waiting Rat as it was. Host mode in CI; namespace
+ * mode where 11.0.0.1 isn't this machine's.
+ *
+ * M2 took out what the two-part GM hasn't got: the notes on marked words (B now joins once the
+ * opening is in; the line and the fault that waited on the notes wait on the settle and the lines),
+ * the old pipeline's decide (SpacetimeDB restarts in the settle; the ending is the co-GM's walk), its
+ * ruling and the plain check when the ruling is too slow (24 is the mouthpiece's check), walking out
+ * of the place on an ending of the player's own (25), the reactions to a spell (26 is the map's act,
+ * the only mechanic the scene still forces), a blow left hanging (27: nothing reads one after a
+ * reply) and the reactions kept by the AI service as it died (29). Their numbers are kept, so the
+ * docs' references to the others still hold.
  *
  *   npm run e2e [-- --port 3310] [--ai-port 8797] [--root runs/e2e] [--mode host|namespace]
  *
@@ -69,10 +75,12 @@ const USAGE = `npm run e2e [-- options]
 
 /**
  * The fake model's options: the dev host's (hosts/dev/fake.json), so the replies are the GM's golden
- * ones, marked up with who says each line, and twelve lines to suggest. Every call streams over 2 s,
+ * ones as the mouthpiece's narration, marked up with who says each line, and twelve lines to suggest;
+ * but its co-GM kept still, so a scene stays open through the steps that play many lines in it
+ * (step 14's walks it to its ending, and the story's walks every scene). Every call streams over 2 s,
  * so a draft grows in several posts; the lines come 0.8 s later.
  */
-const FAKE: FakeOptions = devFake();
+const FAKE: FakeOptions = onTop(devFake(), { coGm: { still: true } });
 const NEW_GAME = { campaign: "caerwyn", name: "Wren Ashdown", concept: "a quick-witted investigator lent to the case by the King", build: "ranger" };
 const NOTE = "The GM has lost the thread for a moment: trying again.";
 /** The phases of a turn whose reply is in: the box is open again. */
@@ -119,20 +127,17 @@ try {
   await continueAndDelete(stack, a, b, game.id, made);
 
   const remembered = await aMemory(stack, flags.root, a, FAKE);
-  await theCoGmSteers(stack, flags.root, a, remembered);
-  const ruled = await aConsideredAct(stack, flags.root, a, b, FAKE);
-  await walkingOut(stack, a, b, ruled, FAKE);
+  await theCoGmSteers(stack, flags.root, a, remembered, FAKE);
+  await aRiskyCheck(stack, flags.root, a, b, FAKE);
 
-  const world = await beforeTheGmSpeaks(stack, flags.root, a, b, FAKE);
-  await aBlowLeftHanging(stack, a, world, FAKE);
+  const world = await beforeTheGmSpeaks(stack, a, b, FAKE);
   await fireBurnsOn(stack, a, world, FAKE);
-  await keptReactions(stack, flags.root, a, world, FAKE);
   await rowForRow(stack, a, b, world);
 
   const lead = await player(stack, "C", true);
   await theWholeStory(stack, flags.root, lead, b, FAKE);
   await latencies(stack, a);
-  await theTown(stack, lead, b, FAKE);
+  await theTown(stack, flags.root, lead, b, FAKE);
 
   a.conn.close();
   b.conn.close();
@@ -149,7 +154,7 @@ console.log(passed ? `\nPASS: every step, in ${elapsed()}` : "\nFAIL");
 process.exit(passed ? 0 : 1);
 
 // ---------------------------------------------------------------------------------------------
-// The steps (v0-design §10.4, v5-design §4.4); V1's, 15 to 21, are e2e/creation.ts's, the full GM's, 22 to 25, e2e/gm.ts's, the world bridge's, 26 to 30, e2e/world.ts's, the whole story's, 31 to 34, e2e/story.ts's, and the town's, 36 to 39, e2e/town.ts's.
+// The steps (v0-design §10.4, v5-design §4.4); V1's, 15 to 21, are e2e/creation.ts's, the GM's, 22 to 24, e2e/gm.ts's, the world's, 26, 28 and 30, e2e/world.ts's, the whole story's, 31 to 34, e2e/story.ts's, and the town's, 36 to 39, e2e/town.ts's.
 
 /** 1. The stack is up (--fresh); the campaign goes into both; the doctor finds all well. */
 async function installedAndWell(stack: Stack): Promise<void> {
@@ -212,6 +217,7 @@ async function aTurnBothSee(a: Player, b: Player, game: Game): Promise<void> {
   for (const p of [a, b]) await until(p, `${p.name} to see turn ${n} done, its lines come`, 30_000, r => turnOf(r, n)?.phase === "done" && turnOf(r, n)!.suggest !== "coming");
   await pause(500);
 
+  check(`A saw turn ${n} go ${phasesSeen(a, n).join(", ")}: the two-part GM's reply and settle, no decide`, phasesSeen(a, n).join() === "replying,settling,done");
   const seenA = turnEvents(a.events.slice(from.a), n), seenB = turnEvents(b.events.slice(from.b), n);
   check(`A and B saw the same ${seenA.length} row events for the turn (its phases, the draft's posts with who says what, the entries)`, seenA.length > 5 && JSON.stringify(seenA) === JSON.stringify(seenB));
   const streamed = speakersIn(...a.events.slice(from.a).filter(e => e.table === "reply_draft" && e.op !== "delete").map(e => e.row.markup));
@@ -244,8 +250,8 @@ async function killedMidReply(stack: Stack, a: Player, game: Game): Promise<void
   const attempts = [...new Set(a.events.filter(e => e.table === "reply_draft" && e.op !== "delete" && e.row.turnId === turn).map(e => e.row.attempt as number))];
   check(`the draft started again as a later attempt (attempts ${attempts.join(", ")})`, Math.max(...attempts) >= 2);
   check("the turn has one GM entry", rows.transcript.filter(t => t.turn === n && t.speaker === "gm").length === 1);
-  const replies = modelCalls(game, "gm.reply", keyOf(game, n, "reply"));
-  check(`gm.reply was asked ${replies} times for the reply's key: the killed one, and the one that finished`, replies === 2);
+  const replies = modelCalls(game, "two-part.reply", keyOf(game, n, "reply"));
+  check(`two-part.reply was asked ${replies} times for the reply's key: the killed one, and the one that finished`, replies === 2);
 }
 
 /**
@@ -273,7 +279,7 @@ async function restartedMidReply(stack: Stack, a: Player, game: Game): Promise<v
   check("the turn had no note while the reply was written", !seen.some(e => e.row.phase === "replying" && e.row.note));
   const key = keyOf(game, n, "reply");
   check("the AI service sent the reply it finished: attempt 1 answered 200, and no other", new RegExp(`reply ${escaped(key)} attempt 1: 200 in`).test(aiLog()) && !new RegExp(`reply ${escaped(key)} attempt [2-9]`).test(aiLog()));
-  check("gm.reply was asked once for the reply's key", modelCalls(game, "gm.reply", key) === 1);
+  check("two-part.reply was asked once for the reply's key", modelCalls(game, "two-part.reply", key) === 1);
 }
 
 /** 7. The AI service exits right after it stores the settle's answer: started again, it answers from the store. */
@@ -290,29 +296,35 @@ async function keptAnswer(stack: Stack, a: Player, game: Game): Promise<void> {
   await doneTurn(a, n);
   const key = keyOf(game, n, "settle");
   check("the AI service answered the settle from its store", new RegExp(`settle ${escaped(key)} attempt \\d+: 200 from the store`).test(aiLog()));
-  const staged = modelCalls(game, "world.stage", key);
-  check(`world.stage was asked ${staged} time for the settle's key`, staged === 1);
+  const staged = modelCalls(game, "world.stage", key), coGm = modelCalls(game, "two-part.co-gm", key);
+  check(`world.stage and two-part.co-gm were asked ${staged} and ${coGm} time for the settle's key`, staged === 1 && coGm === 1);
 }
 
-/** 8. SpacetimeDB stopped and started a second into a slow decide: the reaper re-dispatches it, and the AI service's kept answer carries the turn on. */
+/**
+ * 8. SpacetimeDB stopped and started a second into a slow settle (the stage manager held back 3 s):
+ * the reaper re-dispatches it after its deadline (70 s: the settle's minute and the grace), and the
+ * AI service's kept answer carries the turn on. (Until M2 it was the decide's, 30 s: the two-part GM
+ * has no decide, and the reply streams, so the think a restart lands in is the settle.)
+ */
 async function spacetimeRestarted(stack: Stack, a: Player, game: Game): Promise<void> {
   step("8. SpacetimeDB restarted mid-think");
-  await restartAi(stack, { ...FAKE, decisionDelayMs: 3_000 });
+  await restartAi(stack, { ...FAKE, byNameDelayMs: { world_ops: 3_000 } });
   const n = nextTurn(a);
   const said = performance.now();
   check("A says a line", (await a.conn.say("Cob, what did you hear last night?")) === undefined);
-  await until(a, `turn ${n} deciding`, 10_000, r => turnOf(r, n)?.phase === "deciding");
+  await until(a, `turn ${n} settling`, 30_000, r => turnOf(r, n)?.phase === "settling");
   await pause(1_000);
 
   await stack.stdb.stop();
   await stack.stdb.start();
-  ok("SpacetimeDB stopped and started again on its data, a second into the decide");
-  await doneTurn(a, n, 60_000 - (performance.now() - said));
+  ok("SpacetimeDB stopped and started again on its data, a second into the settle");
+  await doneTurn(a, n, 120_000 - (performance.now() - said));
   ok(`${seconds(performance.now() - said)} from the line to the turn's end, A's connection back by itself`);
 
-  const asked = modelCalls(game, "director.before", keyOf(game, n, "decide"));
-  check(`director.before was asked ${asked} time for the decide's key`, asked === 1);
-  check("the module logged the decide re-dispatched after its deadline", /re-dispatched after its deadline/.test(await moduleLog(stack)));
+  const key = keyOf(game, n, "settle");
+  const asked = modelCalls(game, "world.stage", key);
+  check(`world.stage was asked ${asked} time for the settle's key`, asked === 1);
+  check("the module logged the settle re-dispatched after its deadline", new RegExp(`${escaped(key)} re-dispatched after its deadline`).test(await moduleLog(stack)));
 }
 
 /**
@@ -428,25 +440,42 @@ async function linesOffAndOn(stack: Stack, a: Player, game: Game): Promise<void>
   await restartAi(stack, FAKE);
 }
 
-/** 14. A line that makes the case: the ending is the player's own, the next line winds down, the scene ends (asking for no lines after its last reply), and a further line is refused. */
+/**
+ * 14. An ending: the co-GM walks the scene to murder by persons unknown (fake.json's walk: the
+ * discovery it needs first, a route a line), each move taken again on the rows; at the ending the
+ * scene is closing, the next line's reply (the mouthpiece's closing) winds it down with no settle and
+ * asks for no lines, the scene ends, and a further line is refused. (Until M2 the decider took the old
+ * clerk's make-case on one line.)
+ */
 async function anEnding(stack: Stack, a: Player, b: Player, game: Game): Promise<void> {
   step("14. An ending");
-  await restartAi(stack, onTop(FAKE, { choices: { outcome: "make-case", own_exit: "theirs" } }));
-  check("A says the line that makes the case", (await a.conn.say("The cord mark, the barred door and Cob's page: Prout was murdered for what he found. That's the case made. We take it to the King.")) === undefined);
-  await until(a, "the scene to close", 60_000, r => r.scene.status === "closing");
-  ok("the scene is closing: the ending is the player's own, with one wind-down turn to go");
+  await restartAi(stack, onTop(FAKE, { coGm: { endings: ["murder-unknown"] } }));
+  const lines = ["Cob, who was the big man in the yard last night?", "Sergeant, that's a cord mark, not a rope.", "Is that the dead-cart I hear in the lane?", "Write it down as murder, Sergeant: persons unknown."];
+  const walked: string[] = [];
+  for (const line of lines) {
+    const n = nextTurn(a);
+    check(`A says "${line}"`, (await a.conn.say(line)) === undefined);
+    const rows = await doneTurn(a, n);
+    const moves = (await gmOf(stack, game)).path.filter(p => p.turn === n).map(p => p.via);
+    walked.push(...moves);
+    check(`the co-GM's move after turn ${n} is on the rows: ${moves.join(", ") || "none"}`, moves.length === 1);
+    if (rows.scene.status === "closing") break;
+  }
+  const gm = await gmOf(stack, game);
+  check(`the scene is closing on ${gm.closing?.exitId}, walked ${walked.join(", ")}`, a.conn.rows()!.scene.status === "closing" && gm.closing?.exitId === "murder-unknown" && walked.join() === "find-hobb,find-murder,cart-comes,signed-murder");
 
   const n = nextTurn(a);
   check("A says the wind-down line", (await a.conn.say("*to Kell, at the gate* Coming, Sergeant?")) === undefined);
   await until(a, "the scene to end", 60_000, r => r.scene.status === "ended" && r);
   const rows = await doneTurn(a, n);
   const last = [...rows.transcript].sort((x, y) => x.seq - y.seq).at(-1)!;
-  check(`"${last.text}" closes the transcript`, last.kind === "system" && last.text === "Scene ends: The case is made");
-  check("the GM closed it with gm.closing", modelCalls(game, "gm.closing", keyOf(game, n, "reply")) === 1);
+  check(`"${last.text}" closes the transcript`, last.kind === "system" && last.text === "Scene ends: Murder by persons unknown");
+  check("the GM closed it with two-part.closing, and nothing settled after it", modelCalls(game, "two-part.closing", keyOf(game, n, "reply")) === 1 && modelCalls(game, "world.stage", keyOf(game, n, "settle")) === 0 && modelCalls(game, "two-part.co-gm", keyOf(game, n, "settle")) === 0);
   check("its last reply asked for no lines", turnOf(rows, n)!.suggest === "none" && modelCalls(game, "scene.suggest", keyOf(game, n, "suggest")) === 0);
   check("a further line is refused: scene_over", (await a.conn.say("Wait!"))?.code === "scene_over");
   await until(b, "B to see the scene end", 10_000, r => r.scene.status === "ended");
   ok("B saw it end too");
+  await restartAi(stack, FAKE);
 }
 
 /** 35. Each turn's first words and its end, from the turn rows, game by game; its lines after the reply, as A saw them come (A's games); the map moves' times. */
