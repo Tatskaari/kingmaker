@@ -2,7 +2,7 @@
 
 import type { GmState } from "../../../shared/gm/state.ts";
 import type { GearRow } from "../../../shared/rules/types.ts";
-import type { CampaignFile, PlaceFile } from "../../../shared/scene/files.ts";
+import type { CampaignFile, PlaceFile, WorldOpData } from "../../../shared/scene/files.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import type { Character, Scene } from "../../../shared/scene/types.ts";
 import { inventory } from "../../../shared/world/inventory.ts";
@@ -129,7 +129,35 @@ export function applyStage(place: PlaceWorld, ops: WorldOp[], turn: number, left
   return done;
 }
 
+/** What one of a scene file's operations came to: done, or not and why, in a few words ("give ledger-page"). */
+export interface ScriptDone { said: string; done: boolean; why?: string }
+
+/**
+ * One of a scene file's world operations (an ending's effect: story/effects.ts) through the stage
+ * manager's gate (applyOps, the prototype's own), so it does what the stage manager's of that op
+ * does: a give puts the thing in the player's keeping (or a person's), a remove takes someone or
+ * something off the place. As the author wrote it, by the world's own ids, `$player` the
+ * controller's character; what it names must be in the world by that id (an "all …" selector as the
+ * gate reads it), since the gate's loose matching is for a model's descriptions and would hand over a
+ * stand-in for something that isn't here. By the rules, uncut; the player stays (only walking out
+ * takes them out).
+ */
+export function scriptOp(place: PlaceWorld, data: WorldOpData, turn: number): ScriptDone {
+  const op = completeOp({ ...data, what: playerIn(data.what), to: playerIn(data.to) });
+  const said = `${op.op} ${op.what || op.name}`.trim();
+  const named = [op.op === "create" || op.op === "spill" ? "" : op.what, op.to].filter(id => id && !/^all\b/i.test(id.trim()));
+  const missing = named.find(id => !place.world.entities[id]);
+  if (missing) return { said, done: false, why: `nothing here is ${missing}` };
+
+  const done = applyOps(place.world, [op], turn, "rules");
+  keepPlayer(place.world, turn);
+  return done.problems.length ? { said, done: false, why: done.problems.join("; ") } : { said, done: true };
+}
+
 // ---------------------------------------------------------------------------------------------
+
+/** `$player`, a scene file's name for the controller's character, as the world names them. */
+const playerIn = (id: string | undefined) => (id?.trim() === "$player" ? "player" : (id ?? ""));
 
 const personOf = (c: Character) => ({ id: c.id, name: c.name, ...(c.members ? { members: c.members } : {}) });
 

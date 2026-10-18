@@ -1,35 +1,67 @@
 import type { GmState } from "../../../shared/gm/state.ts";
-import type { Cond, Effect } from "../../../shared/scene/files.ts";
+import type { Cond, Effect, WorldOpData } from "../../../shared/scene/files.ts";
 import type { Scene } from "../../../shared/scene/types.ts";
+import type { WorldOp } from "../../../shared/world/scene-world.ts";
 import type { TxCtx } from "../context.ts";
+import { getGm } from "../gm/rows.ts";
 import { gameRow, type SceneRow } from "../rows.ts";
+import { refreshPockets } from "../rules/session.ts";
 import { campaignFile, campaignOfGame } from "../scenes.ts";
+import { placeWorldOf, savePlaceWorld, scriptOp, type PlaceWorld } from "../world/place.ts";
+import { syncStage } from "../world/stage.ts";
 
 /**
  * An ending's effects (story-design §4.3; the prototype's exit scripts as data, content-world A6),
  * read as the prototype's recording world reads a script, each kept only when its facts hold: `if`,
  * every fact named established (or the co-GM's canon, as engine.ts:986 hands the script both);
- * `unless`, none of them. The ones that only write the story are applied, as rows the notebook, the
+ * `unless`, none of them. The ones that write the story are applied, as rows the notebook, the
  * quests and every later request read: quest, flag, attitude (the controller's), journal, follow.
- * The rest (remember, promise, give, remove, create, a fight's set-up) are recorded, a log line each,
- * as the prototype records them all and reads back only the journal.
+ * The world's operations (give, remove, move, create, note…) are applied to the scene's place as
+ * the stage manager's are (world/place.ts scriptOp), so what an ending hands over is in the player's
+ * keeping and goes on with them into the next scene's world, as everything they carry does
+ * (world/cross.ts), where the prototype's recording world only recorded them. The rest (remember,
+ * promise, a fight's set-up) are recorded, a log line each.
  */
 
-/** What an ending's effects came to: the applied ones and the recorded ones, a few words each. */
-export interface Done { applied: string[]; recorded: string[] }
+/** What an ending's effects came to, a few words each: the applied ones, the recorded ones, and the world's operations that couldn't be done (and why). */
+export interface Done { applied: string[]; recorded: string[]; notDone: string[] }
 
 /** The scene ending, as its effects read it: its row, its graph (the cast's names, the facts' sentences), and its bookkeeping (what's established). */
 export interface Ending { scene: SceneRow; graph: Scene; gm: GmState }
 
 export function applyEffects(tx: TxCtx, at: Ending, effects: Effect[]): Done {
-  const done: Done = { applied: [], recorded: [] };
+  const done: Done = { applied: [], recorded: [], notDone: [] };
   const holds = holdsIn(at);
+  let place: PlaceWorld | undefined;
   for (const effect of effects.filter(holds)) {
+    if (isWorldOp(effect)) {
+      place ??= placeWorldOf(tx, at.scene);
+      const op = scriptOp(place, effect, at.scene.turns);
+      if (op.done) done.applied.push(op.said);
+      else done.notDone.push(`${op.said} (${op.why})`);
+      continue;
+    }
     const applied = apply(tx, at, effect);
     if (applied) done.applied.push(applied);
     else done.recorded.push(recordOf(effect));
   }
+  if (place) moved(tx, at.scene, at.graph, place);
   return done;
+}
+
+/** The world's operations an effect may be (WorldOp's, the stage manager's). */
+const WORLD_OPS: Record<WorldOp["op"], true> = {
+  move: true, place: true, give: true, drop: true, create: true, state: true, note: true, forget: true,
+  remove: true, destroy: true, ignite: true, douse: true, spill: true, chill: true, bleed: true, break: true,
+};
+
+const isWorldOp = (effect: Effect): effect is Cond & WorldOpData => Object.prototype.hasOwnProperty.call(WORLD_OPS, effect.op);
+
+/** The place written back after the world's operations, the sheet's pockets (what the player carries now) and who's on stage with it. */
+function moved(tx: TxCtx, scene: SceneRow, graph: Scene, place: PlaceWorld): void {
+  savePlaceWorld(tx, scene, place, graph);
+  refreshPockets(tx, scene.controllerId, place.world);
+  syncStage(tx, scene, graph, getGm(tx, scene.id));
 }
 
 /** Every effect, recorded: a fight's (its combat exit's script sets the fight out: the stand-in has none to set). */
@@ -111,7 +143,7 @@ function follow(tx: TxCtx, at: Ending, who: string): string {
   return `follow ${who}`;
 }
 
-/** A recorded effect, in a few words: "remember kell", "give ledger-page", "startFight". */
+/** A recorded effect, in a few words: "remember kell", "promise hobb", "startFight". */
 function recordOf(effect: Effect): string {
   const e = effect as Partial<Record<"who" | "by" | "what" | "name", string>> & { op: string };
   const about = e.op === "remember" ? e.who : e.op === "promise" ? e.by : e.what || e.name;
