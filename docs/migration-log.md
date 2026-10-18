@@ -202,6 +202,70 @@ The user's call (2026-10-17: "i liked the speakers idea but the notes wasn't tun
 - **The live run's `gm` and `world` scripts** record the old pipeline's columns; a two-part script (the checks called, the co-GM's moves and roles each turn) would replace them.
 - **The old pipeline's code** (above) stays until the QA round says what to salvage: the spells and blows read from words, the reactions, the ruling, walking out.
 
+### Fixes from QA round qa1-1018
+
+The round (`runs/loop/qa1-1018` on `claude/v2-scenes`: eight games, the triage's verdicts and the why of each finding in its triage.json) found the two-part GM's narration and checks wanting in the same few ways. Each fix job's part is its own heading below.
+
+#### The mouthpiece's narration and checks (`claude/v2-fix-mouth`)
+
+The patterns: names the player hadn't heard (7: Moll, Hep, Dilly, Duchess), hidden things named (7: Cob's loose board three times, the crown in Moll's fist, the loft's smashed lantern, Hobb's "right" hand), meaning in the prose (4: "The promise has found the fear. What do you promise him?", "rather than taking the decision from you"), the player's bracketed reasoning heard, closings restaging the last reply (the Heron's arrest, the King's ruling), Prout's written note said by nobody, Hobb's whisper in Hep's colour, Kell taking the player's moment, and the checks (an outcome undoing its setup, a success repeating it, a roll on a compliment, no roll on the noose or the Crakes). The user's two prompts are untouched; everything is in what's appended in code ([ai/gm/two-part.ts](../ai/gm/two-part.ts), [ai/gm/unheard.ts](../ai/gm/unheard.ts)).
+- `98baf82` **Who says a line:** quoteSpeaker's sentence leading into an untagged line starts after the line before it ([speakers.ts](../ai/gm/speakers.ts)), so Hobb's whisper after Hep's call is his.
+- `ee70c53` **Names, two ways:** the per-turn note lists whoever's here unheard with what to call them, in full and then the short way; and `asKnown` swaps such a name in the narration's own words, as it streams and once it's whole, and in each outcome, before anything is shown or kept (`249910b` trims the words a named animal is called by).
+- `835acd6` **What the player sees and hears** (SEEN, after the user's prompt): names, what's hidden, the player's bracketed words, the notes behind the screen; written words in single quotes, untagged. The per-turn note's new parts: what's hidden right now, and the player's asides.
+- `1bdcc3b` **Checks, closings and the companion:** a check at a turning point and never on a remark, outcomes that follow their setup and add what's new; the closing goes on from the last reply, whose lines it's given; Kell, as the companion, leaves the case to the player.
+
+##### Judgement calls
+
+- **The name pass covers everyone unheard with a `called`, here or not** (a name dropped for someone away is still theirs to hear first), and the place's creatures and people off the cards who go by a name (the Heron's Duchess), called what their description says they are ("the mastiff"; else "the animal" or "the stranger"): no `called` was added to the place format. The note lists only whoever's here, as asked.
+- **The short way** ("the girl", from "the girl in the shawl") is for a second mention and for what they own ("the girl's fist" reads better than "the girl in the shawl's fist"), unless two of them share its last word, when both keep their whole one. A title goes with the name ("Master Sallow" is "the gentleman with the silver-topped cane"), and "the" isn't doubled.
+- **What keeps a name:** a speaker's tag (the screen's; nobody hears it) and anything in quotes, double or single, said or written and read: either is how the player hears it, so the name is heard from there on in the reply and its check's outcomes. A name the narration writes that the pass swaps is never heard, since the reply is kept swapped and the note's list is worked out from what was kept.
+- **As it streams,** the pass holds back the last word (it may be a name, or own something), any titles before it, a quote mark that may open quoted words, and a tag not yet closed; the final post is the narration whole (`narrationOf` says when its JSON string has closed), so the draft only grows and ends as the kept reply has it. Tested at every prefix of three replies.
+- **What's hidden comes from the cards, not new world data.** The loose board and the crown aren't tagged hidden in granary-yard.json: a hidden thing is drawn faint on the map, and nothing in play takes the tag off once it's found (only an essential's things are "found", and only a handed-over thing loses the state), so the list would claim them hidden for good. Instead the per-turn note lists, beside the world's things out of sight, each card's secrets by their first sentence (Cob's names the board, Moll's the crown, Cob's the smashed lantern), and the model judges from the transcript what has come out (the GM gets every fact and its status, "The GM must know the facts"). The world paragraph's own out-of-sight sentence moved into this part, so it's said once.
+- **The tells are listed** (each card's "Shows:", its first sentence) as what can show, "now and then when the moment suits (not every reply)", since the round also had the fist pointed at three replies running.
+- **The player's asides** are quoted in the note when their turn has brackets or asterisks: done or thought, never heard as words; "people see what's done (and hear what the player says their character tells them)", so "(I tell her she can trust me)" is still said.
+- **Written words in single quotes:** the markup reads only double quotes as lines said, so a page read in single quotes can never be a line. The parser's own test for written words (a "note" within fifteen characters before the quote) was left as it was; g07's note had a long lead-in.
+- **The companion is found, not named in code:** whoever a `follow` effect in this scene's endings or a played scene's walks with the player (Kell from the granary on), so a campaign without one has no companion part.
+- **The closing's go-on clause comes last,** after the ending's "what it should feel like" (the Heron's asks for "Kell's proper words"), with the last reply's lines listed by who said them: put before it, without the lines, 2 of 3 tries still restaged the arrest.
+- **The check rule says the dice decide a risky attempt, not the GM** ("whether it works is for the dice to say, not you"), with frightening first among the attempts: the first wording, a list with "call one at a turning point", called no check on the noose in 3 of 3.
+- **The stage manager wasn't touched,** nor the place files, nor the co-GM. Kell's hints at the player's next move ("There may be another way in") are the companion clause's to stop, as far as it does (below).
+
+##### The probe
+
+The turns behind the findings, replayed on the real model (openai/gpt-6-luna, effort none) from the round's recorded requests: "before" sends each as the round did; "after" sends it with this branch's appended rules and per-turn note, the scene's earlier replies put through the name pass as they'd have been kept. The script and every reply are in `~/git/kingmaker-scratch/v2/mouth-probe` (probe.mts; tally.py counts them). $0.164 in all. Tries showing the problem, before and after (the asked-for turns first, then seven more for signal):
+
+| Turn | The problem | Before | After |
+|---|---|---|---|
+| g02 t1 | Moll named by the narration | 0/3 | 0/3 |
+| g04 t14 | the loose board named | 3/6 | 0/6 |
+| g04 t15 | the thief's bracketed reason heard | 1/3 | 0/3 |
+| g07 t3 | the crown in Moll's fist named | 0/6 | 0/6 |
+| g07 t3 | Moll named by the narration (g07's own finding) | 6/6 | 0/6 |
+| g05 t16 | the closing restages the arrest | 3/3 | 0/3 |
+| g07 t15 | Prout's note as a line said | 0/3 | 0/3 |
+| g02 t9 | "The promise has found the fear" | 0/3 | 0/3 |
+| g04 t17 | a failure taking back its setup's offer | no check called in 3 | no check called in 3 |
+| g02 t13 | the board named, or Cob's way in told by Kell | 2/3 | 1/3 |
+| g04 t4 | "the shilling has bought no permission" | 2/3 | 0/3 |
+| g05 t10 | "rather than taking the decision from you" | 0/3 | 0/3 |
+| g03 t5 | the King's ruling given again | 3/3 | 0/3 |
+| g02 t7 | a roll on a remark | 0/3 | 0/3 |
+| g08 t12 | the noose's fright settled by fiat | 3/3 | 3/6 |
+| g01 t9 | a success repeating its setup | no check called in 3 | no check called in 3 (1 of 3 in an earlier run, not repeating) |
+
+Several findings didn't come back on the round's own requests (0 of 3 before), so those rows say only that the change didn't bring them on. On top of the instructions, the pass makes a name nobody has said impossible in what's shown. The per-turn note grows by about 1,600 tokens (the secrets and tells); the first words came in 0.8 to 1.4 s before and after.
+
+##### Checked
+
+- `npm run typecheck` clean; `npm test` 1003 of 1003, 11 of them new (the name pass on the round's replies and as it streams, who's unheard and what they're called, the note's hidden part, names and asides, the instructions in two, the closing's lines, the mouthpiece's narration and outcomes on the fake) and the Heron's speaker in the untagged-line test; `npm run campaign -- check campaigns/caerwyn`: "6 scenes (27 beats, 64 routes, 20 endings) … no problems".
+- `npm run e2e -- --port 3570 --ai-port 9057` (namespace mode; other worktrees' stacks hold the defaults): PASS, every step, in 383 s, the golden replies' names swapped where nobody had said them and the opening and its streamed draft as before.
+
+##### Still open
+
+- **The dog's growl** comes back in the Heron's close in every try, the arrest itself no longer: the ending's own closing words ask for "Duchess growling at his ankles", and the last reply had it. A closing list of the last reply's gestures, or the ending's words, would be next.
+- **A fright is rolled 3 times in 6** (from none): the model still settles some by fiat, in g08 by having Hobb bolt and then rolling the chase.
+- **The failure that took back its own offer** couldn't be measured: no try called a check at g04 t17, before or after.
+- **Kell hints** at another way in (1 of 3 at g02 t13), and in that try knew of Cob's way in, which her card says she doesn't.
+
 ## M2: the GM loop on the game (QA tooling)
 
 The prototype's GM loop (draft PR #663, branch `claude/gm-loop` at 5f01806) ran blind QA rounds on the prototype's scene harness: persona testers played a scene, a blind reviewer judged each game against a rubric, and I triaged every finding and published a report. Its round half (steps 1 and 2 of its skill) is ported onto the game, so the re-authored scenes and the two-part GM can be played blind as they land. The cases, fixtures and evals half (steps 3 to 5) isn't, yet.
