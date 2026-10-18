@@ -11,7 +11,7 @@ const bundle=async entry=>{
 };
 const model=await bundle('../src/place/model.ts');
 const game=await bundle('./game-places.ts');
-const {openPlaceFile,serializePlace,placeShapeOf,tileOfFeet,feetOfTile,feetMoved,tilesOf,areaAt,contentsOf,spotOf,setThingField,setAreaField,setPersonField,moveThing,movePerson,moveArea,addThing,addArea,addPerson,removeFromPlace,placeIdFor,newPlace,idsOf}=model;
+const {openPlaceFile,serializePlace,placeShapeOf,tileOfFeet,feetOfTile,feetMoved,tilesOf,areaAt,contentsOf,spotOf,setThingField,setAreaField,setPersonField,moveThing,movePerson,moveArea,onPlace,addThing,addArea,addPerson,removeFromPlace,placeIdFor,newPlace,idsOf}=model;
 
 const CAMPAIGN=new URL('../../../campaigns/caerwyn/',import.meta.url);
 const read=path=>readFile(new URL(path,CAMPAIGN),'utf8');
@@ -63,12 +63,23 @@ test('moving: a thing keeps its place in its tile and goes into the area under i
   assert.equal(next.things.find(t=>t.id==='boots').in,'cob');
   next=movePerson(doc,'moll',[45,30]);
   assert.deepEqual(next.people.moll,{in:'loft',at:[45,30],note:'sitting on top of the yard wall'});
-  // The loft moved two feet east: its things on the floor with it, what's held stays held.
-  next=moveArea(doc,'loft',40,8);
-  assert.deepEqual(next.areas.find(a=>a.id==='loft').rect,{x:40,y:8,w:14,h:32});
-  assert.deepEqual(next.things.find(t=>t.id==='cleat').at,[42,18]);
+  // The loft moved two feet west: its things on the floor with it, what's held stays held.
+  next=moveArea(doc,'loft',36,8);
+  assert.deepEqual(next.areas.find(a=>a.id==='loft').rect,{x:36,y:8,w:14,h:32});
+  assert.deepEqual(next.things.find(t=>t.id==='cleat').at,[38,18]);
   assert.deepEqual(next.things.find(t=>t.id==='granary-roll'),doc.things.find(t=>t.id==='granary-roll'));
   assert.equal(moveArea(doc,'loft',38,8),doc);
+});
+
+test('moving keeps everything on the place\'s floor: a spot past an edge goes just inside it, and an area stops at the edge',async()=>{
+  // The yard is 52 by 40 feet; the loft (14 wide, from 38) is at its east edge already.
+  const doc=await yard();
+  assert.deepEqual(moveThing(doc,'satchel',[-7,10]).things.find(t=>t.id==='satchel').at,[0,10]);
+  assert.deepEqual(moveThing(doc,'satchel',[60,45]).things.find(t=>t.id==='satchel').at,[51,39]);
+  assert.deepEqual(movePerson(doc,'moll',[45,99]).people.moll.at,[45,39]);
+  assert.equal(moveArea(doc,'loft',40,8),doc,'past the east edge it stays where it is');
+  assert.deepEqual(moveArea(doc,'loft',30,-20).areas.find(a=>a.id==='loft').rect,{x:30,y:0,w:14,h:32});
+  assert.deepEqual([onPlace(doc,[0,0]),onPlace(doc,[51,39]),onPlace(doc,[52,10]),onPlace(doc,[10,-1])],[true,true,false,false]);
 });
 
 test('adding and removing: ids free in the place, a thing takes what\'s in it along, an area goes only once it\'s empty',async()=>{

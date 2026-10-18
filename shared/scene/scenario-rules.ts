@@ -140,7 +140,12 @@ export function mapRuleProblems(c: ScenarioCampaign): ScenarioProblem[] {
   return problems;
 }
 
-/** The places: each listed place's file named for its id, with its prose; unique ids, and every thing and person in an area, a thing or a person that exists. */
+/**
+ * The places: each listed place's file named for its id, with its prose; unique ids, and every thing
+ * and person in an area, a thing or a person that exists; and every area, spot and start on the
+ * place's floor (the game lays a place on its map five feet to a tile from its origin, so what's past
+ * its edges stands off its tiles).
+ */
 export function placeRuleProblems(c: ScenarioCampaign): ScenarioProblem[] {
   const problems: ScenarioProblem[] = [];
   for (const { key, doc } of c.places) {
@@ -152,6 +157,11 @@ export function placeRuleProblems(c: ScenarioCampaign): ScenarioProblem[] {
     const known = new Set(ids), areas = new Set(doc.areas.map(a => a.id));
     for (const t of doc.things) if (!known.has(t.in)) p(`thing ${t.id} is in unknown ${t.in}`, { thing: t.id });
     for (const [id, person] of Object.entries(doc.people)) if (!areas.has(person.in)) p(`${id} starts in unknown area ${person.in}`, { person: id });
+    const { w, h } = doc.size, size = `${w} by ${h} feet`;
+    const off = (at: [number, number] | undefined): at is [number, number] => !!at && (at[0] < 0 || at[1] < 0 || at[0] >= w || at[1] >= h);
+    for (const a of doc.areas) if (a.rect.x < 0 || a.rect.y < 0 || a.rect.x + a.rect.w > w || a.rect.y + a.rect.h > h) p(`area ${a.id} runs past the place's edges (${size})`, { area: a.id });
+    for (const t of doc.things) if (off(t.at)) p(`thing ${t.id} stands at (${t.at[0]}, ${t.at[1]}), off the place (${size})`, { thing: t.id });
+    for (const [id, person] of Object.entries(doc.people)) if (off(person.at)) p(`${id} starts at (${person.at[0]}, ${person.at[1]}), off the place (${size})`, { person: id });
   }
   return problems;
 }

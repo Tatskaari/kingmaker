@@ -8,7 +8,7 @@ import {useCampaignFiles,useEdits} from '../campaign/edits.ts';
 import {campaignProblems,keyOfPath,withDraft} from '../campaign/files.ts';
 import {EditSession} from '../scene/fields.tsx';
 import {ConfirmDialog} from '../ConfirmDialog';
-import {FEET_PER_TILE,addArea,addPerson,addThing,areaAt,moveArea,movePerson,moveThing,placeShapeOf,removeFromPlace,serializePlace,spotOf} from './model.ts';
+import {FEET_PER_TILE,addArea,addPerson,addThing,areaAt,moveArea,movePerson,moveThing,onPlace,placeShapeOf,removeFromPlace,serializePlace,spotOf} from './model.ts';
 import type {Feet,PlaceDocument} from './model.ts';
 import {PlacePanel,PlacePartInspector} from './inspectors.tsx';
 import type {PlacePart} from './inspectors.tsx';
@@ -85,6 +85,10 @@ export function PlaceApp({document:initial,host}:{document:PlaceDocument;host:Fi
     if(!menu)return null;
     const area=areaAt(doc,menu.at);
     const item=(label:string,run:()=>void,danger=false)=><button key={label} role="menuitem" className={danger?'danger':''} onClick={()=>{setMenu(null);run()}}>{label}</button>;
+    // Off the place's floor nothing can be added: the game lays the place from its corner, and the campaign check names a spot past its edges.
+    if(!onPlace(doc,menu.at))return <div className="map-context-menu" role="menu" aria-label={`At ${menu.at[0]}, ${menu.at[1]} feet`} style={{left:menu.x,top:menu.y}}>
+      <small>{menu.at[0]}, {menu.at[1]} ft · off the place, which is {doc.size.w} × {doc.size.h} feet: right-click on it to add to it, or make it bigger in the Place tab.</small>
+    </div>;
     return <div className="map-context-menu" role="menu" aria-label={`At ${menu.at[0]}, ${menu.at[1]} feet`} style={{left:menu.x,top:menu.y}}>
       <small>{menu.at[0]}, {menu.at[1]} ft{area?` · ${area.name}`:''}</small>
       {item('Add a thing here…',()=>setDialog({kind:'thing',at:menu.at,area:area?.id}))}

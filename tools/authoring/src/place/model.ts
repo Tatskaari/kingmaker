@@ -49,6 +49,11 @@ export function feetMoved(origin:Tile2,at:Feet,tile:Tile2):Feet{
 export const tilesOf=(size:{w:number;h:number})=>({w:Math.ceil(size.w/FEET_PER_TILE),h:Math.ceil(size.h/FEET_PER_TILE)});
 
 const inRect=(r:Rect,at:Feet)=>at[0]>=r.x&&at[1]>=r.y&&at[0]<r.x+r.w&&at[1]<r.y+r.h;
+/** Whether a spot is on the place's floor (the campaign check's rule: the game lays the place on its map from its origin, and what's past its edges is off its tiles). */
+export const onPlace=(doc:PlaceDocument,at:Feet)=>inRect({x:0,y:0,w:doc.size.w,h:doc.size.h},at);
+const within=(value:number,low:number,high:number)=>Math.min(Math.max(value,low),Math.max(low,high));
+/** A spot brought onto the place's floor: one past an edge goes just inside it. */
+export const ontoPlace=(doc:PlaceDocument,at:Feet):Feet=>onPlace(doc,at)?at:[within(at[0],0,doc.size.w-1),within(at[1],0,doc.size.h-1)];
 /** The smallest area a spot is in. */
 export const areaAt=(doc:PlaceDocument,at:Feet):Area|undefined=>doc.areas.filter(area=>inRect(area.rect,at)).sort((a,b)=>a.rect.w*a.rect.h-b.rect.w*b.rect.h)[0];
 
@@ -101,33 +106,36 @@ export function rectLike(old:Rect,next:Rect):Rect{
 }
 
 /**
- * A thing moved to a spot (feet). A thing on the floor (in an area) moves into the area the spot is in,
- * if it's in one; a thing held by someone or in something stays theirs (it's put down only when its
- * `in` changes).
+ * A thing moved to a spot (feet), kept on the place's floor (a spot past an edge goes just inside it).
+ * A thing on the floor (in an area) moves into the area the spot is in, if it's in one; a thing held
+ * by someone or in something stays theirs (it's put down only when its `in` changes).
  */
-export function moveThing(doc:PlaceDocument,id:string,at:Feet):PlaceDocument{
+export function moveThing(doc:PlaceDocument,id:string,to:Feet):PlaceDocument{
   const thing=doc.things.find(t=>t.id===id);
   if(!thing)return doc;
+  const at=ontoPlace(doc,to);
   let next=withKey(thing,'at',atLike(thing.at,at),ORDER.thing);
   const area=areaAt(doc,at);
   if(area&&doc.areas.some(a=>a.id===thing.in)&&area.id!==thing.in)next=withKey(next,'in',area.id,ORDER.thing);
   return next===thing?doc:{...doc,things:doc.things.map(t=>t.id===id?next:t)};
 }
 
-/** Someone's start moved to a spot (feet), into the area it's in (a person starts in an area). */
-export function movePerson(doc:PlaceDocument,id:string,at:Feet):PlaceDocument{
+/** Someone's start moved to a spot (feet) on the place's floor, into the area it's in (a person starts in an area). */
+export function movePerson(doc:PlaceDocument,id:string,to:Feet):PlaceDocument{
   const person=doc.people[id];
   if(!person)return doc;
+  const at=ontoPlace(doc,to);
   let next=withKey(person,'at',atLike(person.at,at),ORDER.person);
   const area=areaAt(doc,at);
   if(area&&area.id!==person.in)next=withKey(next,'in',area.id,ORDER.person);
   return next===person?doc:{...doc,people:Object.fromEntries(Object.entries(doc.people).map(([who,p])=>[who,who===id?next:p]))};
 }
 
-/** An area moved (its corner to `x`, `y` in feet), the things and people on its floor with it. */
-export function moveArea(doc:PlaceDocument,id:string,x:number,y:number):PlaceDocument{
+/** An area moved (its corner to `x`, `y` in feet, as far as the place's edges let it go), the things and people on its floor with it. */
+export function moveArea(doc:PlaceDocument,id:string,toX:number,toY:number):PlaceDocument{
   const area=doc.areas.find(a=>a.id===id);
   if(!area)return doc;
+  const x=within(toX,0,doc.size.w-area.rect.w),y=within(toY,0,doc.size.h-area.rect.h);
   const dx=x-area.rect.x,dy=y-area.rect.y;
   if(!dx&&!dy)return doc;
   const shift=(at:Feet|undefined)=>at?atLike(at,[at[0]+dx,at[1]+dy]):at;

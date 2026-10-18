@@ -158,7 +158,7 @@ interface PlaceDocument {
 - **A region with a scene lays it or opens it.** One with a `worldOrigin` is where the scene's place is laid, and the place must fit on the map from there (its feet in tiles of five, rounded up). One with a `trigger` and no `worldOrigin` opens a scene laid by another region (the town's wharf end opens the Heron, whose own map lays it): its scene must be laid somewhere. A region with a scene and neither is a problem.
 - **Everyone a place starts is its scene's cast** was already a scene rule: the check says it at the scene (`<place>'s people: <id> isn't in the cast`).
 - **Reachable:** from the start map through the maps' exits, every scene a region of those maps plays (`sceneId`), and from each of those every ending's `next`, again and again; with no start map, from the first scene. A start on a map the scenario hasn't got, or a map on the way that doesn't build, is its own problem, and nothing is said of what's beyond it.
-- **Also checked:** each file's id is its name and it has a title and a description; the scenario lists nothing twice and its talk template isn't one of its scenes; a map is 160 by 120 tiles at most; a region's `opensFor` and `exteriorOf` name the scenario's scenes too.
+- **Also checked:** each file's id is its name and it has a title and a description; the scenario lists nothing twice and its talk template isn't one of its scenes; a map is 160 by 120 tiles at most; a region's `opensFor` and `exteriorOf` name the scenario's scenes too; and a place's areas, its things' spots and its people's starts are on its floor (from 0 up to its width and depth in feet, since the game lays it on its map from its corner and what's past its edges stands off its tiles).
 
 ### As built (M4, the plugin's side)
 

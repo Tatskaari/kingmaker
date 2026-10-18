@@ -99,7 +99,7 @@ A map (`maps/<id>.kmmap`) opens on an isometric painter, with its legend as the 
 
 ## Places
 
-A place (`places/<key>.kmplace`) opened by itself is drawn on its own grid, from above, five feet a square: its areas, its things and where its people start, moved by dragging, added from a right-click and edited in the inspector, as on a map. Its header names the regions that lay it on a map, to open. The scene editor's Scene tab lists its place's things, and opens the place.
+A place (`places/<key>.kmplace`) opened by itself is drawn on its own grid, from above, five feet a square: its areas, its things and where its people start, moved by dragging, added from a right-click and edited in the inspector, as on a map. Everything stays on the place's floor: a right-click off it offers nothing to add (on a map, only the place's own tiles offer its parts), a thing or someone dragged past an edge stops just inside it, and an area stops at the edge; a spot typed past an edge is a problem, as the campaign check has it. Its header names the regions that lay it on a map, to open. The scene editor's Scene tab lists its place's things, and opens the place.
 
 ## Version 1 maps
 

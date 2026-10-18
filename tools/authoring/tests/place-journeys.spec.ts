@@ -57,6 +57,16 @@ test('a place on its own grid: its things where they stand, one moved, one added
   await inspector.getByLabel('States 1',{exact:true}).fill('leaning');
   doc=await saved(page,path);
   expect(doc.things.at(-1)).toEqual({id:'a-ladder',name:'a ladder',kind:'object',in:'yard',at:[6,20],size:'large',material:'wood',states:['leaning'],description:'A ladder long enough for the hoist beam.'});
+  // The ladder dragged past the place's west edge stays on its floor, and off the floor nothing is offered to add.
+  await drag(page,await feet(page,6,20),await feet(page,-8,20));
+  await expect.poll(async()=>thing(await saved(page,path),'a-ladder').at).toEqual([0,20]);
+  const off=await feet(page,-6,30);
+  await page.mouse.click(off.x,off.y,{button:'right'});
+  await expect(page.getByRole('menu')).toContainText('off the place, which is 52 × 40 feet');
+  await expect(page.getByRole('menuitem')).toHaveCount(0);
+  const away=await feet(page,26,-6);
+  await page.mouse.click(away.x,away.y);
+  await expect(page.getByRole('menu')).toHaveCount(0);
   // The lane dragged five feet south takes its elm with it.
   await drag(page,await feet(page,4,4),await feet(page,4,9));
   await expect.poll(async()=>(await saved(page,path)).areas.find((a:any)=>a.id==='lane').rect).toEqual({x:0,y:5,w:40,h:8});

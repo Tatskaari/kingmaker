@@ -244,6 +244,17 @@ test('a region tied to a scene lays its place on the map, and a thing of the pla
   await pigeon.getByRole('button',{name:'Add thing'}).click();
   await expect.poll(async()=>(await saved(page,'places/granary-yard.kmplace')).things.at(-1)).toEqual({id:'a-dead-pigeon',name:'a dead pigeon',in:'yard',at:[22,27]});
   await expect(page.getByRole('button',{name:'Thing a dead pigeon'})).toBeVisible();
+  // Off the yard's tiles (laid at 40, 9, eleven by eight) nothing of it is offered; on its last column, part of a tile (50 to 52 feet), a thing stands on its floor.
+  await tileMenu(page,38,12);
+  await expect(page.getByRole('menuitem',{name:/^Add a thing of/})).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).toHaveCount(0);
+  await tileMenu(page,50,15);
+  await page.getByRole('menuitem',{name:'Add a thing of The yard behind the King\'s Granary here…'}).click();
+  const crate=page.getByRole('dialog',{name:'New thing'});
+  await crate.getByLabel('Name',{exact:true}).fill('a crate');
+  await crate.getByRole('button',{name:'Add thing'}).click();
+  await expect.poll(async()=>(await saved(page,'places/granary-yard.kmplace')).things.at(-1)).toEqual({id:'a-crate',name:'a crate',in:'loft',at:[51,32]});
 });
 
 test('resizing grows the map and moves what stands on it; the scenario\'s start and other maps\' ways in move with a north edge',async({page})=>{

@@ -24,7 +24,7 @@ import {landingOn,serializeScenario,withStart} from '../scenario/model.ts';
 import {PlacePanel,PlacePartInspector} from '../place/inspectors.tsx';
 import type {PlacePart} from '../place/inspectors.tsx';
 import {NewAreaDialog,NewStartDialog,NewThingDialog} from '../place/dialogs.tsx';
-import {FEET_PER_TILE,addArea,addPerson as addPlacePerson,addThing,areaAt,feetMoved,feetOfTile,moveArea,movePerson,moveThing,placeShapeOf,removeFromPlace,serializePlace,tilesOf} from '../place/model.ts';
+import {FEET_PER_TILE,addArea,addPerson as addPlacePerson,addThing,areaAt,feetMoved,feetOfTile,moveArea,movePerson,moveThing,onPlace as onPlaceFloor,ontoPlace,placeShapeOf,removeFromPlace,serializePlace,tilesOf} from '../place/model.ts';
 import type {Feet,PlaceDocument} from '../place/model.ts';
 import '../map.css';
 
@@ -362,7 +362,9 @@ export function MapApp({document:initial,host}:{document:MapDocument;host:FileHo
   const tileMenu=()=>{
     if(!menu)return null;
     const here=thingsAt(doc,menu.at),entry=doc.legend[cellAt(cells,menu.at)];
-    const place=placeOf?.place,origin=placeOf?.origin,feet=origin?feetOfTile(origin,menu.at):undefined;
+    const place=placeOf?.place,origin=placeOf?.origin;
+    // The tile's middle in the place's feet, when the tile is the place's (its part-covered last row and column brought onto its floor); off the place, nothing of it can be added.
+    const feet=place&&origin&&onPlaceFloor(place,[(menu.at.x-origin.x)*FEET_PER_TILE,(menu.at.y-origin.y)*FEET_PER_TILE])?ontoPlace(place,feetOfTile(origin,menu.at)):undefined;
     const area=place&&feet?areaAt(place,feet):undefined;
     const onPlace=place&&origin?[...place.things.filter(t=>t.at&&origin.x+Math.floor(t.at[0]/FEET_PER_TILE)===menu.at.x&&origin.y+Math.floor(t.at[1]/FEET_PER_TILE)===menu.at.y).map(t=>({kind:'thing' as const,id:t.id,name:t.name})),...Object.entries(place.people).filter(([,p])=>p.at&&origin.x+Math.floor(p.at[0]/FEET_PER_TILE)===menu.at.x&&origin.y+Math.floor(p.at[1]/FEET_PER_TILE)===menu.at.y).map(([id])=>({kind:'person' as const,id,name:id}))]:[];
     const item=(label:string,run:()=>void,danger=false)=><button key={label} role="menuitem" className={danger?'danger':''} onClick={()=>{setMenu(null);run()}}>{label}</button>;

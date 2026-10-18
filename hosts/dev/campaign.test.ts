@@ -181,6 +181,23 @@ test("the place's people are the cast, its things are somewhere, and what a beat
   assert.deepEqual(sceneChecks(nowhere), ["scenes/hanged-clerk.kmscene: beat motive carries the-crown-jewels, which isn't a thing of its place, nor carried from another scene"]);
 });
 
+test("a place's areas, spots and starts are on its floor, so it's laid on its map's tiles whole", () => {
+  // The yard is 52 by 40 feet: its loft is 14 feet wide from 38, the elm at (34, 3), Kell at (16, 13).
+  const off = changed(PLACE, p => {
+    p.areas.find((a: any) => a.id === "loft").rect.w = 20;
+    p.things.find((t: any) => t.id === "elm").at = [-7, 3];
+    p.people.kell.at = [16, 40];
+  });
+  const edges = changed(PLACE, p => { p.things.find((t: any) => t.id === "elm").at = [51, 39]; p.people.kell.at = [0, 0]; });
+
+  assert.deepEqual(sceneChecks(off), [
+    "places/granary-yard.kmplace: area loft runs past the place's edges (52 by 40 feet)",
+    "places/granary-yard.kmplace: thing elm stands at (-7, 3), off the place (52 by 40 feet)",
+    "places/granary-yard.kmplace: kell starts at (16, 40), off the place (52 by 40 feet)",
+  ]);
+  assert.deepEqual(sceneChecks(edges), []);
+});
+
 test("the story goes on: every overtaken is a scene, a scene that can be overtaken says what it assumes, and an interlude goes on", () => {
   const lost = changed(RAT, s => { s.overtaken = "atlantis"; });
   const stuck = changed("scenes/wharf-night.kmscene", s => { delete node(s, "onward").next; });
