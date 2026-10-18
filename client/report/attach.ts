@@ -26,11 +26,11 @@ export interface Screened {
 /** How often the screen is noted while it's up. */
 const NOTE_MS = 1000;
 
-/** Reporting attached to the app over its renderer; returns what stops it. */
-export function attachReporting(app: AppModel, renderer: Screened): () => void {
+/** Reporting attached to the app over its renderer (the screen noted every `noteMs`: a check's own beat); returns what stops it. */
+export function attachReporting(app: AppModel, renderer: Screened, noteMs = NOTE_MS): () => void {
   app.report.screen = () => screenOf(renderer, app);
   watchConsole(app.report.noted);
-  const timer = setInterval(() => noteScreen(app, renderer), NOTE_MS);
+  const timer = setInterval(() => noteScreen(app, renderer), noteMs);
   (timer as { unref?: () => void }).unref?.();
   return () => clearInterval(timer);
 }

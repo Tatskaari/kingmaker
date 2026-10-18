@@ -30,6 +30,8 @@ import { StubBackend } from "./stub.ts";
 
 type Size = readonly [number, number];
 const label = ([w, h]: Size) => `${w}x${h}`;
+/** How often the screen is noted here (a host notes it once a second). */
+const NOTED_MS = 100;
 const flat = (t: string) => t.replace(/\s+/g, " ");
 const SAID = "Saved runs/reports/20261018-120000-game1.json.gz: tell Claude 'report 20261018-120000-game1.json.gz'";
 /** Where it went, said in the box (wrapped as the box wraps it). */
@@ -54,7 +56,8 @@ async function app(rows: Partial<HomeRows>, [w, h]: Size, set: (backend: StubBac
   const host = keeping();
   const model = new AppModel(backend, { campaign: "caerwyn", intent: rows.seat ? "game" : "title", reporting: host.reporting });
   const setup = await testRender(<App app={model} />, { width: w, height: h });
-  const stop = attachReporting(model, setup.renderer as never);
+  // The screen noted every 100 ms, not every second: a beat of the check's own, so a busy machine's late timer doesn't miss one.
+  const stop = attachReporting(model, setup.renderer as never, NOTED_MS);
   const draw = async () => { await setup.renderOnce(); return setup.captureCharFrame(); };
   const settle = async () => { await act(async () => { await new Promise(r => setTimeout(r, 30)); }); return await draw(); };
   const key = async (k: string) => { act(() => setup.mockInput.pressKey(k)); return await settle(); };
@@ -138,8 +141,8 @@ async function onTheMap(checks: Array<[string, boolean]>, size: Size, show: bool
   if (show) console.log(`b on the map ${label(size)}\n${frame}`);
   checks.push([`reporting ${label(size)}: b on the map asks what went wrong, over the map`, flat(frame).includes(flat(ASK).slice(0, 40)) && m.model.screen === "explore"]);
   await m.esc();
-  // Noted while the map's up (attach.ts notes the screen once a second), then the Esc menu's last line.
-  await act(async () => { await new Promise(r => setTimeout(r, 1100)); });
+  // Noted while the map's up (attach.ts notes the screen, here every NOTED_MS), then the Esc menu's last line.
+  await act(async () => { await new Promise(r => setTimeout(r, NOTED_MS * 5)); });
   frame = await m.esc();
   const menu = frame.includes("Report a problem…");
   await m.arrow("down");

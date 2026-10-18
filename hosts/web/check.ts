@@ -1,9 +1,11 @@
 // Its helpers (ok, fail, note, watch, open, until, waitFor, shot, press, :89-260) and its steps for two tabs, a browser that keeps nothing and the key form (:1209-1370) are copied from the prototype's src/web/static/check.ts at 44c6d4a, with the usual edits (v2's paths and screens, the saves read from every IndexedDB store, what the page sends each worker watched by a probe in front of its script); the play is v2's own, on the fake GM.
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { gunzipSync } from "node:zlib";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
+import type { Report } from "../../shared/report/format.ts";
 import { DEFAULT_BASE, serveStatic } from "./serve.ts";
 import { keyNeedles, readSite, siteProblems, textOf } from "./site.ts";
 
@@ -23,7 +25,8 @@ import { keyNeedles, readSite, siteProblems, textOf } from "./site.ts";
  * - then the play, on the fake GM: the title, a character made, the map ("The lead: The Hanged
  *   Clerk") with its action menu (m opens it, Esc closes it: town-design §1.1), g to the yard and
  *   the opening streamed in, a line and its reply with the suggested lines
- *   after it, a reload with the title's Continue carrying the game on from IndexedDB (the
+ *   after it, a problem reported (/report: M5, the page downloading the report, the game in it the
+ *   server worker's), a reload with the title's Continue carrying the game on from IndexedDB (the
  *   simulation's rows and the AI service's stores), another line, Ctrl+C and Play again (a new client
  *   worker, the server playing on), and a second tab told the game is open in this one (it takes it
  *   over); a browser that won't keep anything is told so.
@@ -503,6 +506,7 @@ async function play(browser: Browser, url: string): Promise<void> {
     await theMenu(page);
     await theOpening(page);
     await aLine(page, LINE, "What have we got", REPLY, "the fake GM's reply");
+    await aReport(page);
     await theSaves(page);
     await reloadAndContinue(page);
     await aLine(page, "Who's the girl on the wall, Sergeant?", "girl on the wall, Sergeant", "smirk", "after the reload, the game plays on: the next line's reply");
@@ -586,6 +590,45 @@ async function aLine(page: Page, line: string, said: string, replied: string, wh
   await waitFor(page, replied, what, 60000);
   await waitFor(page, "1–\\d into the box", "then the lines suggested, over the box", 30000);
   await shot(page, `reply-${replied}`);
+}
+
+/**
+ * A problem reported from the page (M5): /report with its words in the scene's box files it at once;
+ * the client worker makes the report, its game asked of the server worker (its rows, the AI service's
+ * calls and docs, the host's log), and the page downloads it as kingmaker-report-<time>.json.gz; the
+ * screen says where it went, to tell Claude; the download is the report (its words, where, the screen,
+ * the game), gzipped. Enter puts the word away, the scene as it was.
+ */
+async function aReport(page: Page): Promise<void> {
+  const words = "The fake GM never answers what I say";
+  const downloaded = page.waitForEvent("download", { timeout: 60000 });
+  await page.keyboard.type(`/report ${words}`, { delay: 10 });
+  await press(page, "Enter");
+  const download = await downloaded.catch(() => undefined);
+  if (!download) { fail("/report: no download came"); return; }
+  const name = download.suggestedFilename();
+  if (/^kingmaker-report-\d{8}-\d{6}\.json\.gz$/.test(name)) ok(`/report: the page downloads ${name}`);
+  else fail(`/report: the download is named ${name}`);
+  // The box wraps its words, so "tell" and "Claude" may be a row apart (the rest of each row between them).
+  const named = name.replace(/\./g, "\\.");
+  await waitFor(page, `Downloaded ${named}.*tell.*Claude 'report ${named}'`, "the screen says where it went, to tell Claude", 20000);
+  await shot(page, "report");
+  const file = join(OUT, name);
+  await download.saveAs(file);
+  const report = JSON.parse(gunzipSync(readFileSync(file)).toString("utf8")) as Report;
+  const game = report.game && !("error" in report.game) ? report.game : undefined;
+  const ai = game && !("error" in game.ai) ? game.ai : undefined;
+  if (report.kind === "kingmaker-report" && report.words === words && report.where.screen === "scene" && report.build.host === "page" && report.screens.now?.includes("The Hanged Clerk")) ok(`the download is the report: its words, where (${report.where.scene?.title}, turn ${report.where.scene?.turn}), the screen as it was, the build (stamp ${report.build.stamp})`);
+  else fail(`the download isn't the report it should be: ${JSON.stringify({ kind: report.kind, words: report.words, where: report.where, build: report.build }).slice(0, 300)}`);
+  if (game?.rows.transcript?.some(r => r.text === LINE) && ai?.calls.calls.some(c => c.operation === "two-part.reply") && game.log?.length) ok(`with the game the server worker gave: ${Object.values(game.rows).reduce((n, list) => n + list.length, 0)} rows, ${ai.calls.calls.length} call lines from IndexedDB, ${ai.docs.docs.length} docs, ${game.log.length} log lines`);
+  else fail(`the report's game isn't the server worker's: ${JSON.stringify(report.game).slice(0, 300)}`);
+  const heard = await page.evaluate(`km.heard.filter(h => h.type === "report").map(h => h.name)`) as string[];
+  if (heard.includes(name)) ok("the page heard the report from the client worker");
+  else fail(`km.heard has no report: ${JSON.stringify(heard)}`);
+  await press(page, "Enter");
+  await sleep(400);
+  if (!/Report saved/.test(await text(page))) ok("Enter puts the word away, the scene as it was");
+  else fail("the report's word stayed up after Enter");
 }
 
 /** IndexedDB holds the game: the simulation's rows (the character's among them) and the AI service's stores (an answer kept). */
