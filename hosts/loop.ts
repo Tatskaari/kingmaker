@@ -55,13 +55,14 @@ Rounds: blind testers play scenes, blind reviewers judge them, a report shows it
   loop report <round>                          report/index.html and report/games/*.html
   loop archive <round> [--to dir]              copy the round to KM_LOOP_ARCHIVE (or --to), to outlive this checkout
   loop probe <round> <game> <turn>[-<turn>] [--tries 3] [--want <node>] [--not <node>] [--log <file>]
-             [--reply | --reply-text <file>] [--drop <route>,…] [--band <band>] [--role <id>]
+             [--reply | --reply-text <file>] [--drop <route>,…] [--owe <discovery>,…] [--band <band>] [--role <id>]
                                                the co-GM asked again on a game's turns with this checkout's code and
                                                scenes, on real models: each try's moves, and how many reached --want
                                                or kept off --not (reads the round, writes nothing to it); --reply asks
                                                the turn's reply again first (a check it calls rolled, or set at --band),
                                                --reply-text puts a reply of your own in its place,
                                                --drop leaves the round's moves on those routes out of what's rebuilt,
+                                               --owe owes those leads' names in it (a reply asked again is told who says it),
                                                --role shows the role each try set for that person
   loop probe <round> <game> <turn>[-<turn>] --mouthpiece [--arm before|after|both] [--tries 3] [--log <file>]
                                                the mouthpiece asked again: as the round sent it (before), and with this
@@ -253,8 +254,9 @@ function build(): { commit: string; dirty: boolean } {
  * and the nodes they reached; `--want` counts the tries that reached a node, `--not` those that kept
  * off one; and what it all cost, kept off the stack's ledger. `--reply` asks each try's reply again
  * first and shows it, `--drop` leaves the round's moves on those routes out of the bookkeeping (the
- * bad ending a co-GM took the turn before), `--band` sets how a check called there comes out, and
- * `--role` shows the role each try set for that person.
+ * bad ending a co-GM took the turn before), `--owe` owes those leads' names in it (as if the co-GM
+ * before had been refused them: a reply asked again is told who says the name), `--band` sets how a
+ * check called there comes out, and `--role` shows the role each try set for that person.
  */
 async function probe(config: LoopConfig, name: string, game: string, turns: string, flags: Flags): Promise<number> {
   const record = readRecord(recordPath(config, name, game));
@@ -271,17 +273,18 @@ async function probe(config: LoopConfig, name: string, game: string, turns: stri
   let spent = 0;
   const context = { fetch, apiKey: apiKey(), cost: (line: { costUsd: number }) => { spent += line.costUsd; }, log: (entry: Record<string, unknown>) => { if (flags.log) appendFileSync(resolve(flags.log), `${JSON.stringify({ at: new Date().toISOString(), ...entry })}\n`); } };
   const tally = { want: 0, not: 0, all: 0 };
-  const how = { reply: "reply" in flags || !!flags["reply-text"], drop: (flags.drop || "").split(",").map(s => s.trim()).filter(Boolean), ...(flags.band ? { band: flags.band as Band } : {}), ...(flags["reply-text"] ? { replyText: readFileSync(resolve(flags["reply-text"]), "utf8") } : {}) };
+  const list = (flag: string | undefined) => (flag || "").split(",").map(s => s.trim()).filter(Boolean);
+  const how = { reply: "reply" in flags || !!flags["reply-text"], drop: list(flags.drop), owe: list(flags.owe), ...(flags.band ? { band: flags.band as Band } : {}), ...(flags["reply-text"] ? { replyText: readFileSync(resolve(flags["reply-text"]), "utf8") } : {}) };
   if (how.band && !BANDS.includes(how.band)) return shown({ code: 1, text: `--band takes one of ${BANDS.join(", ")}` });
   for (let turn = from; turn <= to!; turn++) {
     const done = await Promise.all(Array.from({ length: tries }, () => probeTurn(scene, calls, record.sceneRow!, turn, { player: record.player!, absent: record.handedOn?.absent ?? [], story }, context, how)));
     const { rebuilt, logged } = done[0]!;
     const same = rebuilt.reached.join() === logged.reached.join() && rebuilt.turnsInBeat === logged.turnsInBeat;
-    console.log(`${game} turn ${turn}: rebuilt ${rebuilt.reached.join(", ")} (${rebuilt.turnsInBeat} at the stage)${how.reply ? `${how.drop.length ? `, without the round's ${how.drop.join(", ")}` : ""}; the reply asked again` : same ? ", as the round had it" : `; the round had ${logged.reached.join(", ")} (${logged.turnsInBeat})`}`);
+    console.log(`${game} turn ${turn}: rebuilt ${rebuilt.reached.join(", ")} (${rebuilt.turnsInBeat} at the stage)${how.owe.length ? `, the name owed for ${how.owe.join(", ")}` : ""}${how.reply ? `${how.drop.length ? `, without the round's ${how.drop.join(", ")}` : ""}; the reply asked again` : same ? ", as the round had it" : `; the round had ${logged.reached.join(", ")} (${logged.turnsInBeat})`}`);
     done.forEach((t: ProbeTry, i) => {
       const wanted = !!flags.want && t.reached.includes(flags.want), avoided = !!flags.not && !t.reached.includes(flags.not);
       tally.all++; if (wanted) tally.want++; if (avoided) tally.not++;
-      console.log(`  try ${i + 1}: ${t.error ? `failed: ${t.error}` : t.moves.length ? t.moves.map(m => `${m.route}${m.outcome === "none" ? "" : ` (${m.outcome})`}: "${m.why}"`).join("; ") : "no move"}${t.reached.length ? ` -> ${t.reached.join(", ")}` : ""} [roles: ${t.roles.join(", ") || "none"}; ${(t.ms / 1000).toFixed(1)} s]`);
+      console.log(`  try ${i + 1}: ${t.error ? `failed: ${t.error}` : t.moves.length ? t.moves.map(m => `${m.route}${m.outcome === "none" ? "" : ` (${m.outcome})`}: "${m.why}"`).join("; ") : "no move"}${t.reached.length ? ` -> ${t.reached.join(", ")}` : ""}${t.owed.length ? `; the name owed for ${t.owed.join(", ")}` : ""} [roles: ${t.roles.join(", ") || "none"}; ${(t.ms / 1000).toFixed(1)} s]`);
       if (t.replied) console.log(`    the reply: ${t.replied.narration}${t.replied.dice ? `\n    [${t.replied.dice}] ${t.replied.outcome}` : ""}`);
       const role = flags.role ? t.given[flags.role] : undefined;
       if (flags.role) console.log(`    ${flags.role}'s role: ${role ? role.conversation_role : "(not set)"}`);
