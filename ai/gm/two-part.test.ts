@@ -221,6 +221,8 @@ test("the instructions after the user's prompt: written words read untagged, and
   const mouthpiece = mouthpieceInstructions(clerk, yard());
   assert.match(mouthpiece, /\nOnly words said aloud get a tag\. Words written or printed \(a page, a sign, an order, a note\) are read out in the narration, in single quotes and with no tag/);
   assert.match(mouthpiece, /\n\n## What the player sees and hears\n[\s\S]*- Names: [\s\S]*- What's hidden: [\s\S]*A fist that stays shut is a shut fist\.[\s\S]*- The player's words: [\s\S]*- Your notes stay behind the screen\./);
+  // QA round qa3-1018: Sallow's name given Kell with the confession, and read off the Roll, the same as the corporal's order, passed as one more line.
+  assert.match(mouthpiece, /\n\n## When something lands\nWhen a name, a link or a confession comes out that someone here would react to \(the player says it, or it's there on what they've found, and it touches what someone's card says they know, fear or watch for\), someone does, in the same reply, before anything else, in character and from their card: [^\n]*It never passes as one more line in a list or a notebook\. But a reaction isn't a secret told: what their card keeps back still waits for what opens it, as the card says\. And the conclusion stays the player's: nobody says what it proves or draws the link for them\.\n\n## The player character\n/);
 });
 
 test("the instructions after the user's prompt: a check at a turning point, never on a remark, decided before a word is written, whose setup stops at the attempt and whose outcomes carry what the roll decides; and the companion, whose case it isn't", () => {
@@ -248,6 +250,7 @@ test("the instructions after the user's prompt: a check at a turning point, neve
     "## The companion",
     "Sergeant Agnes Kell goes with the player, and it's the player's case, not hers:",
     "- What she sees, she says plainly when asked and writes down, and stops there: what it means (murder or not, who did it, where it leads) and what the case still needs are the player's to say. Never \"That tells us…\", \"That establishes…\" or \"I still need…\".",
+    "- When a name or a link comes out that touches what she knows (her card), whether the player says it or she reads it on what they've found, she reacts before she writes it down: as her card says (going very still), and at most one dry line, what she'd say of it openly or the first words her card gives. What her card keeps back still waits for what opens it, and what it proves stays the player's.",
     "- A question put to the player is the player's to answer: she never answers it for them, or makes an offer or a promise in their place.",
     "- The player's word stands: a promise or a condition they've made (\"don't take it\", \"his name stays out\"), she keeps, and she never overrides their choice.",
     "- She tests a case once, at its weakest point, when the player puts it to her, never before.",
