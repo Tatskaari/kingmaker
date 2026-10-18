@@ -347,6 +347,8 @@ test("who says a line untagged, as the narration says: its own attribution befor
   assert.deepEqual(speakers("Kell turns to the landlady, leaving you to the boy. “I’m lent, not on duty.” Her pencil stays tucked in her notebook.\n\nThe boy stops at your silver crown. His eyes flick to the big man by the fire, then back to the coin. “A whole crown, eh? Cob could buy himself a horse.” He reaches for the silver. “Not out here. Not with the big cove looking.” His voice drops. “And what happens to Cob after?”", rat), ["kell", "cob", "cob", "cob"]);
   // Someone brought in that nobody can name isn't the last speaker carried over.
   assert.deepEqual(speakers("[Kell] “Out.” A porter shoves past with a sack. “Mind yourself.”", yard), ["kell", undefined]);
+  // The sentence leading in starts after the line before it: Hobb's whisper is his, not Hep's, whose call came just before (QA round qa1-1018, g05's T6).
+  assert.deepEqual(speakers("[Big Hobb Mallory] “Not yet, missus.” He glances toward the land door. “At the bell.” Across the floor Hep calls, [Hepzibah Grist] “Thirty-eight to the hatch! Keep those seams shut!” Hobb lowers his voice further. “When he comes, don’t let him see me looking at you.”", castOf("heron-warehouse")), ["hobb", "hobb", "hep", "hobb"]);
 });
 
 test("words written and read aren't anyone's line", () => {
