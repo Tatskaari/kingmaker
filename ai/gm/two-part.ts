@@ -134,10 +134,10 @@ const listOf = (words: string[]) => (words.length > 1 ? `${words.slice(0, -1).jo
  * A route as the prep and the co-GM's input put it, with its id (the co-GM's handle on it): where
  * it goes from and to, what it needs reached first, its dice or that it's a cue, then ". When: "
  * and what has to have happened. The fake model reads this line (ai/llm/fake-openrouter.ts). The
- * co-GM's open routes say more after it: into a discovery, its revelation (`revelation`); into an
- * ending, how it went and what's true there (`ending`); and for a cue, how far its outer limit has
- * run after the reply to `now.turn`, and whether it's overdue (`now`: limitOf), a cue into a bad
- * ending waiting on a better one.
+ * co-GM's open routes say more after it: into a discovery, its revelation and what has it reached
+ * (`revelation`: HEART_BY); into an ending, how it went and what's true there (`ending`); and for a
+ * cue, how far its outer limit has run after the reply to `now.turn`, and whether it's overdue
+ * (`now`: limitOf), a cue into a bad ending waiting on a better one.
  */
 export function routeLine(scene: Scene, r: SceneRoute, options: { revelation?: boolean; ending?: boolean; now?: Where & Pick<GmState, "path"> & { turn: number } } = {}): string {
   const target = scene.beats.find(b => b.id === r.target);
@@ -146,7 +146,7 @@ export function routeLine(scene: Scene, r: SceneRoute, options: { revelation?: b
     ? `; the dice decide (${titleCase(r.skill)} DC ${r.dc}): a success takes it, a failure ${r.onFailure ? `goes to ${named(scene, r.onFailure)}` : "leaves the scene where it is"}`
     : r.phase === "cue" ? "; a cue: bring it about when its moment comes" : "";
   const discovery = !!target && isDiscovery(target);
-  const when = r.condition.trim() || (discovery ? (options.revelation && target.revelation ? `its revelation, as written, has landed with the player (${target.revelation})` : "its revelation has landed with the player") : r.label);
+  const when = r.condition.trim() || (discovery ? (options.revelation && target.revelation ? `the player has its heart, by one of its paths (${target.revelation}): ${HEART_BY}` : "its revelation has landed with the player") : r.label);
   const exit = options.ending ? scene.exits.find(e => e.id === r.target) : undefined;
   const more = [
     ...(options.now ? [limitLine(scene, r, options.now)].filter(Boolean) : []),
@@ -154,6 +154,14 @@ export function routeLine(scene: Scene, r: SceneRoute, options: { revelation?: b
   ];
   return `- [${r.id}] from ${named(scene, r.source)} to ${named(scene, r.target)}${needs}${how}. When: ${more.length ? `${sentence(when)} ${more.join(" ")}` : when}`;
 }
+
+/**
+ * What has a discovery reached, for the co-GM (QA round qa3-1018, g08: the player saw the cut page
+ * and the entries either side, countersigned 'J. Sallow', the tally loft's path word for word, and the
+ * motive wasn't taken, its revelation "as written" saying "sold off" and "Prout had found out" too):
+ * one of its paths, by how strong it is. A lead's name is the targets' and the tools' to say.
+ */
+const HEART_BY = "a strong or proof path's clue that has landed with them, as its earn allows, is enough, though it doesn't say all the revelation does; suggestive clues count once the player has drawn the conclusion from them";
 
 /** What the bookkeeping these read: the nodes reached and the stage. */
 type Where = Pick<GmState, "reached" | "beat">;
@@ -215,7 +223,7 @@ export function prepOf(scene: Scene, view: TurnView, options: { coGm?: boolean }
     ...(scene.clock ? [`## The clock\n${scene.clock}`] : []));
   const player = sections.findIndex(s => s.startsWith("## The player character"));
   if (scene.known?.length) sections.splice(player, 0, `## What any local knows\nNever a secret: what anyone here knows and a newcomer wouldn't.\n${bullets(scene.known)}`);
-  return [...sections, startOf(scene, options), discoveriesOf(scene), eventsOf(scene, options), endingsOf(scene), ...owedOf(scene, view)].join("\n\n");
+  return [...sections, startOf(scene, options), discoveriesOf(scene, options), eventsOf(scene, options), endingsOf(scene), ...owedOf(scene, view)].join("\n\n");
 }
 
 /** A stage's suggested roles, for the co-GM: each person's cast note, by their name and id. */
@@ -229,11 +237,12 @@ function startOf(scene: Scene, options: { coGm?: boolean }): string {
   return [`## Where it starts: ${start.title} [${start.id}]`, start.direction, ...(options.coGm ? suggested(scene, start.cast) : [])].join("\n");
 }
 
-function discoveriesOf(scene: Scene): string {
+/** The discoveries, each with its paths; the co-GM's say what has one reached (HEART_BY). */
+function discoveriesOf(scene: Scene, options: { coGm?: boolean }): string {
   const found = scene.beats.filter(isDiscovery);
   if (!found.length) return "## The discoveries\n(none)";
   return [
-    "## The discoveries\nWhat the player can come to understand here, in any order, each by any of its paths: they're examples, not a sequence, and other plausible ways count too. One is reached when its revelation has landed with the player.",
+    `## The discoveries\nWhat the player can come to understand here, in any order, each by any of its paths: they're examples, not a sequence, and other plausible ways count too. ${options.coGm ? `One is reached when the player has its heart, by one of its paths: ${HEART_BY}.` : "One is reached when its revelation has landed with the player."}`,
     ...found.map(b => [
       `### ${b.title} [${b.id}]${b.required ? " (required: the scene can't end well without it)" : ""}`,
       `The revelation: ${b.revelation}`,
@@ -729,7 +738,7 @@ const UPDATE_ROLE: ToolDef = {
 
 const MOVE_SCENE: ToolDef = {
   name: "move_scene",
-  description: "Move the scene on along one of its open routes, once what the route describes has happened in the story (into a discovery: once its revelation has landed with the player; for a cue, when its moment has come). A route the dice decide takes the outcome of the check the GM called on it. Leading to an ending, the scene closes on the GM's next reply.",
+  description: "Move the scene on along one of its open routes, once what the route describes has happened in the story (into a discovery: once the player has its heart, by one of its paths; for a cue, when its moment has come). A route the dice decide takes the outcome of the check the GM called on it. Leading to an ending, the scene closes on the GM's next reply.",
   parameters: {
     type: "object", additionalProperties: false, required: ["route_id", "outcome", "why"],
     properties: {
@@ -745,9 +754,9 @@ const CO_GM_TOOLS = `## Your tools
   - Write a role as behaviour the GM can show (what they do, say or want next, what they won't say) and what they hold back, never as analysis of the game: the GM voices what it's given, so "the promise has found his fear" ends up said aloud. Leave routes, beats and discoveries out of it.
   - Once something has happened in the story (a challenge made, a name given, a secret told), move everyone's role past it: nobody's role still has it to do, or it gets played twice.
   - A cue is brought about by taking its route (the GM shows it in the next reply), not by writing it into someone's role.
-- move_scene: when what one of the open routes describes has happened in the story (a discovery's revelation has landed, or a cue's moment has come), take it. Only the routes listed as open can be taken. When the scene moves to a new stage, update the roles for it. Don't hold the scene at a stage the story has already moved past.
+- move_scene: when what one of the open routes describes has happened in the story (the player has a discovery's heart, or a cue's moment has come), take it. Only the routes listed as open can be taken. When the scene moves to a new stage, update the roles for it. Don't hold the scene at a stage the story has already moved past.
   - Take a route only when its condition has happened in the story as written, all of it. A condition about what the player does (makes the case, goes after someone, leaves) needs the player to have done it: someone else doing it for them, someone asking them to, or the player planning it isn't that.
-  - A discovery is reached when its revelation, as written, has landed with the player. Its details and examples needn't all come out, but its heart must: what it says happened, and when it points to someone the player must go and find, who they are by name and where to find them. Someone described but not yet named, or a name without where to find them, is part of it, not yet the discovery.
+  - A discovery is reached when the player has its heart, by one of its paths: your prep gives each discovery's paths, how strong each is, its clue and what earns it. A strong or proof path's clue that has landed with the player, as its earn allows, is enough: take it then, though the clue doesn't say all the revelation does. Suggestive clues count once the player has drawn the conclusion from them (said it, or acted on it).
   - A lead (a discovery an ending needs, whose revelation names someone of the story's other scenes for the player to go and find) needs that name said aloud as well, by someone here or by the player: until it is, its route is refused, however well they've been described. Once the rest of it has landed (who they are, described as one of its paths has it) but nobody has said the name, move it all the same: it isn't taken, but the name is then owed, and whoever holds it as their path has it (a sergeant who names a man as soon as his description reaches her) is told to give it in the next reply. Write it into their role with no condition ("she names him now", never "if asked" or "if the description comes up"), and move it again once the name has been said.
   - A move's why says what happened in the story that takes the route, or for a cue what brings it about now: never "none", the route's own name, what hasn't happened, or what someone is about to do. A move with such a reason is refused.
   - Call move_scene only for a route whose moment has come, never to note that one hasn't: a route that hasn't happened needs no call, so don't go through them one by one.
@@ -766,7 +775,7 @@ export function coGmInput(scene: Scene, view: TurnView, check: TurnCheck | undef
   return [{ role: "user", content: [
     `# The scene so far\n\n${scriptTranscript(scene, view)}`,
     `# Where the scene is: ${stage.title} [${stage.id}]\nIt's turn ${view.turn}: the scene has had ${view.turn} exchange${view.turn === 1 ? "" : "s"} since the opening (turn 0), and it has been at this stage for ${view.turnsInBeat} of them. Reached so far: ${reachedAt(view)}.${notes.length ? `\nSuggested roles while it's here:\n${notes.map(([id, n]) => `- ${id}: ${n}`).join("\n")}` : ""}`,
-    `# The targets\nThe discoveries not reached yet:\n${targetsOf(scene, view).map(b => targetLine(scene, view, b)).join("\n") || "- (none: every discovery is reached)"}`,
+    `# The targets\nThe discoveries not reached yet, each with its paths (your prep has each path's clue and what earns it):\n${targetsOf(scene, view).map(b => targetLine(scene, view, b)).join("\n") || "- (none: every discovery is reached)"}`,
     `# Open routes\n${open.map(r => routeLine(scene, r, { revelation: true, ending: true, now: view })).join("\n") || "- (none)"}`,
     ...(check ? [`# This turn's check\nThe GM called ${titleCase(check.skill)} DC ${check.dc}, and the roll came to ${check.total}: a ${check.success ? "success" : "failure"} (${check.band.replace("_", " ")}).${dice.length ? ` It is the check of ${dice.map(r => `[${r.id}]`).join(" and ")}: take ${dice.length === 1 ? "it" : "the one the player was attempting"} with outcome ${check.success ? "success" : "failure"} if that's what the player was attempting.` : ""}`] : []),
     ...(view.established.length ? [`# Established in play\n${view.established.map(f => `- ${f}`).join("\n")}`] : []),
@@ -823,9 +832,15 @@ function unsaidCast(scene: Scene, view: TurnView, revelation: string): Character
   return [...named.values()];
 }
 
-/** A target as the co-GM's input lists it: its revelation, and who it names that nobody has said yet, a lead's name owed with whoever gives it. */
+/**
+ * A target as the co-GM's input lists it: its revelation; its paths, by who or what holds each and
+ * how strong it is (QA round qa3-1018: the co-GM waited for the revelation's every word, where a
+ * strong path's clue had landed); and who it names that nobody has said yet, a lead's name owed
+ * with whoever gives it.
+ */
 function targetLine(scene: Scene, view: TurnView, b: Beat): string {
-  return `- ${b.title} [${b.id}]${b.required ? " (required)" : ""}: ${b.revelation}${unsaidNote(scene, view, b)}`;
+  const paths = (b.paths ?? []).map(p => `${via(scene, p.via)} (${p.strength})`);
+  return `- ${b.title} [${b.id}]${b.required ? " (required)" : ""}: ${b.revelation}${paths.length ? ` Its paths: ${listOf(paths)}.` : ""}${unsaidNote(scene, view, b)}`;
 }
 
 /**

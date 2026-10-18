@@ -292,11 +292,14 @@ test("the mouthpiece's narration and each outcome keep names the player hasn't h
   assert.equal(spoke.check?.outcomes.minor_success.text, "“Moll says yes.” Moll nods.", "said aloud, it's heard");
 });
 
-test("a route into a discovery is taken once its revelation has landed: the co-GM's open routes say what the revelation is, the mouthpiece's note leaves it to the prep", () => {
+test("a route into a discovery is taken once the player has its heart by one of its paths: the co-GM's open routes say what the revelation is and what has it reached, the mouthpiece's note leaves it to the prep", () => {
   const find = clerk.routes.find(r => r.id === "find-murder")!;
   assert.equal(routeLine(clerk, find), "- [find-murder] from Stones at a hanged man [start] to The victim was murdered [murder]. When: its revelation has landed with the player");
-  assert.match(routeLine(clerk, find, { revelation: true }), /When: its revelation, as written, has landed with the player \(Prout didn't hang himself: he was struck and strangled, then hoisted up on the sack hoist to look like a suicide\.\)$/);
+  // QA round qa3-1018 (g08): the tally loft's strong path landed word for word, and "as written" kept the motive back.
+  assert.match(routeLine(clerk, find, { revelation: true }), /When: the player has its heart, by one of its paths \(Prout didn't hang himself: he was struck and strangled, then hoisted up on the sack hoist to look like a suicide\.\): a strong or proof path's clue that has landed with them, as its earn allows, is enough, though it doesn't say all the revelation does; suggestive clues count once the player has drawn the conclusion from them$/);
   assert.doesNotMatch(twoPartNow(clerk, yard(), []), /struck and strangled/);
+  assert.match(prepOf(clerk, yard(), { coGm: true }), /\n## The discoveries\nWhat the player can come to understand here[^\n]*One is reached when the player has its heart, by one of its paths: a strong or proof path's clue/, "the co-GM's prep says the same");
+  assert.match(prepOf(clerk, yard()), /\n## The discoveries\nWhat the player can come to understand here[^\n]*One is reached when its revelation has landed with the player\.\n/, "the mouthpiece's as it was");
 });
 
 test("the co-GM's input counts the turns: the scene's turn, the turn each node was reached on, and how far each open cue's outer limit has run, overdue once the next reply reaches it; the mouthpiece's note has none of it", () => {
@@ -529,7 +532,7 @@ const owing = (scene: Scene, view: TurnView, lead: string, turn: number): TurnVi
 /** The clerk where Cob has described the big man, a turn in, with the campaign's story. */
 const describedAt = (turn: number, extra: Partial<TurnView> = {}) => yard({ turn, story: campaignStory(), transcript: said("“The big one was like a door, with a bandage on his right hand. He called the posh one ‘Master.’”"), ...extra });
 
-test("who a revelation names from the story's other scenes that nobody has said yet, in the co-GM's targets; a discovery that isn't a lead is held once in a turn, and taken again where the name is a detail of it", async () => {
+test("who a revelation names from the story's other scenes that nobody has said yet, in the co-GM's targets with each discovery's paths and how strong each is; a discovery that isn't a lead is held once in a turn, and taken again where the name is a detail of it", async () => {
   const story = campaignStory();
   const hobb = clerk.beats.find(b => b.id === "hobb")!;
   const described = describedAt(16);
@@ -545,9 +548,9 @@ test("who a revelation names from the story's other scenes that nobody has said 
   assert.deepEqual(unsaidIn(rat, viewAt(rat, rat.start, { story, history: [{ sceneId: "hanged-clerk", exitId: "murder-unknown", summary: "Prout's page: wagons countersigned 'J. Sallow, for the Royal Purveyor'." }] }), master), [], "heard in the story before");
 
   const targets = coGmInput(clerk, described, undefined)[0]!.content;
-  assert.match(targets, /\n# The targets\nThe discoveries not reached yet:\n- The victim was murdered \[murder\]: Prout didn't hang himself[^\n]* to look like a suicide\.\n/);
-  assert.match(targets, /\n- Motive: supplies are being embezzled \[motive\]: [^\n]*and Prout had found out\. \(Nobody has said Master Josiah Sallow's name in the story yet\.\)\n/, "not a lead: the name is all it says");
-  assert.match(targets, /\n- Hobb was spotted at the scene \[hobb\] \(required\): A huge man with a bandaged right hand, Big Hobb Mallory, [^\n]* when Prout died\. \(Nobody has said Big Hobb Mallory's name in the story yet: a lead, it isn't reached until the name is said aloud\. Once he's been described as one of its paths has it, move it: it isn't taken, but the name is then owed, and Sergeant Agnes Kell gives it in the next reply\.\)\n/);
+  assert.match(targets, /\n# The targets\nThe discoveries not reached yet, each with its paths \(your prep has each path's clue and what earns it\):\n- The victim was murdered \[murder\]: Prout didn't hang himself[^\n]* to look like a suicide\. Its paths: the body \(suggestive\), the body \(strong\), the tally loft \(strong\), Cob \[cob\] \(strong\) and Moll \[moll\] \(suggestive\)\.\n/);
+  assert.match(targets, /\n- Motive: supplies are being embezzled \[motive\]: [^\n]*Its paths: Cob \[cob\] \(proof\), Sergeant Agnes Kell \[kell\] \(strong\), Cob \[cob\] \(suggestive\), the tally loft \(strong\) and Corporal Abner Tull \[tull\] \(suggestive\)\. \(Nobody has said Master Josiah Sallow's name in the story yet\.\)\n/, "not a lead: the name is all it says");
+  assert.match(targets, /\n- Hobb was spotted at the scene \[hobb\] \(required\): A huge man with a bandaged right hand, Big Hobb Mallory, [^\n]* when Prout died\. Its paths: [^\n]*Sergeant Agnes Kell \[kell\] \(hook\)\. \(Nobody has said Big Hobb Mallory's name in the story yet: a lead, it isn't reached until the name is said aloud\. Once he's been described as one of its paths has it, move it: it isn't taken, but the name is then owed, and Sergeant Agnes Kell gives it in the next reply\.\)\n/);
   assert.doesNotMatch(twoPartNow(clerk, described, []), /Nobody has said/, "the mouthpiece's note has none of it");
 
   // The motive names 'J. Sallow', nobody's said him, and it isn't a lead: held once, and taken on the second call.
@@ -561,7 +564,7 @@ test("who a revelation names from the story's other scenes that nobody has said 
 
   const tools = coGmInstructions(clerk, described).split("## Your tools\n")[1]!;
   for (const words of [
-    "A discovery is reached when its revelation, as written, has landed with the player. Its details and examples needn't all come out, but its heart must: what it says happened, and when it points to someone the player must go and find, who they are by name and where to find them. Someone described but not yet named, or a name without where to find them, is part of it, not yet the discovery.",
+    "A discovery is reached when the player has its heart, by one of its paths: your prep gives each discovery's paths, how strong each is, its clue and what earns it. A strong or proof path's clue that has landed with the player, as its earn allows, is enough: take it then, though the clue doesn't say all the revelation does. Suggestive clues count once the player has drawn the conclusion from them (said it, or acted on it).",
     "A lead (a discovery an ending needs, whose revelation names someone of the story's other scenes for the player to go and find) needs that name said aloud as well, by someone here or by the player: until it is, its route is refused, however well they've been described.",
     "Once the rest of it has landed (who they are, described as one of its paths has it) but nobody has said the name, move it all the same: it isn't taken, but the name is then owed",
     "Write it into their role with no condition (\"she names him now\", never \"if asked\" or \"if the description comes up\"), and move it again once the name has been said.",
