@@ -23,8 +23,9 @@
     3. Early script ...... sets html.js.routed and data-page from the hash before anything paints, so only the
                            current page shows (no flash). Without JS every page shows, in order.
     4. Art palettes ...... generated <style>s: gen:plan-css (the yard plan), gen:brazier-css (the brazier).
-    5. <header class=bar>  the KINGMAKER mark (its ember flickers) and the nav: one link per page, the current one
-                           marked aria-current="page".
+    5. <header class=bar>  the mark, two links: KINGMAKER (its ember flickers) to the front page, the pitch, and
+                           Roadmap to the overview; then the nav: one link per page, the current one marked
+                           aria-current="page".
     6. <main>, one <section class="page" id> per page, in nav order. A part's id starts with its page's id
        (ai-turn, overview-board, plan-status...), so a deep link to it shows the right page before anything
        paints; any other id inside a page works as a deep link too, once the script has run:
@@ -247,6 +248,9 @@ html:not(.js) .js-only { display: none !important; }
 .bar__mark { font: 700 13px/1 var(--f-mono); letter-spacing: 0.3em; color: var(--gold); text-decoration: none; white-space: nowrap; display: inline-flex; align-items: center; gap: 10px; }
 .bar__mark span { color: var(--fire); letter-spacing: 0; font-weight: 400; }
 .bar__mark em { font-style: normal; font-weight: 400; letter-spacing: 0.14em; color: var(--dim); text-transform: uppercase; font-size: 11.5px; }
+/* The mark is two links: KINGMAKER to the front page (the pitch), Roadmap to this page's overview. */
+.bar__mark a { display: inline-flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; }
+.bar__mark a:hover, .bar__mark a:hover em { color: var(--gold); }
 .bar__nav { flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%); }
 .bar__nav::-webkit-scrollbar { display: none; }
 .bar__nav ol { display: flex; justify-content: flex-end; gap: 2px; list-style: none; padding: 0 14px; margin: 0; width: max-content; min-width: 100%; }
@@ -1288,7 +1292,7 @@ html:not(.js) .pbeat + .pbeat { padding-top: 18px; border-top: 1px dashed var(--
 @media (max-width: 560px) {
   .bar__in { gap: 10px; }
   .bar__mark { letter-spacing: 0.2em; }
-  .bar__mark em { display: none; }
+  .bar__mark em, .bar__here { display: none; }
   .bar__nav ol { justify-content: flex-start; }
   .part__n { font-size: 2.5rem; }
   .part__lede { grid-column: 1 / -1; }
@@ -1329,7 +1333,7 @@ html:not(.js) .pbeat + .pbeat { padding-top: 18px; border-top: 1px dashed var(--
 <a class="skip" href="#main" id="skip">Skip to the page</a>
 <header class="bar">
   <div class="bar__in">
-    <a class="bar__mark" href="#overview">KINGMAKER<span aria-hidden="true">&#9650;</span><em>Roadmap</em></a>
+    <span class="bar__mark"><a class="bar__home" href="https://claude.ai/artifact/1Ck3UDwhFdG7PwPB7DZWWe" title="The pitch, the front page">KINGMAKER<span aria-hidden="true">&#9650;</span></a><a class="bar__here" href="#overview"><em>Roadmap</em></a></span>
     <nav class="bar__nav" aria-label="Pages">
       <ol>
         <li><a href="#overview">Overview</a></li>
