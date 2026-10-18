@@ -1092,27 +1092,34 @@ function setRole(scene: Scene, roles: Record<string, TwoPartRole>, args: Record<
 
 /**
  * Why a move is refused, if it is, in this order (a refusal costs the co-GM a round, and it can move
- * again with what happened): a lead whose name nobody has said, which leaves the name owed (`owed`),
- * whatever its reason (the round's co-GM moved Hobb's lead on "but no one has named the companion as
- * Big Hobb Mallory", and the probes', told to move it once he's described, on "none": either is the
- * moment the name is owed, and nothing is taken); a reason that says nothing of what happened (QA
- * round qa3-1018, H8: "none"); one that says it hasn't happened, or for a cue that its moment hasn't
- * come (deniesMoment's, or one that says it hasn't happened while it isn't overdue: a probe rang the
- * Rat's bell at turn 3 on "The eleventh bell has not yet rung… there is still time for the player
- * to act"; overdue, a cue's can say it hasn't rung yet, as its move is what rings it); one that says
- * it's still to come. A route that isn't the scene's is takeRoute's to answer.
+ * again with what happened): a reason that says nothing of what happened (QA round qa3-1018, H8:
+ * "none"), a lead's included, so nothing is owed for it (smoke-fix3-1018: the clerk's co-GM moved
+ * Hobb's lead on "none" at turn 10, nobody having described him, and the name owed had Kell name Big
+ * Hobb Mallory unasked from nothing, before the cart and the porters' break that bring the lead when
+ * nobody has); a lead whose reason denies the lead itself, not only its name (`deniesTheLead`: that
+ * turn's probes moved it again on "Brann has not yet learned a description or name of the large man"
+ * and "…a razored-out page in the loft, but no description or name of the man"), with nothing owed;
+ * a lead whose name nobody has said, which leaves the name owed (`owed`), whatever else its reason
+ * says (the round's co-GM moved Hobb's lead on "Moll said the gentleman's bandaged-handed companion
+ * called him Master Sallow, but no one has named the companion as Big Hobb Mallory": that is the
+ * moment the name is owed, and nothing is taken); one that says it hasn't happened, or for a
+ * cue that its moment hasn't come (deniesMoment's, or one that says it hasn't happened while it isn't
+ * overdue: a probe rang the Rat's bell at turn 3 on "The eleventh bell has not yet rung… there is
+ * still time for the player to act"; overdue, a cue's can say it hasn't rung yet, as its move is what
+ * rings it); one that says it's still to come. A route that isn't the scene's is takeRoute's to answer.
  */
 function refusal(scene: Scene, view: TurnView, state: GmState, r: SceneRoute | undefined, why: string, owed: Set<string>): string | undefined {
   if (!r) return undefined;
   const cue = r.phase === "cue";
+  if (saysNothing(scene, r, why)) return `error: your reason says nothing of what happened, so [${r.id}] stays as it is. Say in a sentence what happened in the story that takes it${cue ? " (for a cue, what brings it about now: its moment come, or its outer limit run out)" : ""}; if nothing has, leave it.`;
   const lead = leadUnsaid(scene, view, state, r);
+  if (lead && deniesTheLead(why)) return `error: your reason says [${r.id}] hasn't come out, so it stays as it is and nothing is owed: a lead's name is owed once ${objectOf(lead.unsaid) === "him" ? "he's" : objectOf(lead.unsaid) === "her" ? "she's" : "they've"} been described as one of its paths has it. Move it then; until then, leave it.`;
   if (lead) {
     // Moved again in the same turn (the probe's tries gave Kell a naming she never made, round after round, until the deadline): it waits for a reply.
     const again = owed.has(lead.beat.id);
     owed.add(lead.beat.id);
     return again ? `Not taken: nobody has said ${listOf(lead.unsaid.map(c => c.name))} in the story yet (the game reads what's been said), and no reason changes that: [${r.id}] waits for a reply that says the name. Don't move it again this turn.` : leadText(r, lead.unsaid, nameHolders(scene, view, lead.beat, lead.unsaid));
   }
-  if (saysNothing(scene, r, why)) return `error: your reason says nothing of what happened, so [${r.id}] stays as it is. Say in a sentence what happened in the story that takes it${cue ? " (for a cue, what brings it about now: its moment come, or its outer limit run out)" : ""}; if nothing has, leave it.`;
   // A cue's reason may say it hasn't happened yet when it's overdue (its move is what brings it about); before that, it says the moment hasn't come.
   if (cue && (deniesMoment(why) || (deniesItself(why) && !limitOf(r, state, view.turn)?.overdue))) return `error: your reason says its moment hasn't come, so [${r.id}] stays as it is: a cue's move says what brings it about now. If its moment has come, say what brings it about; if not, leave it.`;
   if (!cue && deniesItself(why)) return `error: your reason says this hasn't happened, so [${r.id}] stays as it is: a move records what has happened in the story. If it has happened, say what happened; if not, leave it.`;
@@ -1218,6 +1225,22 @@ export function deniesItself(why: string): boolean {
     /\b(?:no one|nobody|no witness|neither\b[^.;]*?) (?:has|have) yet (?:named|identified|sworn|said|told|revealed|explained|read|linked|confirmed|described|connected|established)\b/i,
     /\bbut\b[^.;]*?\b(?:has|have|had)(?: not|n't)\b/i,
   ].some(p => p.test(why));
+}
+
+/**
+ * A lead's reason that denies the lead itself, not only the name it waits for (smoke-fix3-1018's
+ * turn 10, where the co-GM moved Hobb's lead to note it hadn't come and its probes did again): one
+ * that denies itself outright, before any "but", "though", "however" or semicolon ("Not yet; nobody
+ * has described…", "Brann has not yet learned a description or name of the large man"), or that
+ * denies a description or an account of who it names ("…a razored-out page in the loft, but no
+ * description or name of the man"). One that says what has landed and denies only the name ("Moll
+ * said the gentleman's bandaged-handed companion called him Master Sallow, but no one has named the
+ * companion as Big Hobb Mallory", QA round qa3-1018's g05) doesn't: that's when the name is owed.
+ * On the four rounds' logged moves into a lead, it takes the one that came before anybody had
+ * described him (g07's turn 15) and none of the four that came after.
+ */
+export function deniesTheLead(why: string): boolean {
+  return deniesItself(why.split(/\b(?:but|though|although|however)\b|;/i)[0]!) || /\b(?:no|not|never|nobody|no one|neither|nor)\b[^.;]*?\b(?:descri\w*|account)\b|n't\b[^.;]*?\b(?:descri\w*|account)\b/i.test(why);
 }
 
 /**

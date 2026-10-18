@@ -20,7 +20,7 @@ import { fakeFetch, readPrep, walkTo, type FakeOptions } from "../llm/fake-openr
 import type { CallContext } from "../llm/openrouter.ts";
 import { CAERWYN, viewAt } from "./fixtures.ts";
 import { playerNow } from "./brief.ts";
-import { clockNote, closingDirective, coGm, coGmInput, coGmInstructions, companionRoles, companionsOf, deniesItself, deniesMoment, firstSentence, inReach, intoBad, intoBetter, mouthpieceInput, mouthpieceInstructions, movedDirective, movedText, narrationSoFar, owedDirective, prepOf, pressureOffered, reachNote, replySchema, routeLine, saidLast, saysNothing, setUpEarlier, speak, stillToCome, tellOf, twoPartNow, unsaidIn } from "./two-part.ts";
+import { clockNote, closingDirective, coGm, coGmInput, coGmInstructions, companionRoles, companionsOf, deniesItself, deniesMoment, deniesTheLead, firstSentence, inReach, intoBad, intoBetter, mouthpieceInput, mouthpieceInstructions, movedDirective, movedText, narrationSoFar, owedDirective, prepOf, pressureOffered, reachNote, replySchema, routeLine, saidLast, saysNothing, setUpEarlier, speak, stillToCome, tellOf, twoPartNow, unsaidIn } from "./two-part.ts";
 import type { Story } from "./story.ts";
 import type { TurnView } from "./view.ts";
 
@@ -636,12 +636,30 @@ test("a lead is never taken while the name it needs is unsaid (QA round qa3-1018
   assert.match(refused.log[0]!.result, refusedText);
   assert.equal(refused.log[1]!.result, "Not taken: nobody has said Big Hobb Mallory in the story yet (the game reads what's been said), and no reason changes that: [find-hobb] waits for a reply that says the name. Don't move it again this turn.", "moved again, it waits");
 
-  // g05's turn 12: the co-GM moved it on the reason that nobody had named him, which is when the name is owed; and a probe's on "none", told to move it once he was described.
-  for (const why of ["Moll said the gentleman's bandaged-handed companion called him Master Sallow, but no one has named the companion as Big Hobb Mallory or identified where to find him.", "none"]) {
-    const unnamed = await coGm(clerk, described, gm, undefined, { fetch: scripted([[move("find-hobb", why)]]).fetch, apiKey: "test" });
-    assert.deepEqual([unnamed.moves, unnamed.owed], [[], ["hobb"]], why);
-    assert.match(unnamed.log[0]!.result, refusedText);
-  }
+  // g05's turn 12: the co-GM moved it on the reason that nobody had named him, which is when the name is owed.
+  const unnamed = await coGm(clerk, described, gm, undefined, { fetch: scripted([[move("find-hobb", "Moll said the gentleman's bandaged-handed companion called him Master Sallow, but no one has named the companion as Big Hobb Mallory or identified where to find him.")]]).fetch, apiKey: "test" });
+  assert.deepEqual([unnamed.moves, unnamed.owed], [[], ["hobb"]]);
+  assert.match(unnamed.log[0]!.result, refusedText);
+
+  // On "none" it's refused for its reason, and nothing is owed (smoke-fix3-1018's turn 10: nobody had described him, and the name owed had Kell name him from nothing), nor on a reason that denies it outright (that turn's probe, moving it again); moved again on what happened, the name is owed.
+  const hollow = await coGm(clerk, yard({ turn: 10, story: campaignStory() }), gm, undefined, { fetch: scripted([[move("find-hobb", "none")], [move("find-hobb", "Brann has not yet learned a description or name of the large man who was at the granary.")], [move("find-hobb", "Brann found a dockworker’s knot, scuffs from the tally desk, and a razored-out page in the loft, but no description or name of the man who helped kill Prout.")]]).fetch, apiKey: "test" });
+  assert.deepEqual([hollow.moves, hollow.owed], [[], undefined], "nothing owed on none, or on a denial of the lead itself");
+  assert.match(hollow.log[0]!.result, /^error: your reason says nothing of what happened, so \[find-hobb\] stays as it is\./);
+  for (const c of hollow.log.slice(1)) assert.equal(c.result, "error: your reason says [find-hobb] hasn't come out, so it stays as it is and nothing is owed: a lead's name is owed once he's been described as one of its paths has it. Move it then; until then, leave it.");
+  // The four rounds' moves into a lead that deny something: only the one before anybody had described him denies the lead itself.
+  assert.deepEqual([
+    "Hobb has confessed that the gentleman killed Prout and ordered him to hoist the body, but has not yet named his master.",
+    "Moll said the gentleman's bandaged-handed companion called him Master Sallow, but no one has named the companion as Big Hobb Mallory or identified where to find him.",
+    "Moll described the gentleman's bandaged-handed companion and said he called him Master Sallow, but nobody has yet identified him by name as Big Hobb Mallory or connected him to the Drowned Rat.",
+    "Moll has said the gentleman's companion was a big man who called him Master Sallow, but neither she nor the player has yet established that he was the Drowned Rat champion Big Hobb Mallory.",
+    "Cob described the big man; nobody has named him yet.",
+    "Not yet; nobody has described or identified the second man as Big Hobb Mallory and tied him to the Drowned Rat.",
+    "Brann has not yet learned a description or name of the large man.",
+    "Brann has not yet uncovered a description or account of the large man who was present.",
+    "Brann found a dockworker’s knot and a razored-out page in the loft, but no description or name of the man.",
+  ].map(deniesTheLead), [false, false, false, false, false, true, true, true, true]);
+  const retold = await coGm(clerk, described, gm, undefined, { fetch: scripted([[move("find-hobb", "none")], [move("find-hobb", "Cob described the big man like a door with a bandaged right hand, who called the posh one 'Master'.")]]).fetch, apiKey: "test" });
+  assert.deepEqual([retold.moves, retold.owed, retold.log.map(c => c.result.split(":")[0])], [[], ["hobb"], ["error", "Not taken"]], "said what happened, the name is owed");
 
   // Once owed, the targets say who names him.
   const owed = owing(clerk, described, "hobb", 16);
