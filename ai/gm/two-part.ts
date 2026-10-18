@@ -369,8 +369,24 @@ export function companionRoles(scene: Scene, view: TurnView): string | undefined
   const who = companionsOf(scene, view);
   if (!who.length) return undefined;
   const w = companionWords(who);
+  const waiting = waitingEndings(scene, view, who);
+  // QA round qa3-1018 (g05): Kell signed Prout in as a murder four turns before the scene could end on it, and the closing signed him in again.
+  const waits = waiting.length ? `\nWhat an ending records that's ${w.theirs} to do (a death signed in, an arrest made) waits until the scene can end there: while that way in still needs what hasn't been reached, ${w.they} ${w.v("doesn't", "don't")} do it, even when asked or pressed. Until then ${w.their} role says only that ${w.they} ${w.v("writes", "write")} the case down and ${w.v("waits", "wait")}, never why or on what: the GM voices what it's given. Not open yet: ${waiting.map(x => `[${x.r.id}] ${x.r.label}, which still needs ${listed(scene, x.missing)}`).join("; ")}.` : "";
   return `## The companion
-${who.map(c => `${c.name} [${c.id}]`).join(" and ")} ${w.v("goes", "go")} with the player, and it's the player's case. Every turn, ${w.their} conversation role says what ${w.they} ${w.v("holds", "hold")} back as well as what ${w.they} ${w.v("does", "do")}. What ${w.they} ${w.v("sees", "see")}, ${w.they} ${w.v("says", "say")} when asked and ${w.v("writes", "write")} down; what it means (murder or not, who did it, where it leads), what the case or an ending still needs, the answer to a question put to the player, and anything that would override the player's word, ${w.they} ${w.v("holds", "hold")} back for the player. Never put a conclusion, what the case still needs or the player's next step in ${w.their} status, mental state or role: the GM voices what it's given.`;
+${who.map(c => `${c.name} [${c.id}]`).join(" and ")} ${w.v("goes", "go")} with the player, and it's the player's case. Every turn, ${w.their} conversation role says what ${w.they} ${w.v("holds", "hold")} back as well as what ${w.they} ${w.v("does", "do")}. What ${w.they} ${w.v("sees", "see")}, ${w.they} ${w.v("says", "say")} when asked and ${w.v("writes", "write")} down; what it means (murder or not, who did it, where it leads), what the case or an ending still needs, the answer to a question put to the player, and anything that would override the player's word, ${w.they} ${w.v("holds", "hold")} back for the player. Never put a conclusion, what the case still needs or the player's next step in ${w.their} status, mental state or role: the GM voices what it's given.${waits}`;
+}
+
+/**
+ * The ways into an ending that the companion's own act records (Kell signs Prout in, Kell arrests
+ * him: named in its condition outside its brackets, where the conditions name them only in passing),
+ * which still need discoveries not reached: each with what it waits on.
+ */
+function waitingEndings(scene: Scene, view: TurnView, who: Character[]): Array<{ r: SceneRoute; missing: string[] }> {
+  const reached = new Set(reachedOf(view));
+  return scene.routes
+    .filter(r => endingAt(scene, r) && who.some(c => namedIn(c, r.condition.replace(/\([^()]*\)/g, ""))))
+    .map(r => ({ r, missing: (r.requires ?? []).filter(b => !reached.has(b)) }))
+    .filter(x => x.missing.length);
 }
 
 /** What's ours after the user's prompt: the reply format (a talk's has no dice), who says each line, what the player sees and hears (and the player character, and where the scene plays), and the companion. */
@@ -753,6 +769,8 @@ const CO_GM_TOOLS = `## Your tools
 - update_character_role: each character's role for the GM's next reply. While the scene is at a stage (where it starts, or the latest of its events), that stage's suggested roles are your default for each character; what a character remembers (the notes on the people here, in your input), wants, has been promised or owes, and what just happened, can give them a better reason, and then that wins. Keep each role to what they do or could reveal next, and what they hold back for now.
   - Write a role as behaviour the GM can show (what they do, say or want next, what they won't say) and what they hold back, never as analysis of the game: the GM voices what it's given, so "the promise has found his fear" ends up said aloud. Leave routes, beats and discoveries out of it.
   - Once something has happened in the story (a challenge made, a name given, a secret told), move everyone's role past it: nobody's role still has it to do, or it gets played twice.
+  - A line someone has said, or a question the player has answered, comes out of their role: don't keep it there, even as done ("She has already asked 'On what evidence?'" gets it asked again). Say what they do next instead.
+  - A clock's role (patience running out, a count falling, the minutes going: a corporal waiting on his cart, a forewoman's count, a marshal's watch) names this exchange's one new step, read from the last replies: the step after the last one shown. Never a menu of examples ("such as checking the time or readying the sheet"), and never a step already shown.
   - A cue is brought about by taking its route (the GM shows it in the next reply), not by writing it into someone's role.
 - move_scene: when what one of the open routes describes has happened in the story (the player has a discovery's heart, or a cue's moment has come), take it. Only the routes listed as open can be taken. When the scene moves to a new stage, update the roles for it. Don't hold the scene at a stage the story has already moved past.
   - Take a route only when its condition has happened in the story as written, all of it. A condition about what the player does (makes the case, goes after someone, leaves) needs the player to have done it: someone else doing it for them, someone asking them to, or the player planning it isn't that.

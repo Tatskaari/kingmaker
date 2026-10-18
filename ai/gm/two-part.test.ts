@@ -207,7 +207,7 @@ test("the instructions after the user's prompt: a check at a turning point, neve
   ].join("\n"));
   // The co-GM writes her role with what she holds back, every turn (ours, before its tools).
   const coGmSays = coGmInstructions(clerk, yard());
-  assert.match(coGmSays, /\n\n## The companion\nSergeant Agnes Kell \[kell\] goes with the player, and it's the player's case\. Every turn, her conversation role says what she holds back as well as what she does\.[^\n]*Never put a conclusion, what the case still needs or the player's next step in her status, mental state or role: the GM voices what it's given\.\n\n## Your tools\n/);
+  assert.match(coGmSays, /\n\n## The companion\nSergeant Agnes Kell \[kell\] goes with the player, and it's the player's case\. Every turn, her conversation role says what she holds back as well as what she does\.[^\n]*Never put a conclusion, what the case still needs or the player's next step in her status, mental state or role: the GM voices what it's given\.\nWhat an ending records that's hers to do [^\n]*\n\n## Your tools\n/);
   // The King's morning has no follow of its own: Kell is the companion because the granary made her one.
   const king = sceneFile("kings-morning");
   const morning = viewAt(king, king.start, { turn: 1 });
@@ -682,6 +682,27 @@ test("a cue's reason that says its moment hasn't come is refused, one that says 
     "Hobb already told Nell at the Drowned Rat that Master Sallow would come to the Heron tonight.",
     "Kell named him from Cob's description: Big Hobb Mallory, the Drowned Rat's champion.",
   ]) assert.ok(!stillToCome(why), why);
+});
+
+test("the companion's role: what an ending records that's hers to do waits until that ending can be taken, and she never says what it waits on (QA round qa3-1018, g05: Kell signed Prout in as a murder four turns before the scene could end on it)", () => {
+  const at = (reached: string[]) => companionRoles(clerk, yard({ reached, beat: reached.includes("cart-arrives") ? "cart-arrives" : "start" }))!;
+  assert.match(at(["start"]), /\nWhat an ending records that's hers to do \(a death signed in, an arrest made\) waits until the scene can end there: while that way in still needs what hasn't been reached, she doesn't do it, even when asked or pressed\. Until then her role says only that she writes the case down and waits, never why or on what: the GM voices what it's given\. Not open yet: \[signed-murder\] Signed in as murder, which still needs The victim was murdered \[murder\] and Hobb was spotted at the scene \[hobb\]; \[signed-suicide\] [^;\n]*, which still needs Hobb was spotted at the scene \[hobb\]\.$/);
+  assert.match(at(["start", "cart-arrives", "murder"]), /Not open yet: \[signed-murder\] Signed in as murder, which still needs Hobb was spotted at the scene \[hobb\]; \[signed-suicide\]/, "g05's turn 15: the murder found, the lead not");
+  assert.doesNotMatch(at(["start", "cart-arrives", "murder", "hobb"]), /What an ending records/, "both open: nothing waits");
+  // At the Heron (Kell walks with the player from the granary on), her arrest waits on the true book; the endings that name her only in brackets aren't hers.
+  const night = walked(heron, [[2, "taken-on"], [4, "find-kings-grain"], [7, "master-comes"]], 9, { reached: ["wharf"], beat: "wharf", history: [{ sceneId: "hanged-clerk" } as TurnView["history"][number]], story: campaignStory() });
+  const heronRoles = companionRoles(heron, night)!;
+  assert.match(heronRoles, /Not open yet: \[in-the-act\] [^;\n]*, which still needs The proof: the true book \[true-book\]\.$/);
+  assert.doesNotMatch(heronRoles, /\[overpowered\]|\[attack\]|\[ablaze\]/);
+});
+
+test("roles move on: a line that has been said or answered comes out of the role, and a clock's role names this exchange's one new step, never a menu (QA round qa3-1018: the King's 'What would you have me do?' four times, Tull's 'such as checking the time or readying the sheet' six replies running)", () => {
+  const tools = coGmInstructions(clerk, yard()).split("## Your tools\n")[1]!;
+  for (const words of [
+    "A line someone has said, or a question the player has answered, comes out of their role: don't keep it there, even as done (\"She has already asked 'On what evidence?'\" gets it asked again). Say what they do next instead.",
+    "A clock's role (patience running out, a count falling, the minutes going: a corporal waiting on his cart, a forewoman's count, a marshal's watch) names this exchange's one new step, read from the last replies: the step after the last one shown. Never a menu of examples (\"such as checking the time or readying the sheet\"), and never a step already shown.",
+    "A move's why says what happened in the story that takes the route, or for a cue what brings it about now: never \"none\", the route's own name, what hasn't happened, or what someone is about to do. A move with such a reason is refused.",
+  ]) assert.ok(tools.includes(words), words);
 });
 
 test("the narration is read as the reply streams: its escapes undone, an escape cut off part-way held back, nothing before it starts", () => {
