@@ -1,4 +1,4 @@
-// Copied from PR #666's src/runtime/two-part.ts at origin/claude/two-part-gm c749270: FORMAT and SCHEMA (the reply format), routeLine, mouthpieceInstructions, characters, mouthpieceInput with gmText, speak, movedDirective, the wind-down's words (twoPartTurn's), the co-GM's tools (UPDATE_ROLE, MOVE_SCENE, CO_GM_TOOLS), coGmInput and coGm, whole but at the seams docs/two-part-design.md names. It reads a TurnView (gm/view.ts) for the session. Where the scene is, is shared/scene/beats.ts's (its stage, the routes open, a route taken) in place of the beat and its transitions; the prep ({{beats}}) is the scene format's, rendered as the design orders it, in place of beatsBlock; {{characters}} has the cards' whyHere and limits too, and the co-GM's each person's role palette and the clues via them. speak doesn't roll: the check comes back with its five outcomes, and the simulation rolls it; the narration streams through the game's markup (who says each line) as it's written. The per-turn note is twoPartNow, nowNote's copy (brief.ts) with the open routes. The co-GM's moves are beats.ts's takeRoute on a copy of the request's bookkeeping, and its answer is the roles it set and the moves it made, for the simulation to make again. The speakers paragraph is gm.md's, appended after the format. The narration's names the player hasn't heard are swapped for what they'd call them before it's shown or kept (unheard.ts, QA round qa1-1018), and the per-turn note says what to call each of them (namesNote).
+// Copied from PR #666's src/runtime/two-part.ts at origin/claude/two-part-gm c749270: FORMAT and SCHEMA (the reply format), routeLine, mouthpieceInstructions, characters, mouthpieceInput with gmText, speak, movedDirective, the wind-down's words (twoPartTurn's), the co-GM's tools (UPDATE_ROLE, MOVE_SCENE, CO_GM_TOOLS), coGmInput and coGm, whole but at the seams docs/two-part-design.md names. It reads a TurnView (gm/view.ts) for the session. Where the scene is, is shared/scene/beats.ts's (its stage, the routes open, a route taken) in place of the beat and its transitions; the prep ({{beats}}) is the scene format's, rendered as the design orders it, in place of beatsBlock; {{characters}} has the cards' whyHere and limits too, and the co-GM's each person's role palette and the clues via them. speak doesn't roll: the check comes back with its five outcomes, and the simulation rolls it; the narration streams through the game's markup (who says each line) as it's written. The per-turn note is twoPartNow, nowNote's copy (brief.ts) with the open routes. The co-GM's moves are beats.ts's takeRoute on a copy of the request's bookkeeping, and its answer is the roles it set and the moves it made, for the simulation to make again. The speakers paragraph is gm.md's, appended after the format. QA round qa1-1018 added what's ours after it: written words read untagged, and what the player sees and hears (SEEN); and in the per-turn note what's hidden right now, the names not yet heard with what to call them, and what the player did or thought in brackets; and the narration's names the player hasn't heard are swapped for what they'd call them before it's shown or kept (unheard.ts).
 
 import { titleCase } from "../../shared/dice.ts";
 import type { GmState, TwoPartRole } from "../../shared/gm/state.ts";
@@ -49,9 +49,26 @@ Reply as JSON with two fields.
   Even a major success gives only what the attempt could earn now: the next step for that character, never the whole of a secret.
 - Don't roll or report numbers yourself, and don't ask the player to roll: the check is how you ask.`;
 
-/** The speakers part of the game's markup, word for word from gm.md: the screen gives each person's lines their own colour. */
+/**
+ * The speakers part of the game's markup, word for word from gm.md: the screen gives each person's
+ * lines their own colour. Then what's ours (QA round qa1-1018: Prout's pencilled note came out as a
+ * line said by nobody): written words are read in the narration, untagged.
+ */
 const SPEAKERS = `## Who says each line
-Put the speaker in square brackets before every spoken line, each time they speak: [Kell] “Out.” She turns to the boy. [Kell] “You too.” Use their name, or what the player calls them until they've heard it ([the pie-seller] “Threepence, my lamb.”). The tag is for the screen: your prose still makes clear who's speaking.`;
+Put the speaker in square brackets before every spoken line, each time they speak: [Kell] “Out.” She turns to the boy. [Kell] “You too.” Use their name, or what the player calls them until they've heard it ([the pie-seller] “Threepence, my lamb.”). The tag is for the screen: your prose still makes clear who's speaking.
+Only words said aloud get a tag. Words written or printed (a page, a sign, an order, a note) are read out in the narration, in single quotes and with no tag: Under the last entry, in pencil: ‘Not goblins.’`;
+
+/**
+ * What the player can see and hear, and what stays behind the screen (QA round qa1-1018's patterns:
+ * names the player hadn't heard, hidden things named, the player's private words heard, and the
+ * prep's meaning narrated). The per-turn note lists the names and the hidden things as they stand.
+ */
+const SEEN = `## What the player sees and hears
+Your narration is what the player character sees and hears, and nothing they haven't seen or been told. Your prep, the co-GM's notes, the world and your directions are the truth behind the screen: play everyone truly from all of it, but narrate only what's in front of the player.
+- Names: until someone says a name aloud where the player can hear it (or the player reads it, or says it), the narration calls that person what the player would. The per-turn note lists who, and what to call them. Someone who knows a name may say it in a line: that's how the player hears it.
+- What's hidden: what's out of the player's sight (in a fist, a pocket or a lining, behind something, behind a door or up in a loft they haven't got into) and what people are keeping back stays out of the narration until the player finds it, or someone shows or tells them of it. Don't name it, say where it is or that it's still hidden, or confirm or deny it from where the player can't see it. A fist that stays shut is a shut fist. Someone's tell can show (eyes going to the water butt, a hand that won't open), never what the tell is about. The per-turn note lists what's hidden right now.
+- The player's words: in their turn, what's in brackets or between asterisks is what their character does or thinks, not what they say aloud. People see what they do, and never hear what they only think, or their reasons: nobody answers, repeats or quotes those.
+- Your notes stay behind the screen. The narration shows what people do and say, never the game's workings in its own words: what a move has or hasn't earned, which lever is the right one, what someone's rules are, what the player should do next. Not "The promise has found the fear.", "rather than taking the decision from you" or "The shilling has bought no permission."`;
 
 const SCHEMA = {
   type: "object", additionalProperties: false, required: ["narration", "check"],
@@ -66,6 +83,9 @@ const SCHEMA = {
     }] },
   },
 };
+
+/** The reply's schema: a closing that may wait once says whether it closed, { closes } beside the reply. */
+export const replySchema = (mayHold: boolean): Record<string, unknown> => (mayHold ? { ...SCHEMA, required: [...SCHEMA.required, "closes"], properties: { ...SCHEMA.properties, closes: { type: "boolean" } } } : SCHEMA);
 
 // --- The prep as the two parts see it ({{beats}}, {{characters}}) --------------------------------
 
@@ -206,8 +226,11 @@ function cardExtras(scene: Scene, c: Character, options: { coGm?: boolean }): st
   ];
 }
 
+/** What's ours after the user's prompt: the reply format, who says each line, and what the player sees and hears. */
+export const mouthpieceRules = (): string => [FORMAT, SPEAKERS, SEEN].join("\n\n");
+
 export function mouthpieceInstructions(scene: Scene, view: TurnView): string {
-  return `${prompt("two-part-gm", { tone: tone(), beats: prepOf(scene, view), characters: charactersOf(scene, view) })}\n\n${FORMAT}\n\n${SPEAKERS}`;
+  return `${prompt("two-part-gm", { tone: tone(), beats: prepOf(scene, view), characters: charactersOf(scene, view) })}\n\n${mouthpieceRules()}`;
 }
 
 // --- The mouthpiece's input -------------------------------------------------------------------
@@ -215,12 +238,12 @@ export function mouthpieceInstructions(scene: Scene, view: TurnView): string {
 /**
  * The per-turn note (nowNote's, brief.ts): where the scene is (its stage), the pressure once it has
  * sat there a while (offered once: `offered`), the routes open now (a dice route with its check,
- * which the mouthpiece calls as the route says), what's settled, the player's state, the world, and
- * the names the player hasn't heard; the reply's directives last.
+ * which the mouthpiece calls as the route says), what's settled, the player's state, the world,
+ * what's hidden from the player right now, the names they haven't heard, what in their turn they
+ * did or thought rather than said; the reply's directives last.
  */
 export function twoPartNow(scene: Scene, view: TurnView, directive: string[]): string {
   const stage = stageOf(scene, view);
-  const unseen = outOfSight(scene, view);
   const open = openRoutes(scene, view);
   const parts = [
     `## Where the scene is now: ${stage.title}\n${stage.direction}`,
@@ -230,12 +253,66 @@ export function twoPartNow(scene: Scene, view: TurnView, directive: string[]): s
     `## What moves the scene on from here\n${open.length ? open.map(r => routeLine(scene, r)).join("\n") : "- (nothing: the scene is closing)"}${open.some(r => r.skill) ? "\nWhen the player attempts what a route the dice decide describes, call that route's check: its skill and DC." : ""}`,
     ...(view.canon.length || view.established.length ? [`## Details established in play (keep them true)\nWhat has happened and been found, in the order it happened.${view.world ? " Where people are and what they're doing now is the world's, below: a detail here about where someone was or what they were doing was true then, and where the world says otherwise, they've moved on (people who have left don't come back unless the story brings them)." : ""}\n${bullets([...view.established, ...view.canon])}`] : []),
     ...(playerNow(view) ? [playerNow(view)!] : []),
-    ...(view.world ? [`## The world right now\nWhere everyone and everything is, and what state it's in (ids in brackets). Keep to it, since it's updated after every reply: people and things are where it says, and what's destroyed, burning or gone stays that way until the story changes it. Details it doesn't list are yours to invent, consistent with it. It's as things stood before the player's turn: what the player does in it (shutting a book and buttoning it into their coat, picking something up, crossing the room) has happened by your reply, and the world catches up after it. It's the truth behind the screen, not what the player has seen: of what people carry, the player sees what's out in the open (worn, in hand, held up), and of the rest (in a pocket, a fist, a lining, a box) they know only what they've seen or been told.${unseen.length ? ` Out of the player's sight, and nobody has shown or told them of it: ${unseen.map(e => `${e.name} [${e.id}]`).join("; ")}. Until they find it, the narration doesn't mention it or where it is.` : ""}\n${PHYSICS}\n\n${worldView(view.world)}`] : []),
-    ...(namesNote(unheardOf(scene, view)) ? [namesNote(unheardOf(scene, view))!] : []),
+    ...(view.world ? [`## The world right now\nWhere everyone and everything is, and what state it's in (ids in brackets). Keep to it, since it's updated after every reply: people and things are where it says, and what's destroyed, burning or gone stays that way until the story changes it. Details it doesn't list are yours to invent, consistent with it. It's as things stood before the player's turn: what the player does in it (shutting a book and buttoning it into their coat, picking something up, crossing the room) has happened by your reply, and the world catches up after it. It's the truth behind the screen, not what the player has seen: of what people carry, the player sees what's out in the open (worn, in hand, held up), and of the rest (in a pocket, a fist, a lining, a box) they know only what they've seen or been told.\n${PHYSICS}\n\n${worldView(view.world)}`] : []),
+    ...[hiddenNote(scene, view), namesNote(unheardOf(scene, view)), asidesNote(view)].filter((n): n is string => !!n),
     ...(directive.length ? [`## For this reply\n${directive.join("\n\n")}`] : []),
   ];
   return parts.join("\n\n");
 }
+
+/**
+ * What's hidden from the player right now (QA round qa1-1018: Cob's loose board named three times
+ * over, the crown in Moll's fist, the loft's smashed lantern confirmed from the foot of its stair):
+ * the world's things out of their sight (outOfSight: hidden, or inside something that is, and not
+ * yet come across), and what the people here keep back, each secret on their cards by its first
+ * sentence (the board is Cob's, the crown Moll's), with what shows of it (each card's "Shows:", its
+ * tell), which can show. The transcript says when one has come out: then it's the player's.
+ */
+export function hiddenNote(scene: Scene, view: TurnView): string | undefined {
+  const unseen = outOfSight(scene, view);
+  const keeping = presentCast(scene, view).filter(c => c.secrets?.some(s => !isTell(s)));
+  const tells = presentCast(scene, view).flatMap(c => { const tell = tellOf(c.secrets ?? []); return tell ? [`- ${c.name}: ${tell}`] : []; });
+  if (!unseen.length && !keeping.length && !tells.length) return undefined;
+  return [
+    "## Hidden from the player right now",
+    "Behind the screen until the player finds it, or someone shows or tells them of it in play (the transcript says when: from then on it's theirs). Until then the narration never names it, says where it is or that it's still hidden, or confirms or denies it from where the player can't see it.",
+    ...(unseen.length ? [`Out of the player's sight:\n${unseen.map(e => `- ${e.name} [${e.id}]`).join("\n")}`] : []),
+    ...(keeping.length ? [`Kept back by the people here, until it comes out in their own words, when it's earned (their cards have the whole of it):\n${keeping.map(c => `- ${c.name}: ${c.secrets!.filter(s => !isTell(s)).map(firstSentence).join(" ")}`).join("\n")}`] : []),
+    ...(tells.length ? [`What shows of it is their tells, now and then when the moment suits (not every reply), never what a tell is about: a shut fist stays a shut fist, and a glance goes towards a place, not to the hidden thing there.\n${tells.join("\n")}`] : []),
+  ].join("\n");
+}
+
+/** A card's secret that's what shows of the rest ("Shows: … Torn: … Opens: … First: …"). */
+const isTell = (secret: string) => /^Shows:/.test(secret.trim());
+
+/** A card's tell: the first sentence of what its secrets say shows ("Shows: one fist kept tightly closed; …"). */
+export function tellOf(secrets: string[]): string | undefined {
+  const shows = secrets.find(isTell)?.trim().replace(/^Shows:\s*/, "");
+  return shows ? firstSentence(shows) : undefined;
+}
+
+/** A secret's first sentence (a stop inside brackets or quoted words doesn't end it), at most 300 characters. */
+export function firstSentence(text: string): string {
+  let depth = 0;
+  let quoted = false;
+  const t = text.trim();
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i]!;
+    const before = t[i - 1] ?? " ", after = t[i + 1] ?? " ";
+    if (c === "(") depth++;
+    else if (c === ")") depth = Math.max(0, depth - 1);
+    // A quote mark between letters is an apostrophe (Sallow's); otherwise it opens or closes quoted words.
+    else if ((c === "'" || c === "‘" || c === "’") && !(/\p{L}/u.test(before) && /\p{L}/u.test(after))) {
+      const closes: boolean = quoted && !(c === "‘" || (c === "'" && !/\p{L}/u.test(before) && /\p{L}/u.test(after)));
+      quoted = !closes && (c === "‘" || (c === "'" && !/\p{L}/u.test(before)));
+      // Quoted words that end their sentence ("…the proper channels.' Then…") end it there.
+      if (closes && depth === 0 && /[.!?]/.test(before) && /^\s+[A-Z(‘“'"]/.test(t.slice(i + 1))) return clipped(t.slice(0, i + 1));
+    } else if (depth === 0 && !quoted && /[.!?]/.test(c) && /^\s+[A-Z(‘“'"]/.test(t.slice(i + 1))) return clipped(t.slice(0, i + 1));
+  }
+  return clipped(t);
+}
+
+const clipped = (s: string) => (s.length > 300 ? `${s.slice(0, 299).replace(/\s+\S*$/, "")}…` : s);
 
 /**
  * The names the player hasn't heard, of whoever's here, with what to call them (unheard.ts): the
@@ -246,6 +323,19 @@ export function namesNote(unheard: Unheard[]): string | undefined {
   const here = unheard.filter(u => u.here);
   if (!here.length) return undefined;
   return `## Names the player hasn't heard yet\nUntil someone says a name aloud where the player can hear it (or the player reads it or says it), the narration calls them what the player would: in full the first time in a reply, then the short way. Someone who knows a name may say it in a line: that's how the player hears it. Your prep, the details established, the world and your directions use the names; your narration doesn't.\n${here.map(u => `- ${u.name}${u.aka?.length ? ` (${u.aka.join(", ")})` : ""}: "${u.called}"${u.short !== u.called ? `, then "${u.short}"` : ""}`).join("\n")}`;
+}
+
+/**
+ * What the player's turn has in brackets or between asterisks (QA round qa1-1018: Cob quoted back
+ * "first in gets first pick", the thief's reasoning in brackets, never said aloud): what their
+ * character does or thinks, quoted for the reply, which nobody in the story hears as words.
+ */
+export function asidesNote(view: TurnView): string | undefined {
+  const said = sceneEntries(view).findLast(e => e.kind === "player" && e.turn === view.turn)?.text;
+  const asides = [...(said ?? "").matchAll(/\(([^()]*\p{L}[^()]*)\)|\*([^*]*\p{L}[^*]*)\*/gu)].map(m => (m[1] ?? m[2])!.trim().replace(/\s+/g, " "));
+  if (!asides.length) return undefined;
+  const clip = (s: string) => (s.length > 200 ? `${s.slice(0, 199)}…` : s);
+  return `## The player's turn\nIn the player's turn, ${asides.map(a => `(${clip(a)})`).join(" ")} ${asides.length === 1 ? "is" : "are"} what their character does or thinks, in the player's words, not words said aloud. People see what's done (and hear what the player says their character tells them), but nobody hears the thoughts or reasons in it: nobody answers, repeats or quotes those.`;
 }
 
 /** The stage whose pressure this reply's note offers: two exchanges in, once a stage (the simulation marks it offered). */
@@ -293,8 +383,7 @@ export interface SpeakHow { operation: string; calls: CallContext; byKey(markup:
  * screen would have each. A closing that may wait once says whether it closed.
  */
 export async function speak(scene: Scene, view: TurnView, directive: string[], how: SpeakHow): Promise<Spoke> {
-  // A closing that may wait once says whether it closed: { closes } beside the reply.
-  const schema = how.mayHold ? { ...SCHEMA, required: [...SCHEMA.required, "closes"], properties: { ...SCHEMA.properties, closes: { type: "boolean" } } } : SCHEMA;
+  const schema = replySchema(!!how.mayHold);
   const show = how.onText ? streamed(scene, view, how.onText) : undefined;
   // Names the player hasn't heard come out of the narration before it's shown or kept (unheard.ts).
   const unheard = unheardOf(scene, view);

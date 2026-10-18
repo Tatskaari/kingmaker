@@ -11,7 +11,7 @@ import type { Scene } from "../../shared/scene/types.ts";
 import { fakeFetch, readPrep, walkTo, type FakeOptions } from "../llm/fake-openrouter.ts";
 import type { CallContext } from "../llm/openrouter.ts";
 import { CAERWYN, viewAt } from "./fixtures.ts";
-import { closingDirective, coGm, coGmInstructions, mouthpieceInput, mouthpieceInstructions, movedDirective, narrationSoFar, prepOf, pressureOffered, routeLine, speak, twoPartNow } from "./two-part.ts";
+import { closingDirective, coGm, coGmInstructions, firstSentence, mouthpieceInput, mouthpieceInstructions, movedDirective, narrationSoFar, prepOf, pressureOffered, routeLine, speak, tellOf, twoPartNow } from "./two-part.ts";
 import type { TurnView } from "./view.ts";
 
 /**
@@ -118,6 +118,25 @@ test("the per-turn note: the stage, the routes open now with a dice route's chec
   assert.ok(!clerkNow(3, ["cart-arrives"]).includes("sitting here a while"), "once offered, never again");
 });
 
+test("the per-turn note: what's hidden from the player right now: the world's things out of their sight, and each card's secrets by their first sentence, with what shows of them", () => {
+  const note = twoPartNow(clerk, yard(), []);
+  const hidden = note.slice(note.indexOf("## Hidden from the player right now"));
+  assert.match(hidden, /^## Hidden from the player right now\nBehind the screen until the player finds it, or someone shows or tells them of it in play/);
+  assert.match(hidden, /Out of the player's sight:\n- a folded page sewn into the left boot's lining \[ledger-page\]/);
+  // QA round qa1-1018: the board, Cob's way in, and the crown, in Moll's fist, were named by the narration.
+  assert.match(hidden, /Kept back by the people here[^\n]*\n[\s\S]*- Cob: The boots are Prout's\. He was in the loft last night: [^\n]*reached through a loose board behind the water butt/);
+  assert.match(hidden, /- Moll: [^\n]*The crown, stamped on one face with a little wheat-ear, is in her fist\./);
+  assert.match(hidden, /What shows of it is their tells, now and then[^\n]*\n[\s\S]*- Moll: one fist kept tightly closed; her eyes keep going to the yard gate; she shuts Cob up whenever he gets near the night\./);
+  assert.ok(!/- Moll: [^\n]*Torn:/.test(hidden), "a tell is what shows, not what they're torn between");
+  assert.doesNotMatch(note.slice(note.indexOf("## The world right now"), note.indexOf("## Hidden")), /Out of the player's sight/, "said once, in its own part, not in the world's");
+  // Found (the motive's revelation landed: the page is that beat's thing), it's no longer out of sight.
+  assert.doesNotMatch(twoPartNow(clerk, yard({ landed: ["motive"] }), []), /Out of the player's sight:/);
+  assert.equal(tellOf(["Three days ago…", "Shows: lavender a minute before him. Torn: …"]), "lavender a minute before him.");
+  assert.equal(firstSentence("His night work, if asked: the Heron ('It's the King's grain, sir. Everyone knows.'). Tonight's a loading night."), "His night work, if asked: the Heron ('It's the King's grain, sir. Everyone knows.').");
+  assert.equal(firstSentence("If Kell says so, he answers: 'He did, Sergeant. I am the proper channels.' Then he goes."), "If Kell says so, he answers: 'He did, Sergeant. I am the proper channels.'");
+  assert.equal(firstSentence("Sallow's cane is a sword-cane. Nobody knows."), "Sallow's cane is a sword-cane.", "an apostrophe isn't a quote");
+});
+
 test("the per-turn note: whoever's here whose name the player hasn't heard, with what to call them, in full and then the short way", () => {
   const names = (view: TurnView) => { const note = twoPartNow(clerk, view, []); const at = note.indexOf("## Names the player hasn't heard yet"); return at < 0 ? "" : note.slice(at).split("\n\n")[0]!; };
   assert.match(names(yard()), /^## Names the player hasn't heard yet\nUntil someone says a name aloud where the player can hear it[\s\S]*\n- Cob: "the boy in the too-big boots", then "the boy"\n- Moll: "the girl in the shawl", then "the girl"$/);
@@ -129,6 +148,20 @@ test("the per-turn note: whoever's here whose name the player hasn't heard, with
   assert.match(twoPartNow(clerk, told, ["Go."]), /## Names the player hasn't heard yet[\s\S]*\n\n## For this reply\nGo\.$/, "the names, and the directives last");
 });
 
+test("the per-turn note: what the player's turn has in brackets or asterisks is done or thought, never heard", () => {
+  const thief = yard({ turn: 1 });
+  thief.transcript.push({ turn: 1, scene: "hanged-clerk", speaker: "player", kind: "player", text: "(I pocket the padlock, slip inside ahead of Kell, since first in gets first pick.) Coming? *I wink at the boy*" });
+  assert.match(twoPartNow(clerk, thief, []), /## The player's turn\nIn the player's turn, \(I pocket the padlock, slip inside ahead of Kell, since first in gets first pick\.\) \(I wink at the boy\) are what their character does or thinks, in the player's words, not words said aloud\. People see what's done[\s\S]*nobody hears the thoughts or reasons in it: nobody answers, repeats or quotes those\./);
+  const plain = yard({ turn: 1 });
+  plain.transcript.push({ turn: 1, scene: "hanged-clerk", speaker: "player", kind: "player", text: "Who found him?" });
+  assert.doesNotMatch(twoPartNow(clerk, plain, []), /## The player's turn/);
+});
+
+test("the instructions after the user's prompt: written words read untagged, and what the player sees and hears", () => {
+  const mouthpiece = mouthpieceInstructions(clerk, yard());
+  assert.match(mouthpiece, /\nOnly words said aloud get a tag\. Words written or printed \(a page, a sign, an order, a note\) are read out in the narration, in single quotes and with no tag/);
+  assert.match(mouthpiece, /\n\n## What the player sees and hears\n[\s\S]*- Names: [\s\S]*- What's hidden: [\s\S]*A fist that stays shut is a shut fist\.[\s\S]*- The player's words: [\s\S]*- Your notes stay behind the screen\./);
+});
 
 test("the mouthpiece's narration and each outcome keep names the player hasn't heard out of their words, as they stream and as they're kept", async () => {
   const shown: string[] = [];
@@ -148,7 +181,6 @@ test("the mouthpiece's narration and each outcome keep names the player hasn't h
   assert.equal(spoke.check?.outcomes.minor_failure.text, "Cob shrugs. The girl in the shawl looks away.", "Cob said his own name in the narration: heard");
   assert.equal(spoke.check?.outcomes.minor_success.text, "“Moll says yes.” Moll nods.", "said aloud, it's heard");
 });
-
 
 test("a route into a discovery is taken once its revelation has landed: the co-GM's open routes say what the revelation is, the mouthpiece's note leaves it to the prep", () => {
   const find = clerk.routes.find(r => r.id === "find-murder")!;
