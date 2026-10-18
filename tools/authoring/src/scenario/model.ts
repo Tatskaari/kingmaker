@@ -186,8 +186,8 @@ export function withLayout(doc:ScenarioDocument,positions:Record<string,{x:numbe
 
 /**
  * Where a way into a map lands by default: just inside a way back out of it to `from`, if it has one
- * (the standable tile nearest it that isn't a way out itself), else the standable tile nearest its
- * middle. The author moves it as they like; the campaign check says if nobody can stand there.
+ * (the standable tile nearest it that isn't a way out itself, a step straight out before one aslant),
+ * else the standable tile nearest its middle. The author moves it as they like; the campaign check says if nobody can stand there.
  */
 export function landingOn(map:MapDocument|undefined,from?:string):Tile2{
   if(!map)return {x:0,y:0};
@@ -201,7 +201,8 @@ export function landingOn(map:MapDocument|undefined,from?:string):Tile2{
   let best:Tile2|undefined,score=Infinity;
   for(let y=0;y<built.height;y++)for(let x=0;x<built.width;x++){
     if(exits.has(`${x},${y}`)||!standable(built,{x,y}))continue;
-    const d=Math.max(Math.abs(x-near.x),Math.abs(y-near.y))*1000+Math.abs(x-middle.x)+Math.abs(y-middle.y);
+    // Nearest the way in (a step straight out of it before one aslant), then nearest the middle.
+    const d=Math.max(Math.abs(x-near.x),Math.abs(y-near.y))*10000+(Math.abs(x-near.x)+Math.abs(y-near.y))*100+Math.abs(x-middle.x)+Math.abs(y-middle.y);
     if(d<score){best={x,y};score=d}
   }
   return best??near;

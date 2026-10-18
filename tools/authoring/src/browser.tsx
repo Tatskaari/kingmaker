@@ -1,19 +1,25 @@
 // Test-only host. The installed product is plugin.tsx, running inside Obsidian.
 import React,{useEffect,useMemo,useState} from 'react';
 import {createRoot} from 'react-dom/client';
-import {App,LegacyScene,SceneApp} from './App';
-import {emptyDocument,parseDocument,serializeDocument} from './model';
-import type {ContentFile,GraphDocument,Host} from './model';
+import {LegacyScenario,LegacyScene,MapApp,MapMigration,PlaceApp,ScenarioApp,SceneApp} from './App';
 import {openSceneFile,serializeScene} from './scene/model.ts';
 import type {SceneDocument} from './scene/model.ts';
 import {campaignRootOf,lorePathOf,readCampaign,scenePathOf} from './scene/campaign.ts';
 import type {SceneHost} from './scene/host.ts';
+import {kindOfPath} from './campaign/files.ts';
+import type {FileHost,MigrationHost} from './campaign/host.ts';
+import {serializeJson} from './campaign/json.ts';
+import {openScenarioFile} from './scenario/model.ts';
+import {mapFileKind,openMapFile} from './map/model.ts';
+import {readV1Map} from './map/migrate.ts';
+import {openPlaceFile} from './place/model.ts';
 
 /**
  * The browser test harness: the same editors over a vault of files in memory (kept in localStorage),
- * seeded with the game's campaign as the vault Obsidian opens: its scenario, places/, scenes/ and
- * lore/ (build.mjs's fixtures.json), beside the version 1 files the scenario and map editors still
- * edit (tests/fixtures/v1). A lore note opened is shown, as Obsidian would open it in a tab.
+ * seeded with the game's campaign as the vault Obsidian opens: its scenario, scenes/, maps/, places/,
+ * looks and lore/ (build.mjs's fixtures.json), beside the plugin's version 1 files (tests/fixtures/v1),
+ * which open read-only or, a map, with the offer to migrate it. A lore note opened is shown, as
+ * Obsidian would open it in a tab.
  */
 type Note={path:string;text:string};
 type Fixtures={files:Record<string,string>;notes:Note[]};
@@ -27,15 +33,16 @@ const openedFiles:string[]=[];
 const listeners=new Set<()=>void>(),revisions:Record<string,number>={};
 const notify=()=>{for(const listener of [...listeners])listener()};
 const store=()=>localStorage.setItem(storageKey,JSON.stringify(files));
-const editable=(path:string)=>/\.km(scene|scenario|map)$/.test(path);
-const externalWrite=(path:string,document:GraphDocument|SceneDocument|string)=>{
-  files[path]=typeof document==='string'?document:document.version===2?serializeScene(document as SceneDocument):serializeDocument(document as GraphDocument);
+const editable=(path:string)=>/\.km(scene|scenario|map|place)$/.test(path);
+/** A file changed outside its editor (a test's external edit): its editor starts again from it. */
+const externalWrite=(path:string,document:unknown)=>{
+  files[path]=typeof document==='string'?document:(document as {version?:unknown}).version===2&&(document as {kind?:unknown}).kind==='scene'?serializeScene(document as SceneDocument):serializeJson(document);
   revisions[path]=(revisions[path]??0)+1;store();notify();
 };
-declare global{interface Window{__kingmakerHarness:{files:Record<string,string>;openedFiles:string[];activePath:string;writeDocument:(path:string,document:GraphDocument|SceneDocument|string)=>void}}}
+declare global{interface Window{__kingmakerHarness:{files:Record<string,string>;openedFiles:string[];activePath:string;writeDocument:(path:string,document:unknown)=>void}}}
 window.__kingmakerHarness={files,openedFiles,activePath:defaultFile,writeDocument:externalWrite};
 
-/** The harness's vault as the scene editor reads its campaign. */
+/** The harness's vault as the editors read their campaign. */
 const vaultFiles={
   list:(folder:string)=>[...Object.keys(files),...notes.keys()].filter(path=>path.startsWith(folder)),
   read:async(path:string)=>files[path]??notes.get(path)?.text,
@@ -54,23 +61,6 @@ function Harness(){
     if(!note)throw Error(`File not found: ${path}`);
     setOpenedNote(note);
   };
-  const graphHost:Host=useMemo(()=>{const create=async(kind:'scene'|'map')=>{
-    const title=window.prompt(`Name the new ${kind} file`);if(!title?.trim())return null;
-    const safe=title.trim().replace(/[\\/:*?"<>|]/g,'-'),folder=kind==='map'?'Maps':'Scenes',extension=kind==='map'?'kmmap':'kmscene';
-    let path=`${folder}/${safe}.${extension}`,suffix=2;
-    while(path in files)path=`${folder}/${safe} ${suffix++}.${extension}`;
-    files[path]=serializeDocument(emptyDocument(kind,title.trim()));store();notify();
-    return {path,title:title.trim()};
-  };return {
-    filePath:activePath,
-    change:document=>{files[activePath]=serializeDocument(document);store();notify()},
-    openFile,
-    createScene:()=>create('scene'),createMap:()=>create('map'),
-    listDocuments:async()=>Object.entries(files).filter(([path])=>/\.km(scene|map)$/.test(path)).map(([path,raw]):ContentFile=>{try{return {path,document:parseDocument(raw)}}catch(error){return {path,error:String(error)}}}),
-    readDocument:async(path)=>{if(!(path in files))throw Error(`File not found: ${path}`);return parseDocument(files[path])},
-    writeDocument:async(path,before,after)=>{if(!(path in files)||serializeDocument(parseDocument(files[path]))!==serializeDocument(before))throw Error('The source file changed elsewhere. Refresh before editing.');if(!/\.km(scene|map)$/.test(path))throw Error('Only scene or map files can own ports.');externalWrite(path,after)},
-    subscribeDocuments:listener=>{listeners.add(listener);return()=>{listeners.delete(listener)}},
-  }},[activePath]);
   const sceneHost:SceneHost=useMemo(()=>{const root=campaignRootOf(activePath);return {
     filePath:activePath,
     change:scene=>{files[activePath]=serializeScene(scene);store();notify()},
@@ -79,25 +69,48 @@ function Harness(){
     openLore:path=>openFile(lorePathOf(root,path)),
     openScene:id=>openFile(scenePathOf(root,id)),
   }},[activePath]);
+  const fileHost:MigrationHost=useMemo(()=>({
+    filePath:activePath,
+    change:doc=>{files[activePath]=serializeJson(doc);store();notify()},
+    files:vaultFiles,
+    write:async(path,before,after)=>{
+      if(!(path in files))throw Error(`Kingmaker file not found: ${path}`);
+      if(files[path]!==before)throw Error(`Edit conflict: ${path} changed. Nothing was overwritten: try again.`);
+      files[path]=after;store();notify();
+    },
+    create:async(path,text)=>{if(path in files)throw Error(`There's a file at ${path} already.`);files[path]=text;store();notify()},
+    subscribe:listener=>{listeners.add(listener);return()=>{listeners.delete(listener)}},
+    open:openFile,
+    replace:text=>{files[activePath]=text;revisions[activePath]=(revisions[activePath]??0)+1;store();notify()},
+  }),[activePath]);
   return <div className="test-harness">
     <header className="harness-banner"><span>Browser test harness · not the installed Obsidian plugin</span><label>Test file<select aria-label="Test file" value={activePath} onChange={event=>void openFile(event.target.value)}>{Object.keys(files).filter(editable).sort().map(path=><option key={path}>{path}</option>)}</select></label></header>
-    <div className="harness-editor" data-file-revision={revision}><Editor key={`${activePath}:${revisions[activePath]??0}`} path={activePath} graphHost={graphHost} sceneHost={sceneHost}/></div>
+    <div className="harness-editor" data-file-revision={revision}><Editor key={`${activePath}:${revisions[activePath]??0}`} path={activePath} sceneHost={sceneHost} fileHost={fileHost}/></div>
     {openedNote&&<div className="harness-note" role="dialog" aria-label="Host opened lore note"><header><h2>{openedNote.path}</h2><button onClick={()=>setOpenedNote(null)}>Close note</button></header><p>The test host received openFile. In Obsidian this opens the original Markdown file in a normal editor tab.</p><pre>{openedNote.text}</pre></div>}
   </div>;
 }
 
-/** The file's editor, as the plugin picks it: a scene of the game's format, a version 1 scene read-only, or a version 1 graph. */
-function Editor({path,graphHost,sceneHost}:{path:string;graphHost:Host;sceneHost:SceneHost}){
+/** The file's editor, as the plugin picks it: one of the game's files to edit, or a version 1 file read-only (a map, to migrate). */
+function Editor({path,sceneHost,fileHost}:{path:string;sceneHost:SceneHost;fileHost:MigrationHost}){
   // The file as it opened: the editor keeps its own state from here (the harness remounts it when the file changes outside it).
   const [opened]=useState(()=>{
-    const raw=files[path];
-    if(!path.endsWith('.kmscene'))return {kind:'graph' as const,document:parseDocument(raw)};
-    try{return openSceneFile(raw)}catch(error){return {kind:'error' as const,message:(error as Error).message}}
+    const raw=files[path],kind=kindOfPath(path);
+    try{
+      if(kind==='scenario'){
+        const value=JSON.parse(raw);
+        if(value?.format==='kingmaker'&&value.version===1)return <LegacyScenario path={path} title={value.title??''} files={value.scenario?.files?.length??0}/>;
+        return <ScenarioApp document={openScenarioFile(raw)} host={fileHost as unknown as FileHost<any>}/>;
+      }
+      if(kind==='map'){
+        if(mapFileKind(raw)==='v1'){readV1Map(raw);return <MapMigration text={raw} host={fileHost}/>}
+        return <MapApp document={openMapFile(raw)} host={fileHost as unknown as FileHost<any>}/>;
+      }
+      if(kind==='place')return <PlaceApp document={openPlaceFile(raw)} host={fileHost as unknown as FileHost<any>}/>;
+      const scene=openSceneFile(raw);
+      return scene.kind==='scene'?<SceneApp document={scene.doc} host={sceneHost}/>:<LegacyScene path={path} title={scene.title} nodes={scene.nodes} routes={scene.routes}/>;
+    }catch(error){return <div className="km-file-error" style={{padding:24}}><h3>Cannot open this Kingmaker file</h3><p>{(error as Error).message}</p></div>}
   });
-  if(opened.kind==='graph')return <App document={opened.document} host={graphHost}/>;
-  if(opened.kind==='scene')return <SceneApp document={opened.doc} host={sceneHost}/>;
-  if(opened.kind==='v1')return <LegacyScene path={path} title={opened.title} nodes={opened.nodes} routes={opened.routes}/>;
-  return <div className="km-file-error" style={{padding:24}}><h3>Cannot open this Kingmaker file</h3><p>{opened.message}</p></div>;
+  return opened;
 }
 
 createRoot(document.getElementById('root')!).render(<Harness/>);

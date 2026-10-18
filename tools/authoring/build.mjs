@@ -15,8 +15,9 @@ await copyFile('dist/plugin/main.css','dist/plugin/styles.css');
 await copyFile('manifest.json','dist/plugin/manifest.json');
 
 // The browser test harness's fixtures: the game's campaign as the vault Obsidian opens (its scenario,
-// places/, scenes/ and every file under lore/, at their paths in the campaign folder), beside the version 1
-// files the scenario and map editors still edit (tests/fixtures/v1). Never bundled into the installed plugin.
+// scenes/, maps/, places/, looks and every file under lore/, at their paths in the campaign folder), beside
+// the plugin's version 1 files (tests/fixtures/v1), which open read-only or, a map, to migrate. Never
+// bundled into the installed plugin.
 const campaignRoot=path.resolve(process.env.KINGMAKER_CAMPAIGN??path.join(root,'../../campaigns/caerwyn'));
 async function walk(directory,prefix=''){
   const files=[];
@@ -29,7 +30,7 @@ async function walk(directory,prefix=''){
   return files;
 }
 const campaign=await walk(campaignRoot);
-const editable=file=>/^([^/]+\.kmscenario|places\/[^/]+\.kmplace|scenes\/[^/]+\.kmscene)$/.test(file.path);
+const editable=file=>/^([^/]+\.kmscenario|scenes\/[^/]+\.kmscene|maps\/[^/]+\.kmmap|places\/[^/]+\.kmplace|looks\.json)$/.test(file.path);
 const files=Object.fromEntries([...campaign.filter(editable),...(await walk(path.join(root,'tests/fixtures/v1')))].map(file=>[file.path,file.text]));
 const notes=campaign.filter(file=>file.path.startsWith('lore/'));
 await writeFile('dist/fixtures.json',JSON.stringify({files,notes}));

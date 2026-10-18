@@ -22,9 +22,8 @@ const bundled = async (name, external) => (await build({
   plugins:[{name:'mocked', setup(build) { build.onResolve({filter:new RegExp(`^(${external.map(m => m.replace(/[./]/g, '\\$&')).join('|')})$`)}, args => ({path:args.path, external:true})); }}],
   loader:{'.css':'empty'},
 })).outputFiles[0].text;
-const modelCode = transpile('model.ts');
-const mapModelCode = transpile('map-model.ts');
 const sceneCode = await bundled('scene/model.ts', []);
+const mapCode = await bundled('map/model.ts', []);
 const pluginCode = await bundled('plugin.tsx', ['./App']);
 
 const CAMPAIGN = fileURLToPath(new URL('../../../campaigns/caerwyn/', import.meta.url));
@@ -36,6 +35,9 @@ const campaignFiles = readdirSync(CAMPAIGN, {recursive:true, withFileTypes:true}
 /** A value made in the plugin's sandbox, as plain data here (deep equality compares prototypes, and the sandbox has its own). */
 const plain = value => JSON.parse(JSON.stringify(value));
 const V1_SCENE = readFileSync(new URL('fixtures/v1/Scenes/The Hanged Clerk.kmscene', import.meta.url), 'utf8');
+const V1_SCENARIO = readFileSync(new URL('fixtures/v1/Scenarios/Caerwyn.kmscenario', import.meta.url), 'utf8');
+const V1_STUDY = readFileSync(new URL('fixtures/v1-study/Harbour study.kmmap', import.meta.url), 'utf8');
+const campaignText = file => campaignFiles.find(([path]) => path === file)[1];
 
 function loadModule(code, resolver) {
   const module = {exports:{}};
@@ -45,8 +47,8 @@ function loadModule(code, resolver) {
 
 function harness() {
   const roots = [], modals = [], notices = [], opened = [], writes = [], entries = new Map(), contents = new Map(), vaultEvents = [];
-  const model = loadModule(modelCode, name => name === './map-model.ts' ? loadModule(mapModelCode, require) : require(name));
   const scene = loadModule(sceneCode, require);
+  const maps = loadModule(mapCode, require);
   const normalizePath = path => path.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\/|\/$/g, '');
   class Folder {
     constructor(path) { this.path = path; this.name = path.split('/').at(-1); this.parent = null; }
@@ -132,8 +134,10 @@ function harness() {
       },
       create:async (path, text) => {
         if (entries.has(path)) throw Error('Already exists');
+        writes.push({path, text});
         return addFile(path,text);
       },
+      createFolder:async path => addFolder(path),
     },
     workspace:{
       on:(name,callback) => ({name,callback}),
@@ -146,7 +150,8 @@ function harness() {
     Plugin, TextFileView, TFile:File, TFolder:Folder, Modal, FuzzySuggestModal:Modal, Setting, normalizePath,
     Notice:class {constructor(message){notices.push(message);}},
   };
-  const editors = {App:function App() { return null; }, SceneApp:function SceneApp() { return null; }, LegacyScene:function LegacyScene() { return null; }};
+  const editor = name => ({[name]:function() { return null; }})[name];
+  const editors = Object.fromEntries(['SceneApp','LegacyScene','ScenarioApp','LegacyScenario','MapApp','MapMigration','PlaceApp'].map(name => [name, editor(name)]));
   const exports = loadModule(pluginCode, id => id === 'obsidian' ? obsidian
     : id === './App' ? editors
     : id === 'react-dom/client' ? {createRoot:element => {
@@ -168,20 +173,23 @@ function harness() {
   /** A new scene of the game's format, and its file's text. */
   const newScene = (title = 'Arrival') => scene.skeletonScene(title);
   const sceneText = doc => scene.serializeScene(doc);
-  return {app,plugin,view,model,scene,editors,roots,modals,notices,opened,writes,contents,entries,addFile,addFolder,addCampaign,currentElement,renderOf,submitName,createView,vaultEvents,hostFor,newScene,sceneText};
+  /** A small map of the format (the default legend on grass, as the plugin makes one), and its file's text. */
+  const newMap = (title = 'Market') => maps.newMap(title, undefined, 6, 4);
+  const mapText = doc => maps.serializeMap(doc);
+  return {app,plugin,view,scene,maps,editors,roots,modals,notices,opened,writes,contents,entries,addFile,addFolder,addCampaign,currentElement,renderOf,submitName,createView,vaultEvents,hostFor,newScene,sceneText,newMap,mapText};
 }
 
 test('registers custom extensions and native folder create actions', async () => {
   const h = harness();
   await h.plugin.onload();
-  assert.deepEqual(Array.from(h.plugin.extensions[0][0]), ['kmscene','kmscenario','kmmap']);
+  assert.deepEqual(Array.from(h.plugin.extensions[0][0]), ['kmscene','kmscenario','kmmap','kmplace']);
   assert.equal(h.plugin.views[0][0], 'kingmaker-authoring-file');
-  assert.deepEqual(h.plugin.commands.map(command => command.id), ['new-scene','new-scenario','new-map','open-file']);
+  assert.deepEqual(h.plugin.commands.map(command => command.id), ['new-scene','new-scenario','new-map','new-place','open-file']);
   const folder = h.addFolder('scenes');
   const titles = [];
   const menu = {addItem(callback){callback({setTitle(title){titles.push(title);return this;},setIcon(){return this;},onClick(){return this;}});}};
   h.plugin.events.find(event => event.name === 'file-menu').callback(menu,folder);
-  assert.deepEqual(titles,['New Kingmaker scene','New Kingmaker scenario','New Kingmaker map']);
+  assert.deepEqual(titles,['New Kingmaker scene','New Kingmaker scenario','New Kingmaker map','New Kingmaker place']);
 });
 
 test('every real scene opens in the scene editor with its exact bytes, and an unchanged scene is never written', async () => {
@@ -260,7 +268,7 @@ test('what isn\'t a scene of the format opens as an error and its bytes are neve
   const h0 = harness();
   const dangling = JSON.parse(h0.sceneText(h0.newScene()));
   dangling.edges[0].target = 'the-moon';
-  for (const [name, raw] of [['broken.kmscene','{ invalid'],['unknown.kmscene',JSON.stringify({format:'unknown'})],['scenario.kmscene',JSON.stringify(h0.model.emptyDocument('scenario','Wrong kind'))],['dangling.kmscene',JSON.stringify(dangling)],['scene.kmmap',h0.sceneText(h0.newScene())]]) {
+  for (const [name, raw] of [['broken.kmscene','{ invalid'],['unknown.kmscene',JSON.stringify({format:'unknown'})],['scenario.kmscene',V1_SCENARIO],['dangling.kmscene',JSON.stringify(dangling)],['scene.kmmap',h0.sceneText(h0.newScene())]]) {
     const h = harness();
     const file = h.addFile(name,raw);
     await h.view.onLoadFile(file);
@@ -313,18 +321,32 @@ test('a new scene is the format\'s skeleton, its file named for the slug of its 
   assert.deepEqual(h.opened,[file.path]);
 });
 
-test('creating a scene from a scenario returns its real path and title without switching tabs', async () => {
+test('a new map, place or scenario is its format\'s skeleton, its file named for the slug of its title in the campaign\'s folder for it', async () => {
   const h = harness();
-  h.addFolder('Scenes'); h.addFolder('Scenarios');
-  const doc = h.model.emptyDocument('scenario','Caerwyn');
-  await h.view.onLoadFile(h.addFile('Scenarios/Caerwyn.kmscenario',h.model.serializeDocument(doc)));
-  const pending = h.currentElement().props.host.createScene();
-  h.submitName('The dock');
-  const result = await pending;
-  assert.deepEqual(plain(result),{path:'Scenes/the-dock.kmscene',title:'The dock'});
-  assert.equal(h.scene.openSceneFile(h.contents.get(result.path)).doc.title,'The dock');
-  assert.equal(h.opened.length,0);
-  assert.equal(JSON.parse(h.view.getViewData()).title,'Caerwyn');
+  h.addFolder('maps'); h.addFolder('places');
+  let pending = h.plugin.createDocument('map',h.plugin.folderFor('map',h.app.vault.getRoot()));
+  h.submitName('The Cooperage');
+  let file = await pending;
+  assert.equal(file.path,'maps/the-cooperage.kmmap');
+  const map = h.maps.openMapFile(h.contents.get(file.path));
+  assert.deepEqual([map.id,map.title,map.grid.length,Object.keys(map.legend).length],['the-cooperage','The Cooperage',24,20]);
+  pending = h.plugin.createDocument('place',h.plugin.folderFor('place',h.app.vault.getRoot()));
+  h.submitName('The Cellar');
+  file = await pending;
+  assert.equal(file.path,'places/the-cellar.kmplace');
+  assert.equal(JSON.parse(h.contents.get(file.path)).kind,'place');
+  pending = h.plugin.createDocument('scenario',h.app.vault.getRoot());
+  h.submitName('Saltmere');
+  file = await pending;
+  assert.equal(file.path,'saltmere.kmscenario');
+  assert.deepEqual(Object.keys(JSON.parse(h.contents.get(file.path))).slice(0,7),['format','version','kind','id','title','description','campaignVersion']);
+  // A campaign folder has one scenario: a second is refused, naming the first.
+  pending = h.plugin.createDocument('scenario',h.app.vault.getRoot());
+  const modal = h.submitName('Another');
+  assert.match(modal.contentEl.children.find(child => /scenario already/.test(child.text)).text,/This folder has a scenario already \(saltmere\.kmscenario\)/);
+  modal.close();
+  assert.equal(await pending,null);
+  assert.deepEqual(h.opened,['maps/the-cooperage.kmmap','places/the-cellar.kmplace','saltmere.kmscenario']);
 });
 
 test('failed unload keeps the draft and restores an editable host', async () => {
@@ -358,12 +380,12 @@ test('creation rejects a title whose file exists, or that has no slug, and cance
 test('a failure to open an already-created file reports the true result', async () => {
   const h = harness();
   h.app.workspace.getLeaf = () => ({openFile:async () => {throw Error('View unavailable');}});
-  const pending = h.plugin.createDocument('scenario',h.addFolder('Scenarios'));
+  const pending = h.plugin.createDocument('scenario',h.addFolder('campaigns'));
   h.submitName('Caerwyn');
   const file = await pending;
-  assert.equal(file.path,'Scenarios/Caerwyn.kmscenario');
+  assert.equal(file.path,'campaigns/caerwyn.kmscenario');
   assert.ok(h.contents.has(file.path));
-  assert.match(h.notices[0],/^Created Scenarios\/Caerwyn.kmscenario, but could not open it/);
+  assert.match(h.notices[0],/^Created campaigns\/caerwyn.kmscenario, but could not open it/);
 });
 
 test('the scene host reads the campaign around the file, offers lore by the game\'s paths and opens it in Obsidian', async () => {
@@ -413,192 +435,200 @@ test('a vault with no scenario says so, and still offers its lore', async () => 
   assert.deepEqual(plain(campaign.lore.map(note => note.path)),['Places/Somewhere.md']);
 });
 
-test('maps are real flow files created from a scenario without switching tabs', async () => {
+test('the real scenario, maps and places open in their editors with their exact bytes, and nothing is written', async () => {
   const h = harness();
-  h.addFolder('Maps');
-  const doc = h.model.emptyDocument('scenario','Caerwyn');
-  await h.view.onLoadFile(h.addFile('Caerwyn.kmscenario',h.model.serializeDocument(doc)));
-  const pending = h.hostFor(h.view).createMap();
-  h.submitName('Market Square.kmmap');
-  const result = await pending;
-  assert.equal(result.path,'Maps/Market Square.kmmap');
-  assert.equal(h.model.parseDocument(h.contents.get(result.path),'map').title,'Market Square');
-  assert.equal(h.opened.length,0);
+  h.addCampaign();
+  const files = campaignFiles.filter(([file]) => /^([^/]+\.kmscenario|maps\/.*\.kmmap|places\/.*\.kmplace)$/.test(file));
+  assert.equal(files.length, 9);
+  for (const [file, raw] of files) {
+    const view = h.createView();
+    await view.onLoadFile(h.entries.get(file));
+    const rendered = h.renderOf(view);
+    const expected = file.endsWith('.kmscenario') ? h.editors.ScenarioApp : file.endsWith('.kmmap') ? h.editors.MapApp : h.editors.PlaceApp;
+    assert.equal(rendered.type, expected, file);
+    assert.equal(JSON.stringify(rendered.props.document, null, 2) + '\n', raw, file);
+    assert.equal(rendered.props.host.filePath, file);
+    assert.equal(view.getViewData(), raw);
+    await view.onUnloadFile(h.entries.get(file));
+  }
+  assert.equal(h.writes.length, 0);
 });
 
-test('the scenario editor\'s listing reads version 1 files and live map buffers, and says it doesn\'t read the game\'s scenes', async () => {
+test('a version 1 map opens with the offer to migrate it; the migration replaces it with a map of the format, then opened in the map editor', async () => {
   const h = harness();
-  const map = h.model.emptyDocument('map','Market');
-  await h.view.onLoadFile(h.addFile('Market.kmmap',h.model.serializeDocument(map)));
-  h.hostFor(h.view).change({...map,title:'Unsaved market'});
-  const scene = h.createView();
-  await scene.onLoadFile(h.addFile('scenes/arrival.kmscene',h.sceneText(h.newScene())));
-  h.addFile('Scenes/The Hanged Clerk.kmscene',V1_SCENE);
-  h.addFile('Broken.kmscene','{ invalid');
-  const files = await h.plugin.listDocuments();
-  assert.equal(files.find(file => file.path==='Market.kmmap').document.title,'Unsaved market');
-  assert.match(files.find(file => file.path==='scenes/arrival.kmscene').error,/version 1|scene of the game's format/);
-  assert.equal(files.find(file => file.path==='Scenes/The Hanged Clerk.kmscene').document.nodes.length,10);
-  assert.match(files.find(file => file.path==='Broken.kmscene').error,/JSON|property|Expected|invalid/i);
-  assert.equal(h.writes.length,0);
-});
-
-test('a scenario still wires a closed version 1 scene\'s exits, and an open one shown read-only reloads them', async () => {
-  const h = harness();
-  const file = h.addFile('Scenes/The Hanged Clerk.kmscene',V1_SCENE);
+  const file = h.addFile('maps/harbour-study.kmmap', V1_STUDY);
   await h.view.onLoadFile(file);
-  const before = await h.plugin.readDocument(file.path);
-  const exit = before.nodes.find(node => node.data.kind === 'exit');
-  const after = {...before,nodes:before.nodes.map(node => node === exit ? {...node,data:{...node.data,next:'drowned-rat'}} : node)};
-  await h.plugin.writeDocument(file.path,before,after);
-  assert.equal(JSON.parse(h.contents.get(file.path)).nodes.find(node => node.id === exit.id).data.next,'drowned-rat');
-  h.view.setViewData(h.contents.get(file.path),false);
-  assert.equal(h.currentElement().type,h.editors.LegacyScene);
-  assert.equal(h.view.saveRequests,0);
+  let rendered = h.currentElement();
+  assert.equal(rendered.type, h.editors.MapMigration);
+  assert.equal(rendered.props.text, V1_STUDY);
+  assert.equal(h.view.saveRequests, 0);
+  const migrated = h.mapText(h.newMap('Harbour study'));
+  rendered.props.host.replace(migrated);
+  rendered = h.currentElement();
+  assert.equal(rendered.type, h.editors.MapApp);
+  assert.equal(h.view.getViewData(), migrated);
+  assert.equal(h.view.saveRequests, 1);
+  await h.view.save();
+  assert.equal(h.contents.get(file.path), migrated);
+  // A version 1 map that isn't one (its terrain broken) opens as an error, its bytes kept.
+  const broken = JSON.stringify({...JSON.parse(V1_STUDY), terrain:{version:1,width:2,height:2,tiles:['lava','grass','grass','grass']}});
+  const h2 = harness();
+  const bad = h2.addFile('maps/bad.kmmap', broken);
+  await h2.view.onLoadFile(bad);
+  assert.equal(h2.currentElement().props.className, 'km-file-error');
+  await h2.view.onUnloadFile(bad);
+  assert.equal(h2.contents.get(bad.path), broken);
 });
 
-test('port edits update an open source buffer, invalidate old callbacks and remain saveable', async () => {
+test('a version 1 scenario opens read-only with a note that the format has moved on, and is never written', async () => {
   const h = harness();
-  const map = h.model.emptyDocument('map','Market');
-  const file = h.addFile('Market.kmmap',h.model.serializeDocument(map));
+  const file = h.addFile('Scenarios/Caerwyn.kmscenario', V1_SCENARIO);
+  await h.view.onLoadFile(file);
+  const rendered = h.currentElement();
+  assert.equal(rendered.type, h.editors.LegacyScenario);
+  assert.equal(rendered.props.title, 'Caerwyn');
+  await h.view.onUnloadFile(file);
+  assert.equal(h.contents.get(file.path), V1_SCENARIO);
+  assert.equal(h.writes.length, 0);
+});
+
+test('an edit from another editor updates an open editor\'s draft, invalidates its old callbacks and remains saveable', async () => {
+  const h = harness();
+  const map = h.newMap();
+  const file = h.addFile('maps/market.kmmap', h.mapText(map));
   await h.view.onLoadFile(file);
   const stale = h.hostFor(h.view);
-  stale.change({...map,description:'Unsaved map work'});
-  const before = await h.plugin.readDocument(file.path);
-  const after = {...before,title:'Updated from overview'};
-  await h.plugin.writeDocument(file.path,before,after);
-  assert.equal(JSON.parse(h.view.getViewData()).description,'Unsaved map work');
-  assert.equal(JSON.parse(h.view.getViewData()).title,'Updated from overview');
-  assert.equal(h.view.saveRequests,2);
-  stale.change({...map,title:'Obsolete source editor'});
-  assert.equal(JSON.parse(h.view.getViewData()).title,'Updated from overview');
+  stale.change({...map, description:'Unsaved map work'});
+  const before = await h.plugin.vaultFiles().read(file.path);
+  assert.equal(JSON.parse(before).description, 'Unsaved map work', 'a read gives the open editor\'s draft');
+  const after = h.mapText({...JSON.parse(before), title:'Updated from the scenario'});
+  await h.plugin.writeFile(file.path, before, after);
+  assert.equal(h.view.getViewData(), after);
+  assert.equal(h.currentElement().type, h.editors.MapApp);
+  assert.equal(h.view.saveRequests, 2);
+  stale.change({...map, title:'Obsolete map editor'});
+  assert.equal(JSON.parse(h.view.getViewData()).title, 'Updated from the scenario');
   await h.view.save();
-  assert.equal(JSON.parse(h.contents.get(file.path)).title,'Updated from overview');
+  assert.equal(JSON.parse(h.contents.get(file.path)).title, 'Updated from the scenario');
 });
 
-test('open-source conflict refuses stale snapshots and disagreeing editors', async () => {
+test('an edit from elsewhere refuses a stale before and disagreeing open editors', async () => {
   const h = harness();
-  const map = h.model.emptyDocument('map','Market');
-  const file = h.addFile('Market.kmmap',h.model.serializeDocument(map));
+  const map = h.newMap();
+  const file = h.addFile('maps/market.kmmap', h.mapText(map));
   await h.view.onLoadFile(file);
-  h.hostFor(h.view).change({...map,title:'Current draft'});
-  await assert.rejects(h.plugin.writeDocument(file.path,map,{...map,title:'Overwrite'}),/conflict/i);
+  h.hostFor(h.view).change({...map, title:'Current draft'});
+  await assert.rejects(h.plugin.writeFile(file.path, h.mapText(map), h.mapText({...map, title:'Overwrite'})), /conflict/i);
   const other = h.createView();
   await other.onLoadFile(file);
-  await assert.rejects(h.plugin.readDocument(file.path),/Conflicting open editors/);
-  await assert.rejects(h.plugin.writeDocument(file.path,map,map),/Conflicting open editors/);
-  assert.equal(JSON.parse(h.view.getViewData()).title,'Current draft');
-  assert.equal(h.writes.length,0);
+  await assert.rejects(h.plugin.vaultFiles().read(file.path), /Conflicting open editors/);
+  assert.equal(JSON.parse(h.view.getViewData()).title, 'Current draft');
+  assert.equal(h.writes.length, 0);
 });
 
-test('matching open source views receive the same external port edit', async () => {
+test('matching open editors of a file receive the same edit from elsewhere', async () => {
   const h = harness();
-  const map = h.model.emptyDocument('map','Market');
-  const file = h.addFile('Market.kmmap',h.model.serializeDocument(map));
+  const map = h.newMap();
+  const file = h.addFile('maps/market.kmmap', h.mapText(map));
   await h.view.onLoadFile(file);
   const other = h.createView();
   await other.onLoadFile(file);
-  const next = {...map,title:'Both updated'};
-  await h.plugin.writeDocument(file.path,map,next);
-  assert.equal(h.view.getViewData(),other.getViewData());
-  await Promise.all([h.view.save(),other.save()]);
-  assert.equal(JSON.parse(h.contents.get(file.path)).title,'Both updated');
+  const next = h.mapText({...map, title:'Both updated'});
+  await h.plugin.writeFile(file.path, h.mapText(map), next);
+  assert.equal(h.view.getViewData(), other.getViewData());
+  await Promise.all([h.view.save(), other.save()]);
+  assert.equal(JSON.parse(h.contents.get(file.path)).title, 'Both updated');
 });
 
-test('outside disk edits cannot be overwritten by an overview edit or a delayed autosave', async () => {
+test('outside disk edits cannot be overwritten by an edit from another editor or a delayed autosave', async () => {
   const h = harness();
-  const map = h.model.emptyDocument('map','Market');
-  const file = h.addFile('Market.kmmap',h.model.serializeDocument(map));
+  const map = h.newMap();
+  const file = h.addFile('maps/market.kmmap', h.mapText(map));
   await h.view.onLoadFile(file);
-  h.hostFor(h.view).change({...map,title:'Local unsaved draft'});
-  const before = await h.plugin.readDocument(file.path);
-  const external = h.model.serializeDocument({...map,title:'External change'});
-  h.contents.set(file.path,external);
-  await assert.rejects(h.plugin.writeDocument(file.path,before,{...before,title:'Overview update'}),/changed outside/);
-  await assert.rejects(h.view.save(),/Save conflict/);
-  assert.equal(h.contents.get(file.path),external);
-  assert.equal(JSON.parse(h.view.getViewData()).title,'Local unsaved draft');
-  assert.equal(h.writes.length,0);
+  h.hostFor(h.view).change({...map, title:'Local unsaved draft'});
+  const before = h.view.getViewData();
+  const external = h.mapText({...map, title:'External change'});
+  h.contents.set(file.path, external);
+  await assert.rejects(h.plugin.writeFile(file.path, before, h.mapText({...map, title:'Scenario update'})), /changed outside/);
+  await assert.rejects(h.view.save(), /Save conflict/);
+  assert.equal(h.contents.get(file.path), external);
+  assert.equal(JSON.parse(h.view.getViewData()).title, 'Local unsaved draft');
+  assert.equal(h.writes.length, 0);
 });
 
-test('closed-source write compares atomically and only allows existing scene or map files', async () => {
+test('a write to a closed file compares atomically, and only to the game\'s files, and only with what the game can load', async () => {
   const h = harness();
-  const map = h.model.emptyDocument('map','Market');
-  const file = h.addFile('Market.kmmap',h.model.serializeDocument(map));
-  await h.plugin.writeDocument(file.path,map,{...map,title:'Market ports'});
-  assert.equal(JSON.parse(h.contents.get(file.path)).title,'Market ports');
-  await assert.rejects(h.plugin.writeDocument(file.path,map,{...map,title:'Stale'}),/conflict/i);
-  const scenario = h.model.emptyDocument('scenario','Campaign');
-  h.addFile('Campaign.kmscenario',h.model.serializeDocument(scenario));
-  await assert.rejects(h.plugin.writeDocument('Campaign.kmscenario',scenario,scenario),/scene or map files only/);
-  h.addFile('Lore.md','# Lore');
-  await assert.rejects(h.plugin.writeDocument('Lore.md',map,map),/not found/);
-  await assert.rejects(h.plugin.writeDocument('Missing.kmmap',map,map),/not found/);
+  const map = h.newMap();
+  const file = h.addFile('maps/market.kmmap', h.mapText(map));
+  await h.plugin.writeFile(file.path, h.mapText(map), h.mapText({...map, title:'Market ports'}));
+  assert.equal(JSON.parse(h.contents.get(file.path)).title, 'Market ports');
+  await assert.rejects(h.plugin.writeFile(file.path, h.mapText(map), h.mapText({...map, title:'Stale'})), /conflict/i);
+  await assert.rejects(h.plugin.writeFile(file.path, h.contents.get(file.path), h.mapText({...map, grid:[]})), /its grid isn't a list of rows/);
+  h.addFile('Lore.md', '# Lore');
+  await assert.rejects(h.plugin.writeFile('Lore.md', '# Lore', '# Changed'), /not found/);
+  await assert.rejects(h.plugin.writeFile('maps/missing.kmmap', '', h.mapText(map)), /not found/);
+  assert.deepEqual(h.writes.map(write => write.path), ['maps/market.kmmap']);
 });
 
-test('an external edit during a pending closed-source write wins the atomic comparison', async () => {
+test('an external edit during a pending closed-file write wins the atomic comparison', async () => {
   const h = harness();
-  const map = h.model.emptyDocument('map','Market');
-  const file = h.addFile('Market.kmmap',h.model.serializeDocument(map));
+  const map = h.newMap();
+  const file = h.addFile('maps/market.kmmap', h.mapText(map));
   let release;
   const gate = new Promise(resolve => {release=resolve;});
   const process = h.app.vault.process;
   h.app.vault.process = async (...args) => {await gate; return process(...args);};
-  const pending = h.plugin.writeDocument(file.path,map,{...map,title:'Overview edit'});
-  const external = h.model.serializeDocument({...map,title:'External edit'});
-  h.contents.set(file.path,external);
+  const pending = h.plugin.writeFile(file.path, h.mapText(map), h.mapText({...map, title:'Scenario edit'}));
+  const external = h.mapText({...map, title:'External edit'});
+  h.contents.set(file.path, external);
   release();
-  await assert.rejects(pending,/conflict/i);
-  assert.equal(h.contents.get(file.path),external);
-  assert.equal(h.writes.length,0);
+  await assert.rejects(pending, /conflict/i);
+  assert.equal(h.contents.get(file.path), external);
+  assert.equal(h.writes.length, 0);
 });
 
-test('closing the originating scenario cancels pending reads, writes and file creation', async () => {
+test('closing the editor that asked cancels its pending writes, and a file it would create is still made only when it asks in time', async () => {
   const h = harness();
-  const scenario = h.model.emptyDocument('scenario','Campaign');
-  await h.view.onLoadFile(h.addFile('Campaign.kmscenario',h.model.serializeDocument(scenario)));
+  h.addCampaign();
+  await h.view.onLoadFile(h.entries.get('caerwyn.kmscenario'));
   const host = h.hostFor(h.view);
-  const map = h.model.emptyDocument('map','Market');
-  const source = h.addFile('Market.kmmap',h.model.serializeDocument(map));
+  const map = h.newMap();
+  const source = h.addFile('maps/market.kmmap', h.mapText(map));
   let release;
   const gate = new Promise(resolve => {release=resolve;});
-  const read = h.app.vault.read, process = h.app.vault.process;
-  h.app.vault.read = async (...args) => {await gate; return read(...args);};
+  const process = h.app.vault.process;
   h.app.vault.process = async (...args) => {await gate; return process(...args);};
-  const reading = host.readDocument(source.path);
-  const listing = host.listDocuments();
-  const writing = host.writeDocument(source.path,map,{...map,title:'Too late'});
-  const creating = host.createMap();
+  const writing = host.write(source.path, h.mapText(map), h.mapText({...map, title:'Too late'}));
   await h.view.onClose();
-  h.submitName('Too late map');
   release();
-  for (const pending of [reading,listing,writing,creating]) await assert.rejects(pending,/changed or closed/);
-  assert.equal(JSON.parse(h.contents.get(source.path)).title,'Market');
-  assert.equal(h.entries.has('Too late map.kmmap'),false);
-  assert.equal(h.writes.length,0);
+  await assert.rejects(writing, /changed or closed/);
+  await assert.rejects(host.create('maps/late.kmmap', h.mapText(map)), /changed or closed/);
+  assert.equal(JSON.parse(h.contents.get(source.path)).title, 'Market');
+  assert.equal(h.entries.has('maps/late.kmmap'), false);
+  assert.equal(h.writes.length, 0);
 });
 
-test('document subscribers see local edits and vault events, not reads, and unsubscribe safely', async () => {
+test('an editor\'s subscribers hear of local edits and vault events, not reads, and unsubscribe safely', async () => {
   const h = harness();
   await h.plugin.onload();
-  const scenario = h.model.emptyDocument('scenario','Campaign');
-  await h.view.onLoadFile(h.addFile('Campaign.kmscenario',h.model.serializeDocument(scenario)));
+  h.addCampaign();
+  await h.view.onLoadFile(h.entries.get('maps/palace.kmmap'));
   const host = h.hostFor(h.view);
-  let changes=0;
-  const unsubscribe = host.subscribeDocuments(() => {changes++;});
-  await host.listDocuments();
-  assert.equal(changes,0);
-  host.change({...scenario,title:'Revised campaign'});
-  assert.equal(changes,1);
+  let changes = 0;
+  const unsubscribe = host.subscribe(() => {changes++;});
+  await host.files.read('maps/caerwyn.kmmap');
+  assert.equal(changes, 0);
+  host.change({...h.currentElement().props.document, title:'The Palace, redrawn'});
+  assert.equal(changes, 1);
   for (const name of ['modify','create','delete','rename']) h.vaultEvents.find(event => event.name===name).callback();
-  assert.equal(changes,5);
+  assert.equal(changes, 5);
   unsubscribe();
   h.plugin.documentsChanged();
-  assert.equal(changes,5);
-  host.subscribeDocuments(() => {changes++;});
+  assert.equal(changes, 5);
+  host.subscribe(() => {changes++;});
   await h.view.onClose();
   h.plugin.documentsChanged();
-  assert.equal(changes,5);
+  assert.equal(changes, 5);
 });
 
 test('the scene editor hears of other files\' changes until its file closes', async () => {
@@ -614,54 +644,67 @@ test('the scene editor hears of other files\' changes until its file closes', as
   assert.equal(changes,1);
 });
 
-test('a source opened during a disk read is returned from its newest unsaved buffer', async () => {
+test('a file opened during a read is read from its newest unsaved draft', async () => {
   const h = harness();
-  const map = h.model.emptyDocument('map','Market');
-  const source = h.addFile('Market.kmmap',h.model.serializeDocument(map));
-  let release;
-  const gate = new Promise(resolve => {release=resolve;});
-  const read = h.app.vault.read;
-  h.app.vault.read = async (...args) => {await gate; return read(...args);};
-  const pending = h.plugin.readDocument(source.path);
+  const map = h.newMap();
+  const source = h.addFile('maps/market.kmmap', h.mapText(map));
   await h.view.onLoadFile(source);
-  h.hostFor(h.view).change({...map,title:'Opened and edited'});
-  release();
-  assert.equal((await pending).title,'Opened and edited');
+  h.hostFor(h.view).change({...map, title:'Opened and edited'});
+  assert.equal(JSON.parse(await h.plugin.vaultFiles().read(source.path)).title, 'Opened and edited');
+  // A closed file is read from the vault.
+  await h.view.onUnloadFile(source);
+  assert.equal(JSON.parse(await h.plugin.vaultFiles().read(source.path)).title, 'Opened and edited');
 });
 
-test('a source opened during an atomic write is not silently changed underneath its editor', async () => {
+test('a file opened during an atomic write is not silently changed underneath its editor', async () => {
   const h = harness();
-  const map = h.model.emptyDocument('map','Market');
-  const source = h.addFile('Market.kmmap',h.model.serializeDocument(map));
+  const map = h.newMap();
+  const source = h.addFile('maps/market.kmmap', h.mapText(map));
   let release;
   const gate = new Promise(resolve => {release=resolve;});
   const process = h.app.vault.process;
   h.app.vault.process = async (...args) => {await gate; return process(...args);};
-  const pending = h.plugin.writeDocument(source.path,map,{...map,title:'Overview edit'});
+  const pending = h.plugin.writeFile(source.path, h.mapText(map), h.mapText({...map, title:'Scenario edit'}));
   await h.view.onLoadFile(source);
-  h.hostFor(h.view).change({...map,title:'New local draft'});
+  h.hostFor(h.view).change({...map, title:'New local draft'});
   release();
-  await assert.rejects(pending,/editor opened/);
-  assert.equal(JSON.parse(h.contents.get(source.path)).title,'Market');
-  assert.equal(JSON.parse(h.view.getViewData()).title,'New local draft');
-  assert.equal(h.writes.length,0);
+  await assert.rejects(pending, /editor opened/);
+  assert.equal(JSON.parse(h.contents.get(source.path)).title, 'Market');
+  assert.equal(JSON.parse(h.view.getViewData()).title, 'New local draft');
+  assert.equal(h.writes.length, 0);
 });
 
-test('an open source edited during validation rejects the outdated overview update', async () => {
+test('an open file edited while a write checks the disk refuses the outdated write', async () => {
   const h = harness();
-  const map = h.model.emptyDocument('map','Market');
-  const source = h.addFile('Market.kmmap',h.model.serializeDocument(map));
+  const map = h.newMap();
+  const source = h.addFile('maps/market.kmmap', h.mapText(map));
   await h.view.onLoadFile(source);
   let release;
   const gate = new Promise(resolve => {release=resolve;});
   const read = h.app.vault.read;
   h.app.vault.read = async (...args) => {await gate; return read(...args);};
-  const pending = h.plugin.writeDocument(source.path,map,{...map,title:'Overview edit'});
-  h.hostFor(h.view).change({...map,title:'New local draft'});
+  const pending = h.plugin.writeFile(source.path, h.mapText(map), h.mapText({...map, title:'Scenario edit'}));
+  h.hostFor(h.view).change({...map, title:'New local draft'});
   release();
-  await assert.rejects(pending,/conflict/i);
-  assert.equal(JSON.parse(h.view.getViewData()).title,'New local draft');
-  assert.equal(h.writes.length,0);
+  await assert.rejects(pending, /conflict/i);
+  assert.equal(JSON.parse(h.view.getViewData()).title, 'New local draft');
+  assert.equal(h.writes.length, 0);
+});
+
+test('an editor that can\'t take an edit from elsewhere (a version 1 map, an error) refuses one, and the scene and map hosts read every file of the campaign', async () => {
+  const h = harness();
+  const file = h.addFile('maps/old.kmmap', V1_STUDY);
+  await h.view.onLoadFile(file);
+  await assert.rejects(h.plugin.writeFile(file.path, V1_STUDY, h.mapText(h.newMap('Old'))), /can't take an edit from elsewhere/);
+  assert.equal(h.view.getViewData(), V1_STUDY);
+  const h2 = harness();
+  h2.addCampaign();
+  await h2.view.onLoadFile(h2.entries.get('places/heron.kmplace'));
+  const host = h2.hostFor(h2.view);
+  assert.equal(await host.files.read('maps/heron.kmmap'), campaignText('maps/heron.kmmap'));
+  assert.ok(host.files.list('').includes('looks.json'));
+  await host.open('maps/heron.kmmap');
+  assert.deepEqual(h2.opened, ['maps/heron.kmmap']);
 });
 
 test('a save queued before an external reload cannot overwrite the newly loaded content', async () => {

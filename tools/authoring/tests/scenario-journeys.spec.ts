@@ -1,282 +1,133 @@
-import {test,expect,type Page,type Locator} from '@playwright/test';
-import {serializeDocument,type GraphDocument,type Kind} from '../src/model';
-const scenarioPath='Scenarios/Caerwyn.kmscenario';
-const flowSourcePath='Scenes/First Scene.kmscene';
-const flowTargetPath='Scenes/Second Scene.kmscene';
-const flowMapPath='Maps/Travelling the river.kmmap';
-const fixtureNode=(id:string,title:string,kind:Kind,x=0,y=0)=>({id,type:'story',position:{x,y},data:{kind,title,description:'',lore:[] as string[]}});
-const fixtureDocument=(kind:GraphDocument['kind'],id:string,title:string,nodes:GraphDocument['nodes']=[]):GraphDocument=>({format:'kingmaker',version:1,kind,id,title,description:'A test of real file-backed scenario flow.',nodes,edges:[],lore:[]});
-const flowDocuments=()=>({
-  [scenarioPath]:{...fixtureDocument('scenario','scenario-fixture','Caerwyn'),scenario:{files:[flowSourcePath,flowTargetPath],positions:{[flowSourcePath]:{x:420,y:0},[flowTargetPath]:{x:880,y:0}}}},
-  [flowSourcePath]:fixtureDocument('scene','first-scene','First Scene',[fixtureNode('arrival','Arrival','start'),fixtureNode('quiet','Leave quietly','exit',400,0),fixtureNode('guard','Leave with the guard','exit',400,240)]),
-  [flowTargetPath]:fixtureDocument('scene','second-scene','Second Scene',[fixtureNode('road','By road','start'),fixtureNode('river','By river','start',0,240),fixtureNode('onward','Continue the journey','exit',400,0)]),
-  [flowMapPath]:fixtureDocument('map','river-map','Travelling the river',[fixtureNode('upstream','From upstream','start'),fixtureNode('downstream','Continue downstream','exit',400,0)]),
-});
-const seedDocuments=async(page:Page,documents:Record<string,GraphDocument>,active=scenarioPath)=>{
-  const serialized=Object.fromEntries(Object.entries(documents).map(([path,document])=>[path,serializeDocument(document)]));
-  await page.evaluate(({serialized,active})=>{
-    const files=JSON.parse(localStorage.getItem('kingmaker-authoring-test-files-v2')??'{}');
-    localStorage.setItem('kingmaker-authoring-test-files-v2',JSON.stringify({...files,...serialized}));
-    localStorage.setItem('kingmaker-authoring-test-active-v2',active);
-  },{serialized,active});
-  await page.reload();
-  await expect(page.locator('.file-path')).toHaveText(active);
+import {test,expect,type Page} from '@playwright/test';
+import {readFile} from 'node:fs/promises';
+
+// The scenario editor on the game's own campaign: the story's flow drawn from the files that own it,
+// and edited there (a scene's ending in the scene's file, a region and a way out in the map's, the
+// start and the lists in the scenario's). Every journey asserts the files as saved.
+const CAMPAIGN=new URL('../../../campaigns/caerwyn/',import.meta.url);
+const text=(path:string)=>readFile(new URL(path,CAMPAIGN),'utf8');
+const original=async(path:string)=>JSON.parse(await text(path));
+const savedText=(page:Page,path:string)=>page.evaluate(path=>(window as any).__kingmakerHarness.files[path] as string,path);
+const saved=async(page:Page,path:string)=>JSON.parse(await savedText(page,path));
+const files=(page:Page)=>page.evaluate(()=>({...(window as any).__kingmakerHarness.files}) as Record<string,string>);
+const card=(page:Page,id:string)=>page.locator(`.scenario-card[data-card="${id}"]`);
+const inspector=(page:Page)=>page.locator('.scenario-inspector .inspector-body');
+const openScenario=async(page:Page)=>{
+  await page.getByRole('combobox',{name:'Test file',exact:true}).selectOption('caerwyn.kmscenario');
+  await expect(page.locator('.file-path')).toHaveText('caerwyn.kmscenario');
+  await expect(card(page,'map:caerwyn')).toBeVisible();
+  await expect(page.getByRole('tab',{name:/^Problems \(\d+\)$/})).toBeVisible();
 };
-const scenarioCard=(page:Page,path:string)=>page.locator(`.scenario-card[data-file=${JSON.stringify(path)}]`);
-const scenarioInput=(page:Page,path:string,entry:string)=>scenarioCard(page,path).locator(`.react-flow__handle[data-handleid=${JSON.stringify('entry:'+entry)}]`);
-const scenarioOutput=(page:Page,path:string,exit:string)=>scenarioCard(page,path).locator(`.react-flow__handle[data-handleid=${JSON.stringify('exit:'+exit)}]`);
-const waitForStableGeometry=async(locator:Locator)=>{
-  await locator.evaluate(element=>new Promise<void>(resolve=>{
-    let previous='',stable=0;
-    const sample=()=>{const box=element.getBoundingClientRect(),position=[box.x,box.y,box.width,box.height].join(',');stable=position===previous?stable+1:0;previous=position;if(stable>=6)resolve();else requestAnimationFrame(sample)};
-    sample();
-  }));
-};
-const dragHandle=async(page:Page,from:Locator,to:Locator)=>{
-  // A source-file write temporarily disables sockets until the catalog refreshes.
-  await expect(page.locator('.statusbar')).not.toContainText(/Saving…|Loading…/);
-  await expect(from).toHaveClass(/\bconnectablestart\b/);
-  await expect(to).toHaveClass(/\bconnectableend\b/);
-  // Initial fitting waits for asynchronous file loading and port measurements.
-  // Do not press at a source position that is still moving with that animation.
-  await waitForStableGeometry(from);
-  await from.hover();
-  await page.mouse.down();
-  try{
-    await to.hover();
-    // React Flow resolves the hovered connection target on an animation frame.
-    await expect(to).toHaveClass(/\bconnectingto\b/);
-    await expect(to).toHaveClass(/\bvalid\b/);
-  }finally{await page.mouse.up()}
-};
-const card=(page:Page,title:string)=>page.locator('.story-card').filter({has:page.getByRole('heading',{name:title,exact:true})});
-const saved=(page:Page,path:string)=>page.evaluate(path=>JSON.parse((window as any).__kingmakerHarness.files[path]),path);
-const confirmAction=async(page:Page,title:string,action:string)=>{
-  const confirmation=page.getByRole('alertdialog',{name:title,exact:true});
-  await expect(confirmation).toBeVisible();
-  await confirmation.getByRole('button',{name:action,exact:true}).click();
-  await expect(confirmation).toHaveCount(0);
-};
-// The scenario editor works on the plugin's own version 1 files (M4 replaces it): these journeys seed
-// their own scenario, scenes and map, beside the game's campaign the harness holds.
+const node=(scene:any,id:string)=>scene.nodes.find((n:any)=>n.id===id);
+
 test.beforeEach(async({page})=>{
   await page.goto('/');
-  await page.getByRole('combobox',{name:'Test file',exact:true}).selectOption(scenarioPath);
-  await expect(page.locator('.file-path')).toHaveText(scenarioPath);
+  await expect(page.locator('.file-path')).toHaveText('scenes/hanged-clerk.kmscene');
 });
 
-test('scenario opens real files without rewriting them and keeps exactly one protected Start',async({page})=>{
-  const documents=flowDocuments();
-  await seedDocuments(page,documents);
-  const before=await page.evaluate(()=>(window as any).__kingmakerHarness.files);
-  await expect(page.locator('.km-scenario')).toBeVisible();
-  await expect(page.locator('.scenario-start-card')).toHaveCount(1);
-  await expect(page.locator('.scenario-start-card')).toContainText('After character creation');
-  await expect(scenarioInput(page,flowSourcePath,'arrival')).toHaveCount(1);
-  await expect(scenarioInput(page,flowTargetPath,'road')).toHaveCount(1);
-  await expect(scenarioInput(page,flowTargetPath,'river')).toHaveCount(1);
-  await expect(scenarioOutput(page,flowSourcePath,'quiet')).toHaveCount(1);
-  await expect(scenarioOutput(page,flowSourcePath,'guard')).toHaveCount(1);
-  await page.locator('.scenario-start-card').click();
-  await page.keyboard.press('Delete');
-  await expect(page.getByRole('alertdialog')).toHaveCount(0);
-  await expect(page.locator('.scenario-start-card')).toHaveCount(1);
-  await page.keyboard.press('Backspace');
-  await expect(page.locator('.scenario-start-card')).toHaveCount(1);
-  expect(await page.evaluate(()=>(window as any).__kingmakerHarness.files)).toEqual(before);
-  expect((await saved(page,scenarioPath)).nodes).toHaveLength(0);
+test('the scenario opens as the story\'s flow, drawn from the files that own it, with no problems, and opening saves nothing',async({page})=>{
+  const before=await files(page);
+  await openScenario(page);
+  await expect(page.locator('.scenario-card')).toHaveCount(11);
+  await expect(page.locator('.react-flow__edge')).toHaveCount(31);
+  await expect(page.getByRole('tab',{name:'Problems (0)'})).toBeVisible();
+  // Each ending a port of its scene, each region that plays a scene and each way out a port of its map.
+  await expect(card(page,'scene:drowned-rat').locator('.scenario-port')).toHaveCount(6);
+  await expect(card(page,'map:caerwyn').locator('.scenario-port')).toHaveText([/the yard behind the King's Granary/,/the tally loft/,/the downriver end of the wharves/,/Through the palace gate/,/The Drowned Rat's door/,/Along the wharf to the Heron.*4 tiles/]);
+  await expect(card(page,'start').locator('.scenario-port')).toHaveText([/Starts on Caerwyn.*at \(42, 9\)/,/First lead.*hanged-clerk/]);
+  await page.screenshot({path:'dist/screenshots/scenario.png'});
+  expect(await files(page)).toEqual(before);
+  expect(await savedText(page,'caerwyn.kmscenario')).toBe(await text('caerwyn.kmscenario'));
 });
 
+test('the scenario\'s wiring edited in its owning file: an ending\'s next in its scene, a way out and a region in its map; undo puts each back',async({page})=>{
+  await openScenario(page);
+  const clerk=await original('scenes/hanged-clerk.kmscene'),town=await original('maps/caerwyn.kmmap');
+  // The clerk's failed ending goes on to the Drowned Rat: set in the scene's file, where the ending is.
+  await card(page,'scene:hanged-clerk').click();
+  await inspector(page).getByLabel('Failed: next scene',{exact:true}).selectOption('scene:drowned-rat');
+  await expect.poll(async()=>node(await saved(page,'scenes/hanged-clerk.kmscene'),'failed').data.next).toBe('drowned-rat');
+  const scene=await saved(page,'scenes/hanged-clerk.kmscene');
+  expect(Object.keys(node(scene,'failed').data)).toEqual(['kind','title','description','closing','result','exitKind','next','effects','lore'].filter(k=>k in node(scene,'failed').data));
+  expect({...scene,nodes:scene.nodes.map((n:any)=>n.id==='failed'?{...n,data:{...n.data,next:undefined}}:n)}).toEqual({...clerk,nodes:clerk.nodes.map((n:any)=>n.id==='failed'?{...n,data:{...n.data,next:undefined}}:n)});
+  await expect(page.locator('.react-flow__edge')).toHaveCount(32);
+  // Drawn: the same ending dragged on to the wharves after dark instead.
+  const from=card(page,'scene:hanged-clerk').locator('[data-port="ending:failed"] .react-flow__handle');
+  const to=card(page,'scene:wharf-night').locator('.react-flow__handle.target');
+  const a=(await from.boundingBox())!,b=(await to.boundingBox())!;
+  await page.mouse.move(a.x+a.width/2,a.y+a.height/2);await page.mouse.down();await page.mouse.move(b.x+b.width/2,b.y+b.height/2,{steps:12});await page.mouse.up();
+  await expect.poll(async()=>node(await saved(page,'scenes/hanged-clerk.kmscene'),'failed').data.next).toBe('wharf-night');
+  // The town's palace gate leads to the Heron, landing just inside its way back to the town.
+  await card(page,'map:caerwyn').click();
+  await inspector(page).getByLabel('Through the palace gate: to',{exact:true}).selectOption('map:heron');
+  await expect.poll(async()=>(await saved(page,'maps/caerwyn.kmmap')).exits[0].to.map).toBe('heron');
+  let map=await saved(page,'maps/caerwyn.kmmap');
+  const heron=await original('maps/heron.kmmap'),back=heron.exits.find((e:any)=>e.to.map==='caerwyn').at;
+  expect(Math.max(Math.abs(map.exits[0].to.at.x-back.x),Math.abs(map.exits[0].to.at.y-back.y))).toBe(1);
+  expect({...map,exits:town.exits}).toEqual(town);
+  // A region set to play a scene, with neither a place laid nor a trigger: the campaign check says so, at the map.
+  await inspector(page).getByLabel('the cart shed: plays',{exact:true}).selectOption('scene:drowned-rat');
+  await expect.poll(async()=>(await saved(page,'maps/caerwyn.kmmap')).regions.find((r:any)=>r.id==='cart-shed').sceneId).toBe('drowned-rat');
+  await expect(page.getByRole('tab',{name:'Problems (1)'})).toBeVisible();
+  await page.getByRole('tab',{name:'Problems (1)'}).click();
+  await expect(inspector(page).locator('.problem')).toHaveText([/region cart-shed names the scene drowned-rat, but neither lays its place there \(worldOrigin\) nor opens it \(trigger\).*maps\/caerwyn\.kmmap/]);
+  map=await saved(page,'maps/caerwyn.kmmap');
+  expect(Object.keys(map.regions.find((r:any)=>r.id==='cart-shed'))).toEqual(['id','name','rect','sceneId','description']);
+  // Undo, a step at a time, puts each file back as it was, byte for byte.
+  for(let i=0;i<4;i++)await page.getByRole('button',{name:'Undo',exact:true}).click();
+  await expect.poll(()=>savedText(page,'scenes/hanged-clerk.kmscene')).toBe(await text('scenes/hanged-clerk.kmscene'));
+  await expect.poll(()=>savedText(page,'maps/caerwyn.kmmap')).toBe(await text('maps/caerwyn.kmmap'));
+  await expect(page.getByRole('tab',{name:'Problems (0)'})).toBeVisible();
+  expect(await savedText(page,'caerwyn.kmscenario')).toBe(await text('caerwyn.kmscenario'));
+});
 
-test('scenario Start connects to a named scene entry with undo and no source-file rewrite',async({page})=>{
-  const documents=flowDocuments();
-  await seedDocuments(page,documents);
-  const originalSource=await saved(page,flowSourcePath);
-  const start=page.locator('.scenario-start-card .react-flow__handle[data-handleid="start"]');
-  await dragHandle(page,start,scenarioInput(page,flowSourcePath,'arrival'));
-  await expect.poll(async()=>(await saved(page,scenarioPath)).scenario.entry).toEqual({file:flowSourcePath,entry:'arrival'});
-  expect(await saved(page,flowSourcePath)).toEqual(originalSource);
-  expect((await saved(page,scenarioPath)).nodes).toHaveLength(0);
-  await page.getByTitle('Undo (Ctrl Z)',{exact:true}).click();
-  await expect.poll(async()=>(await saved(page,scenarioPath)).scenario.entry).toBeUndefined();
-  await page.getByTitle('Redo (Ctrl Shift Z)',{exact:true}).click();
-  await expect.poll(async()=>(await saved(page,scenarioPath)).scenario.entry).toEqual({file:flowSourcePath,entry:'arrival'});
+test('the scenario\'s own fields: the start, the story\'s order, a new map made and listed, the purse and a quest; a card dragged keeps its place',async({page})=>{
+  await openScenario(page);
+  const scenario=await original('caerwyn.kmscenario');
+  await page.getByRole('tab',{name:'Scenario'}).click();
+  // The start: the time of day, and the map it's on (the tile, a standable one just inside the palace's way to the town).
+  await inspector(page).getByLabel('Time',{exact:true}).selectOption('afternoon');
+  await inspector(page).getByLabel('Start map',{exact:true}).selectOption('palace');
+  let doc=await saved(page,'caerwyn.kmscenario');
+  expect(doc.start.time).toBe('afternoon');
+  expect(doc.start.map).toBe('palace');
+  expect(Object.keys(doc.start)).toEqual(['day','time','map','at']);
+  await expect(card(page,'start').locator('.scenario-port').first()).toContainText('Starts on The Palace');
+  // The story's order: the wharves after dark before the Rat.
+  await inspector(page).getByRole('button',{name:'Move wharf-night up'}).click();
+  doc=await saved(page,'caerwyn.kmscenario');
+  expect(doc.scenes).toEqual(['hanged-clerk','caerwyn-afternoon','wharf-night','drowned-rat','heron-warehouse','kings-morning']);
+  // A new map: made in maps/ from the default legend, and listed.
+  const maps=inspector(page).locator('[data-section="maps"]');
+  await maps.getByLabel('New map',{exact:true}).fill('The Cooperage');
+  await maps.getByRole('button',{name:'Create'}).click();
+  await expect(card(page,'map:the-cooperage')).toBeVisible();
+  doc=await saved(page,'caerwyn.kmscenario');
+  expect(doc.maps).toEqual([...scenario.maps,'the-cooperage']);
+  const made=await saved(page,'maps/the-cooperage.kmmap');
+  expect([made.id,made.title,made.grid.length,Object.keys(made.legend).length]).toEqual(['the-cooperage','The Cooperage',24,20]);
+  // The purse and a quest.
+  const purse=inspector(page).locator('[data-section="startingPurse"]');
+  await purse.locator('summary').click();
+  await purse.getByLabel('How many',{exact:true}).first().fill('3');
+  const quests=inspector(page).locator('[data-section="quests"]');
+  await quests.locator('summary').click();
+  await quests.getByLabel('New quest\'s title').fill('The Cooper\'s Debt');
+  await quests.getByRole('button',{name:'Add quest'}).click();
+  doc=await saved(page,'caerwyn.kmscenario');
+  expect(doc.startingPurse[0]).toEqual({...scenario.startingPurse[0],quantity:3});
+  expect(doc.quests).toEqual({...scenario.quests,'the-coopers-debt':'The Cooper\'s Debt'});
+  // A card dragged on the diagram keeps its place, in the scenario's layout.
+  const palace=card(page,'map:palace'),box=(await palace.boundingBox())!;
+  await page.mouse.move(box.x+box.width/2,box.y+20);await page.mouse.down();await page.mouse.move(box.x+box.width/2+120,box.y+80,{steps:8});await page.mouse.up();
+  await expect.poll(async()=>Object.keys((await saved(page,'caerwyn.kmscenario')).layout??{})).toEqual(['maps/palace']);
+  doc=await saved(page,'caerwyn.kmscenario');
+  expect(Object.keys(doc).at(-1)).toBe('layout');
+  expect(Number.isInteger(doc.layout['maps/palace'].x)&&Number.isInteger(doc.layout['maps/palace'].y)).toBe(true);
+  // Opened again, the card is where it was put.
   await page.reload();
-  await expect(page.locator('.scenario-start-card')).toHaveCount(1);
-  await expect(page.locator('.react-flow__edge')).toHaveCount(1);
-});
-
-
-test('scenario wires distinct exits to named inputs and stores destinations in the owning scene',async({page})=>{
-  await seedDocuments(page,flowDocuments());
-  const originalScenario=await saved(page,scenarioPath);
-  await dragHandle(page,scenarioOutput(page,flowSourcePath,'quiet'),scenarioInput(page,flowTargetPath,'road'));
-  await expect.poll(async()=>(await saved(page,flowSourcePath)).nodes.find((node:any)=>node.id==='quiet').data.entry).toBe('road');
-  await dragHandle(page,scenarioOutput(page,flowSourcePath,'guard'),scenarioInput(page,flowTargetPath,'river'));
-  await expect.poll(async()=>(await saved(page,flowSourcePath)).nodes.find((node:any)=>node.id==='guard').data.entry).toBe('river');
-  const source=await saved(page,flowSourcePath);
-  for(const [id,entry] of [['quiet','road'],['guard','river']]){
-    expect(source.nodes.find((node:any)=>node.id===id).data).toMatchObject({next:'second-scene',file:flowTargetPath,entry,destinationKind:'scene'});
-  }
-  expect(await saved(page,scenarioPath)).toEqual(originalScenario);
-  await expect(page.locator('.react-flow__edge')).toHaveCount(2);
-  await page.reload();
-  await expect(page.locator('.react-flow__edge')).toHaveCount(2);
-  expect(await saved(page,flowSourcePath)).toEqual(source);
-  await page.screenshot({path:'dist/screenshots/scenario-file-ports.png'});
-});
-
-
-test('rewiring an authored exit requires confirmation and undo restores the original file',async({page})=>{
-  const documents=flowDocuments();
-  Object.assign(documents[flowSourcePath].nodes.find(node=>node.id==='quiet')!.data,{next:'second-scene',file:flowTargetPath,entry:'road',destinationKind:'scene'});
-  await seedDocuments(page,documents);
-  const before=await saved(page,flowSourcePath);
-  await dragHandle(page,scenarioOutput(page,flowSourcePath,'quiet'),scenarioInput(page,flowTargetPath,'river'));
-  const confirmation=page.getByRole('alertdialog',{name:'Replace exit destination?',exact:true});
-  await expect(confirmation).toBeVisible();
-  await expect(confirmation.getByRole('button',{name:'Cancel',exact:true})).toBeFocused();
-  expect(await saved(page,flowSourcePath)).toEqual(before);
-  await confirmation.getByRole('button',{name:'Cancel',exact:true}).click();
-  expect(await saved(page,flowSourcePath)).toEqual(before);
-  await dragHandle(page,scenarioOutput(page,flowSourcePath,'quiet'),scenarioInput(page,flowTargetPath,'river'));
-  await confirmAction(page,'Replace exit destination?','Replace destination');
-  await expect.poll(async()=>(await saved(page,flowSourcePath)).nodes.find((node:any)=>node.id==='quiet').data.entry).toBe('river');
-  await page.getByTitle('Undo (Ctrl Z)',{exact:true}).click();
-  await expect.poll(async()=>saved(page,flowSourcePath)).toEqual(before);
-  await page.getByTitle('Redo (Ctrl Shift Z)',{exact:true}).click();
-  await expect.poll(async()=>(await saved(page,flowSourcePath)).nodes.find((node:any)=>node.id==='quiet').data.entry).toBe('river');
-});
-
-
-test('missing scenario destination remains an explicit unresolved file, never fabricated content',async({page})=>{
-  const documents=flowDocuments(),missing='Scenes/Missing scene.kmscene';
-  Object.assign(documents[flowSourcePath].nodes.find(node=>node.id==='quiet')!.data,{next:'missing-scene',file:missing,entry:'unseen',destinationKind:'scene'});
-  await seedDocuments(page,documents);
-  const before=await page.evaluate(()=>(window as any).__kingmakerHarness.files);
-  await expect(page.locator('.scenario-missing-card')).toContainText(missing);
-  await expect(page.locator('.scenario-missing-card')).toContainText(/missing|unresolved/i);
-  expect(await page.evaluate(()=>(window as any).__kingmakerHarness.files)).toEqual(before);
-  expect(before[missing]).toBeUndefined();
-});
-
-
-test('scenario refreshes names and ports from external source edits without changing its own file',async({page})=>{
-  await seedDocuments(page,flowDocuments());
-  await expect(scenarioCard(page,flowSourcePath)).toContainText('First Scene');
-  const originalScenario=await saved(page,scenarioPath);
-  const updated=await saved(page,flowSourcePath);
-  updated.title='A revised arrival';
-  updated.nodes.push(fixtureNode('hidden-door','Through the hidden door','start',0,400));
-  await page.evaluate(async({path,document})=>(window as any).__kingmakerHarness.writeDocument(path,document),{path:flowSourcePath,document:updated});
-  await expect(page.locator('.file-path')).toHaveText(scenarioPath);
-  await expect(scenarioCard(page,flowSourcePath)).toContainText('A revised arrival');
-  await expect(scenarioInput(page,flowSourcePath,'hidden-door')).toHaveCount(1);
-  expect(await saved(page,scenarioPath)).toEqual(originalScenario);
-});
-
-
-test('scenario keeps map ports and wiring while the spatial editor has only Paint and Game preview',async({page})=>{
-  const documents=flowDocuments();
-  documents[scenarioPath].scenario.files.push(flowMapPath);
-  documents[scenarioPath].scenario.positions[flowMapPath]={x:880,y:500};
-  await seedDocuments(page,documents);
-  await expect(scenarioInput(page,flowMapPath,'upstream')).toHaveCount(1);
-  await expect(scenarioOutput(page,flowMapPath,'downstream')).toHaveCount(1);
-  await dragHandle(page,scenarioOutput(page,flowSourcePath,'quiet'),scenarioInput(page,flowMapPath,'upstream'));
-  await expect.poll(async()=>(await saved(page,flowSourcePath)).nodes.find((node:any)=>node.id==='quiet').data.destinationKind).toBe('map');
-  expect((await saved(page,flowSourcePath)).nodes.find((node:any)=>node.id==='quiet').data).toMatchObject({next:'river-map',file:flowMapPath,entry:'upstream',destinationKind:'map'});
-  await dragHandle(page,scenarioOutput(page,flowSourcePath,'guard'),scenarioInput(page,flowTargetPath,'road'));
-  await expect.poll(async()=>(await saved(page,flowSourcePath)).nodes.find((node:any)=>node.id==='guard').data.entry).toBe('road');
-  await dragHandle(page,page.locator('.scenario-start-card .react-flow__handle[data-handleid="start"]'),scenarioInput(page,flowSourcePath,'arrival'));
-  await expect(page.locator('.react-flow__edge')).toHaveCount(3);
-  await page.screenshot({path:'dist/screenshots/scenario-scene-and-map-flow.png'});
-  await scenarioCard(page,flowMapPath).dblclick();
-  await expect(page.locator('.file-path')).toHaveText(flowMapPath);
-  await expect(page.getByRole('button',{name:'Paint',exact:true})).toHaveAttribute('aria-pressed','true');
-  await expect(page.getByRole('navigation',{name:'Map views'}).getByRole('button')).toHaveText(['Paint','Game preview Tab']);
-  await expect(page.getByRole('button',{name:'Ports',exact:true})).toHaveCount(0);
-  const before=await saved(page,flowMapPath);
-  await page.getByRole('button',{name:'Game preview Tab',exact:true}).click();await page.getByRole('button',{name:'Paint',exact:true}).click();expect(await saved(page,flowMapPath)).toEqual(before);
-  await page.getByRole('combobox',{name:'Test file',exact:true}).selectOption(scenarioPath);
-  await expect(scenarioInput(page,flowMapPath,'upstream')).toHaveCount(1);await expect(scenarioOutput(page,flowMapPath,'downstream')).toHaveCount(1);
-  expect((await saved(page,flowSourcePath)).nodes.find((node:any)=>node.id==='quiet').data).toMatchObject({file:flowMapPath,entry:'upstream',destinationKind:'map'});
-});
-
-
-test('adding an existing map to a scenario keeps its source file unchanged through undo and redo',async({page})=>{
-  await seedDocuments(page,flowDocuments());
-  const originalMap=await saved(page,flowMapPath);
-  const originalFiles=await page.evaluate(()=>Object.keys((window as any).__kingmakerHarness.files).sort());
-  await expect(scenarioCard(page,flowMapPath)).toHaveCount(0);
-  await page.getByRole('button',{name:/^Add scene or map/}).click();
-  const picker=page.getByRole('dialog',{name:'Add scene or map',exact:true});
-  await picker.getByLabel('Search files',{exact:true}).fill('Travelling the river');
-  await picker.locator(`.scenario-file-choice[data-file=${JSON.stringify(flowMapPath)}]`).getByRole('button',{name:'Add to scenario',exact:true}).click();
-  await expect(scenarioCard(page,flowMapPath)).toBeVisible();
-  expect((await saved(page,scenarioPath)).scenario.files).toContain(flowMapPath);
-  expect(await saved(page,flowMapPath)).toEqual(originalMap);
-  expect(await page.evaluate(()=>Object.keys((window as any).__kingmakerHarness.files).sort())).toEqual(originalFiles);
-  await page.getByTitle('Undo (Ctrl Z)',{exact:true}).click();
-  await expect(scenarioCard(page,flowMapPath)).toHaveCount(0);
-  expect(await saved(page,flowMapPath)).toEqual(originalMap);
-  await page.getByTitle('Redo (Ctrl Shift Z)',{exact:true}).click();
-  await expect(scenarioCard(page,flowMapPath)).toBeVisible();
-  expect(await saved(page,flowMapPath)).toEqual(originalMap);
-});
-
-
-test('creating a map from the scenario makes a real kmmap file ready for named ports',async({page})=>{
-  await page.getByRole('button',{name:/^Add scene or map/}).click();
-  page.once('dialog',dialog=>void dialog.accept('The Northern Road'));
-  await page.getByRole('button',{name:'Create map file',exact:true}).click();
-  const path='Maps/The Northern Road.kmmap';
-  await expect(scenarioCard(page,path)).toBeVisible();
-  expect((await saved(page,path)).kind).toBe('map');
-  expect((await saved(page,scenarioPath)).scenario.files).toContain(path);
-  await page.getByRole('button',{name:'Open source file',exact:true}).click();
-  await expect(page.locator('.file-path')).toHaveText(path);
-  await expect(page.locator('.map-stage canvas')).toBeVisible();
-  await expect(page.getByRole('button',{name:'Ports',exact:true})).toHaveCount(0);
-  await page.locator('.map-stage canvas').click({button:'right'});
-  await page.getByRole('menuitem',{name:'Add spawn point…'}).click();
-  await page.getByLabel('Spawn point name').fill('From the city gate');
-  await page.getByRole('button',{name:'Save spawn point',exact:true}).click();
-  expect((await saved(page,path)).nodes[0].data).toMatchObject({kind:'start',title:'From the city gate',mapFeature:'spawn'});
-  await page.reload();
-  await expect(page.getByRole('button',{name:'Edit spawn point From the city gate',exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'Ports',exact:true})).toHaveCount(0);
-});
-
-
-test('scenario keyboard movement persists layout only and is undoable',async({page})=>{
-  await seedDocuments(page,flowDocuments());
-  const before=await saved(page,scenarioPath),source=await saved(page,flowSourcePath);
-  const node=page.locator(`.react-flow__node[data-id=${JSON.stringify('file:'+flowSourcePath)}]`);
-  await scenarioCard(page,flowSourcePath).click();
-  await node.focus();
-  await node.press('ArrowRight');
-  await expect.poll(async()=>(await saved(page,scenarioPath)).scenario.positions[flowSourcePath].x).toBeGreaterThan(before.scenario.positions[flowSourcePath].x);
-  const after=await saved(page,scenarioPath);
-  expect(after.nodes).toHaveLength(0);
-  expect(await saved(page,flowSourcePath)).toEqual(source);
-  await page.getByTitle('Undo (Ctrl Z)',{exact:true}).click();
-  await expect.poll(async()=>saved(page,scenarioPath)).toEqual(before);
-  await page.getByTitle('Redo (Ctrl Shift Z)',{exact:true}).click();
-  await expect.poll(async()=>saved(page,scenarioPath)).toEqual(after);
-});
-
-
-test('scenario undo refuses to overwrite a source file changed elsewhere',async({page})=>{
-  await seedDocuments(page,flowDocuments());
-  await dragHandle(page,scenarioOutput(page,flowSourcePath,'quiet'),scenarioInput(page,flowTargetPath,'road'));
-  await expect.poll(async()=>(await saved(page,flowSourcePath)).nodes.find((node:any)=>node.id==='quiet').data.entry).toBe('road');
-  const external=await saved(page,flowSourcePath);
-  external.title='Externally revised first scene';
-  await page.evaluate(async({path,document})=>(window as any).__kingmakerHarness.writeDocument(path,document),{path:flowSourcePath,document:external});
-  await expect(scenarioCard(page,flowSourcePath)).toContainText('Externally revised first scene');
-  await page.getByTitle('Undo (Ctrl Z)',{exact:true}).click();
-  await expect(page.getByRole('alert')).toContainText(/changed (outside|elsewhere)/i);
-  await expect(page.getByRole('alert')).toContainText(/nothing was overwritten/i);
-  expect(await saved(page,flowSourcePath)).toEqual(external);
+  await openScenario(page);
+  const again=(await card(page,'map:palace').boundingBox())!;
+  expect(again.width).toBeGreaterThan(0);
+  expect((await saved(page,'caerwyn.kmscenario')).layout).toEqual(doc.layout);
 });
