@@ -19,7 +19,9 @@ import { startFight } from "./start.ts";
  * a time and an attack resolved by the engine, each its moment; an opportunity attack splitting a
  * move (and none after a disengage); the AI's choice in simple setups; the other side's turns played
  * one at a time by fight_step, each with its moments; a spell at a target and an area; a fight's end
- * and the way back to the map; the zoo's ring, and a refused act writing nothing.
+ * and the way back to the map; the zoo's ring, and a refused act writing nothing. Each test's dice are
+ * its host's seed (7 unless it names another), so each checks what that seed rolls: a blow that hits
+ * and one that misses are two seeds, not one test taking whichever came.
  */
 
 /** A new game on the map with a ready-made build: Wren in the lane. */
@@ -124,8 +126,8 @@ test("a move goes a tile at a time through the engine, its path in its moment an
   assert.equal(options(host, game.id)!.movementLeft, before.movementLeft - 10);
 });
 
-test("an attack is resolved by the engine: the roll against the armour class, the damage off the target's hit points, all in its moment", () => {
-  const { host, playerId, game, wren } = onMap();
+for (const [seed, went] of [[7, "hit"], [3, "miss"]] as const) test(`an attack is resolved by the engine: the roll against the armour class, the damage off the target's hit points, all in its moment (seed ${seed}: a ${went})`, () => {
+  const { host, playerId, game, wren } = onMap("fighter", seed);
   started(host, playerId, room([{ id: "bandit", at: { x: 3, y: 3 } }], { x: 2, y: 3 }));
   toPlayer(host, game.id);
   const hpBefore = board(host, game.id).units["bandit"]!.hp;
@@ -138,19 +140,21 @@ test("an attack is resolved by the engine: the roll against the armour class, th
   assert.equal(roll.with, "Longsword");
   assert.equal(roll.total, roll.d20[roll.d20.length - 1]! + roll.bonus, "the total is the die and the bonus");
   assert.equal(roll.hit, roll.critical || (roll.d20[0] !== 1 && roll.total >= roll.ac));
+  assert.equal(roll.hit, went === "hit", `the seed's ${went}`);
+  assert.equal(roll.critical, false);
   const after = board(host, game.id).units["bandit"]!;
   const hit = blow.detail.hits.find(h => h.unit === "bandit");
-  if (roll.hit) {
+  if (went === "hit") {
     const dealt = hit!.damage.reduce((n, d) => n + d.amount, 0);
     assert.ok(dealt > 0);
     assert.equal(after.hp, Math.max(0, hpBefore - dealt), "the damage came off");
     assert.equal(hit!.hp, after.hp);
-    assert.match(blow.caption, new RegExp(`^You swing at a bandit: (a critical hit, )?${dealt} damage[.!]`));
+    assert.equal(blow.caption, `You swing at a bandit: ${dealt} damage.`);
   } else {
     assert.equal(after.hp, hpBefore);
     assert.equal(blow.caption, "You swing at a bandit, and miss.");
   }
-  assert.match(blow.detail.lines[0]!, /^Longsword: your attack on a bandit: \d+ \+5 = \d+ vs AC 12: (hit|miss|critical hit!)$/);
+  assert.match(blow.detail.lines[0]!, new RegExp(`^Longsword: your attack on a bandit: \\d+ \\+5 = \\d+ vs AC 12: ${went}$`));
 });
 
 test("walking out of someone's reach gives them an opportunity attack, which splits the move in three; after a disengage there's none", () => {
@@ -168,11 +172,13 @@ test("walking out of someone's reach gives them an opportunity attack, which spl
   assert.equal(swing.detail.rolls[0]!.opportunity, true);
   assert.match(swing.caption, /^A bandit takes a swing as you go past/);
   assert.match(swing.detail.lines.join("\n"), /\(opportunity attack\)/);
-  // The move up to the swing, the swing, then the rest of the move (if the player's still standing).
+  // The move up to the swing, the swing (a miss, on this seed), then the rest of the move.
+  assert.equal(swing.caption, "A bandit takes a swing as you go past, and misses.");
   const first = after.findIndex(e => e.kind === "move");
   assert.equal(after[first]!.actor, "player");
   assert.equal(after[first + 1], swing);
-  if (board(host, game.id).units["player"]!.state === "fighting") assert.equal(after[first + 2]!.kind, "move");
+  assert.equal(board(host, game.id).units["player"]!.state, "fighting");
+  assert.equal(after[first + 2]!.kind, "move");
   const walked = after.filter(e => e.kind === "move").flatMap(e => e.detail.path ?? []);
   assert.deepEqual(walked[walked.length - 1], { x: 1, y: 3 });
 
@@ -194,7 +200,7 @@ test("a walk's option says it draws a swing only when it does: backing off from 
   started(host, playerId, room([{ id: "bandit", at: { x: 4, y: 3 } }], { x: 3, y: 3 }));
   toPlayer(host, game.id);
   const back = () => options(host, game.id)!.actions.find(a => a.name === "Back off")!;
-  if (board(host, game.id).units["bandit"]!.state !== "fighting") return;
+  assert.equal(board(host, game.id).units["bandit"]!.state, "fighting", "the bandit still beside them as their turn comes");
   assert.match(back().label, /^Back off \(\d+ ft; it draws a swing at you, unless you disengage first\)$/);
   assert.ok(options(host, game.id)!.swings?.some(t => t.x === back().at!.x && t.y === back().at!.y), "where the board marks a swing");
   assert.equal(host.as(wren).fightTurn({ act: "disengage" }), undefined);
@@ -247,27 +253,23 @@ test("the other side's turns are played one at a time by fight_step, each paced 
   assert.equal(host.fightSteps(), 0, "not before its time");
   host.advance(wait);
   assert.equal(host.fightSteps(), 1);
-  // One turn played: the bandit's moments (a move with its path, maybe a blow), then the next one's turn begun.
+  // One turn played: the bandit's moments (a move with its path, then a blow), then the next one's turn begun.
   const played = events(host, fightNow(host, game.id)).filter(e => e.seq > seen + turnStart.length);
   const mine = played.filter(e => e.actor === next && e.kind !== "turn");
-  assert.ok(mine.length, "the bandit did something");
-  const move = mine.find(e => e.kind === "move");
-  if (move) {
-    const path = move.detail.path!;
-    assert.ok(path.length > 0);
-    for (let i = 1; i < path.length; i++) assert.ok(Math.max(Math.abs(path[i]!.x - path[i - 1]!.x), Math.abs(path[i]!.y - path[i - 1]!.y)) === 1, "a tile at a time");
-    assert.match(move.caption, /^(A|Another) bandit (closes|steps|moves)/);
-  }
-  const attack = mine.find(e => e.kind === "attack");
-  if (attack) {
-    assert.equal(attack.detail.rolls[0]!.by, next);
-    assert.equal(attack.detail.rolls[0]!.target, "player");
-  }
+  assert.deepEqual(mine.map(e => e.kind), ["move", "attack"], "the bandit closed in and swung");
+  const [move, attack] = mine as [FightEvent, FightEvent];
+  const path = move.detail.path!;
+  assert.ok(path.length > 0);
+  for (let i = 1; i < path.length; i++) assert.ok(Math.max(Math.abs(path[i]!.x - path[i - 1]!.x), Math.abs(path[i]!.y - path[i - 1]!.y)) === 1, "a tile at a time");
+  assert.match(move.caption, /^(A|Another) bandit (closes|steps|moves)/);
+  assert.equal(attack.detail.rolls[0]!.by, next);
+  assert.equal(attack.detail.rolls[0]!.target, "player");
   const turns = played.filter(e => e.kind === "turn");
   assert.equal(turns.length, 1, "the next turn begun, and no more played");
   const nowTurn = fightNow(host, game.id).turn;
   assert.equal(turns[0]!.actor, nowTurn);
-  if (nowTurn !== "player") assert.equal(clock(host).length, 1, "and the step after it scheduled");
+  assert.notEqual(nowTurn, "player", "the other bandit's turn");
+  assert.equal(clock(host).length, 1, "and the step after it scheduled");
 });
 
 test("a wizard's spells from the sheet: Fire Bolt at a target rolls to hit, Burning Hands lays a cone that catches whoever's in it", () => {
@@ -286,8 +288,8 @@ test("a wizard's spells from the sheet: Fire Bolt at a target rolls to hit, Burn
   assert.ok(!cone.detail.area!.some(t => t.x === 2 && t.y === 3), "and not the caster's");
   const caught = cone.detail.hits.find(h => h.unit === "bandit")!;
   assert.ok(caught, "the bandit is caught");
-  assert.equal(typeof caught.saved, "boolean", "with a Dexterity save");
-  assert.match(cone.caption, /^You cast Burning Hands, catching a bandit \(\d+(, saved)?\)/);
+  assert.equal(caught.saved, true, "with a Dexterity save, made");
+  assert.match(cone.caption, /^You cast Burning Hands, catching a bandit \(\d+, saved\)/);
   assert.match(cone.detail.lines[0]!, /^You cast Burning Hands \(1st-level slot\): a 15-foot cone, catching a bandit/);
   // The action's spent: no more spells with an action this turn, and Fire Bolt is refused in the rules' words.
   const refused = host.as(wren).cast({ spell: "fire-bolt", at: { x: 8, y: 3 } });
@@ -309,35 +311,33 @@ test("a fight's end: the last of them down is a victory, its moment and how it w
     campaign.events.push({ ...last, id: "01K0000000000000000000ZZZZ", type: "DamageApplied", targetId: b.units["bandit"]!.engineId, components: [{ amount: b.units["bandit"]!.hp - 1, type: "bludgeoning" }], source: "test" });
     tx.db.fightRules.fightId.update({ ...rules, campaign: JSON.stringify(campaign) });
   });
-  for (let i = 0; i < 6 && fightNow(host, game.id).status === "on"; i++) {
-    if (options(host, game.id)?.actions.some(a => a.id === "attack@3,3")) host.as(wren).attack({ how: "attack", at: { x: 3, y: 3 } });
-    if (fightNow(host, game.id).status === "on" && options(host, game.id)) host.as(wren).fightTurn({ act: "end_turn" });
-    toPlayer(host, game.id);
-  }
+  // The first blow lands, on this seed: the last of them down.
+  assert.equal(host.as(wren).attack({ how: "attack", at: { x: 3, y: 3 } }), undefined);
   const fight = fightNow(host, game.id);
   assert.equal(fight.status, "over");
-  assert.ok(fight.outcome === "victory" || fight.outcome === "surrender", String(fight.outcome));
+  assert.equal(fight.outcome, "victory");
   assert.equal(fight.turn, "");
   assert.equal(fight.options, "");
   assert.equal(clock(host).length, 0, "nothing more on the clock");
   const over = events(host, fight).pop()!;
   assert.equal(over.kind, "over");
   assert.equal(over.detail.outcome, fight.outcome);
-  assert.match(over.caption, /^It's over: (you won|they gave up)\.$/);
+  assert.equal(over.caption, "It's over: you won.");
   const result = JSON.parse(fight.result!) as FightResult;
   assert.equal(result.outcome, fight.outcome);
-  assert.match(result.summary, /A bandit (went down|gave up)\. The player ended the fight on \d+ of \d+ hit points\. It took \d+ rounds?\./);
-  assert.match(result.told ?? "", /A bandit (went down|gave up)\. You ended the fight on \d+ of \d+ hit points\. It took \d+ rounds?\./, "and told to the player as theirs");
+  assert.match(result.summary, /^A bandit went down\. The player ended the fight on \d+ of \d+ hit points\. It took 1 round\./);
+  assert.match(result.told ?? "", /^A bandit went down\. You ended the fight on \d+ of \d+ hit points\. It took 1 round\./, "and told to the player as theirs");
   // The map's moves wait for out; out goes back to the map, the fight done and its end the map's words.
   assert.match(host.as(wren).interact({ verb: "look" })?.text ?? "", /The fight's over: out goes back to the map/);
   assert.equal(host.as(wren).walk({ toward: "out" }), undefined);
   assert.equal(fightNow(host, game.id).status, "done");
-  assert.match(host.db.explore.playerId.find(playerId)!.said, /^A test: A bandit (went down|gave up)\. You ended the fight/);
+  assert.match(host.db.explore.playerId.find(playerId)!.said, /^A test: A bandit went down\. You ended the fight/);
   assert.equal(host.as(wren).walk({ toward: "east" }), undefined, "and the map is the map again");
 });
 
 test("the zoo's rings: start_ring sets one out (the player rested, the ring's people where it has them), refused out of turn and from a spectator, and yielding ends it", () => {
-  const { host, game, wren } = onMap();
+  // Seed 1: the wolves win initiative, so the player's act waits out of turn.
+  const { host, game, wren } = onMap("fighter", 1);
   const tom = identity(2);
   assert.equal(host.as(tom).joinGame({ game: game.id }), undefined);
   assert.match(host.as(wren).startRing({ ring: "dragons" })?.text ?? "", /^\(There's no ring called dragons in the Arena: there's practice, wolves, goblins, porters and heron\.\)$/);
@@ -354,7 +354,8 @@ test("the zoo's rings: start_ring sets one out (the player rested, the ring's pe
   assert.equal(b.units["player"]!.hp, b.units["player"]!.maxHp, "rested");
   assert.equal(host.as(wren).startRing({ ring: "practice" })?.text, "(There's a fight on: see it through first.)");
   // Out of turn, the player's acts wait; a spectator's are refused.
-  if (fight.options === "") assert.equal(host.as(wren).fightTurn({ act: "dodge" })?.code, "not_your_turn");
+  assert.equal(fight.options, "", "a wolf's turn first");
+  assert.equal(host.as(wren).fightTurn({ act: "dodge" })?.code, "not_your_turn");
   toPlayer(host, game.id);
   assert.equal(host.as(tom).fightTurn({ act: "dodge" })?.code, "not_controller");
   assert.equal(host.as(wren).fightTurn({ act: "nonsense" })?.code, "unavailable");
@@ -415,7 +416,7 @@ test("at 0 hit points the player rolls a death save as each of their turns begin
     saved = events(host, fightNow(host, game.id)).find(e => e.kind === "turn" && e.actor === "player" && e.detail.lines.some(l => /^Your death save: \d+: (success|failure|natural 20!)/.test(l)));
   }
   assert.ok(saved, "a death save, at the start of the player's turn");
-  assert.match(saved!.caption, /^Round \d+: your turn(, on the floor)?\.$/);
+  assert.equal(saved!.caption, "Round 1: your turn, on the floor.");
   for (const e of events(host, fightNow(host, game.id))) for (const h of e.detail.hits) assert.notEqual(h.state === "dead" && h.unit === "player", true, "the player never dies");
 });
 
@@ -425,7 +426,7 @@ test("a fight that keeps the player writes their hit points back to the sheet at
   started(kept.host, kept.playerId, room([{ id: "bandit", at: { x: 10, y: 5 } }], { x: 1, y: 1 }, { keep: true }));
   toPlayer(kept.host, kept.game.id);
   const hp = board(kept.host, kept.game.id).units["player"]!.hp;
-  assert.ok(hp <= 10);
+  assert.equal(hp, 10, "untouched as their turn comes");
   assert.equal(kept.host.db.sheet.playerId.find(kept.playerId)!.hp, 28, "the sheet as it was before the fight");
   assert.equal(kept.host.as(kept.wren).fightTurn({ act: "yield" }), undefined);
   assert.equal(kept.host.db.sheet.playerId.find(kept.playerId)!.hp, hp, "written back as the fight left them");
@@ -484,17 +485,13 @@ test("a hit says how its target stood as the moment began, so a screen that sees
   started(host, playerId, room([{ id: "bandit", at: { x: 3, y: 3 } }], { x: 2, y: 3 }));
   toPlayer(host, game.id);
   const before = board(host, game.id).units["bandit"]!;
-  for (let i = 0; i < 4; i++) {
-    const seen = fightNow(host, game.id).seq;
-    if (!options(host, game.id)?.actions.some(a => a.id === "attack@3,3")) break;
-    assert.equal(host.as(wren).attack({ how: "attack", at: { x: 3, y: 3 } }), undefined);
-    const hit = events(host, fightNow(host, game.id)).filter(e => e.seq > seen).flatMap(e => e.detail.hits).find(h => h.unit === "bandit");
-    if (!hit) continue;
-    assert.deepEqual(hit.was, { hp: before.hp, state: "fighting", at: { x: 3, y: 3 } });
-    assert.equal(hit.hp, Math.max(0, before.hp - hit.damage.reduce((n, d) => n + d.amount, 0)));
-    return;
-  }
-  assert.fail("no blow landed in four tries");
+  const seen = fightNow(host, game.id).seq;
+  // The first blow lands, on this seed.
+  assert.equal(host.as(wren).attack({ how: "attack", at: { x: 3, y: 3 } }), undefined);
+  const hit = events(host, fightNow(host, game.id)).filter(e => e.seq > seen).flatMap(e => e.detail.hits).find(h => h.unit === "bandit");
+  assert.ok(hit, "the blow landed");
+  assert.deepEqual(hit.was, { hp: before.hp, state: "fighting", at: { x: 3, y: 3 } });
+  assert.equal(hit.hp, Math.max(0, before.hp - hit.damage.reduce((n, d) => n + d.amount, 0)));
 });
 
 test("hurry, the screen's skip to your turn: the other side's turns before the player's played at once, each its moments; on the player's turn there's nothing to hurry, and a spectator can't", () => {
@@ -512,16 +509,16 @@ test("hurry, the screen's skip to your turn: the other side's turns before the p
   assert.equal(host.as(tom).fightTurn({ act: "hurry" })?.code, "not_controller");
   assert.equal(host.as(wren).fightTurn({ act: "hurry" }), undefined);
   const back = fightNow(host, game.id);
-  assert.ok(back.options || back.status !== "on", "the turn's come round to the player (or the fight's over), with no step on the clock played");
+  assert.ok(back.options, "the turn's come round to the player, with no step on the clock played");
   const played = events(host, back).filter(e => e.seq > theirs.seq);
   // Each bandit's turn played (its moves and blows: the first one's turn began as the player's ended), and the player's begun.
-  for (const id of ["bandit-1", "bandit-2"]) assert.ok(played.some(e => e.actor === id && e.kind !== "turn") || board(host, game.id).units[id]!.state !== "fighting", `${id}'s turn was played`);
-  if (back.options) assert.equal(played[played.length - 1]!.kind === "turn" && played[played.length - 1]!.actor, "player");
+  for (const id of ["bandit-1", "bandit-2"]) assert.ok(played.some(e => e.actor === id && e.kind !== "turn"), `${id}'s turn was played`);
+  assert.equal(played[played.length - 1]!.kind === "turn" && played[played.length - 1]!.actor, "player");
   assert.equal(host.fightSteps(), 0, "the step on the clock finds nothing to do");
 });
 
 test("Sleep: its caption says who it put to sleep, a sleeper's turn says they're asleep, and the order says so", () => {
-  // Two bandits apart when the wizard's turn comes (the first seed that has them so), so Sleep catches one and the other fights on.
+  // Two bandits apart when the wizard's turn comes (seed 7 has them so), so Sleep catches one and the other fights on.
   const at = (seed: number) => {
     const set = onMap("wizard", seed);
     started(set.host, set.playerId, room([{ id: "bandit-1", at: { x: 6, y: 1 } }, { id: "bandit-2", name: "another bandit", at: { x: 10, y: 6 } }], { x: 1, y: 3 }));
@@ -529,7 +526,9 @@ test("Sleep: its caption says who it put to sleep, a sleeper's turn says they're
     return set;
   };
   const apart = (set: ReturnType<typeof at>) => { const u = board(set.host, set.game.id).units; return u["bandit-1"]!.state === "fighting" && u["bandit-2"]!.state === "fighting" && steps(u["bandit-1"]!.at, u["bandit-2"]!.at) > 2 && steps(u["bandit-1"]!.at, u["player"]!.at) > 1; };
-  const { host, game, wren } = [7, 1, 2, 3, 4, 5, 6, 8, 9, 10].map(at).find(apart)!;
+  const set = at(7);
+  assert.ok(apart(set), "apart, and neither beside the wizard");
+  const { host, game, wren } = set;
   const target = board(host, game.id).units["bandit-1"]!.at;
   const seen = fightNow(host, game.id).seq;
   assert.equal(host.as(wren).cast({ spell: "sleep", at: target }), undefined);

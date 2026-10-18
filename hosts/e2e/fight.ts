@@ -2,19 +2,27 @@ import { scriptLine, scriptOf } from "../../client/fight/script.ts";
 import type { FightView } from "../../client/fight/view.ts";
 import { playMs } from "../../shared/fight/pace.ts";
 import type { Stack } from "../dev/stack.ts";
-import { check, mapUntil, moduleLog, note, ok, seconds, step, type Player } from "./kit.ts";
+import { check, fixDice, mapUntil, moduleLog, note, seconds, step, type Player } from "./kit.ts";
 
 /**
  * The e2e's step for a fight on the map (M6, docs/combat-design.md): one of the zoo's rings on a real
- * SpacetimeDB, through the client's connection. start_ring sets out the wolf run; the wolves' turns
+ * SpacetimeDB, through the client's connection, in a game of its own whose dice are fixed as it's made
+ * (so what the steps before rolled can't move the fight's). start_ring sets out the wolf run; the wolves' turns
  * are played one at a time by fight_step on SpacetimeDB's own schedule, each a commit of its own
  * paced for the screen, each written as moments (the turn, the move with its path, the bite with its
  * roll); the screen's playback of each (M6's screen: a step a tile, a bite's swing and what it did,
  * each as long on screen as the simulation waited for it); a spectator sees the same moments; the
  * player's own act on their turn; hurry, the screen's skip to their turn, playing the wolves' turns
  * after it at once; then the dice deciding (auto) to the end; out back to the map, the fight's end
- * the map's words. The steps' times as the module logged them.
+ * the map's words. The steps' times as the module logged them. On the fixed dice the wolves win
+ * initiative twice over, the player's first blow is a critical hit that downs a wolf, and auto plays
+ * on to a victory: each of the step's checks runs every time.
  */
+
+/** The fight's game: a ready-made fighter, a game of its own made just before the ring. */
+const SELLSWORD = { campaign: "caerwyn", name: "Wren Ashdown", concept: "a sellsword between contracts", build: "fighter" };
+/** Its dice, fixed as it's made: two wolves go before the player, the player's blow lands, and the wolves lose. */
+const RING_DICE = 48;
 
 /** Resolves with what `test` finds in the player's fight, once it finds it; a Failed after `ms`. */
 function fightUntil<T>(p: Player, what: string, ms: number, test: (view: FightView) => T | undefined | null | false | 0): Promise<T> {
@@ -39,16 +47,23 @@ function fightUntil<T>(p: Player, what: string, ms: number, test: (view: FightVi
 
 const theirs = (v: FightView) => v.status === "on" && !!v.options;
 
-/** 40. A fight in the zoo's ring. `lead` plays it (its game on the map, after the town's steps); `b` watches that game. */
+/** 40. A fight in the zoo's ring. `lead` plays it, in a new game on the map with its dice fixed; `b` joins that game to watch. */
 export async function aFightInTheRing(stack: Stack, lead: Player, b: Player): Promise<void> {
   step("40. A fight in the zoo's ring: start_ring sets out the wolf run; the wolves' turns played one at a time by fight_step on SpacetimeDB's schedule, each its moments, as the screen plays them, which the spectator sees too; the player's act, hurry playing the wolves' turns at once, then auto to the end; out, back to the map");
+  const was = lead.conn.explore()?.game;
+  await fixDice(stack, RING_DICE);
+  check(`${lead.name}'s new_game (${SELLSWORD.name}, the ready-made ${SELLSWORD.build}) is made, its dice fixed (set_dice_seed ${RING_DICE})`, (await lead.conn.newGame(SELLSWORD)) === undefined);
+  const game = (await mapUntil(lead, `${lead.name}'s new game on the map`, 10_000, v => v.game !== was && !v.ex.scene && v)).game;
+  check(`B's join_game(${game}) is made`, (await b.conn.joinGame(BigInt(game))) === undefined);
+  await mapUntil(b, "B to see the map", 10_000, v => v.game === game && v);
   check(`${lead.name}'s start_ring("wolves") is made`, (await lead.conn.act("startRing", { ring: "wolves", fast: undefined })) === undefined);
   const first = await fightUntil(lead, "the wolf run to be set out", 10_000, v => v.title === "The wolf run" && v);
-  check(`the fight's rows came: ${first.title}, ${first.order.length} in it, in initiative order ${first.order.join(", ")}`, first.order.length === 4 && first.status === "on");
+  check(`the fight's rows came: ${first.title}, ${first.order.length} in it, in initiative order ${first.order.join(", ")}: two wolves before the player, on the fixed dice`, first.order.length === 4 && first.status === "on" && first.order.indexOf("player") === 2);
   const start = first.events[0];
   check(`its first moment: "${start?.caption}"`, start?.kind === "start" && /^Roll for initiative!/.test(start.caption));
 
   const mine = await fightUntil(lead, "the turn to come round to the player", 60_000, v => (theirs(v) || v.status !== "on") && v);
+  check("the player's turn came, the fight still on", theirs(mine));
   const turns = lead.events.filter(e => e.table === "fight_event" && e.op === "insert" && e.row.kind === "turn");
   const npcTurns = turns.filter(e => e.row.actor !== "player");
   note(`moments before the player's turn: ${mine.events.map(e => `${e.kind}${e.actor ? `:${e.actor}` : ""}`).join(", ")}`);
@@ -65,33 +80,29 @@ export async function aFightInTheRing(stack: Stack, lead: Player, b: Player): Pr
   }
   // Each of the other side's turns came in a commit of its own, a moment apart: SpacetimeDB's schedule playing fight_step.
   const gaps = npcTurns.slice(1).map((e, i) => e.at - npcTurns[i]!.at);
-  if (gaps.length) check(`the wolves' turns came one at a time, paced (${gaps.map(g => `${Math.round(g)} ms`).join(", ")} apart)`, gaps.every(g => g >= 200));
-  else note("the player went before the wolves' turns came round: none to pace yet");
+  check(`the wolves' turns came one at a time, paced (${gaps.map(g => `${Math.round(g)} ms`).join(", ")} apart)`, gaps.length >= 1 && gaps.every(g => g >= 200));
 
   const watched = await fightUntil(b, "B to see the same fight", 10_000, v => v.id === mine.id && v.events.length >= mine.events.length && v);
   check(`B sees the same moments, as a spectator with no actions (${watched.watching ? `watching ${watched.watching}` : "?"})`, watched.events.slice(0, mine.events.length).map(e => e.caption).join("\n") === mine.events.map(e => e.caption).join("\n") && !watched.options && !!watched.watching);
   check("B's own act is refused: not_controller", (await b.conn.act("fightTurn", { act: "dodge" }))?.code === "not_controller");
 
-  if (theirs(mine)) {
-    const act = mine.options!.actions.find(a => a.kind === "cast" || a.kind === "attack") ?? mine.options!.actions.find(a => a.id === "dodge")!;
-    const seen = mine.events.length;
-    const refused = act.id === "dodge" ? await lead.conn.act("fightTurn", { act: "dodge" })
-      : act.kind === "cast" ? await castById(lead, act.id) : await lead.conn.act("attack", { how: "attack", at: atOf(act.id) });
-    check(`${lead.name}'s act on their turn: ${act.id} (${act.label})`, refused === undefined);
-    const after = await fightUntil(lead, "the act's moment", 10_000, v => v.events.length > seen && v);
-    ok(`"${after.events[seen]!.caption}"`);
-    // The screen's skip to your turn: the turn ended, hurry plays the wolves' turns at once, not a paced step apart.
-    if (theirs(after)) {
-      check("end_turn is made", (await lead.conn.act("fightTurn", { act: "end_turn" })) === undefined);
-      const asked = performance.now();
-      const hurried = await lead.conn.act("fightTurn", { act: "hurry" });
-      check(`hurry is made (or the wolves' turns were already played: ${hurried?.text ?? "made"})`, hurried === undefined || hurried.code === "not_now");
-      const back = await fightUntil(lead, "the player's turn after hurry", 10_000, v => (theirs(v) || v.status !== "on") && v);
-      const took = Math.round(performance.now() - asked);
-      check(`the wolves' turns came at once, ${took} ms to the player's turn (or the end, ${back.status}), not a paced step apart`, took < 1500);
-      check("hurry on the player's own turn says there's nothing to hurry", back.status !== "on" || (await lead.conn.act("fightTurn", { act: "hurry" }))?.text === "(It's your turn already: there's nothing to hurry.)");
-    }
-  }
+  const act = mine.options!.actions.find(a => a.kind === "cast" || a.kind === "attack")!;
+  const seen = mine.events.length;
+  const refused = act.kind === "cast" ? await castById(lead, act.id) : await lead.conn.act("attack", { how: "attack", at: atOf(act.id) });
+  check(`${lead.name}'s act on their turn: ${act.id} (${act.label})`, refused === undefined);
+  const after = await fightUntil(lead, "the act's moment", 10_000, v => v.events.length > seen && v);
+  const struck = after.events[seen]!.caption;
+  check(`it lands, as the fixed dice have it: "${struck}"`, /^You swing at a grey wolf: a critical hit, \d+ damage! A grey wolf goes down\.$/.test(struck));
+  // The screen's skip to your turn: the turn ended, hurry plays the wolves' turns at once, not a paced step apart.
+  check("the player's turn goes on after the blow", theirs(after));
+  check("end_turn is made", (await lead.conn.act("fightTurn", { act: "end_turn" })) === undefined);
+  const asked = performance.now();
+  const hurried = await lead.conn.act("fightTurn", { act: "hurry" });
+  check(`hurry is made (or the wolves' turns were already played: ${hurried?.text ?? "made"})`, hurried === undefined || hurried.code === "not_now");
+  const hurriedTo = await fightUntil(lead, "the player's turn after hurry", 10_000, v => (theirs(v) || v.status !== "on") && v);
+  const took = Math.round(performance.now() - asked);
+  check(`the wolves' turns came at once, ${took} ms to the player's turn, not a paced step apart`, took < 1500 && hurriedTo.status === "on");
+  check("hurry on the player's own turn says there's nothing to hurry", (await lead.conn.act("fightTurn", { act: "hurry" }))?.text === "(It's your turn already: there's nothing to hurry.)");
 
   let rounds = 0;
   for (let i = 0; i < 40; i++) {
@@ -103,7 +114,7 @@ export async function aFightInTheRing(stack: Stack, lead: Player, b: Player): Pr
   }
   const over = await fightUntil(lead, "the fight to end", 60_000, v => v.status === "over" && v);
   const last = over.events[over.events.length - 1]!;
-  check(`it ended (${over.outcome}) after ${over.round} rounds, ${rounds} of them auto: "${last.caption}" ${over.result?.summary ?? ""}`, last.kind === "over" && !!over.result);
+  check(`it ended (${over.outcome}) after ${over.round} rounds, ${rounds} of them auto: "${last.caption}" ${over.result?.summary ?? ""}`, last.kind === "over" && !!over.result && over.outcome === "victory");
   check(`the moments in order, numbered 1 to ${over.events.length}`, over.events.every((e, i) => e.seq === i + 1));
 
   const before = lead.conn.explore()?.acts ?? -1;

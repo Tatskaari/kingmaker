@@ -67,8 +67,9 @@ import { configureTerminal } from "./terminal.ts";
  * docs' references to the others still hold.
  *
  * The dice are never SpacetimeDB's randomness: step 1 fixes them as the owner (set_dice_seed), and a
- * step that checks what its own dice gave (the town's Fire Bolt, the risky act's check) fixes them
- * again just before it makes its game, so each run rolls the same, and asserts what they give.
+ * step that checks what its own dice gave (the town's Fire Bolt, the risky act's check, the ring's
+ * fight in a game of its own) fixes them again just before it makes its game, so each run rolls the
+ * same, and asserts what they give.
  *
  *   npm run e2e [-- --port 3310] [--ai-port 8797] [--root runs/e2e] [--mode host|namespace]
  *
