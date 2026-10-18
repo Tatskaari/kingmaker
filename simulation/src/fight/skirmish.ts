@@ -132,6 +132,28 @@ export class Skirmish {
   private team(u: Unit): number { return u.side === "player" || u.side === "ally" ? 1 : u.side === "enemy" ? 2 : 0; }
   friendly(a: Unit, b: Unit): boolean { return this.team(a) !== 0 && this.team(a) === this.team(b); }
   hostile(a: Unit, b: Unit): boolean { return this.team(a) !== 0 && this.team(b) !== 0 && this.team(a) !== this.team(b); }
+  /** On neither side: keeping out of it, or running from it. */
+  neutral(u: Unit): boolean { return this.team(u) === 0 && u.id !== this.G.pc; }
+  /**
+   * Whom someone's menu turns their weapons on: the other side, but not a child running for the door.
+   * The player's, anyone up who isn't on theirs (smoke4-1018: Cob kept clear of the fight Krug
+   * started by swinging at him, and the board gave no blow at him at all): the running and those
+   * keeping out of it too.
+   */
+  targetable(u: Unit, v: Unit): boolean {
+    if (v.id === u.id || v.state !== "fighting") return false;
+    return this.isYou(u) ? this.hostile(u, v) || this.neutral(v) : this.hostile(u, v) && v.role !== "coward";
+  }
+  /**
+   * Someone keeping out of it whom the player attacks, shoves, grabs or casts at is in it now,
+   * against them, with whatever's to hand (a brawler). One running keeps running.
+   */
+  private provoked(u: Unit, target: Unit): void {
+    if (!this.isYou(u) || target.role !== "bystander" || !this.neutral(target)) return;
+    target.side = "enemy";
+    target.role = "brawler";
+    this.log("narration", `${cap(target.called)} isn't keeping out of it any more.`, target.id);
+  }
   /** On the map at all (the fled are gone; the fallen lie where they fell). */
   onBoard(u: Unit): boolean { return u.state !== "fled" && u.state !== "coming"; }
   /** Standing, in the fight, and able to do something about it. */
@@ -638,6 +660,7 @@ export class Skirmish {
       ...(advantage ? { advantage } : {}), ...(check.cover ? { cover: check.cover } : {}),
     };
     this.moment("attack", u, { target: target.id, at: { ...target.at }, with: label ?? this.namer().weapon(weapon) });
+    this.provoked(u, target);
     const say = this.isYou(u) ? undefined : `attack:${u.castId ?? u.role}`;
     if (say && hash(this.G.round, u.id, this.lineCount()) % 3 === 0) this.say(say, u);
     // A duellist's parry: the blade turns a hit that only just landed (his reaction, once a round).
@@ -789,6 +812,7 @@ export class Skirmish {
       ...(targetId ? { target: targetId } : {}), at: { ...aim }, with: spell.name, spell: spell.id, ...(element ? { element } : {}),
       ...(choice.targeting === "area" ? { area: tiles.map(t => ({ ...t })) } : {}),
     });
+    if (!choice.heal) for (const v of targets) this.provoked(u, v);
     let events: Dnd.EngineEvent[] = [];
     if (targets.length) {
       // Rays and beams (Scorching Ray, Eldritch Blast) are an attack each, at whoever's aimed at.
@@ -923,6 +947,7 @@ export class Skirmish {
     if (!this.actionLeft(u)) return `${this.isYou(u) ? "You've" : "They've"} already used ${this.isYou(u) ? "your" : "their"} action this turn.`;
     const from = target.at;
     this.moment("wrestle", u, { target: target.id, at: { ...target.at }, with: how === "grapple" ? "Grapple" : "Shove" });
+    this.provoked(u, target);
     let events: Dnd.EngineEvent[];
     try {
       events = how === "grapple"

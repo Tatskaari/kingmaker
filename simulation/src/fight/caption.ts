@@ -89,14 +89,17 @@ class Caption {
     const to = path[path.length - 1];
     const feet = path.length * 5;
     if (!to || !from || !this.actor) return `${this.Who} ${this.s("stay")} put.`;
-    const foes = Object.values(this.G.units).filter(v => v.state === "fighting" && this.hostile(this.actor!, v));
-    const near = (at: { x: number; y: number }) => foes.filter(v => steps(v.at, at) <= 1);
+    const actor = this.actor;
+    const foes = Object.values(this.G.units).filter(v => v.state === "fighting" && this.hostile(actor, v));
+    // The player can turn on those on no side too (Skirmish.targetable): closing in on one is closing in (smoke4-1018: "You back off" as Krug went for Cob).
+    const marks = actor.id === this.G.pc ? Object.values(this.G.units).filter(v => v.state === "fighting" && v.id !== actor.id && this.team(v) === 0) : [];
+    const near = (who: Unit[], at: { x: number; y: number }) => who.filter(v => steps(v.at, at) <= 1);
     const exit = this.G.exits.find(e => e.at.x === to.x && e.at.y === to.y);
     if (exit) return `${this.Who} ${this.s("make")} for ${exit.label}, ${feet} ft.`;
-    const now = near(to), was = near(from);
-    const closed = listing(now.filter(v => !was.includes(v)).map(v => this.name(v.id)));
+    const was = near([...foes, ...marks], from);
+    const closed = listing(near([...foes, ...marks], to).filter(v => !was.includes(v)).map(v => this.name(v.id)));
     if (closed) return feet <= 10 ? `${this.Who} ${this.s("step")} in on ${closed}.` : `${this.Who} ${this.s("close")} in on ${closed}, ${feet} ft.`;
-    if (was.length && !now.length) return `${this.Who} ${this.s("back")} off ${feet} ft.`;
+    if (near(foes, from).length && !near(foes, to).length) return `${this.Who} ${this.s("back")} off ${feet} ft.`;
     return `${this.Who} ${this.s("move")} ${feet} ft.`;
   }
 
@@ -164,7 +167,10 @@ class Caption {
   /** Who came in, and where: "The granary porters and Old Wat come in through the yard gate." */
   arrive(): string {
     const came = this.m.detail.hits.filter(h => h.was?.state === "coming").map(h => this.name(h.unit));
-    return `${cap(listing(came.length ? came : ["someone"]))} ${came.length === 1 ? "comes" : "come"} in through ${this.m.detail.with ?? "the way in"}.`;
+    // A way of the place's own ("the yard gate") is come in through; the board's edge ("Out of the yard…", fight/scene.ts waysOut) into the place.
+    const w = this.m.detail.with;
+    const way = !w ? "in" : /^out of /i.test(w) ? `into ${w.replace(/^out of /i, "")}` : `in through ${w}`;
+    return `${cap(listing(came.length ? came : ["someone"]))} ${came.length === 1 ? "comes" : "come"} ${way}.`;
   }
 
   /** A class feature used: who, which, on whom, and what it did (hit points back, a condition taken up, a dash's feet). "You use Second Wind: 11 hit points back." */
@@ -222,10 +228,8 @@ class Caption {
     return this.m.detail.hits.find(h => h.unit === id);
   }
 
-  private hostile(a: Unit, b: Unit): boolean {
-    const team = (u: Unit) => (u.side === "player" || u.side === "ally" ? 1 : u.side === "enemy" ? 2 : 0);
-    return team(a) !== 0 && team(b) !== 0 && team(a) !== team(b);
-  }
+  private team(u: Unit): number { return u.side === "player" || u.side === "ally" ? 1 : u.side === "enemy" ? 2 : 0; }
+  private hostile(a: Unit, b: Unit): boolean { return this.team(a) !== 0 && this.team(b) !== 0 && this.team(a) !== this.team(b); }
 }
 
 /** What a spell's conditions do to someone, in a word for a caption ("asleep"): the ones a caption names. */

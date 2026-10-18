@@ -71,10 +71,13 @@ export function sceneFightSetup(tx: TxCtx, scene: SceneRow, graph: Scene, fight:
   const start = tileFor(me ? positionOf(world, me.id) : undefined);
   const combatants: CombatantSetup[] = [{ id: "player", name: controller.name, side: "player", role: "player", at: start }];
   const against = new Set(onSide(fight, "against"));
+  // Who comes later (a reinforcement not in the place yet, a card's members with them: smoke4-1018 had Old Wat, the yard's card and a reinforcement, beside the player from round 1) is set out with the reinforcements below.
+  const later = new Set((graph.reinforcements ?? []).filter(r => !world.entities[r.id])
+    .flatMap(r => [r.id, ...(graph.cast.find(c => c.id === r.id)?.members ?? []).map(m => m.id)]));
   for (const [id, side] of Object.entries(fight.sides)) {
     const e = world.entities[id];
     const who = castOf(graph, id, world);
-    if (!who || e?.states.includes("gone") || (!npcs[id] && e?.states.some(s => OUT_COLD.has(s)))) continue;
+    if (!who || later.has(id) || e?.states.includes("gone") || (!npcs[id] && e?.states.some(s => OUT_COLD.has(s)))) continue;
     const leader = graph.cast.find(c => c.members?.some(m => m.id === id));
     const at = positionOf(world, id) ?? (leader ? positionOf(world, leader.id) : undefined);
     combatants.push({

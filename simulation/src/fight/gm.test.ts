@@ -70,6 +70,8 @@ test("each turn the board plays is told by the GM in the fight's log, after its 
     const after = t.detail.after!;
     const turn = requests[i]!;
     assert.ok(turn.moments.length > 0 && turn.moments[0]!.kind === "turn", JSON.stringify(turn.moments.map(m => m.kind)));
+    // A turn with nothing done in it isn't told, the GM's words for the one before it notwithstanding (smoke4-1018: Cob's empty turn told as a flight).
+    assert.ok(turn.moments.some(m => !["turn", "start", "pass", "gm"].includes(m.kind)), `something done: ${JSON.stringify(turn.moments.map(m => m.kind))}`);
     assert.equal(now.find(e => e.seq === after)?.kind !== "gm", true, "after one of the board's moments");
     assert.ok(turn.fight.fighters.some(f => f.id === "player" && f.name === "you"), "the player as \"you\"");
     assert.ok(turn.key.includes(`:narrate-${after}`), turn.key);

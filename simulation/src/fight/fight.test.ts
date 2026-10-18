@@ -10,6 +10,7 @@ import { RINGS } from "../../../shared/zoo/rings.ts";
 import { orderLines } from "../../../shared/fight/board.ts";
 import { steps } from "../../../shared/fight/grid.ts";
 import { decide, freshMemo } from "./ai.ts";
+import { optionsOf } from "./options.ts";
 import { boardOfRow, eventsOf, fightOf, peek, type FightRow } from "./rows.ts";
 import { startFight } from "./start.ts";
 
@@ -69,6 +70,36 @@ function toPlayer(host: MemoryHost, gameId: bigint): void {
   }
   assert.fail("the turn never came round to the player");
 }
+
+test("the player can turn on anyone on the board (smoke4-1018: Cob kept clear of the fight Krug started by swinging at him, and the board had no blow at him): a blow, a shove or a grab at one keeping out of it or running from it, on their menu; one keeping out of it they strike is in it now, against them", () => {
+  const { host, wren, playerId, game } = onMap();
+  started(host, playerId, room([
+    { id: "bandit", name: "a bandit", at: { x: 9, y: 5 }, role: "bruiser" },
+    { id: "cob", name: "Cob", statblock: "commoner", side: "neutral", role: "bystander", at: { x: 3, y: 3 } },
+    { id: "boy", name: "the lantern-boy", statblock: "lantern-boy", side: "neutral", role: "coward", at: { x: 2, y: 4 } },
+  ], { x: 2, y: 3 }));
+  toPlayer(host, game.id);
+  // The menu with the boy beside the player (he runs on his own turns): on a copy of the board.
+  const row = fightNow(host, game.id);
+  const menu = host.transact(tx => peek(tx, row, s => {
+    const boy = s.unit("boy")!;
+    boy.state = "fighting";
+    boy.at = [{ x: 2, y: 4 }, { x: 1, y: 3 }, { x: 2, y: 2 }, { x: 1, y: 4 }, { x: 1, y: 2 }].find(t => !s.occupant(t, "boy"))!;
+    return { options: optionsOf(s), boy: `${boy.at.x},${boy.at.y}` };
+  }));
+  const label = (id: string) => menu.options.actions.find(a => a.id === id)?.label ?? "";
+  assert.match(label("attack@3,3"), /^Attack Cob \(.+; keeping out of it, 5 ft\)$/, menu.options.actions.map(a => a.id).join(" "));
+  assert.match(label(`attack@${menu.boy}`), /^Attack the lantern-boy \(.+; running from it, /);
+  assert.ok(label("shove@3,3") && label("grapple@3,3"), "a shove or a grab at him too");
+  // The AI's still never goes for a child running for the door.
+  assert.equal(host.transact(tx => peek(tx, row, s => s.targetable(s.unit("bandit")!, { ...s.unit("boy")!, state: "fighting" }))), false);
+
+  assert.equal(host.as(wren).attack({ how: "attack", at: { x: 3, y: 3 } }), undefined);
+  const cob = board(host, game.id).units["cob"]!;
+  assert.deepEqual([cob.side, cob.role], ["enemy", "brawler"], "in it now, against the player");
+  const blow = events(host, fightNow(host, game.id)).filter(e => e.kind === "attack" && e.actor === "player").at(-1)!;
+  assert.ok(blow.detail.lines.includes("Cob isn't keeping out of it any more."), blow.detail.lines.join(" | "));
+});
 
 test("the turn order is the engine's initiative, the start and the first turn its first moments, held round after round", () => {
   const { host, playerId, game } = onMap();

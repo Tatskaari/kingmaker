@@ -64,19 +64,22 @@ function canAttack(s: Skirmish, u: Unit): boolean {
   return !use.actionUsed || (use.attacksMadeThisTurn > 0 && use.attacksMadeThisTurn < s.attacksPerAction(u));
 }
 
-/** A blow at each of the other side a weapon reaches (the first that does: attack@x,y takes it), and at a hanging lantern. */
+/** How someone on neither side stands, on a blow's label: the player can turn on them too (Skirmish.targetable). */
+const standing = (s: Skirmish, v: Unit) => (!s.neutral(v) ? undefined : v.role === "coward" ? "running from it" : "keeping out of it");
+
+/** A blow at each of the other side a weapon reaches (the first that does: attack@x,y takes it), and at a hanging lantern; the player's, at anyone they can turn on. */
 function attacks(s: Skirmish, u: Unit): FightAction[] {
   if (!canAttack(s, u)) return [];
   const sheet = s.t.sheet(u.engineId);
   const out: FightAction[] = [];
-  for (const v of s.units.filter(v => v.state === "fighting" && s.hostile(u, v) && v.role !== "coward")) {
+  for (const v of s.units.filter(v => s.targetable(u, v))) {
     const w = u.weapons.find(w => !s.attackCheck(u, v, w).error);
     if (!w) continue;
     const check = s.attackCheck(u, v, w);
     // The odds as the dice will have them, and why where the fight can tell ("disadvantage: someone's beside you").
     const why = s.attackWhy(u, v, check);
     const odds = [why.advantage ? `advantage: ${why.advantage}` : "", why.disadvantage ? `disadvantage: ${why.disadvantage}` : ""].filter(Boolean);
-    const notes = [...(odds.length ? odds : [check.advantage]), check.cover ? "half cover" : undefined, `${feetBetween(u.at, v.at)} ft`].filter(Boolean).join(", ");
+    const notes = [standing(s, v), ...(odds.length ? odds : [check.advantage]), check.cover ? "half cover" : undefined, `${feetBetween(u.at, v.at)} ft`].filter(Boolean).join(", ");
     out.push({ id: `attack@${at(v.at)}`, label: `Attack ${v.name} (${s.namer().weapon(w)} ${signed(attackBonus(sheet, w))}; ${notes})`, kind: "attack", name: "Attack", cost: "action", at: { ...v.at }, target: v.id, range: reachOf(s, w) });
   }
   for (const p of Object.values(s.G.props).filter(p => p.kind === "lantern" && p.state === "standing" && !p.carriedBy)) {
@@ -99,7 +102,7 @@ function spells(s: Skirmish, u: Unit): FightAction[] {
     const fromSelf = /^self/i.test(sp.spell.range);
     const size = (sp.spell["targeting"] as { size: number } | undefined)?.size ?? 5;
     const reach = fromSelf ? size : Math.max(sp.range, 5);
-    const targets = s.units.filter(v => v.state !== "fled" && v.state !== "dead" && (sp.heal ? s.friendly(v, u) || v.id === u.id : s.hostile(u, v) && v.state === "fighting" && v.role !== "coward"))
+    const targets = s.units.filter(v => v.state !== "fled" && v.state !== "dead" && (sp.heal ? s.friendly(v, u) || v.id === u.id : s.targetable(u, v)))
       .filter(v => feetBetween(u.at, v.at) <= Math.max(sp.range, 5) && (same(v.at, u.at) || clearShot(s.G.map, u.at, v.at)) && (!fromSelf || steps(u.at, v.at) * FEET <= size))
       .filter(v => !(fromSelf && same(v.at, u.at)));
     for (const v of targets) {
@@ -111,11 +114,11 @@ function spells(s: Skirmish, u: Unit): FightAction[] {
   return out;
 }
 
-/** A shove (over) or a grab at whoever's beside you on the other side, and a brazier or lantern beside you knocked over (shove@ at it), while the action's free. */
+/** A shove (over) or a grab at whoever's beside you on the other side (the player's, anyone they can turn on), and a brazier or lantern beside you knocked over (shove@ at it), while the action's free. */
 function wrestles(s: Skirmish, u: Unit): FightAction[] {
   if (!s.actionLeft(u)) return [];
   const out: FightAction[] = [];
-  for (const v of s.units.filter(v => v.state === "fighting" && s.hostile(u, v) && steps(u.at, v.at) <= 1)) {
+  for (const v of s.units.filter(v => (s.targetable(u, v) || s.hostile(u, v) && v.state === "fighting") && steps(u.at, v.at) <= 1)) {
     out.push({ id: `shove@${at(v.at)}`, label: `Shove ${v.name} over (they save, or they're down)`, kind: "attack", name: "Shove", cost: "action", at: { ...v.at }, target: v.id, range: 5 });
     out.push({ id: `grapple@${at(v.at)}`, label: `Grab hold of ${v.name} (they save, or they're held)`, kind: "attack", name: "Grab", cost: "action", at: { ...v.at }, target: v.id, range: 5 });
   }
@@ -156,7 +159,7 @@ function named(s: Skirmish, u: Unit, left: number, swings: Tile2[]): FightAction
   const footing = { at: u.at, left };
   const swing = (to: Tile2) => (swings.some(t => same(t, to)) ? "; it draws a swing at you, unless you disengage first" : "");
   const walk = (to: { at: Tile2; feet: number }, name: string, label: string): FightAction => ({ id: `walk@${at(to.at)}`, label, kind: "move", name, cost: "move", at: { ...to.at }, feet: to.feet });
-  for (const v of s.units.filter(v => v.state === "fighting" && s.hostile(u, v) && steps(v.at, u.at) > 1)) {
+  for (const v of s.units.filter(v => (s.targetable(u, v) || s.hostile(u, v) && v.state === "fighting") && steps(v.at, u.at) > 1)) {
     const best = moveChoices(s, u, footing, { kind: "close", at: v.at })[0];
     if (best && !same(best.at, u.at)) out.push(walk(best, `Close in on ${v.name}`, `Close in on ${v.name} (${best.feet} ft${steps(best.at, v.at) > 1 ? ", not all the way" : ""}${swing(best.at)})`));
   }

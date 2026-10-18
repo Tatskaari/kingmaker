@@ -26,6 +26,8 @@ const COMING = {
       ...doc,
       reinforcements: [
         { id: "porters", name: "the granary porters", statblock: "commoner", weapon: "club", look: "Granary porters in flour-white aprons.", after: 2, why: "The shouting carries round to the loading dock, and the porters come in at the gate." },
+        // One of the cast who isn't in the yard yet (the corporal enters with the dead-cart), as the yard's Old Wat is: not on the board until his round (smoke4-1018 had Wat beside the player from the start).
+        { id: "tull", after: 2, why: "Corporal Tull hears the shouting from the lane and comes at a run." },
       ],
     }),
   },
@@ -41,7 +43,7 @@ test("the scene's reinforcements: the GM places them with everyone (told when th
   script.then("reply", { entries: [{ speaker: "gm", kind: "narration", text: "Cob squares up with a gutter stone. Roll for initiative!" }], gm: {}, firstTextMs: 3, initiative: { foes: ["cob"], allies: [], why: "the boy in the boots, cornered" }, usage } satisfies ReplyResponse);
   script.then("sides", (r: unknown) => {
     const ask = (r as SidesRequest).sides;
-    return { sides: Object.fromEntries(ask.pending.map(p => [p.id, p.id === "porters" ? "against_player" as const : "flee" as const])), entries: [{ speaker: "gm", kind: "narration", text: "Kell steps back to watch." }], usage } satisfies SidesResponse;
+    return { sides: Object.fromEntries(ask.pending.map(p => [p.id, p.id === "porters" ? "against_player" as const : p.id === "tull" ? "with_player" as const : "flee" as const])), entries: [{ speaker: "gm", kind: "narration", text: "Kell steps back to watch." }], usage } satisfies SidesResponse;
   });
   assert.equal(host.as(wren).say({ text: "I grab the boy by his collar." }), undefined);
   await host.drain();
@@ -55,7 +57,11 @@ test("the scene's reinforcements: the GM places them with everyone (told when th
   assert.equal(host.as(wren).fightItOut(), undefined);
   let board = boardNow(host, gameId);
   assert.deepEqual([board.units["porters"]?.state, board.units["porters"]?.due, board.units["porters"]?.side], ["coming", 3, "enemy"], "in the order, not on the board");
-  assert.ok(board.order.includes("porters"));
+  assert.deepEqual([board.units["tull"]?.state, board.units["tull"]?.due, board.units["tull"]?.side], ["coming", 3, "ally"], "one of the cast too, on the player's side");
+  assert.ok(board.order.includes("porters") && board.order.includes("tull"));
+  const start = events(host, gameId).find(e => e.kind === "start")!;
+  assert.doesNotMatch([start.caption, ...start.detail.lines].join("\n"), /porter|corporal|tull/i, `who's coming isn't in the fight's opening: ${start.caption} ${start.detail.lines.join(" ")}`);
+  assert.ok(!events(host, gameId).some(e => e.kind === "turn" && (e.actor === "tull" || e.actor === "porters")), "no turns till they come");
   // Rounds go by (the dice playing the player's turns) until the third round's top, when they come.
   for (let i = 0; i < 400 && fightRow(host, gameId).status === "on" && boardNow(host, gameId).round < 3; i++) {
     if (fightRow(host, gameId).options) assert.equal(host.as(wren).fightTurn({ act: "dodge" }) ?? host.as(wren).fightTurn({ act: "end_turn" }), undefined);
@@ -69,9 +75,11 @@ test("the scene's reinforcements: the GM places them with everyone (told when th
     const arrived = events(host, gameId).find(e => e.kind === "arrive")!;
     assert.ok(arrived, events(host, gameId).map(e => e.kind).join(", "));
     assert.equal(arrived.round, 3);
-    assert.match(arrived.caption, /^The granary porters comes? in through .+\.$/);
+    assert.match(arrived.caption, /^The granary porters and .+ come (in through|into) .+\.$/);
+    assert.doesNotMatch(arrived.caption, /through out of/i, "the board's edge is come into, not through");
     assert.ok(arrived.detail.lines.includes("The shouting carries round to the loading dock, and the porters come in at the gate."));
     assert.ok(arrived.detail.hits.some(h => h.unit === "porters" && h.was?.state === "coming" && h.state === "fighting"), "the screen sees them come on");
+    assert.equal(board.units["tull"]!.state, "fighting", "the corporal with them");
   }
   // Seen through, then out: whoever came is in the yard from now on.
   for (let i = 0; i < 600 && fightRow(host, gameId).status === "on"; i++) {

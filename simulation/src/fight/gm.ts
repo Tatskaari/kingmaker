@@ -80,7 +80,7 @@ export function tellTurns(tx: TxCtx, fight: FightRow, board: FightBoard, starts:
     if (typed) { delete board.typed; continue; }
     const events = [...eventsBetween(tx, fight, from, to, written)];
     const turn = events.find(e => e.kind === "turn");
-    const acted = events.some(e => !["turn", "start", "pass"].includes(e.kind));
+    const acted = events.some(e => !["turn", "start", "pass", "gm"].includes(e.kind));
     if (!turn?.actor || !acted) continue;
     const scene = sceneRow(tx, idOf(board.scene));
     const plan: NarratePlan = { step: "narrate", game: idText(fight.gameId), scene: board.scene, n: getGm(tx, scene.id).fight?.turn ?? scene.turns, fight: idText(fight.id), from, to, whose: turn.actor === board.pc ? "player" : turn.actor };
