@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { DecideResponse, ReplyResponse, SuggestResponse } from "../../shared/protocol/ai.ts";
+import type { ReplyResponse, SuggestResponse } from "../../shared/protocol/ai.ts";
 import { idText, turnKeyParts } from "../../shared/protocol/keys.ts";
 import { memoryHost } from "./host/memory.ts";
 import { all, caerwynArgs, DEFAULTS, down, held, http, identity, openedGame, sceneNow, tick } from "./host/testing.ts";
@@ -15,24 +15,26 @@ import { suggest } from "./moves/suggest.ts";
  * fail it, and they're one row a turn and move.
  */
 
-const decision: DecideResponse = { decision: { earned: false, daft: false, outOfCharacter: false }, opened: [], usage: { calls: 1, costUsd: 0.0005, byOperation: {} } };
+/** The two-part GM's reply, the turn's first step (docs/two-part-design.md): its words, and its calls. */
+const said = (text: string): ReplyResponse => ({ entries: [{ speaker: "gm", kind: "narration", text }], gm: { repeated: null }, firstTextMs: 3, usage: { calls: 1, costUsd: 0.001, byOperation: {} } });
+const reply = said("Kell taps her pencil. “Cob found him.”");
 
 test("a POST that fails is tried again by the reaper, at 1 s then 2 s, the same key each time; the turn says so meanwhile", async () => {
   const { host, script, wren, scene } = await openedGame();
-  script.then("decide", down(), http(503), decision);
+  script.then("reply", down(), http(503), reply);
 
   host.as(wren).say({ text: "Who found him?" });
   await host.drain();
 
   const waiting = sceneNow(host, scene.id);
-  assert.deepEqual(waiting.jobs.map(j => [j.step, j.state, j.attempts]), [["decide", "waiting", 1]]);
-  assert.equal(waiting.turns[1]!.phase, "deciding");
+  assert.deepEqual(waiting.jobs.map(j => [j.step, j.state, j.attempts]), [["reply", "waiting", 1]]);
+  assert.equal(waiting.turns[1]!.phase, "replying");
   assert.equal(waiting.turns[1]!.note, LOST_THREAD);
   assert.match(waiting.jobs[0]!.error!, /Connection refused/);
 
   host.advance(999);
   await host.drain();
-  assert.equal(script.to("decide").length, 1, "not yet: the first retry is a second away");
+  assert.equal(script.to("reply").length, 1, "not yet: the first retry is a second away");
   host.advance(1);
   await host.drain();
   assert.deepEqual(sceneNow(host, scene.id).jobs.map(j => [j.state, j.attempts]), [["waiting", 2]]);
@@ -41,9 +43,9 @@ test("a POST that fails is tried again by the reaper, at 1 s then 2 s, the same 
   await host.drain();
 
   const now = sceneNow(host, scene.id);
-  const decides = script.to("decide");
-  assert.deepEqual(decides.map(d => d.attempt), ["1", "2", "3"]);
-  assert.equal(new Set(decides.map(d => d.key)).size, 1);
+  const replies = script.to("reply");
+  assert.deepEqual(replies.map(d => d.attempt), ["1", "2", "3"]);
+  assert.equal(new Set(replies.map(d => d.key)).size, 1);
   assert.deepEqual(now.turns.map(t => [t.n, t.phase, t.note]), [[0, "done", undefined], [1, "done", undefined]]);
   assert.match(host.logs.join("\n"), /attempt 1\] HttpError.*: waiting, retry in 1 s/);
   assert.match(host.logs.join("\n"), /attempt 2\] 503 model_failed: scripted: waiting, retry in 2 s/);
@@ -51,7 +53,7 @@ test("a POST that fails is tried again by the reaper, at 1 s then 2 s, the same 
 
 test("a status that won't mend fails the turn, keeping the lease; retry_turn carries on from that step", async () => {
   const { host, script, wren, scene } = await openedGame();
-  script.then("reply", http(400));
+  script.then("settle", http(400));
   host.as(wren).say({ text: "Who found him?" });
   await host.drain();
 
@@ -59,31 +61,33 @@ test("a status that won't mend fails the turn, keeping the lease; retry_turn car
   assert.deepEqual(failed.turns[1]!.phase, "failed");
   assert.equal(failed.turns[1]!.error, "The GM couldn't answer: 400 bad_request: scripted");
   assert.equal(failed.scene.turnId, failed.turns[1]!.id, "the lease kept");
-  assert.deepEqual(failed.jobs.map(j => [j.step, j.state]), [["reply", "failed"]]);
+  assert.deepEqual(failed.jobs.map(j => [j.step, j.state]), [["settle", "failed"]]);
   assert.equal(host.as(wren).say({ text: "Hello?" })?.code, "turn_failed");
 
   assert.equal(host.as(wren).retryTurn({ turn: failed.turns[1]!.id }), undefined);
   const retried = sceneNow(host, scene.id);
-  assert.deepEqual([retried.turns[1]!.phase, retried.turns[1]!.error], ["replying", undefined]);
-  assert.deepEqual(retried.jobs.map(j => [j.step, j.state, j.attempts]), [["reply", "queued", 0]]);
+  assert.deepEqual([retried.turns[1]!.phase, retried.turns[1]!.error], ["settling", undefined]);
+  assert.deepEqual(retried.jobs.map(j => [j.step, j.state, j.attempts]), [["settle", "queued", 0]]);
   await host.drain();
 
   assert.deepEqual(sceneNow(host, scene.id).turns.map(t => t.phase), ["done", "done"]);
-  assert.deepEqual(script.to("decide").length, 1, "the decide was committed before: not asked again");
-  assert.deepEqual(script.to("reply").map(r => r.attempt), ["1", "1"]);
+  assert.deepEqual(script.to("reply").length, 1, "the reply was committed before: not asked again");
+  assert.deepEqual(script.to("settle").map(r => r.attempt), ["1", "1"]);
 });
 
 test("a commit that throws fails the turn rather than looping; retry_turn tries it again", async () => {
   const { host, script, wren, scene } = await openedGame();
-  script.then("decide", { opened: [], usage: { calls: 1, costUsd: 0, byOperation: {} } });
+  // A check with no outcomes to write: the reply's commit throws as it writes the one that came up.
+  script.then("reply", { ...said("You look up at the hoist."), check: { skill: "perception", dc: 12, outcomes: {} } });
   host.as(wren).say({ text: "Who found him?" });
   await host.drain();
 
   const failed = sceneNow(host, scene.id);
   assert.equal(failed.turns[1]!.phase, "failed");
-  assert.equal(failed.turns[1]!.error, "The GM couldn't answer: the commit failed: Error: the answer has no decision");
+  assert.match(failed.turns[1]!.error!, /^The GM couldn't answer: the commit failed: TypeError: /);
   assert.equal(failed.turns[1]!.calls, 0, "the commit's writes, usage included, were rolled back");
-  assert.equal(script.to("decide").length, 1);
+  assert.deepEqual(failed.lines.map(l => l.kind), ["narration", "player"], "nothing it wrote, the dice line included");
+  assert.equal(script.to("reply").length, 1);
 
   host.as(wren).retryTurn({ turn: failed.turns[1]!.id });
   await host.drain();
@@ -92,26 +96,26 @@ test("a commit that throws fails the turn rather than looping; retry_turn tries 
 
 test("a job whose POST outlives its deadline is dispatched again, and the late answer is dropped", async () => {
   const { host, script, wren, scene } = await openedGame();
-  const slow = held<DecideResponse>();
-  script.then("decide", () => slow.promise, decision);
+  const slow = held<ReplyResponse>();
+  script.then("reply", () => slow.promise, reply);
   host.as(wren).say({ text: "Who found him?" });
 
   const first = host.drain();
   await tick();
   assert.deepEqual(sceneNow(host, scene.id).jobs.map(j => [j.state, j.attempts]), [["running", 1]]);
 
-  host.advance(20_000 + 10_000);
-  assert.match(host.logs.join("\n"), /\[reaper\] job \d+ .+:t1:decide re-dispatched after its deadline/);
+  host.advance(60_000 + 10_000);
+  assert.match(host.logs.join("\n"), /\[reaper\] job \d+ .+:t1:reply re-dispatched after its deadline/);
   assert.equal(sceneNow(host, scene.id).turns[1]!.note, LOST_THREAD);
   await host.drain();
   assert.deepEqual(sceneNow(host, scene.id).turns.map(t => t.phase), ["done", "done"]);
 
-  slow.settle({ ...decision, decision: { ...decision.decision, outOfCharacter: true } });
+  slow.settle(said("Too late, and never heard."));
   await first;
   const now = sceneNow(host, scene.id);
-  assert.deepEqual(now.gm.oocTurns, [], "the late answer changed nothing");
-  assert.match(host.logs.join("\n"), /\[job \d+ .+:t1:decide attempt 1\] dropped: the job has moved on since this dispatch/);
-  assert.deepEqual(script.to("decide").map(d => d.attempt), ["1", "2"]);
+  assert.ok(!now.lines.some(l => l.text === "Too late, and never heard."), "the late answer changed nothing");
+  assert.match(host.logs.join("\n"), /\[job \d+ .+:t1:reply attempt 1\] dropped: the job has moved on since this dispatch/);
+  assert.deepEqual(script.to("reply").map(d => d.attempt), ["1", "2"]);
 });
 
 test("a queued job whose dispatch was lost (its procedure died before claiming it) gets another after 10 s", async () => {
@@ -120,7 +124,7 @@ test("a queued job whose dispatch was lost (its procedure died before claiming i
   host.transact(tx => { for (const d of [...tx.db.jobDispatch.iter()]) tx.db.jobDispatch.scheduledId.delete(d.scheduledId); });
 
   await host.drain();
-  assert.equal(sceneNow(host, scene.id).turns[1]!.phase, "deciding");
+  assert.equal(sceneNow(host, scene.id).turns[1]!.phase, "replying");
   host.advance(9_999);
   assert.equal(all(host.db.jobDispatch).length, 0);
   host.advance(1);
@@ -130,7 +134,7 @@ test("a queued job whose dispatch was lost (its procedure died before claiming i
 
 test("failing for ten minutes, a job fails its turn", async () => {
   const { host, script, wren, scene } = await openedGame();
-  for (let i = 0; i < 60; i++) script.then("decide", down());
+  for (let i = 0; i < 60; i++) script.then("reply", down());
   host.as(wren).say({ text: "Who found him?" });
   await host.drain();
 
@@ -143,23 +147,23 @@ test("failing for ten minutes, a job fails its turn", async () => {
   assert.equal(now.turns[1]!.phase, "failed");
   assert.match(now.turns[1]!.error!, /^The GM couldn't answer: no answer for 10 minutes \(last: HttpError/);
   assert.equal(now.jobs[0]!.state, "failed");
-  const attempts = script.to("decide").length;
+  const attempts = script.to("reply").length;
   host.advance(60_000);
   await host.drain();
-  assert.equal(script.to("decide").length, attempts, "nothing is tried once it has failed");
+  assert.equal(script.to("reply").length, attempts, "nothing is tried once it has failed");
 });
 
 test("an answer for a turn the scene no longer waits on is dropped, and the move stops", async () => {
   const { host, script, wren, scene } = await openedGame();
-  script.then("decide", () => {
+  script.then("reply", () => {
     host.transact(tx => tx.db.scene.id.update({ ...tx.db.scene.id.find(scene.id)!, turnId: undefined }));
-    return decision;
+    return reply;
   });
   host.as(wren).say({ text: "Who found him?" });
   await host.drain();
 
   assert.deepEqual(all(host.db.job), []);
-  assert.equal(script.to("reply").length, 0);
+  assert.equal(script.to("settle").length, 0);
   assert.match(host.logs.join("\n"), /dropped: scene \d+ no longer waits on turn \d+/);
 });
 
@@ -177,13 +181,13 @@ test("with no AI_URL, the opening fails at once: nothing to POST to", async () =
 test("over the AI service's daily budget, the turn fails at once in its words; retry_turn, once there's budget again, finishes it", async () => {
   const { host, script, wren, scene } = await openedGame();
   const message = "The GM has spent today's budget ($5.00): it starts again at midnight UTC, or raise KM_AI_DAILY_USD.";
-  script.then("decide", http(402, { error: { code: "over_budget", message } }));
+  script.then("reply", http(402, { error: { code: "over_budget", message } }));
 
   host.as(wren).say({ text: "Who found him?" });
   await host.drain();
   const failed = sceneNow(host, scene.id).turns[1]!;
   assert.deepEqual([failed.phase, failed.error], ["failed", message]);
-  assert.equal(script.to("decide").length, 1, "not tried again");
+  assert.equal(script.to("reply").length, 1, "not tried again");
 
   assert.equal(host.as(wren).retryTurn({ turn: failed.id }), undefined);
   await host.drain();
@@ -215,7 +219,7 @@ test("a job in the background says nothing on the turn as it tries again while t
   lines.settle(DEFAULTS.suggest);
   await first;
   const landed = sceneNow(host, scene.id).turns[1]!;
-  assert.deepEqual([landed.suggest, landed.note, landed.calls], ["landed", LOST_THREAD, 1 + 1 + 2], "the lines' answer leaves the settle's note, and adds its calls (the decide's, the reply's, then the lines')");
+  assert.deepEqual([landed.suggest, landed.note, landed.calls], ["landed", LOST_THREAD, 1 + 2], "the lines' answer leaves the settle's note, and adds its calls (the reply's, then the lines')");
   host.advance(1000);
   await host.drain();
   assert.deepEqual([sceneNow(host, scene.id).turns[1]!.phase, sceneNow(host, scene.id).turns[1]!.note], ["done", undefined]);
@@ -285,7 +289,7 @@ test("over the AI service's daily budget, the jobs beside a turn are given up at
 
 test("dispatch_waiting, the owner's: every waiting job goes again now, not at its time; anyone else is refused", async () => {
   const { host, script, wren, scene } = await openedGame();
-  script.then("decide", down(), down(), down(), down(), decision);
+  script.then("reply", down(), down(), down(), down(), reply);
   host.as(wren).say({ text: "Who found him?" });
   await host.drain();
   for (const ms of [1_000, 2_000, 4_000]) { host.advance(ms); await host.drain(); }
@@ -295,7 +299,7 @@ test("dispatch_waiting, the owner's: every waiting job goes again now, not at it
   assert.equal(host.as(host.owner).dispatchWaiting(), undefined);
   await host.drain();
 
-  assert.deepEqual(script.to("decide").map(d => d.attempt), ["1", "2", "3", "4", "5"], "the fifth try at once, the clock where it was");
+  assert.deepEqual(script.to("reply").map(d => d.attempt), ["1", "2", "3", "4", "5"], "the fifth try at once, the clock where it was");
   assert.deepEqual(sceneNow(host, scene.id).turns.map(t => [t.phase, t.note]), [["done", undefined], ["done", undefined]]);
-  assert.match(host.logs.join("\n"), /\[dispatch_waiting\] job \d+ .+:t1:decide dispatched again \(attempt 5\)/);
+  assert.match(host.logs.join("\n"), /\[dispatch_waiting\] job \d+ .+:t1:reply dispatched again \(attempt 5\)/);
 });

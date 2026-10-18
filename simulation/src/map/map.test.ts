@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { After, Decision, DecideResponse, OpenRequest, SettleResponse } from "../../../shared/protocol/ai.ts";
+import type { OpenRequest, SettleResponse } from "../../../shared/protocol/ai.ts";
 import { exploreOf } from "../../../shared/map/rows.ts";
 import { actions } from "../../../shared/map/town.ts";
 import { keysFor, rowsToWorld } from "../../../shared/world/rows.ts";
-import { all, hostWithCampaign, identity, madeCharacter, sceneNow, type Scripted } from "../host/testing.ts";
+import { all, hostWithCampaign, identity, madeCharacter, sceneNow } from "../host/testing.ts";
 import type { MemoryHost } from "../host/memory.ts";
 import { mapRowsOf } from "./rows.ts";
 
@@ -16,8 +16,6 @@ import { mapRowsOf } from "./rows.ts";
  */
 
 const none = { calls: 0, costUsd: 0, byOperation: {} };
-const decided = (d: Partial<Decision> = {}): DecideResponse => ({ decision: { earned: false, daft: false, outOfCharacter: false, ...d }, opened: [], usage: none });
-const read = (a: Partial<After> = {}, ops: SettleResponse["ops"] = []): SettleResponse => ({ ops, after: { landed: [], hinted: [], unanswered: false, theirs: false, ...a }, usage: none });
 
 /** A new game on the map: Wren in the lane, the game, and her explore row as it stands. */
 function onMap(seed = 7) {
@@ -239,14 +237,16 @@ test("what she carries goes with her into the next scene, though she crossed the
   assert.match(host.db.sheet.playerId.find(game.hostId)!.pockets, /pennies/, "the sheet's pockets read the Rat's world");
 });
 
-/** The scene ended through its exit as the player chooses it: closing on one line, its wind-down the next. `ops`: what the first line's settle does to the yard. */
+/**
+ * The scene ended through its exit: the co-GM takes the way into it after one line (the scene
+ * closing), and the next line's reply is the closing. `ops`: what the first line's settle does to the yard.
+ */
 async function endScene(host: MemoryHost, script: ReturnType<typeof hostWithCampaign>["script"], who: ReturnType<typeof identity>, ops: SettleResponse["ops"] = []) {
-  const line = async (text: string, settle?: Scripted) => {
-    script.then("decide", decided());
-    if (settle) script.then("settle", settle);
+  const line = async (text: string) => {
     assert.equal(host.as(who).say({ text }), undefined, `"${text}" was refused`);
     await host.drain();
   };
-  await line("I'll take the page to the King myself.", read({ ending: { exitId: "case-made", probability: 0.9 }, theirs: true }, ops));
+  script.then("settle", { ops, coGm: { roles: {}, moves: [{ route: "make-case", outcome: "none", why: "The case is made." }], log: [] }, usage: none } satisfies SettleResponse);
+  await line("I'll take the page to the King myself.");
   await line("Thank you, Sergeant.");
 }

@@ -5,7 +5,7 @@ import { actorsHere } from "../../../shared/map/explore.ts";
 import { menuText, type MenuCtx } from "../../../shared/map/menu.ts";
 import { actionId, moveOf } from "../../../shared/map/moves.ts";
 import { exploreOf, keepOf } from "../../../shared/map/rows.ts";
-import type { After, CoGmAnswer, Decision, DecideRequest, DecideResponse, OpenRequest, OpenResponse, ReplyRequest, ReplyResponse, SettleRequest, SettleResponse, TalkPrep } from "../../../shared/protocol/ai.ts";
+import type { CoGmAnswer, OpenRequest, OpenResponse, ReplyRequest, ReplyResponse, SettleRequest, SettleResponse, TalkPrep } from "../../../shared/protocol/ai.ts";
 import { CONFIDED, FAREWELL, GOODBYE, TOLD } from "../../../shared/scene/talk.ts";
 import { all, hostWithCampaign, identity, sceneNow } from "../host/testing.ts";
 import type { MemoryHost } from "../host/memory.ts";
@@ -23,8 +23,8 @@ import { mapRowsOf } from "./rows.ts";
  */
 
 const none = { calls: 0, costUsd: 0, byOperation: {} };
-const decided = (d: Partial<Decision> = {}): DecideResponse => ({ decision: { earned: false, daft: false, outOfCharacter: false, ...d }, opened: [], usage: none });
-const read = (a: Partial<After> = {}, ops: SettleResponse["ops"] = [], talk?: SettleResponse["talk"]): SettleResponse => ({ ops, after: { landed: [], hinted: [], unanswered: false, theirs: false, ...a }, ...(talk ? { talk } : {}), usage: none });
+/** The settle's answer: the stage manager's operations beside a co-GM that moves nothing. */
+const staged = (ops: SettleResponse["ops"] = []): SettleResponse => ({ ops, coGm: { roles: {}, moves: [], log: [] }, usage: none });
 
 /** A new game on the map with the ready-made wizard: Wren in the lane. */
 function onMap(seed = 7) {
@@ -144,7 +144,7 @@ test("hide: a Stealth check against the sharpest eyes about; a short rest while 
   assert.equal(explore().acts, row.acts, "a refusal writes nothing");
 });
 
-test("Ray of Frost at Kell opens the hanged clerk as walking in does; once the opening's in, the act is its first turn, its mechanic forced in decide", async () => {
+test("Ray of Frost at Kell opens the hanged clerk as walking in does; once the opening's in, the act is its first turn, resolved by the rules as it starts with its mechanic forced, its directive the reply's", async () => {
   const { host, script, wren, game, explore } = onMap();
   const kell = actorsHere(menuOf(host, game.id).ex).find(a => a.ref === "kell")!;
   assert.equal(host.as(wren).cast({ spell: "ray-of-frost", at: kell.at }), undefined);
@@ -163,10 +163,11 @@ test("Ray of Frost at Kell opens the hanged clerk as walking in does; once the o
   const now = sceneNow(host, yard.id);
   const line = now.lines.find(l => l.kind === "player")!;
   assert.deepEqual([line.turn, line.text], [1, "(I cast Ray of Frost at Sergeant Kell)"]);
-  const decide = script.to("decide")[0]!.body as DecideRequest;
-  assert.deepEqual(decide.forced, { kind: "cast", spell: "ray-of-frost", targets: ["kell"], from: { backOff: 10 } });
-  assert.equal(decide.turn.line.text, "(I cast Ray of Frost at Sergeant Kell)");
-  assert.ok(now.lines.some(l => l.kind === "roll" && /^Ray of Frost/.test(l.text)), "the scene's rules resolved it");
+  assert.equal(now.turns.find(t => t.n === 1)!.mechanic, JSON.stringify({ kind: "cast", spell: "ray-of-frost", targets: ["kell"], from: { backOff: 10 } }), "its mechanic on the turn, chosen already");
+  assert.deepEqual(script.to("decide"), [], "no decide: the rules resolve the act as the turn starts");
+  const reply = script.to("reply")[0]!.body as ReplyRequest;
+  assert.deepEqual([reply.turn.line.text, reply.outcome.acts?.length], ["(I cast Ray of Frost at Sergeant Kell)", 1], "the act's directive, the reply's");
+  assert.ok(now.lines.some(l => l.turn === 1 && l.kind === "roll" && /^Ray of Frost/.test(l.text)), "the scene's rules resolved it");
 });
 
 test("hurting a palace guard brings the guards on: the fight is recorded on the map, moves wait for it, and fight_it_out fights it as won", () => {
@@ -351,8 +352,7 @@ test("a thing the stage manager makes gets a look of its own: asked for once by 
   host.as(wren).walk({ toward: "lead" });
   await host.drain();
   const swan = (to: string) => ({ op: "create" as const, what: "", to, how: "", name: "a disgruntled swan", kind: "creature", text: "", add: [], remove: [] });
-  script.then("decide", decided());
-  script.then("settle", read({}, [swan("yard")]));
+  script.then("settle", staged([swan("yard")]));
   script.then("look", { looks: { "a disgruntled swan": { glyph: "s", color: "white", motion: "bob", light: false, being: true, group: false } }, usage: none });
   assert.equal(host.as(wren).say({ text: "Is that a swan?" }), undefined);
   await host.drain();
@@ -366,8 +366,7 @@ test("a thing the stage manager makes gets a look of its own: asked for once by 
   assert.deepEqual(all(host.db.lookInvention).map(l => l.key), ["a disgruntled swan"]);
 
   // Another swan of the same name: its look at once, nothing asked.
-  script.then("decide", decided());
-  script.then("settle", read({}, [swan("yard")]));
+  script.then("settle", staged([swan("yard")]));
   assert.equal(host.as(wren).say({ text: "And another!" }), undefined);
   await host.drain();
   assert.equal(script.to("look").length, 1);

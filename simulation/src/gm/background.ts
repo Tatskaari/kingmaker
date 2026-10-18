@@ -5,16 +5,14 @@ import type { GmState } from "../../../shared/gm/state.ts";
 import type { TxCtx } from "../context.ts";
 import { queueThink } from "../jobs.ts";
 import { remember } from "../moves/remember.ts";
-import { repair } from "../moves/repair.ts";
-import { sceneRow, type SceneRow } from "../rows.ts";
-import { playsTwoPart, sceneGraph } from "../scenes.ts";
-import { applyRepair, expireNotes, shouldRepair } from "./repair.ts";
+import type { SceneRow } from "../rows.ts";
+import { sceneGraph } from "../scenes.ts";
+import { applyRepair, expireNotes } from "./repair.ts";
 
 /**
  * Background work between turns (full-gm-design §4.2), as the prototype's scene CLI does it: once a
- * player's turn is over, the memory reviews go over it and, when it's due, the co-GM reviews the
- * scene; neither is waited on. The memory reviews write into the game's docs on the AI service's
- * side; the co-GM's answer waits in a co_gm_result row, and the next turn's start merges it.
+ * player's turn is over, the memory reviews go over it, not waited on. They write the GM's notes in
+ * the game's docs on the AI service's side.
  */
 
 /** A turn's ids, as a job's plan carries them. */
@@ -22,20 +20,13 @@ export interface TurnIds { game: string; scene: string; turn: string; n: number 
 
 /**
  * The turn's last commit (the settle, or the wind-down's reply), once its bookkeeping is written and
- * before the turn is finished: the memory reviews queued, always; the co-GM, unless the scene has
- * ended (or reached its fight), when shouldRepair says so. Each job's request is built now, from the scene as the turn left
- * it.
+ * before the turn is finished: the memory reviews queued, always, their request built now, from the
+ * scene as the turn left it. The two-part GM's co-GM runs in the settle (docs/two-part-design.md), so
+ * no co-GM review is queued after a turn.
  */
-export function afterTurn(tx: TxCtx, sceneId: bigint, turn: TurnIds, gm: GmState): void {
-  const ids = { game: turn.game, scene: turn.scene, turn: turn.turn, n: turn.n };
-  queueThink(tx, remember, { step: "remember", ...ids });
-  // A talk has no co-GM (the prototype's talk approach: repair off), and the two-part GM's runs in its settle (docs/two-part-design.md).
-  const scene = sceneRow(tx, sceneId);
-  if (!OVER.has(scene.status) && scene.kind !== "talk" && !playsTwoPart(tx, scene) && shouldRepair(gm, turn.n)) queueThink(tx, repair, { step: "repair", ...ids });
+export function afterTurn(tx: TxCtx, turn: TurnIds): void {
+  queueThink(tx, remember, { step: "remember", game: turn.game, scene: turn.scene, turn: turn.turn, n: turn.n });
 }
-
-/** A scene the co-GM doesn't review: over, or at its fight (both are the prototype's state.ended). */
-const OVER = new Set(["ended", "fighting"]);
 
 /**
  * At turn n's start: every co-GM review of the scene that has come in and waits, by the turn it

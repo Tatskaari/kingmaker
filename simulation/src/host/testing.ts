@@ -40,12 +40,10 @@ export const TEST_CLERK = join(import.meta.dirname, "..", "..", "..", "shared", 
 
 /**
  * Whether a game starts on the campaign's map (map-design §3.3), or, as the stack's tests before the
- * map, in its first scene at once; whether the hanged clerk is the campaign's own (`asIs`) rather
- * than the tests' (TEST_CLERK); and whether its scenes are played by the two-part GM (`twoPart`, as
- * the game's are: docs/two-part-design.md) rather than the old pipeline, which the tests from before
- * M2 test (campaign.json's `gm: "pipeline"`), kept until the user decides what to salvage of it.
+ * map, in its first scene at once; and whether the hanged clerk is the campaign's own (`asIs`) rather
+ * than the tests' (TEST_CLERK). Every scene plays on the two-part GM (docs/two-part-design.md).
  */
-export interface PackOptions { map?: boolean; asIs?: boolean; twoPart?: boolean }
+export interface PackOptions { map?: boolean; asIs?: boolean }
 
 /**
  * campaigns/caerwyn as install_campaign takes it: every scene's file whole (the hanged clerk the
@@ -57,9 +55,8 @@ export function caerwynPack(options: PackOptions = {}): CampaignPack {
   const campaign = JSON.parse(read("campaign.json")) as CampaignFile;
   const { map: _map, at: _at, ...offMap } = campaign.start;
   const scene = (key: string) => JSON.parse(key === "hanged-clerk" && !options.asIs ? readFileSync(TEST_CLERK, "utf8") : read(`scenes/${key}.kmscene`)) as SceneDocument;
-  const gm = { ...campaign, gm: options.twoPart ? "two-part" as const : "pipeline" as const };
   return {
-    campaign: options.map ? gm : { ...gm, start: offMap },
+    campaign: options.map ? campaign : { ...campaign, start: offMap },
     scenes: [...campaign.scenes, campaign.talk!].map(scene),
     places: campaign.places.map(key => JSON.parse(read(`places/${key}.json`)) as PlaceFile),
     builds: JSON.parse(read("builds.json")) as BuildsFile,

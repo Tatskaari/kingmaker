@@ -8,7 +8,7 @@ import { keepOpened } from "../gm/bookkeeping.ts";
 import { openCall } from "../gm/requests.ts";
 import { getGm, putGm } from "../gm/rows.ts";
 import { gameRow, placeRow, playerRow, sceneRow, turnRow, updateScene, updateTurn, type GameRow, type PlayerRow, type SceneDefRow, type SceneRow } from "../rows.ts";
-import { campaignFile, campaignOfGame, graphOf, playsTwoPart, sceneDefOf, documentOf, sceneGraph } from "../scenes.ts";
+import { campaignFile, campaignOfGame, graphOf, sceneDefOf, documentOf, sceneGraph } from "../scenes.ts";
 import { addEntry, noteHeard, noteHeardInStory, writeReply } from "../transcript.ts";
 import { finishTurn, newTurn } from "../turns.ts";
 import { talkLines } from "../map/talk.ts";
@@ -51,9 +51,8 @@ export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start; ac
 
     const scene = waiting ? openWaiting(tx, game, def, graph, gm, controller, start, waiting) : insertScene(tx, game, def, graph, gm, controller, start);
     // The two-part GM's roles as the scene opens (note -1), from who's present now: the opening reads them.
-    const twoPart = playsTwoPart(tx, scene);
-    if (twoPart) openingRolesFor(graph, gm);
-    if (!waiting || twoPart) putGm(tx, scene.id, waiting ? { ...getGm(tx, scene.id), twoPart: gm.twoPart } : gm);
+    openingRolesFor(graph, gm);
+    putGm(tx, scene.id, waiting ? { ...getGm(tx, scene.id), twoPart: gm.twoPart } : gm);
     syncStage(tx, scene, graph, gm);
     if (waiting) noteHeardInStory(tx, scene, graph);
     else noteHeard(tx, scene, graph);
@@ -61,7 +60,7 @@ export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start; ac
 
     const turn = newTurn(tx, scene, controller.id, 0, "replying");
     updateScene(tx, scene.id, { turnId: turn.id });
-    return { done: false, plan: { step: "open", game: idText(game.id), scene: idText(scene.id), turn: idText(turn.id), seen: seenOf(tx, scene.id), ...(act ? { act } : {}), ...(twoPart ? { twoPart } : {}) } };
+    return { done: false, plan: { step: "open", game: idText(game.id), scene: idText(scene.id), turn: idText(turn.id), seen: seenOf(tx, scene.id), ...(act ? { act } : {}), twoPart: true } };
   },
 
   think: (tx, plan) => openCall(tx, plan),

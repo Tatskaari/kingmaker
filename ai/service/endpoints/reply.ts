@@ -32,7 +32,7 @@ export const reply: Handler<ReplyRequest, ReplyResponse> = async (req, ctx) => {
   return { entries: [said], gm: { ...(offered ? { offered } : {}), repeated: view.repeated ?? null }, firstTextMs: sink.firstTextMs(), usage: ctx.usage() };
 };
 
-/** The old pipeline's decision (a campaign that names it: no talk asks it since the old pipeline's salvage): its request has one (requests.ts holds it to that). */
+/** The old pipeline's decision (nothing asks the old reply since the old pipeline's salvage): its request has one (requests.ts holds it to that). */
 function decisionOf(req: ReplyRequest): Decision {
   if (!req.decision) throw new Failure(400, "bad_request", "the request is missing decision");
   return req.decision;

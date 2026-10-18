@@ -390,8 +390,7 @@ test("Hobb's token, handed over in the Rat, is in the player's keeping in the He
 
   // He gives it up when asked: the stage manager hands it over, as it would after the reply.
   const give = { op: "give" as const, what: "drowned-rat/heron-token", to: `pc:${player.id}`, how: "", name: "", kind: "", text: "", add: [], remove: [] };
-  script.then("decide", { decision: { earned: false, daft: false, outOfCharacter: false }, opened: [], usage: { calls: 0, costUsd: 0, byOperation: {} } });
-  script.then("settle", { ops: [give], after: { landed: [], hinted: [], unanswered: false, theirs: false }, usage: { calls: 0, costUsd: 0, byOperation: {} } });
+  script.then("settle", { ops: [give], coGm: { roles: {}, moves: [], log: [] }, usage: { calls: 0, costUsd: 0, byOperation: {} } });
   assert.equal(host.as(wren).say({ text: "How does a body get in, Hobb? Give me your token." }), undefined);
   await host.drain();
   assert.equal(host.db.entity.id.find(token.id)!.parentId, pc.id, "in her hands in the Rat");
@@ -501,7 +500,7 @@ test("end_scene: the owner's only; no scene, no such exit (the endings listed), 
   assert.match(none!.text, /^\(There's no ending called nowhere here: there's case-made \(The case is made\), .* and own-ending \(An ending of their own\)\.\)$/);
   assert.match(end("")!.text, /^\(The endings here: case-made/);
 
-  script.then("decide", () => new Promise(() => {}));
+  script.then("reply", () => new Promise(() => {}));
   host.as(wren).say({ text: "Who found him?" });
   void host.drain();
   await new Promise(resolve => setImmediate(resolve));

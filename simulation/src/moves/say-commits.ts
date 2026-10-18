@@ -15,7 +15,7 @@ import { afterTurn } from "../gm/background.ts";
 import { applyMove, holdEnding, keepOpened, moveOnAfterReply, movedOn, resolveMove, routeOf, takeMove, wantsReview, type Move } from "../gm/bookkeeping.ts";
 import { landRuling, settleRuling } from "../gm/consider.ts";
 import { getGm, putGm } from "../gm/rows.ts";
-import { playerRow, sceneRow, updateScene, updateTurn, type SceneRow } from "../rows.ts";
+import { sceneRow, updateScene, updateTurn, type SceneRow } from "../rows.ts";
 import { carryGearAfter, inPlay, playedOut } from "../rules/play.ts";
 import { engineCall, refreshPockets } from "../rules/session.ts";
 import { exitOf, sceneGraph } from "../scenes.ts";
@@ -195,7 +195,7 @@ export function afterSettle(tx: TxCtx, plan: SayPlan, answer: SettleResponse): N
   else if (at.gm.closing) updateScene(tx, at.scene.id, { status: "closing" });
   noteHeard(tx, at.scene, at.graph);
 
-  afterTurn(tx, at.scene.id, plan, at.gm);
+  afterTurn(tx, plan);
   finishTurn(tx, at.scene.id, idOf(plan.turn));
   return { done: true };
 }
@@ -367,7 +367,7 @@ export function takeAct(tx: TxCtx, at: At, plan: Pick<SayPlan, "n" | "input" | "
 // afterReactions' parts.
 
 /** engine.ts:641-650: the reactions take effect on the world and the GM's bookkeeping (who left the stage), their directive after the act's, their step on the path. */
-function reactionsTakeEffect(tx: TxCtx, at: At, plan: SayPlan, act: Act, reactions: Record<string, Reaction>, directive: string | undefined, outcome: Outcome): void {
+export function reactionsTakeEffect(tx: TxCtx, at: At, plan: Pick<SayPlan, "n">, act: Act, reactions: Record<string, Reaction>, directive: string | undefined, outcome: Outcome): void {
   const played = inPlay(tx, at.scene, at.graph, at.gm, plan.n);
   react(at.graph, played.session, act, reactions);
   playedOut(tx, at.scene, at.graph, at.gm, played);
@@ -462,7 +462,7 @@ function windDown(tx: TxCtx, at: At, plan: SayPlan): Next<SayPlan> {
   putGm(tx, at.scene.id, at.gm);
 
   if (closes) endScene(tx, at.scene.id, exitOf(at.graph, closing.exitId), plan.n);
-  afterTurn(tx, at.scene.id, plan, at.gm);
+  afterTurn(tx, plan);
   finishTurn(tx, at.scene.id, idOf(plan.turn));
   return { done: true };
 }

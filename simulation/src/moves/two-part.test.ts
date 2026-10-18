@@ -19,7 +19,7 @@ const coGm = (moves: CoGmAnswer["moves"], roles: CoGmAnswer["roles"] = {}): Sett
 const outcomes = Object.fromEntries(BANDS.map(b => [b, said(`Outcome: ${b}.`)])) as Record<Band, Reply>;
 
 async function yard() {
-  const game = await openedGame(7, "ranger", { twoPart: true, asIs: true });
+  const game = await openedGame(7, "ranger", { asIs: true });
   const { host, wren, scene } = game;
   const line = async (text: string) => {
     const refused = host.as(wren).say({ text });

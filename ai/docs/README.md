@@ -67,7 +67,7 @@ flowchart TB
 
 | Caller | Uses |
 |---|---|
-| [service/endpoints/turn.ts](../service/endpoints/turn.ts) | `disclose` before an opening and alongside each turn's decide (the old pipeline's: a talk's, or a campaign that names it; the two-part GM discloses nothing); `keepOpened` |
+| [service/endpoints/turn.ts](../service/endpoints/turn.ts) | `disclose` before an opening and alongside each turn's decide (the old pipeline's, which nothing plays since the old pipeline's salvage; the two-part GM discloses nothing); `keepOpened` |
 | [gm/voice.ts](../gm/voice.ts) | `memoryBrief`, in every reply of the old pipeline's GM (a talk's, and a fight's aftermath) |
 | [gm/two-part.ts](../gm/two-part.ts) | `gmNotes`: the co-GM's input has the GM's notes on each person on stage (`notesOnPeople`); the mouthpiece reads none |
 | [service/endpoints/remember.ts](../service/endpoints/remember.ts) | `reviewTurn`, after each turn (`POST /v1/turns/remember`), with the request's call context (`calls`) |

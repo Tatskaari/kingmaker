@@ -129,7 +129,7 @@ function windDown(tx: TxCtx, at: At, plan: SayPlan, closes: boolean): Next<SayPl
   if (closes && closing) endScene(tx, at.scene.id, exitOf(at.graph, closing.exitId), plan.n);
   else if (at.scene.kind !== "talk") suggestAfter(tx, at.scene, idOf(plan.turn));
   tx.log(`[scene ${at.scene.id} turn ${plan.n}] the closing reply ${closes ? `closed it: ${closing?.exitId}` : "waited, once"}`);
-  afterTurn(tx, at.scene.id, plan, at.gm);
+  afterTurn(tx, plan);
   finishTurn(tx, at.scene.id, idOf(plan.turn));
   return { done: true };
 }
@@ -170,7 +170,7 @@ export function afterTwoPartSettle(tx: TxCtx, plan: SayPlan, answer: SettleRespo
   noteHeard(tx, at.scene, at.graph);
   tx.log(`[scene ${at.scene.id} turn ${plan.n}] settled: ${staged.changes.length} changed, ${staged.problems.length} not done; the co-GM ${moved}${at.gm.closing ? `; closing on ${at.gm.closing.exitId}` : ""}`);
 
-  afterTurn(tx, at.scene.id, plan, at.gm);
+  afterTurn(tx, plan);
   finishTurn(tx, at.scene.id, idOf(plan.turn));
   return { done: true };
 }
@@ -197,7 +197,7 @@ function talkSettled(tx: TxCtx, at: At, plan: SayPlan, answer: SettleResponse): 
   noteHeard(tx, at.scene, at.graph);
   tx.log(`[scene ${at.scene.id} turn ${plan.n}] the talk settled: the co-GM ${moved}${closing ? `; it ends: ${closing.exitId}` : ""}`);
 
-  afterTurn(tx, at.scene.id, plan, at.gm);
+  afterTurn(tx, plan);
   finishTurn(tx, at.scene.id, idOf(plan.turn));
   return { done: true };
 }

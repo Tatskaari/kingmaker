@@ -1,6 +1,6 @@
 import type { TxCtx } from "./context.ts";
 import { queueThink } from "./jobs.ts";
-import { firstPhase, say, startPlan } from "./moves/say.ts";
+import { say, startPlan } from "./moves/say.ts";
 import { updateScene, updateTurn, type SceneRow, type TurnRow } from "./rows.ts";
 import { playerLine } from "./transcript.ts";
 
@@ -45,7 +45,7 @@ function startQueued(tx: TxCtx, scene: SceneRow): void {
   const queued = queuedTurnOf(tx, scene.id);
   if (!queued) return;
 
-  updateTurn(tx, queued.id, { phase: firstPhase(tx, scene) });
+  updateTurn(tx, queued.id, { phase: "replying" });
   updateScene(tx, scene.id, { turnId: queued.id });
   queueThink(tx, say, startPlan(tx, scene.id, queued, playerLine(tx, scene.id, queued.n)));
 }
