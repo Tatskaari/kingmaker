@@ -36,7 +36,9 @@ import type { ToolCall } from "./tools.ts";
  *   the next open route on the shortest way there, the required discoveries first, a dice route taken
  *   as a success; it reads the scene's routes off its prep, where routeLine writes them (ai/gm/two-part.ts),
  *   and what's reached and open off its input. `coGm.still` keeps it from moving; `coGm.roles` are
- *   roles it sets every turn.
+ *   roles it sets every turn. In a talk (its start the talk template's, [talk]) it walks only to what
+ *   `coGm.endings` names, `told` among them: its ending is the player's to choose (their goodbye, or
+ *   walking on), and what the companion confides theirs to give.
  *
  * Anything else asked of it is refused, so a test can't reach the real thing by accident. Two ways
  * in: `fakeOpenRouter` puts it in place of the process's fetch (the prototype's tests), and
@@ -73,7 +75,7 @@ export interface FakeOptions {
   toolCalls?: Record<string, Array<Pick<ToolCall, "name" | "args">>>;
   /** The two-part GM's mouthpiece: a check it calls on every reply but an opening or a closing (its five outcomes the fake's), and a closing that waits. */
   mouthpiece?: { check?: { skill: string; dc: number }; holds?: boolean };
-  /** The two-part GM's co-GM: still (no moves), the endings it walks to (the first the scene has; else its first good one), and roles it sets every turn. */
+  /** The two-part GM's co-GM: still (no moves), the endings it walks to (the first the scene has, or a discovery: a talk's `told`; else its first good one, but in a talk none), and roles it sets every turn. */
   coGm?: { still?: boolean; endings?: string[]; roles?: Record<string, { status: string; mental_state: string; conversation_role: string }> };
 }
 
@@ -241,8 +243,8 @@ export function walkTo(prep: ReturnType<typeof readPrep>, reached: string[], tar
 /**
  * The fake co-GM's round: its roles (the recipe's), and the next open route on its walk to the
  * scene's first good ending (or the first of the recipe's the scene has whose walk is open: a fight
- * fought, the walk goes on to the next), a dice route as a success; once their outputs come back,
- * "done".
+ * fought, the walk goes on to the next; in a talk, only the recipe's), a dice route as a success;
+ * once their outputs come back, "done".
  */
 function coGmRound(body: Request, recipe: NonNullable<FakeOptions["coGm"]>): unknown {
   const input = body.input ?? [];
@@ -253,7 +255,9 @@ function coGmRound(body: Request, recipe: NonNullable<FakeOptions["coGm"]>): unk
     const prep = readPrep(body.instructions ?? "");
     const reached = [.../Reached so far: (.*)\./.exec(said)?.[1]?.matchAll(/\[([a-z0-9-]+)\]/g) ?? []].map(m => m[1]!);
     const open = [...(/# Open routes\n([\s\S]*?)(?:\n\n|$)/.exec(said)?.[1] ?? "").matchAll(/^- \[([a-z0-9-]+)\]/gm)].map(m => m[1]!);
-    const targets = recipe.endings ? recipe.endings.filter(e => prep.endings.some(x => x.id === e)) : prep.endings.filter(e => e.result === "good").slice(0, 1).map(e => e.id);
+    // A talk's ending is the player's to choose (their goodbye, or walking on), and what the companion confides theirs to give: a talk is walked only to what the recipe names.
+    const talk = /^## Where it starts: .*\[talk\]$/m.test(body.instructions ?? "");
+    const targets = recipe.endings ? recipe.endings.filter(e => prep.routes.some(r => r.target === e)) : talk ? [] : prep.endings.filter(e => e.result === "good").slice(0, 1).map(e => e.id);
     let target: string | undefined, next: string | undefined;
     for (const t of targets) {
       next = walkTo(prep, reached, t).find(id => open.includes(id));

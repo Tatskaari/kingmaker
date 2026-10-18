@@ -3,6 +3,7 @@ import type { Speech } from "../../../shared/markup.ts";
 import type { BoundaryRequest, Reply, SceneContext, Suggestion } from "../../../shared/protocol/ai.ts";
 import { effectiveScene, presentCast } from "../../../shared/scene/graph.ts";
 import { unnamed } from "../../../shared/scene/names.ts";
+import { TOLD } from "../../../shared/scene/talk.ts";
 import type { Character, Scene } from "../../../shared/scene/types.ts";
 import { noUsage } from "../calls.ts";
 import type { Endpoints } from "../context.ts";
@@ -33,7 +34,9 @@ export const canned: Endpoints = {
     const voice = speakerAt(scene, presentCast(scene, req.gm), 0, []);
     const opening = said(`${scene.title}. (The AI service is canned: no model was asked, and nothing here is the GM's.) `, voice, "Say something, and it answers");
     await written(ctx.stream(req.stream.turn), opening);
-    const talk = req.talk ? { talk: { established: [], patches: [], withheld: [], suggestions: req.talk.suggest ? TALK_LINES : [] } } : {};
+    // A talk keeps nothing back: on the two-part GM, its discovery isn't this talk's (ai/gm/talk.ts nothingToConfide).
+    const patches = req.talk && req.twoPart ? [{ turn: 0, why: "Canned: nothing to confide.", drop: TOLD }] : [];
+    const talk = req.talk ? { talk: { established: [], patches, withheld: [], suggestions: req.talk.suggest ? TALK_LINES : [] } } : {};
     return { present: presentCast(scene, req.gm).map(c => c.id), entries: [opening], opened: [], ...talk, usage: noUsage() };
   },
   async decide() {
@@ -57,8 +60,8 @@ export const canned: Endpoints = {
     return { entries: [reply], gm: { repeated: null }, firstTextMs: sink.firstTextMs(), ...(req.twoPart && req.outcome.windDown ? { closes: true } : {}), usage: noUsage() };
   },
   async settle(req) {
-    // The two-part GM's co-GM, canned: it sets no roles and moves nothing.
-    if (req.twoPart) return { ops: [], coGm: { roles: {}, moves: [], log: [] }, usage: noUsage() };
+    // The two-part GM's co-GM, canned: it sets no roles and moves nothing (and a talk's lines, as ever).
+    if (req.twoPart) return { ops: [], coGm: { roles: {}, moves: [], log: [] }, ...(req.talk ? { talk: { suggestions: req.talk.suggest ? TALK_LINES : [] } } : {}), usage: noUsage() };
     const closed = !!req.turn.gm.ended;
     const talk = req.talk ? { talk: { suggestions: req.talk.suggest && !closed ? TALK_LINES : [] } } : {};
     return { ops: [], ...(closed ? {} : { after: { status: "on_track", landed: [], hinted: [], unanswered: false, theirs: false } }), ...talk, usage: noUsage() };
