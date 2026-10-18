@@ -242,11 +242,19 @@ export function walkTo(prep: ReturnType<typeof readPrep>, reached: string[], tar
  * The fake co-GM's round: its roles (the recipe's), and the next open route on its walk to the
  * scene's first good ending (or the first of the recipe's the scene has whose walk is open: a fight
  * fought, the walk goes on to the next), a dice route as a success; once their outputs come back,
- * "done".
+ * "done", but for a move held for a second look (ai/gm/two-part.ts coGm: a cue into a bad ending,
+ * a discovery naming someone nobody has said yet), which it takes again once, as a co-GM that had
+ * looked and still judged it so would.
  */
 function coGmRound(body: Request, recipe: NonNullable<FakeOptions["coGm"]>): unknown {
   const input = body.input ?? [];
-  if (input.some(item => (item as { type?: string }).type === "function_call_output")) return completed("done");
+  const items = input as Array<{ type?: string; name?: string; call_id?: string; arguments?: string; output?: string }>;
+  if (items.some(item => item.type === "function_call_output")) {
+    const moves = items.filter(item => item.type === "function_call" && item.name === "move_scene");
+    const again = moves.find(m => /^"Not taken yet/.test(items.find(o => o.type === "function_call_output" && o.call_id === m.call_id)?.output ?? "") && moves.filter(x => x.arguments === m.arguments).length === 1);
+    if (again) return { status: "completed", output: [{ type: "function_call", call_id: `${again.call_id}_again`, name: "move_scene", arguments: again.arguments }], usage: { input_tokens: 120, output_tokens: 30, cost: 0.0002 } };
+    return completed("done");
+  }
   const said = input.map(m => (typeof m.content === "string" ? m.content : "")).join("\n");
   const calls: Array<Pick<ToolCall, "name" | "args">> = Object.entries(recipe.roles ?? {}).map(([id, role]) => ({ name: "update_character_role", args: { char_id: id, ...role } }));
   if (!recipe.still) {

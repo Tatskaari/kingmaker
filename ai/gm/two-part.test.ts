@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { rolesNote } from "../../shared/gm/two-part.ts";
 import type { GmState } from "../../shared/gm/state.ts";
@@ -11,7 +11,8 @@ import type { Scene } from "../../shared/scene/types.ts";
 import { fakeFetch, readPrep, walkTo, type FakeOptions } from "../llm/fake-openrouter.ts";
 import type { CallContext } from "../llm/openrouter.ts";
 import { CAERWYN, viewAt } from "./fixtures.ts";
-import { closingDirective, coGm, coGmInput, coGmInstructions, companionsOf, deniesItself, firstSentence, intoBad, intoBetter, mouthpieceInput, mouthpieceInstructions, movedDirective, movedText, narrationSoFar, prepOf, pressureOffered, routeLine, saidLast, speak, tellOf, twoPartNow } from "./two-part.ts";
+import { closingDirective, coGm, coGmInput, coGmInstructions, companionsOf, deniesItself, firstSentence, intoBad, intoBetter, mouthpieceInput, mouthpieceInstructions, movedDirective, movedText, narrationSoFar, prepOf, pressureOffered, routeLine, saidLast, speak, tellOf, twoPartNow, unsaidIn } from "./two-part.ts";
+import type { Story } from "./story.ts";
 import type { TurnView } from "./view.ts";
 
 /**
@@ -216,7 +217,7 @@ test("the mouthpiece's narration and each outcome keep names the player hasn't h
 test("a route into a discovery is taken once its revelation has landed: the co-GM's open routes say what the revelation is, the mouthpiece's note leaves it to the prep", () => {
   const find = clerk.routes.find(r => r.id === "find-murder")!;
   assert.equal(routeLine(clerk, find), "- [find-murder] from Stones at a hanged man [start] to The victim was murdered [murder]. When: its revelation has landed with the player");
-  assert.match(routeLine(clerk, find, { revelation: true }), /When: its revelation has landed with the player \(Prout didn't hang himself: he was struck and strangled, then hoisted up on the sack hoist to look like a suicide\.\)$/);
+  assert.match(routeLine(clerk, find, { revelation: true }), /When: its revelation, as written, has landed with the player \(Prout didn't hang himself: he was struck and strangled, then hoisted up on the sack hoist to look like a suicide\.\)$/);
   assert.doesNotMatch(twoPartNow(clerk, yard(), []), /struck and strangled/);
 });
 
@@ -312,6 +313,15 @@ test("a move whose reason says it hasn't happened is refused, a cue's aside (its
   assert.doesNotMatch(movedText(rat, gm, "the-heron", 3), /overdue/i, "nothing overdue on turn 3");
 });
 
+/** The campaign's scenes as the story a view has (what reads the story's other scenes: who a revelation names). */
+const campaignStory = (): Story => {
+  const scenes = readdirSync(join(CAERWYN, "scenes")).filter(f => f.endsWith(".kmscene")).map(f => sceneFile(f.replace(/\.kmscene$/, "")));
+  return { id: "caerwyn@test", scene: id => scenes.find(s => s.id === id), all: () => scenes };
+};
+
+/** The bookkeeping a view stands for, as the request carries it (no story: a view's functions don't clone). */
+const bookkeeping = (view: TurnView): GmState => { const { story: _story, ...gm } = view; return gm as unknown as GmState; };
+
 /** A view of a scene with its routes taken on their turns (each [turn, route]), so its path has the turns the co-GM counts by, at `turn`. */
 function walked(scene: Scene, moves: Array<[number, string]>, turn: number, extra: Partial<TurnView> = {}): TurnView {
   const view = viewAt(scene, scene.start, { turnsInBeat: 0, ...extra });
@@ -398,6 +408,47 @@ test("the co-GM's cue into a bad ending is held once in a turn while a good or m
   // And a move's answer says a cue into a bad ending still overdue waits on the better endings.
   const found = movedText(heron, { ...atMidnight(16), reached: ["wharf", "floor", "kings-grain", "midnight", "master-due"] } as unknown as GmState, "master-due", 16);
   assert.match(found, /\. Still overdue, into a bad ending: \[cast-off\]: bring it about now, unless a good or mixed ending's condition has happened, which is taken instead, or the player is in the middle of bringing one about, which comes first\.$/);
+});
+
+test("a discovery is reached once its heart has landed: who its revelation names from the story's other scenes that nobody has said yet, in the co-GM's targets, and a move into it held once in a turn", async () => {
+  const story = campaignStory();
+  const hobb = clerk.beats.find(b => b.id === "hobb")!;
+  const said = (...lines: string[]) => lines.map((text, i) => ({ turn: i + 1, speaker: "gm", kind: "narration" as const, text }));
+  const described = yard({ turn: 16, story, transcript: said("“The big one was like a door, with a bandage on his right hand. He called the posh one ‘Master.’”") });
+  assert.deepEqual(unsaidIn(clerk, described, hobb.revelation!), ["Big Hobb Mallory"], "the Rat's man, by name, is his lead");
+  assert.deepEqual(unsaidIn(clerk, { ...described, transcript: [...described.transcript, ...said("Kell writes it down. “Big Hobb Mallory. The Drowned Rat's champion.”")] }, hobb.revelation!), [], "once Kell has named him");
+  assert.deepEqual(unsaidIn(clerk, { ...described, story: undefined } as TurnView, hobb.revelation!), [], "no story, nobody elsewhere");
+  assert.deepEqual(unsaidIn(clerk, described, clerk.beats.find(b => b.id === "murder")!.revelation!), [], "Prout is nobody else's to find");
+  const kings = sceneFile("kings-morning");
+  assert.deepEqual(unsaidIn(kings, viewAt(kings, kings.start, { story }), kings.beats.find(b => b.id === "the-promises")!.revelation!), [], "the talk's {name} isn't anyone");
+  const rat = sceneFile("drowned-rat");
+  const master = rat.beats.find(b => b.id === "the-master")!.revelation!;
+  assert.deepEqual(unsaidIn(rat, viewAt(rat, rat.start, { story }), master), ["Master Josiah Sallow"]);
+  assert.deepEqual(unsaidIn(rat, viewAt(rat, rat.start, { story, history: [{ sceneId: "hanged-clerk", exitId: "murder-unknown", summary: "Prout's page: wagons countersigned 'J. Sallow, for the Royal Purveyor'." }] }), master), [], "heard in the story before");
+
+  const targets = coGmInput(clerk, described, undefined)[0]!.content;
+  assert.match(targets, /\n- Hobb was spotted at the scene \[hobb\] \(required\): A huge man with a bandaged right hand, Big Hobb Mallory, [^\n]* when Prout died\. \(Nobody has said Big Hobb Mallory's name in the story yet\.\)\n/);
+  assert.doesNotMatch(twoPartNow(clerk, described, []), /Nobody has said/, "the mouthpiece's note has none of it");
+
+  const gm = bookkeeping(described);
+  const again = scripted([[move("find-hobb", "Cob described the big man with the bandaged hand.")], [move("find-hobb", "It's his description that matters here.")]]);
+  const second = await coGm(clerk, described, gm, undefined, { fetch: again.fetch, apiKey: "test" });
+  assert.deepEqual(second.moves.map(m => m.why), ["It's his description that matters here."], "taken on the second call");
+  assert.match(second.log[0]!.result, /^Not taken yet: \[find-hobb\]'s revelation names Big Hobb Mallory, and nobody has said that name in the story yet\. If finding them is the point of it \(a lead to someone the player must go and find\), it hasn't landed: whoever holds the name gives it in the next reply, as their card says \(write it into their role, unasked where their card says so\), and the route is taken once it's said\. If the name is only a detail of it and its heart has landed, take \[find-hobb\] again\.$/);
+  const named = { ...described, transcript: [...described.transcript, ...said("“Big Hobb Mallory,” Kell says. “He drinks at the Drowned Rat.”")] } as TurnView;
+  const atOnce = await coGm(clerk, named, bookkeeping(named), undefined, { fetch: scripted([[move("find-hobb", "Kell named him from Cob's description.")]]).fetch, apiKey: "test" });
+  assert.deepEqual(atOnce.moves.map(m => m.route), ["find-hobb"], "once he's named, at once");
+
+  const tools = coGmInstructions(clerk, described).split("## Your tools\n")[1]!;
+  assert.ok(tools.includes("A discovery is reached when its revelation, as written, has landed with the player. Its details and examples needn't all come out, but its heart must: what it says happened, and when it points to someone the player must go and find, who they are by name and where to find them. Someone described but not yet named, or a name without where to find them, is part of it, not yet the discovery."));
+  assert.ok(tools.includes("write it into their role to give in the next reply, unasked where their card says so, and take the route once it has landed."));
+});
+
+test("the fake co-GM takes a move held for a second look again, once: the clerk's walk still takes Hobb, unnamed in its replies", async () => {
+  const view = yard({ turn: 1, story: campaignStory() });
+  const answer = await coGm(clerk, view, bookkeeping(view), undefined, fake());
+  assert.deepEqual(answer.moves.map(m => m.route), ["find-hobb"]);
+  assert.deepEqual(answer.log.map(c => c.result.split(":")[0]), ["Not taken yet", "Reached \"Hobb was spotted at the scene\""]);
 });
 
 test("the narration is read as the reply streams: its escapes undone, an escape cut off part-way held back, nothing before it starts", () => {
