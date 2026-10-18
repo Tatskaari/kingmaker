@@ -1,0 +1,106 @@
+import type { FightView } from "../../client/fight/view.ts";
+import type { Stack } from "../dev/stack.ts";
+import { check, mapUntil, moduleLog, note, ok, seconds, step, type Player } from "./kit.ts";
+
+/**
+ * The e2e's step for a fight on the map (M6, docs/combat-design.md): one of the zoo's rings on a real
+ * SpacetimeDB, through the client's connection. start_ring sets out the wolf run; the wolves' turns
+ * are played one at a time by fight_step on SpacetimeDB's own schedule, each a commit of its own
+ * paced for the screen, each written as moments (the turn, the move with its path, the bite with its
+ * roll); a spectator sees the same moments; the player's own act on their turn, then the dice
+ * deciding (auto) to the end; out back to the map, the fight's end the map's words. The steps' times
+ * as the module logged them.
+ */
+
+/** Resolves with what `test` finds in the player's fight, once it finds it; a Failed after `ms`. */
+function fightUntil<T>(p: Player, what: string, ms: number, test: (view: FightView) => T | undefined | null | false | 0): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const look = () => {
+      const view = p.conn.fight();
+      const found = view && test(view);
+      if (!found) return;
+      clearTimeout(timer);
+      stop();
+      resolve(found);
+    };
+    const timer = setTimeout(() => {
+      stop();
+      const v = p.conn.fight();
+      reject(new Error(`${p.name} waited ${seconds(ms)} for ${what}; it last saw: ${v ? `${v.title} ${v.status}, round ${v.round}, ${v.turn}'s turn, ${v.events.length} moments` : "no fight"}`));
+    }, ms);
+    const stop = p.conn.onChange(look);
+    look();
+  });
+}
+
+const theirs = (v: FightView) => v.status === "on" && !!v.options;
+
+/** 40. A fight in the zoo's ring. `lead` plays it (its game on the map, after the town's steps); `b` watches that game. */
+export async function aFightInTheRing(stack: Stack, lead: Player, b: Player): Promise<void> {
+  step("40. A fight in the zoo's ring: start_ring sets out the wolf run; the wolves' turns played one at a time by fight_step on SpacetimeDB's schedule, each its moments, which the spectator sees too; the player's act, then auto to the end; out, back to the map");
+  check(`${lead.name}'s start_ring("wolves") is made`, (await lead.conn.act("startRing", { ring: "wolves", fast: undefined })) === undefined);
+  const first = await fightUntil(lead, "the wolf run to be set out", 10_000, v => v.title === "The wolf run" && v);
+  check(`the fight's rows came: ${first.title}, ${first.order.length} in it, in initiative order ${first.order.join(", ")}`, first.order.length === 4 && first.status === "on");
+  const start = first.events[0];
+  check(`its first moment: "${start?.caption}"`, start?.kind === "start" && /^Roll for initiative!/.test(start.caption));
+
+  const mine = await fightUntil(lead, "the turn to come round to the player", 60_000, v => (theirs(v) || v.status !== "on") && v);
+  const turns = lead.events.filter(e => e.table === "fight_event" && e.op === "insert" && e.row.kind === "turn");
+  const npcTurns = turns.filter(e => e.row.actor !== "player");
+  note(`moments before the player's turn: ${mine.events.map(e => `${e.kind}${e.actor ? `:${e.actor}` : ""}`).join(", ")}`);
+  for (const e of mine.events.filter(e => e.kind === "move")) check(`a move's path, a tile at a time: ${e.caption} (${(e.detail.path ?? []).map(t => `${t.x},${t.y}`).join(" ")})`, (e.detail.path ?? []).length > 0);
+  for (const e of mine.events.filter(e => e.kind === "attack")) check(`a bite with its roll: ${e.caption} (${e.detail.rolls[0]?.d20.join("/")} ${e.detail.rolls[0]?.bonus} = ${e.detail.rolls[0]?.total} vs AC ${e.detail.rolls[0]?.ac})`, e.detail.rolls.length > 0);
+  // Each of the other side's turns came in a commit of its own, a moment apart: SpacetimeDB's schedule playing fight_step.
+  const gaps = npcTurns.slice(1).map((e, i) => e.at - npcTurns[i]!.at);
+  if (gaps.length) check(`the wolves' turns came one at a time, paced (${gaps.map(g => `${Math.round(g)} ms`).join(", ")} apart)`, gaps.every(g => g >= 200));
+  else note("the player went before the wolves' turns came round: none to pace yet");
+
+  const watched = await fightUntil(b, "B to see the same fight", 10_000, v => v.id === mine.id && v.events.length >= mine.events.length && v);
+  check(`B sees the same moments, as a spectator with no actions (${watched.watching ? `watching ${watched.watching}` : "?"})`, watched.events.slice(0, mine.events.length).map(e => e.caption).join("\n") === mine.events.map(e => e.caption).join("\n") && !watched.options && !!watched.watching);
+  check("B's own act is refused: not_controller", (await b.conn.act("fightTurn", { act: "dodge" }))?.code === "not_controller");
+
+  if (theirs(mine)) {
+    const act = mine.options!.actions.find(a => a.kind === "cast" || a.kind === "attack") ?? mine.options!.actions.find(a => a.id === "dodge")!;
+    const seen = mine.events.length;
+    const refused = act.id === "dodge" ? await lead.conn.act("fightTurn", { act: "dodge" })
+      : act.kind === "cast" ? await castById(lead, act.id) : await lead.conn.act("attack", { how: "attack", at: atOf(act.id) });
+    check(`${lead.name}'s act on their turn: ${act.id} (${act.label})`, refused === undefined);
+    const after = await fightUntil(lead, "the act's moment", 10_000, v => v.events.length > seen && v);
+    ok(`"${after.events[seen]!.caption}"`);
+  }
+
+  let rounds = 0;
+  for (let i = 0; i < 40; i++) {
+    const v = await fightUntil(lead, "the player's turn, or the end", 60_000, v => (theirs(v) || v.status !== "on") && v);
+    if (v.status !== "on") break;
+    rounds++;
+    check(`round ${v.round}: auto (the AI plays the player's turn)`, (await lead.conn.act("fightTurn", { act: "auto" })) === undefined);
+    await fightUntil(lead, "the turn to move on", 10_000, w => (w.status !== "on" || !theirs(w) || w.round > v.round) && w);
+  }
+  const over = await fightUntil(lead, "the fight to end", 60_000, v => v.status === "over" && v);
+  const last = over.events[over.events.length - 1]!;
+  check(`it ended (${over.outcome}) after ${over.round} rounds, ${rounds} of them auto: "${last.caption}" ${over.result?.summary ?? ""}`, last.kind === "over" && !!over.result);
+  check(`the moments in order, numbered 1 to ${over.events.length}`, over.events.every((e, i) => e.seq === i + 1));
+
+  const before = lead.conn.explore()?.acts ?? -1;
+  check("out (walk toward out) goes back to the map", (await lead.conn.walk({ toward: "out" })) === undefined);
+  const back = await mapUntil(lead, `${lead.name} back on the map`, 10_000, v => v.acts > before && v);
+  check(`the map's words are the fight's end: "${back.said.slice(0, 90)}…"`, back.said.startsWith("The wolf run:") && lead.conn.fight() === undefined);
+
+  const log = await moduleLog(stack);
+  const steps = [...log.matchAll(/\[fight\] fight \d+: (\S+)'s turn played, (\d+) ms/g)].map(m => `${m[1]} ${m[2]} ms`);
+  note(`fight_step's turns, as the module logged them: ${steps.slice(0, 10).join("; ")}${steps.length > 10 ? `, and ${steps.length - 10} more` : ""}`);
+}
+
+/** A tile from an action id: attack@4,3 is (4, 3). */
+function atOf(id: string): { x: number; y: number } {
+  const [x, y] = id.slice(id.indexOf("@") + 1).split(",").map(Number);
+  return { x: x!, y: y! };
+}
+
+/** A spell by its action id: cast_<spell>@x,y or cast_<spell>_self. */
+function castById(p: Player, id: string): ReturnType<Player["conn"]["act"]> {
+  const self = id.endsWith("_self");
+  const spell = id.replace(/^cast_/, "").replace(/(@\d+,\d+|_self)$/, "");
+  return p.conn.act("cast", { spell, at: self ? undefined : atOf(id), self: self ? true : undefined });
+}
