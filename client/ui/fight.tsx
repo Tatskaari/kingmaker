@@ -272,12 +272,14 @@ function SidePanel({ model, play, header, inner, rows, mine, over, othersPlaying
     if (!view.watching && !zooHints(model, true).length) out.push(<Clickable key="out" height={1} flexShrink={0} onClick={() => void model.out()}><text><span fg={C.lead}>{"▶ "}</span><span fg={C.lead} attributes={BOLD}>{truncate("Back to the map", inner - 10)}</span><span fg={C.faint}>{"  Enter"}</span></text></Clickable>);
   } else if (mine && o) {
     const pip = (used: boolean) => (used ? "○ spent" : "● ready");
-    line("action", <><span fg={C.dim}>{"Action      "}</span><span fg={o.actionUsed ? C.faint : C.good}>{pip(o.actionUsed)}</span></>);
-    line("bonus", <><span fg={C.dim}>{"Bonus action "}</span><span fg={o.bonusActionUsed ? C.faint : C.good}>{pip(o.bonusActionUsed)}</span></>);
+    // The bonus action is "ready" only with something to spend it on (a bonus-action spell); else it says there's none to use.
+    const bonus = o.actions.some(a => a.cost === "bonus");
+    line("action", <><span fg={C.dim}>{"Action       "}</span><span fg={o.actionUsed ? C.faint : C.good}>{pip(o.actionUsed)}</span></>);
+    line("bonus", <><span fg={C.dim}>{"Bonus action "}</span><span fg={o.bonusActionUsed || !bonus ? C.faint : C.good}>{o.bonusActionUsed ? pip(true) : bonus ? pip(false) : "○ none"}</span></>);
     const full = Math.max(o.speed ?? o.movementLeft, o.movementLeft, 5);
     const mw = Math.max(4, Math.min(10, inner - 21));
     const moved = Math.round((o.movementLeft / full) * mw);
-    line("move", <><span fg={C.dim}>{"Movement    "}</span><span fg="#6fa8dc">{"█".repeat(moved)}</span><span fg={C.faint}>{"░".repeat(Math.max(0, mw - moved))}</span><span fg={C.text}>{` ${o.movementLeft} ft`}</span></>);
+    line("move", <><span fg={C.dim}>{"Movement     "}</span><span fg="#6fa8dc">{"█".repeat(moved)}</span><span fg={C.faint}>{"░".repeat(Math.max(0, mw - moved))}</span><span fg={C.text}>{` ${o.movementLeft} ft`}</span></>);
     out.push(<text key="gap" height={1} flexShrink={0}>{" "}</text>);
     const acts = o.actions.length;
     out.push(<Clickable key="m" height={1} flexShrink={0} onClick={() => model.openMenu()}><text><span fg={C.title}>{"m  "}</span><span fg={C.text}>{truncate(`actions (${acts})`, inner - 3)}</span></text></Clickable>);

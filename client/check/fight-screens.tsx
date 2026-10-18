@@ -145,7 +145,7 @@ async function yourTurn(checks: Array<[string, boolean]>, size: readonly [number
   if (show) console.log(`${name}, your turn\n${frame}`);
   const o = s.model.options!;
   checks.push([`${name}: your turn: one clear YOUR TURN, the bar marking you`, inside(frame).includes("▶ YOUR TURN") && /▶ @ {1,2}You/.test(frame.split("\n")[0]!)]);
-  checks.push([`${name}: what's left of it: action and bonus action ready, ${o.movementLeft} ft to move`, /Action\s+● ready/.test(frame) && /Bonus action ● ready/.test(frame) && frame.includes(`${o.movementLeft} ft`)]);
+  checks.push([`${name}: what's left of it: the action ready, no bonus action to use (a fighter's), ${o.movementLeft} ft to move`, /Action {7}● ready/.test(frame) && /Bonus action ○ none/.test(frame) && frame.includes(`${o.movementLeft} ft`)]);
   checks.push([`${name}: how to act: m for the actions, e to end it`, inside(frame).includes(`m actions (${o.actions.length})`) && inside(frame).includes("e end your turn")]);
   // The menu, by what each line spends; the attack aims on the board.
   frame = await s.key("m");
