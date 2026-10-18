@@ -127,6 +127,7 @@ export function PortEditor({port,doc,wiring}:{port:FlowPort;doc:ScenarioDocument
 export function PortInspector({card,port,doc,wiring,onAll}:{card:FlowCard;port:FlowPort;doc:ScenarioDocument;known:CampaignFiles|null;wiring:Wiring;onAll:()=>void;open:(path:string)=>void}){
   return <div className="card-inspector">
     <p className="inspector-kind">{card.title}</p>
+    <h3 className="inspector-title">{port.label}</h3>
     <div className="port-editor" data-port={port.id}><PortEditor port={port} doc={doc} wiring={wiring}/></div>
     <button type="button" className="text-button" onClick={onAll}>All of {card.title}</button>
   </div>;

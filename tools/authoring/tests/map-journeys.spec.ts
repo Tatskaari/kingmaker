@@ -370,3 +370,18 @@ test('a version 1 map migrated: the user\'s harbour study, its spawn point made 
   expect(scenario.maps).toEqual(['caerwyn','drowned-rat','heron','palace','harbour-study']);
   await expect(page.getByRole('button',{name:'The story\'s start at 46, 40'})).toBeVisible();
 });
+
+test('a key the format doesn\'t know, a migrated region\'s notes, is shown on the region\'s card, edited and taken out',async({page})=>{
+  const palace=await original('maps/palace.kmmap');
+  const withNotes={...palace,regions:palace.regions.map((r:any,i:number)=>i===0?{...r,notes:'Script: the guard turns away.'}:r)};
+  await page.evaluate(map=>(window as any).__kingmakerHarness.writeDocument('maps/palace.kmmap',map),withNotes);
+  await openMap(page,'maps/palace.kmmap');
+  await page.getByRole('tab',{name:/^Regions/}).click();
+  const card=page.locator('.list-view .doc-card');
+  await expect(card.locator('[data-field="other"]')).toContainText('notes');
+  await card.getByLabel('notes',{exact:true}).fill('Script: the guard salutes.');
+  expect((await saved(page,'maps/palace.kmmap')).regions[0].notes).toBe('Script: the guard salutes.');
+  await card.getByRole('button',{name:'Remove notes'}).click();
+  expect(await savedText(page,'maps/palace.kmmap')).toBe(await readFile(new URL('maps/palace.kmmap',CAMPAIGN),'utf8'));
+  await expect(card.locator('[data-field="other"]')).toHaveCount(0);
+});

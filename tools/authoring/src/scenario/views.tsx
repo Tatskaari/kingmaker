@@ -11,7 +11,7 @@ import {TileFields} from '../map/inspectors.tsx';
 import {moved,slugOf,uniqueId,withKey} from '../campaign/json.ts';
 import type {CampaignFiles} from '../campaign/files.ts';
 import type {FileChange} from '../campaign/edits.ts';
-import {NewFile,NewFileForm,Uses,ViewIndex,plural} from '../campaign/views.tsx';
+import {NewFile,NewFileForm,OtherKeys,Uses,ViewIndex,plural} from '../campaign/views.tsx';
 import type {NewKind,Use} from '../campaign/views.tsx';
 import {ORDER,mapUsesOf,placeUsesOf,questKeyProblem,questUsesOf,sceneUsesOf,setCreationField,setScenarioField,setStartField,withStart} from './model.ts';
 import type {ScenarioDocument,Tile2} from './model.ts';
@@ -62,6 +62,7 @@ export function ScenarioView({doc,campaign,actions}:Props){
         <NumberField label="Level" field="level" min={1} max={20} hint="The character's level as the story starts." value={doc.level} onChange={value=>set('level',value)}/>
       </div>
       <TextField label="Rules pack" field="rulesPack" hint="The rules engine's content pack (starter-pack@0.1.0)." value={doc.rulesPack} onChange={value=>set('rulesPack',value)}/>
+      <OtherKeys value={doc} known={ORDER.scenario} onChange={set}/>
     </Group>
     <StartGroup doc={doc} campaign={campaign} actions={actions}/>
     <PurseGroup doc={doc} edit={actions.edit}/>

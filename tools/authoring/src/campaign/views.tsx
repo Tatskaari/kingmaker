@@ -3,7 +3,8 @@
 // main area; an inspector beside the canvas that's only ever what's selected on it; lists as a list to
 // pick from beside the chosen item's card, or as cards and chips, each removable, with a [+ Add …];
 // and the uses of what's named elsewhere, each a link there.
-import React,{useEffect,useId,useRef,useState} from 'react';
+import React,{useContext,useEffect,useId,useRef,useState} from 'react';
+import {EditSession} from '../scene/fields.tsx';
 import type {ReactNode} from 'react';
 import {AlertTriangle,CheckCircle2,ExternalLink,Info,PanelRightClose,Plus,X} from 'lucide-react';
 import {slugOf} from './json.ts';
@@ -157,6 +158,24 @@ export function WordChips({label,words,onChange,addLabel,hint,field,placeholder}
     </div>:<button type="button" className="add-item" onClick={()=>setAdding(true)}><Plus size={13}/>{addLabel}</button>}
     {hint&&<small className="field-hint">{hint}</small>}
   </div>;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Keys the format doesn't know (a migrated region's script notes): kept where they are, shown, edited
+// when they're text, and taken out.
+
+export function OtherKeys({value,known,onChange,label='Other keys'}:{value:object;known:readonly string[];onChange:(key:string,value:unknown)=>void;label?:string}){
+  const session=useContext(EditSession);
+  const others=Object.entries(value).filter(([key])=>!known.includes(key));
+  if(!others.length)return null;
+  return <fieldset className="other-keys" data-field="other">
+    <legend className="field-label">{label}</legend>
+    <small className="field-hint">Keys the format doesn't have, kept as they are (the game doesn't read them).</small>
+    {others.map(([key,item])=><div className="other-key" key={key} data-field={key}>
+      <div className="other-key-head"><code>{key}</code><button type="button" className="icon-button" aria-label={`Remove ${key}`} title={`Take ${key} out`} onClick={()=>onChange(key,undefined)}><X size={13}/></button></div>
+      {typeof item==='string'?<textarea {...session} aria-label={key} value={item} rows={2} onChange={event=>onChange(key,event.target.value)}/>:<pre>{JSON.stringify(item,null,2)}</pre>}
+    </div>)}
+  </fieldset>;
 }
 
 // ---------------------------------------------------------------------------------------------

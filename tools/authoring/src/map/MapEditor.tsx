@@ -253,12 +253,34 @@ export function MapApp({document:initial,host}:{document:MapDocument;host:FileHo
     setSelection(next);setMenu(null);
     if(next?.kind==='region'){const region=edits.current.current.regions[next.index];if(region?.sceneId&&region.worldOrigin)setPlaceRegion(next.index)}
   };
+  /** How much of the painter a narrow pane's inspector lies over (views.css: min(340px, 92%) under 760px), or 0 beside it. */
+  const covered=()=>{const width=root.current?.clientWidth??0;return width&&width<=760?Math.min(340,width*.92):0};
+  /** Where something selected is, as a tile: a region's middle, an exit's tile, someone's, the start, a part of the laid place. */
+  const tileOfSelection=(next:Exclude<Selection,null>):Tile2|undefined=>{
+    if(next.kind==='region'){const r=doc.regions[next.index]?.rect;return r?{x:r.x+r.w/2-.5,y:r.y+r.h/2-.5}:undefined}
+    if(next.kind==='exit')return doc.exits[next.index]?.at;
+    if(next.kind==='person')return doc.people?.[next.index]?.at;
+    if(next.kind==='start')return start;
+    if(next.kind==='tile')return next.at;
+    if(next.kind==='place'&&placeOf){const {place,origin}=placeOf,id=next.part.id;const feet=place.things.find(t=>t.id===id)?.at??place.people[id]?.at??(()=>{const r=place.areas.find(a=>a.id===id)?.rect;return r?[r.x+r.w/2,r.y+r.h/2] as Feet:undefined})();return feet?{x:origin.x-.5+feet[0]/FEET_PER_TILE,y:origin.y-.5+feet[1]/FEET_PER_TILE}:undefined}
+    return undefined;
+  };
+  /** The camera that puts a tile in the middle of the painter's open strip (beside a narrow pane's inspector, or the middle). */
+  const cameraOn=(at:Tile2)=>{const d=covered()/2/(2*18*zoom);return {x:at.x+d,y:at.y+d}};
   /** Something of the map shown on the painter: the Paint view, it selected, and the view moved to it. */
   const showOnMap=(next:Exclude<Selection,null>)=>{
     setView('paint');select(next);
-    const at=next.kind==='region'?(()=>{const r=doc.regions[next.index]?.rect;return r?{x:r.x+r.w/2-.5,y:r.y+r.h/2-.5}:undefined})():next.kind==='exit'?doc.exits[next.index]?.at:next.kind==='person'?doc.people?.[next.index]?.at:next.kind==='start'?start:next.kind==='tile'?next.at:undefined;
-    if(at)setCamera({x:at.x,y:at.y});
+    const at=tileOfSelection(next);
+    if(at)setCamera(cameraOn(at));
   };
+  /** Something selected on the painter in a narrow pane, where the inspector will lie over it: the view slides it into the strip beside the inspector. */
+  const keepInStrip=(next:Exclude<Selection,null>)=>{
+    const cover=covered(),at=tileOfSelection(next);if(!cover||!at||mode!=='edit')return;
+    const p=project(at);if(p.x<size.w-cover-24&&p.x>12)return;
+    const d=(p.x-(size.w-cover)/2)/(2*unit.x);
+    setCamera(c=>({x:c.x+d,y:c.y+d}));
+  };
+  const pick=(next:Exclude<Selection,null>)=>{select(next);keepInStrip(next)};
   const ask=(next:Confirmation)=>{confirmFocus.current=(root.current?.ownerDocument.activeElement as HTMLElement|null)??null;setMenu(null);setConfirmation(next)};
   const open=(path:string)=>void host.open(path).catch(error=>setToast(String(error instanceof Error?error.message:error)));
 
@@ -364,7 +386,7 @@ export function MapApp({document:initial,host}:{document:MapDocument;host:FileHo
     e.currentTarget.setPointerCapture(e.pointerId);
     if(mode==='preview'||tool==='pan'||tool==='resize'||e.button!==0){pan.current={x:e.clientX,y:e.clientY,camera:{...liveCamera.current}};setHover(null);return}
     const m=cells;if(!inside(m,p))return;
-    if(tool==='select'){select({kind:'tile',at:p});return}
+    if(tool==='select'){pick({kind:'tile',at:p});return}
     if(tool==='region'){setRegionDraft({a:p,b:p});return}
     if(tool==='sample'||e.altKey){const ch=cellAt(m,p);if(slot==='erase')setEraseCh(ch);else setPaintCh(ch);if(tool==='sample')setTool(slot==='erase'?'erase':'brush');return}
     // One material a gesture, so letting go of a key mid-stroke never mixes them.
@@ -434,9 +456,9 @@ export function MapApp({document:initial,host}:{document:MapDocument;host:FileHo
   const at=(key:string,tile:Tile2)=>dragged?.key===key?dragged.tile:tile;
   const markers:React.ReactNode[]=[];
   if(mode==='edit'&&tool!=='resize'){
-    doc.exits.forEach((exit,index)=>{const k=`exit:${index}`,p=project(at(k,exit.at));markers.push(<button key={k} className={`map-marker map-marker-exit${selection?.kind==='exit'&&selection.index===index?' chosen':''}`} style={{left:p.x,top:p.y}} title={`${exit.label} → ${exit.to.map} (${exit.to.at.x}, ${exit.to.at.y})`} aria-label={`Exit ${exit.label} at ${exit.at.x}, ${exit.at.y}`} {...markerKeys(k,exit.at,tile=>void commit(setExit(edits.current.current,index,{...exit,at:tile})),()=>select({kind:'exit',index}))}>⇥</button>)});
-    (doc.people??[]).forEach((person,index)=>{if(hour&&!person.times.includes(hour))return;const k=`person:${index}`,p=project(at(k,person.at));markers.push(<button key={k} className={`map-marker map-marker-person${selection?.kind==='person'&&selection.index===index?' chosen':''}`} style={{left:p.x,top:p.y,color:person.color??'#b8ad9c'}} title={`${person.name} (${person.times.join(', ')})`} aria-label={`Person ${person.name} at ${person.at.x}, ${person.at.y}`} {...markerKeys(k,person.at,tile=>void commit(setPersonField(edits.current.current,index,'at',movedPoint(person.at,tile))),()=>select({kind:'person',index}))}>{person.glyph}</button>)});
-    if(start){const p=project(at('start',start));markers.push(<button key="start" className={`map-marker map-marker-start${selection?.kind==='start'?' chosen':''}`} style={{left:p.x,top:p.y}} title="The story starts here" aria-label={`The story's start at ${start.x}, ${start.y}`} {...markerKeys('start',start,tile=>startHere(tile),()=>select({kind:'start'}))}><Flag size={13}/></button>)}
+    doc.exits.forEach((exit,index)=>{const k=`exit:${index}`,p=project(at(k,exit.at));markers.push(<button key={k} className={`map-marker map-marker-exit${selection?.kind==='exit'&&selection.index===index?' chosen':''}`} style={{left:p.x,top:p.y}} title={`${exit.label} → ${exit.to.map} (${exit.to.at.x}, ${exit.to.at.y})`} aria-label={`Exit ${exit.label} at ${exit.at.x}, ${exit.at.y}`} {...markerKeys(k,exit.at,tile=>void commit(setExit(edits.current.current,index,{...exit,at:tile})),()=>pick({kind:'exit',index}))}>⇥</button>)});
+    (doc.people??[]).forEach((person,index)=>{if(hour&&!person.times.includes(hour))return;const k=`person:${index}`,p=project(at(k,person.at));markers.push(<button key={k} className={`map-marker map-marker-person${selection?.kind==='person'&&selection.index===index?' chosen':''}`} style={{left:p.x,top:p.y,color:person.color??'#b8ad9c'}} title={`${person.name} (${person.times.join(', ')})`} aria-label={`Person ${person.name} at ${person.at.x}, ${person.at.y}`} {...markerKeys(k,person.at,tile=>void commit(setPersonField(edits.current.current,index,'at',movedPoint(person.at,tile))),()=>pick({kind:'person',index}))}>{person.glyph}</button>)});
+    if(start){const p=project(at('start',start));markers.push(<button key="start" className={`map-marker map-marker-start${selection?.kind==='start'?' chosen':''}`} style={{left:p.x,top:p.y}} title="The story starts here" aria-label={`The story's start at ${start.x}, ${start.y}`} {...markerKeys('start',start,tile=>startHere(tile),()=>pick({kind:'start'}))}><Flag size={13}/></button>)}
     if(placeOf){
       const {origin,place}=placeOf;
       for(const thing of place.things){
@@ -445,7 +467,7 @@ export function MapApp({document:initial,host}:{document:MapDocument;host:FileHo
         const spot=dragged?.key===k?{x:dragged.tile.x,y:dragged.tile.y}:{x:origin.x-.5+thing.at[0]/FEET_PER_TILE,y:origin.y-.5+thing.at[1]/FEET_PER_TILE};
         const p=project(spot);
         const chosen=selection?.kind==='place'&&selection.part.id===thing.id;
-        markers.push(<button key={k} className={`map-marker map-marker-thing${chosen?' chosen':''}`} style={{left:p.x,top:p.y}} title={`${thing.name} (${thing.id})`} aria-label={`Thing ${thing.name}`} data-thing={thing.id} {...markerKeys(k,tile,target=>editPlace(moveThing(place,thing.id,feetMoved(origin,thing.at!,target))),()=>select({kind:'place',part:{kind:'thing',id:thing.id}}))}>{THING_GLYPHS[thing.kind??'']??'◇'}</button>);
+        markers.push(<button key={k} className={`map-marker map-marker-thing${chosen?' chosen':''}`} style={{left:p.x,top:p.y}} title={`${thing.name} (${thing.id})`} aria-label={`Thing ${thing.name}`} data-thing={thing.id} {...markerKeys(k,tile,target=>editPlace(moveThing(place,thing.id,feetMoved(origin,thing.at!,target))),()=>pick({kind:'place',part:{kind:'thing',id:thing.id}}))}>{THING_GLYPHS[thing.kind??'']??'◇'}</button>);
         if(names)markers.push(<span key={`${k}:name`} className="map-marker-name" style={{left:p.x,top:p.y}} aria-hidden="true">{thing.name||thing.id}</span>);
       }
       for(const [id,person] of Object.entries(place.people)){
@@ -454,7 +476,7 @@ export function MapApp({document:initial,host}:{document:MapDocument;host:FileHo
         const tile={x:origin.x+Math.floor(feet[0]/FEET_PER_TILE),y:origin.y+Math.floor(feet[1]/FEET_PER_TILE)};
         const spot=dragged?.key===k?dragged.tile:{x:origin.x-.5+feet[0]/FEET_PER_TILE,y:origin.y-.5+feet[1]/FEET_PER_TILE};
         const p=project(spot),chosen=selection?.kind==='place'&&selection.part.id===id;
-        markers.push(<button key={k} className={`map-marker map-marker-cast${chosen?' chosen':''}`} style={{left:p.x,top:p.y,color:look.fg??'#e8dcc0'}} title={`${id} starts here${person.note?`: ${person.note}`:''}`} aria-label={`${id} starts here`} data-starts={id} {...markerKeys(k,tile,target=>editPlace(movePerson(place,id,person.at?feetMoved(origin,person.at,target):feetOfTile(origin,target))),()=>select({kind:'place',part:{kind:'person',id}}))}>{look.glyph??id.charAt(0).toUpperCase()}</button>);
+        markers.push(<button key={k} className={`map-marker map-marker-cast${chosen?' chosen':''}`} style={{left:p.x,top:p.y,color:look.fg??'#e8dcc0'}} title={`${id} starts here${person.note?`: ${person.note}`:''}`} aria-label={`${id} starts here`} data-starts={id} {...markerKeys(k,tile,target=>editPlace(movePerson(place,id,person.at?feetMoved(origin,person.at,target):feetOfTile(origin,target))),()=>pick({kind:'place',part:{kind:'person',id}}))}>{look.glyph??id.charAt(0).toUpperCase()}</button>);
         if(names)markers.push(<span key={`${k}:name`} className="map-marker-name cast" style={{left:p.x,top:p.y}} aria-hidden="true">{placeOf.cast.find(member=>member.id===id)?.name??(id==='player'?'the player':id)}</span>);
       }
     }
@@ -478,7 +500,7 @@ export function MapApp({document:initial,host}:{document:MapDocument;host:FileHo
       const k=`area:${area.id}`,corner={x:origin.x+Math.floor(area.rect.x/FEET_PER_TILE),y:origin.y+Math.floor(area.rect.y/FEET_PER_TILE)};
       const spot=dragged?.key===k?dragged.tile:{x:origin.x-.5+area.rect.x/FEET_PER_TILE,y:origin.y-.5+area.rect.y/FEET_PER_TILE};
       const p=project(spot),chosen=selection?.kind==='place'&&selection.part.id===area.id;
-      areaChips.push(<button key={k} className={`map-area-chip${chosen?' chosen':''}`} style={{left:p.x,top:p.y}} aria-label={`Area ${area.name}`} data-area={area.id} {...markerKeys(k,corner,target=>{const moved=feetMoved(origin,[area.rect.x,area.rect.y],target);editPlace(moveArea(place,area.id,moved[0],moved[1]))},()=>select({kind:'place',part:{kind:'area',id:area.id}}))}>{area.name||area.id}</button>);
+      areaChips.push(<button key={k} className={`map-area-chip${chosen?' chosen':''}`} style={{left:p.x,top:p.y}} aria-label={`Area ${area.name}`} data-area={area.id} {...markerKeys(k,corner,target=>{const moved=feetMoved(origin,[area.rect.x,area.rect.y],target);editPlace(moveArea(place,area.id,moved[0],moved[1]))},()=>pick({kind:'place',part:{kind:'area',id:area.id}}))}>{area.name||area.id}</button>);
     }
   }
 
@@ -528,8 +550,14 @@ export function MapApp({document:initial,host}:{document:MapDocument;host:FileHo
   const inspectorWhat=():React.ReactNode=>{
     const s=selection;
     if(!s)return 'Nothing selected';
-    const kinds={region:'Region',exit:'Exit',person:'Someone about',legend:'Legend entry',start:'The story\'s start',tile:'Tile',place:'The place'};
-    return <><span className={`kind-dot ${s.kind==='place'?'place':s.kind}`}/>{kinds[s.kind]}</>;
+    if(s.kind==='region'){const region=doc.regions[s.index];return <><span className="kind-dot region"/>Region{region&&<code>{region.id}</code>}</>}
+    if(s.kind==='exit'){const exit=doc.exits[s.index];return <><span className="kind-dot exit"/>Exit{exit&&<code>{exit.at.x}, {exit.at.y}</code>}</>}
+    if(s.kind==='person'){const person=doc.people?.[s.index];return <><span className="person-glyph" style={{color:person?.color??'#b8ad9c'}}>{person?.glyph}</span>Someone about{person&&<code>{person.at.x}, {person.at.y}</code>}</>}
+    if(s.kind==='legend')return <><span className="legend-swatch" style={{background:swatchOf(doc.legend[s.ch])}}/>Legend entry<code>{s.ch}</code></>;
+    if(s.kind==='start')return <><Flag size={12}/>The story's start{start&&<code>{start.x}, {start.y}</code>}</>;
+    if(s.kind==='tile')return <><span className="legend-swatch" style={{background:swatchOf(doc.legend[cellAt(cells,s.at)])}}/>Tile<code>{s.at.x}, {s.at.y}</code></>;
+    if(s.kind!=='place')return null;
+    return <><span className={`kind-dot ${s.part.kind}`}/>{s.part.kind==='area'?'Area':s.part.kind==='thing'?'Thing':'Starts here'}<code>{s.part.id}</code></>;
   };
   const inspectorBody=()=>{
     const s=selection;

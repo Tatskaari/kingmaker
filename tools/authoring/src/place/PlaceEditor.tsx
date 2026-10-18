@@ -171,7 +171,7 @@ export function PlaceApp({document:initial,host}:{document:PlaceDocument;host:Fi
     }
     return <PlacePartInspector key={`${selection.part.kind}:${selection.part.id}`} part={selection.part} doc={doc} onChange={change} onSelect={selectPart} confirm={confirm} cast={cast} uses={uses} onAdd={(kind,area)=>addIn(kind,area)} onRenamed={(part,to)=>select({kind:'part',part:{...part,id:to}})}/>;
   };
-  const what=selection?.kind==='spot'?<><span className="kind-dot place"/>A spot</>:selection?.kind==='part'?<><span className={`kind-dot ${selection.part.kind}`}/>{selection.part.kind==='area'?'Area':selection.part.kind==='thing'?'Thing':'Who starts here'}</>:'Nothing selected';
+  const what=selection?.kind==='spot'?<><span className="kind-dot place"/>A spot<code>{selection.at[0]}, {selection.at[1]} ft</code></>:selection?.kind==='part'?<><span className={`kind-dot ${selection.part.kind}`}/>{selection.part.kind==='area'?'Area':selection.part.kind==='thing'?'Thing':`Starts here: ${nameOf(selection.part.id)}`}<code>{selection.part.id}</code></>:'Nothing selected';
 
   // ---- Going to a problem ----
   const go=(problem:CampaignProblem)=>{

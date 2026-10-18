@@ -38,6 +38,8 @@ export type Confirmation={title:string;description:string;confirmLabel:string;ru
 type View='diagram'|'scenario'|'files'|'quests'|'problems';
 const VIEW_IDS:View[]=['diagram','scenario','files','quests','problems'];
 const ICONS={start:Flag,scene:BookOpen,map:MapIcon};
+/** How long a click waits to be a double-click before a narrow pane's inspector covers where it was (views.css has it too). */
+const DOUBLE_CLICK=250;
 /** Each file's diagram viewport, remembered while the plugin is loaded (the diagram is drawn again when its view comes back). */
 const viewports=new Map<string,Viewport>();
 /** Where each of the scenario's own fields is edited: its view. */
@@ -155,7 +157,8 @@ function ScenarioEditor({initial,host}:{initial:ScenarioDocument;host:FileHost<S
   };
 
   // ---- The diagram ----
-  const choosePort=useMemo(()=>(card:string,port:string)=>setSelection({kind:'port',card,port}),[]);
+  const clearRef=useRef<(id:string)=>void>(()=>{});
+  const choosePort=useMemo(()=>(card:string,port:string)=>{clearRef.current(card);setSelection({kind:'port',card,port})},[]);
   const nodes=useMemo<CardNode[]>(()=>flow.cards.map(card=>({
     id:card.id,type:'card',position:dragging[card.id]??positions.get(card.id)??{x:0,y:0},measured:measured[card.id],deletable:false,
     selected:selection?.kind==='card'&&selection.id===card.id,
@@ -191,7 +194,23 @@ function ScenarioEditor({initial,host}:{initial:ScenarioDocument;host:FileHost<S
     setSelection({kind:'port',card:card!.id,port:port.id});
     wiring.aim(port.owner,connection.target);
   };
-  const fit=()=>void flowApi.fitView({padding:.12,duration:200});
+  /** In a narrow pane the inspector lies over the diagram's right side: what's clicked there slides into the strip beside it, a moment after the click (a double-click's second click must find the card where it was). */
+  const covering=()=>{const aside=shell.current?.querySelector<HTMLElement>('.scenario-inspector');return aside&&getComputedStyle(aside).position==='absolute'?aside.offsetWidth:0};
+  const slide=useRef<number|undefined>(undefined);
+  useEffect(()=>()=>window.clearTimeout(slide.current),[]);
+  const keepClear=(id:string)=>{
+    window.clearTimeout(slide.current);
+    slide.current=window.setTimeout(()=>{
+      const width=covering(),pane=shell.current?.querySelector('.graph-canvas')?.getBoundingClientRect(),card=shell.current?.querySelector(`.scenario-card[data-card="${CSS.escape(id)}"]`)?.getBoundingClientRect();
+      if(!width||!pane||!card)return;
+      const strip=pane.width-width;
+      if(card.right<=pane.left+strip-12&&card.left>=pane.left)return;
+      const viewport=flowApi.getViewport();
+      void flowApi.setViewport({...viewport,x:viewport.x+pane.left+strip/2-(card.left+card.width/2)},{duration:200});
+    },DOUBLE_CLICK);
+  };
+  clearRef.current=keepClear;
+  const fit=()=>{const width=selection?covering():0;void flowApi.fitView({padding:width?{x:.12,y:.12,right:`${width+24}px`}:.12,duration:200})};
   const forgetLayout=()=>ask({title:'Forget the layout?',description:`The ${Object.keys(doc.layout??{}).length} cards you've placed go back where the default puts them (the story's scenes along the top, the maps beneath). The game doesn't read the layout. You can undo this.`,confirmLabel:'Forget the layout',run:()=>edits.commit(setScenarioField(edits.current.current,'layout',undefined))});
   const selectedCard=selection?flow.cards.find(card=>card.id===(selection.kind==='card'?selection.id:selection.card)):undefined;
   const selectedPort=selection?.kind==='port'?selectedCard?.ports.find(port=>port.id===selection.port):undefined;
@@ -230,7 +249,7 @@ function ScenarioEditor({initial,host}:{initial:ScenarioDocument;host:FileHost<S
     if(selectedCard)return <CardInspector card={selectedCard} doc={doc} known={known} wiring={wiring} open={open} onPort={port=>setSelection({kind:'port',card:selectedCard.id,port})}/>;
     return <p className="info-box">Click a scene, a map or the start to wire it here, or drag from one of its ways out (an ending, a region that plays a scene, a way to another map) to where it goes. Each is written in the file that owns it. The scenario's own fields, its files and its quests are views of their own, in the bar above.</p>;
   };
-  const what=selectedPort?<><span className="kind-dot route"/>Way out</>:selectedCard?<><span className={`kind-dot ${selectedCard.kind==='map'?'map':selectedCard.kind==='start'?'start':'scene'}`}/>{selectedCard.kind==='start'?'The start':selectedCard.kind==='scene'?'Scene':'Map'}</>:'Nothing selected';
+  const what=selectedPort&&selectedCard?<><span className="kind-dot route"/>A way out of<code>{selectedCard.key??'the start'}</code></>:selectedCard?<><span className={`kind-dot ${selectedCard.kind==='map'?'map':selectedCard.kind==='start'?'start':'scene'}`}/>{selectedCard.kind==='start'?'The start':selectedCard.kind==='scene'?'Scene':'Map'}{selectedCard.key&&<code>{selectedCard.key}</code>}</>:'Nothing selected';
   const saved=viewports.get(host.filePath);
   return <EditSession.Provider value={edits.sessionHandlers}>
     <div className="km-workshop km-forms km-scenario" ref={shell} tabIndex={0} onPointerDown={event=>{if(!(event.target as Element).closest('input,textarea,select,button,a'))shell.current?.focus({preventScroll:true})}}>
@@ -249,9 +268,9 @@ function ScenarioEditor({initial,host}:{initial:ScenarioDocument;host:FileHost<S
               <ReactFlow<CardNode,FlowEdgeData> nodes={nodes} edges={edges} nodeTypes={nodeTypes} minZoom={.06} maxZoom={1.6} deleteKeyCode={null} panOnDrag={[1,2]} panOnScroll zoomOnDoubleClick={false} colorMode="system" nodesConnectable={!edits.busy} nodesDraggable={!edits.busy}
                 {...(saved?{defaultViewport:saved}:{})} onMoveEnd={(_,viewport)=>{viewports.set(host.filePath,viewport)}}
                 onNodesChange={nodeChanges} onNodeDragStop={dropped} onConnect={connect}
-                onNodeClick={(_,node)=>setSelection({kind:'card',id:node.id})}
-                onNodeDoubleClick={(_,node)=>{const path=node.data.card.path;if(path)open(path)}}
-                onEdgeClick={(_,edge)=>setSelection({kind:'port',card:edge.source,port:edge.sourceHandle!})}
+                onNodeClick={(_,node)=>{keepClear(node.id);setSelection({kind:'card',id:node.id})}}
+                onNodeDoubleClick={(_,node)=>{window.clearTimeout(slide.current);const path=node.data.card.path;if(path)open(path)}}
+                onEdgeClick={(_,edge)=>{keepClear(edge.source);setSelection({kind:'port',card:edge.source,port:edge.sourceHandle!})}}
                 onPaneClick={()=>setSelection(null)}>
                 <Background gap={24}/><Controls showInteractive={false}/><MiniMap pannable zoomable nodeColor={node=>(node.data as CardNode['data']).card.kind==='map'?'#5f8f8a':(node.data as CardNode['data']).card.kind==='start'?'#5f8f6a':'#8874ac'}/>
               </ReactFlow>

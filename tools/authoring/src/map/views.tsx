@@ -5,7 +5,7 @@
 import React,{useEffect,useState} from 'react';
 import {MapPin,Plus} from 'lucide-react';
 import {ChoiceField,IdField,NumberField,TextArea,TextField} from '../scene/fields.tsx';
-import {DocCard,ListView,Uses,ViewIndex,plural} from '../campaign/views.tsx';
+import {DocCard,ListView,OtherKeys,Uses,ViewIndex,plural} from '../campaign/views.tsx';
 import {Group} from '../scene/fields.tsx';
 import {MAP_LIMIT,MAP_MIN,ORDER,TIMES,entryName,peopleAbout} from './model.ts';
 import type {MapDocument,TimeOfDay,Tile2} from './model.ts';
@@ -67,6 +67,7 @@ export function MapView({doc,actions,size,around}:Common&{size:{width:number;hei
       <IdField id={doc.id} label="Map id" problem={next=>/^[a-z0-9][a-z0-9-]*$/.test(next)?undefined:'An id is a slug: lower-case letters, digits and dashes.'} onRename={next=>set('id',next)}
         warning="It's the file's name (rename the file to match: the problems say until it does), and the scenario's list, the exits leading here and the start name it too."/>
       <TextArea label="Description" field="description" rows={3} value={doc.description} onChange={value=>set('description',value)}/>
+      <OtherKeys value={doc} known={ORDER.map} onChange={set}/>
       {around.notes.map(note=><p className="problems-note" key={note}>{note}</p>)}
     </Group>
     <SizeGroup size={size} actions={actions}/>

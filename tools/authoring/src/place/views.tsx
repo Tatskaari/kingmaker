@@ -4,7 +4,7 @@
 import React from 'react';
 import {MapPin,Plus} from 'lucide-react';
 import {Group,IdField,NumberField,TextArea,TextField} from '../scene/fields.tsx';
-import {DocCard,ListView,Uses,ViewIndex,plural} from '../campaign/views.tsx';
+import {DocCard,ListView,OtherKeys,Uses,ViewIndex,plural} from '../campaign/views.tsx';
 import type {Use} from '../campaign/views.tsx';
 import {ORDER,setPlaceField} from './model.ts';
 import type {PlaceDocument} from './model.ts';
@@ -46,6 +46,7 @@ export function PlaceView({doc,actions,around}:{doc:PlaceDocument;actions:PlaceV
       <IdField id={doc.id} label="Place id" problem={next=>/^[a-z0-9][a-z0-9-]*$/.test(next)?undefined:'An id is a slug: lower-case letters, digits and dashes.'} onRename={next=>set('id',next)}
         warning="It's the file's name (rename the file to match: the problems say until it does), and the scenario's list and the scenes played here name it too."/>
       <TextArea label="Description" field="description" rows={3} hint="What the place is, all of it: the GM's first sight of it." value={doc.description} onChange={value=>set('description',value)}/>
+      <OtherKeys value={doc} known={ORDER.place} onChange={set}/>
       {around.notes.map(note=><p className="problems-note" key={note}>{note}</p>)}
     </Group>
     <Group title="Its size" anchor="place-size" field="size" hint="In feet, from above (five feet a tile on a map). What's off its floor is a problem, as the campaign check has it.">

@@ -88,7 +88,7 @@ function AreaInspector({id,doc,onChange,onSelect,confirm,cast,onAdd,onRenamed}:P
     <WordChips label="Tags" field="tags" addLabel="Add a tag" placeholder="outdoors" words={area.tags??[]} onChange={words=>set('tags',optionalList(words))}/>
     <WordChips label="States" field="states" addLabel="Add a state" placeholder="dark" words={area.states??[]} onChange={words=>set('states',optionalList(words))}/>
     <Uses title="In it" uses={inside} none="Nothing yet."/>
-    {onAdd&&<div className="tile-actions"><button type="button" onClick={()=>onAdd('thing',id)}>Add a thing in it…</button><button type="button" onClick={()=>onAdd('starts',id)}>Start someone in it…</button></div>}
+    {onAdd&&<div className="tile-actions"><button type="button" onClick={()=>onAdd('thing',id)}>Add a thing in it…</button><button type="button" onClick={()=>onAdd('starts',id)}>Start someone in it…</button><small className="field-hint">Where you clicked it on the plan, or its middle.</small></div>}
     <div className="inspector-actions">
       <button type="button" className="danger" disabled={inside.length>0} onClick={()=>confirm('Remove the area?',`Remove ${area.name||id} from the place? You can undo this.`,'Remove area',()=>{onChange(removeFromPlace(doc,id));onSelect(null)})}><Trash2 size={14}/>Remove area</button>
       {inside.length>0&&<small className="field-hint">Move or remove what's in it first.</small>}

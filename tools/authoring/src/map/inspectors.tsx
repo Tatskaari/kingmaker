@@ -10,7 +10,7 @@ import {ACTOR_KINDS,ORDER,TERRAINS,TIMES,VOID,cellAt,entryName,legendCharProblem
 import type {Cells,DecorDef,LegendEntry,MapDocument,MapExit,MapPerson,Tile2} from './model.ts';
 import {BLOCKS,GROUND} from '../../../../client/map/palette.ts';
 import {optionalList,optionalText,withKey} from '../campaign/json.ts';
-import {NewFile,Uses,WordChips} from '../campaign/views.tsx';
+import {NewFile,OtherKeys,Uses,WordChips} from '../campaign/views.tsx';
 import {swatchOf} from './look.ts';
 
 /** A whole number that may be left out: empty is no value at all. */
@@ -172,6 +172,7 @@ export function RegionInspector({doc,index,context,onChange,onRemove,onShowPlace
       <TextField label="Locked" field="locked" hint="What its locked doors say when they're tried." value={region.locked??''} onChange={value=>set('locked',optionalText(value))}/>
     </OptionalSection>
     <TextArea label="Description" field="description" rows={3} hint="What it is, for the GM and the map's hover." value={region.description??''} onChange={value=>set('description',optionalText(value))}/>
+    <OtherKeys value={region} known={ORDER.region} onChange={set}/>
     <div className="inspector-actions"><button type="button" className="danger" onClick={onRemove}><Trash2 size={14}/>Delete region…</button></div>
   </div>;
 }
