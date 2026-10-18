@@ -25,7 +25,7 @@ const USAGE = `npm run dev [-- options]
   --fake                the fake model (no key, no cost): it plays hosts/dev/fake.json, the GM's golden
                         replies and suggested lines, each written over 2 s as a model's is;
                         KM_AI_FAKE (JSON) goes on top: '{"streamMs":0}' answers at once,
-                        '{"choices":{"attempt":"examine-body"}}' rolls the Medicine check
+                        '{"mouthpiece":{"check":{"skill":"medicine","dc":12}}}' rolls a Medicine check
   --container           the AI service in its podman image (built from ai/Containerfile)
   --fresh               no data: SpacetimeDB's, the AI service's store, runs/play (the keys stay)
   --mode host|namespace detected when absent: host when ${AI_ADDRESS} is on this machine
