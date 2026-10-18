@@ -114,7 +114,7 @@ function SceneEditor({initial,host}:{initial:SceneDocument;host:SceneHost}){
   const [castOpen,setCastOpen]=useState<string|null>(null),[editingRoute,setEditingRoute]=useState<string|null>(null);
   const [expanded,setExpanded]=useState(false),[dialog,setDialog]=useState<'add'|'help'|null>(null),[lorePicker,setLorePicker]=useState<LoreRequest|null>(null);
   const [confirmation,setConfirmation]=useState<Confirmation|null>(null),[connecting,setConnecting]=useState<string|null>(null);
-  const [toast,setToast]=useState(''),[inspector,setInspector]=useState(true);
+  const [toast,setToast]=useState(''),[inspector,setInspector]=useState(true),[linking,setLinking]=useState(false);
   const [measurements,setMeasurements]=useState<Record<string,{width:number;height:number}>>({});
   const shell=useRef<HTMLDivElement>(null),canvas=useRef<HTMLDivElement>(null),confirmFocus=useRef<HTMLElement|null>(null);
   const pendingFocus=useRef<{within:string;field?:string}|null>(null),pendingCentre=useRef<string|null>(null);
@@ -391,13 +391,15 @@ function SceneEditor({initial,host}:{initial:SceneDocument;host:SceneHost}){
                 onEdgeDoubleClick={(_,edge)=>{setSelected({kind:'connection',id:edge.id});setExpanded(true)}}
                 onPaneClick={()=>{setSelected(null);setMarked(new Set());setConnecting(null)}}
                 onConnect={(connection:FlowConnection)=>{if(connection.source&&connection.target)connect(connection.source,connection.target)}}
+                onConnectStart={()=>setLinking(true)} onConnectEnd={()=>setLinking(false)}
                 onPaneContextMenu={event=>{event.preventDefault();setDialog('add')}}>
                 <Background gap={24} size={1}/><Controls showInteractive={false} showFitView={false}><ControlButton className="react-flow__controls-fitview" title="Fit View (F)" aria-label="Fit View" onClick={fit}><Maximize size={12}/></ControlButton></Controls><MiniMap pannable zoomable nodeColor={node=>COLORS[nodeKind((node.data as CardData).node)]}/>
               </ReactFlow>
               {connecting&&<div className="canvas-notice">Click the node the route goes to. <button onClick={()=>setConnecting(null)}>Cancel</button></div>}
             </div>
             {/* Always there, hidden when it's been put away, so a narrow pane knows how much of the graph it will cover. */}
-            <aside className={`inspector scene-inspector${selectedNode||selectedConnection?'':' empty'}${inspector?'':' put-away'}`} aria-label="Inspector">
+            {/* While a route is being drawn, a narrow pane's inspector stands aside: the node it goes to may be under it. */}
+            <aside className={`inspector scene-inspector${selectedNode||selectedConnection?'':' empty'}${inspector?'':' put-away'}${connecting||linking?' connecting':''}`} aria-label="Inspector">
               <header className="inspector-top">
                 <span className="inspector-what">{selectedNode?<><span className={`kind-dot ${nodeKind(selectedNode)}`}/>{KIND_LABELS[nodeKind(selectedNode)]}</>:selectedConnection?<><span className="kind-dot route"/>{selectedConnection.routes.length===1?'Route':`${selectedConnection.routes.length} routes`}</>:'Nothing selected'}</span>
                 <button type="button" title="Hide the inspector" aria-label="Hide the inspector" onClick={()=>setInspector(false)}><PanelRightClose size={15}/></button>

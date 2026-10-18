@@ -300,7 +300,7 @@
   .km-workshop.km-scene h1 {font-size:20px}
   .km-workshop.km-scene .topbar .save {display:none}
   .km-workshop.km-scene .scene-inspector {position:absolute;top:0;right:0;bottom:0;z-index:12;width:min(360px,94%);flex-basis:auto;box-shadow:-8px 0 24px #0003}
-  .km-workshop.km-scene .scene-inspector.empty,.km-workshop.km-scene .scene-inspector.put-away {display:flex;visibility:hidden;pointer-events:none}
+  .km-workshop.km-scene .scene-inspector.empty,.km-workshop.km-scene .scene-inspector.put-away,.km-workshop.km-scene .scene-inspector.connecting {display:flex;visibility:hidden;pointer-events:none}
   .km-workshop.km-scene .react-flow__minimap {display:none}
   .km-workshop.km-scene .view-content {padding:14px 14px 48px}
   .km-workshop.km-scene .field-group {padding:4px 14px 10px}

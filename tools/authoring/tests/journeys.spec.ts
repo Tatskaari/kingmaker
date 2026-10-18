@@ -157,6 +157,15 @@ test('in a pane half a screen wide the inspector lies over the graph: what\'s se
       expect(each.x+each.width,id).toBeLessThanOrEqual(aside.x);
     }
   }
+  // While a route is drawn it stands aside, so the node it goes to can be clicked wherever it is; then it's the new route's.
+  await page.getByRole('button',{name:'Zoom In'}).click();
+  await select(page,'start');
+  await inspector(page).getByRole('button',{name:'Add route to…'}).click();
+  await expect(page.locator('.scene-inspector')).toBeHidden();
+  await settled(card(page,'murder-unknown'));
+  await card(page,'murder-unknown').click({position:{x:30,y:10}});
+  await expect.poll(async()=>(await saved(page)).edges.at(-1).id).toBe('to-murder-unknown');
+  await expect(page.locator('.scene-inspector .route-card[data-route-id="to-murder-unknown"]')).toBeVisible();
   // Put away by a click on the graph's background, it covers nothing.
   await page.locator('.react-flow__pane').click({position:{x:5,y:5}});
   await expect(page.locator('.scene-inspector')).toBeHidden();
