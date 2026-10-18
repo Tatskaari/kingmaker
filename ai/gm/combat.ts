@@ -120,6 +120,7 @@ export function fightNote(view: TurnView, combat: CombatView): string {
   const parts = [
     `## The fight: round ${combat.state.round}${combat.state.why ? ` (${combat.state.why})` : ""}`,
     `In initiative order (it holds every round):\n${combat.fighters.map(f => fighterLine(f, f.id === combat.whose && !combat.over, combat.fighters)).join("\n")}`,
+    ...[outOfIt(view, combat)].filter((n): n is string => !!n),
     combat.pending?.length ? sidesNote(combat) : combat.over ? overNote(combat) : turnNote(view, combat, whose),
     ...(combat.done.length ? [`## This turn so far\n${combat.done.map(doneLine).join("\n")}`] : []),
   ];
@@ -146,6 +147,21 @@ function turnNote(view: TurnView, combat: CombatView, whose: CombatFighter): str
   }
   const side = whose.side === "party" ? "with the player" : "against the player";
   return `## It's ${whose.name}'s turn [${whose.id}], ${side}\nPlay it as ${whose.name} would, from who they are and how the fight is going for them now: move_towards someone if they need to close in (a melee blow needs them beside their target) or back off, a perform_action for what they do (attack with their weapon, flee, surrender, or other), then end_turn. They may talk, back off, run or give up instead of attacking.${limit}`;
+}
+
+/**
+ * Who ran from the fight: gone from the scene, or (one the story needs: the companion, a holder of what
+ * the player still needs) keeping clear of it nearby, here when it's over, which the narration keeps
+ * to (the smoke test: Kell put to flight, still talking two lines on).
+ */
+function outOfIt(view: TurnView, combat: CombatView): string | undefined {
+  const fled = combat.state.fled ?? [];
+  if (!fled.length) return undefined;
+  const e = (id: string) => view.world?.entities[id];
+  const clear = fled.filter(id => e(id) && !e(id)!.states.includes("gone"));
+  const away = fled.filter(id => !clear.includes(id));
+  const name = (id: string) => `${e(id)?.name ?? id} [${id}]`;
+  return `Out of the fight: ${[...away.map(id => `${name(id)} ran off and is gone from here`), ...clear.map(id => `${name(id)} is keeping clear of it, close by (backing off, hiding, never leaving: they're here when it's over)`)].join("; ")}.`;
 }
 
 /** Who has no side yet: the people the reply didn't put on one as the fight broke out, and whoever has just arrived. */

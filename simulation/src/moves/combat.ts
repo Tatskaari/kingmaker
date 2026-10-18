@@ -85,22 +85,54 @@ export function startCombat(tx: TxCtx, at: At, plan: SayPlan, initiative: Initia
     ...(from === "settle" ? { from } : {}),
   };
   at.gm.combat = state;
-  for (const c of running) runsOff(tx, at, plan.n, c.id);
-  const ran = running.length ? ` Running from it: ${running.map(c => nameOf(tx, at, plan.n, c.id)).join(", ")}.` : "";
-  addEntry(tx, at.scene, { turn: plan.n, speaker: "system", kind: "system", text: `Combat! In initiative order: ${state.order.map(f => nameOf(tx, at, plan.n, f.id)).join(", ")}.${ran}` });
+  const ran = ranWords(tx, at, plan.n, running.map(c => ({ id: c.id, how: runsOff(tx, at, plan.n, c.id) })));
+  addEntry(tx, at.scene, { turn: plan.n, speaker: "system", kind: "system", text: [`Combat! In initiative order: ${state.order.map(f => nameOf(tx, at, plan.n, f.id)).join(", ")}.`, ...ran].join(" ") });
   tx.log(`[scene ${at.scene.id} turn ${plan.n}] combat: ${state.order.map(f => `${f.id} ${f.initiative}`).join(", ")}${running.length ? `; running: ${running.map(c => c.id).join(", ")}` : ""}${pending.length ? `; no side yet: ${pending.join(", ")}` : ""} (${state.why})`);
   return turnUp(tx, at, plan, 0, true);
 }
 
-/** Someone who runs from the fight as it breaks out, or as they pick their side: out of it and away from the scene (as a reaction's flight is). */
-function runsOff(tx: TxCtx, at: At, n: number, id: string): void {
+/**
+ * Someone who runs from the fight as it breaks out, or as they pick their side: out of it and away
+ * from the scene (as a reaction's flight is), "away". Not one who keeps the story going (keepers:
+ * whoever walks with the player, whoever holds what the player still needs): they're out of the
+ * fight and keep clear of it, here when it's over, "clear" (the smoke test: Kell put to flight in the
+ * yard, gone from the scene the story needs her in).
+ */
+function runsOff(tx: TxCtx, at: At, n: number, id: string): "away" | "clear" {
   const combat = at.gm.combat!;
   combat.fled = [...new Set([...(combat.fled ?? []), id])];
   const played = inPlay(tx, at.scene, at.graph, at.gm, n);
   const e = played.place.world.entities[id];
-  if (e) e.states = [...e.states.filter(s => s !== "cowering" && s !== AWAY), AWAY];
-  played.session.absent = [...new Set([...(played.session.absent ?? []), id])];
+  const stays = keepers(tx, at).has(id);
+  if (stays) { if (e) e.states = [...e.states.filter(s => s !== "cowering"), "cowering"]; }
+  else {
+    if (e) e.states = [...e.states.filter(s => s !== "cowering" && s !== AWAY), AWAY];
+    played.session.absent = [...new Set([...(played.session.absent ?? []), id])];
+  }
   playedOut(tx, at.scene, at.graph, at.gm, played);
+  return stays ? "clear" : "away";
+}
+
+/**
+ * Who doesn't leave the scene when they run from a fight: whoever walks with the player (the story's
+ * followers, and those the scene's own endings have follow them: Kell in the yard), and whoever
+ * holds a discovery the scene can't end well without that the player hasn't made yet (its paths'
+ * people: Scrope and the true book), so a fight never takes the story's lead or its proof away.
+ */
+function keepers(tx: TxCtx, at: At): Set<string> {
+  const follow = [...(at.graph.onEnd ?? []), ...at.graph.exits.flatMap(e => e.effects ?? [])].flatMap(e => (e.op === "follow" ? [e.who] : []));
+  const reached = new Set(at.gm.reached);
+  const holders = at.graph.beats.filter(b => b.required && !reached.has(b.id)).flatMap(b => (b.paths ?? []).map(p => p.via));
+  return new Set([...companionsHere(tx, at), ...follow, ...holders]);
+}
+
+/** Who ran from the fight, in words: those away from the scene, and those keeping clear of it. */
+function ranWords(tx: TxCtx, at: At, n: number, ran: Array<{ id: string; how: "away" | "clear" }>): string[] {
+  const names = (how: "away" | "clear") => ran.filter(r => r.how === how).map(r => nameOf(tx, at, n, r.id));
+  return [
+    ...(names("away").length ? [`Running from it: ${names("away").join(", ")}.`] : []),
+    ...(names("clear").length ? [`Keeping clear of it: ${names("clear").join(", ")}.`] : []),
+  ];
 }
 
 /** The world's state for someone who has left the place. */
@@ -118,7 +150,7 @@ function sidesPicked(tx: TxCtx, at: At, n: number, sides: Record<string, string>
   const joining = pending.filter(id => sides[id] === "with_player" || sides[id] === "against_player").map(id => castOf(at, id, world)).filter((c): c is Character => !!c);
   const running = pending.filter(id => !joining.some(c => c.id === id));
   delete combat.pending;
-  for (const id of running) runsOff(tx, at, n, id);
+  const ran = running.map(id => ({ id, how: runsOff(tx, at, n, id) }));
   if (joining.length) {
     const rolled = withRules(tx, at, n, (rules, session) => rollInitiative(rules, session, joining));
     for (const line of rolled.lines) addEntry(tx, at.scene, { turn: n, speaker: "dice", kind: "roll", text: line });
@@ -133,7 +165,7 @@ function sidesPicked(tx: TxCtx, at: At, n: number, sides: Record<string, string>
   tx.log(`[scene ${at.scene.id} turn ${n}] combat: sides picked: ${joining.map(c => `${c.id} ${sides[c.id]}`).join(", ") || "nobody joins"}${running.length ? `; running: ${running.join(", ")}` : ""}`);
   const words = [
     ...(joining.length ? [`Joining the fight: ${joining.map(c => `${nameOf(tx, at, n, c.id)} (${sides[c.id] === "against_player" ? "against you" : "with you"})`).join(", ")}.`] : []),
-    ...(running.length ? [`Running from it: ${running.map(id => nameOf(tx, at, n, id)).join(", ")}.`] : []),
+    ...ranWords(tx, at, n, ran),
   ];
   if (words.length) addEntry(tx, at.scene, { turn: n, speaker: "system", kind: "system", text: words.join(" ") });
 }

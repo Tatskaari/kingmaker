@@ -164,6 +164,16 @@ test("everyone here with no side yet picks one before the next turn (the user's 
   assert.deepEqual(faked.move.kind === "sides" && faked.move.sides, { moll: "with_player", porters: "flee" }, "the fake picks its options', else they run");
 });
 
+test("who ran from the fight, for the GM: gone from here, or keeping clear of it close by (one the story needs), never to be narrated leaving", () => {
+  const view = yard();
+  view.world!.entities.moll!.states = ["cowering"];
+  const note = fightNote(view, fight("cob", { state: { ...fight("cob").state, fled: ["moll"] } }));
+  assert.match(note, /\nOut of the fight: Moll \[moll\] is keeping clear of it, close by \(backing off, hiding, never leaving: they're here when it's over\)\./);
+  view.world!.entities.moll!.states = ["gone"];
+  assert.match(fightNote(view, fight("cob", { state: { ...fight("cob").state, fled: ["moll"] } })), /\nOut of the fight: Moll \[moll\] ran off and is gone from here\./);
+  assert.doesNotMatch(fightNote(yard(), fight("cob")), /Out of the fight/);
+});
+
 test("roll_for_initiative's sides: a group's members and the world's people and creatures with no card are in it by id or name, and whoever runs is on neither side", () => {
   const heron = effectiveScene(loadScene(readFileSync(join(CAERWYN, "scenes", "heron-warehouse.kmscene"), "utf8")), []);
   const view = viewAt(heron, "midnight", { turn: 9, reached: ["wharf", "midnight"] });

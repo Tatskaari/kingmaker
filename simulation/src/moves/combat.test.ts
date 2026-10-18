@@ -93,17 +93,17 @@ test("whoever the reply left unplaced who reacted to the player's violence this 
   assert.deepEqual(Object.fromEntries(now.gm.combat!.order.map(f => [f.id, f.side])), { player: "party", cob: "foes", moll: "foes", kell: "party" });
 });
 
-test("whoever the reply has run from the fight is gone from the scene as it breaks out, with no pick to make; one the GM picks to run goes the same way", async () => {
+test("whoever the reply has run from the fight is out of it as it breaks out, with no pick to make, and so is one the GM picks to run; one who holds what the player still needs keeps clear of it, here when it's over, rather than leaving (Moll, with the Hobb lead)", async () => {
   const ran = await fight(closeAndHit, { initiative: { foes: ["cob"], allies: ["kell"], flee: ["moll"], why: "Cob won't be taken" } });
   const now = await ran.line("I grab Cob by the collar.");
   assert.ok(ran.asked.every(r => !r.combat.pending), "no pick: everyone here has a side, or ran");
-  assert.ok(now.lines.some(l => l.kind === "system" && /^Combat! In initiative order: .*\. Running from it: the girl in the shawl\.$/.test(l.text)));
-  assert.deepEqual([now.gm.combat!.order.some(f => f.id === "moll"), now.gm.combat!.fled, now.gm.absent.includes("moll")], [false, ["moll"], true]);
+  assert.ok(now.lines.some(l => l.kind === "system" && /^Combat! In initiative order: .*\. Keeping clear of it: the girl in the shawl\.$/.test(l.text)));
+  assert.deepEqual([now.gm.combat!.order.some(f => f.id === "moll"), now.gm.combat!.fled, now.gm.absent.includes("moll")], [false, ["moll"], false], "out of the fight, not out of the scene");
 
   const picked = await fight(closeAndHit);
   const after = await picked.line("I grab Cob by the collar.");
-  assert.ok(after.lines.some(l => l.kind === "system" && l.text === "Running from it: the girl in the shawl."));
-  assert.deepEqual([after.gm.combat!.fled, after.gm.absent.includes("moll")], [["moll"], true]);
+  assert.ok(after.lines.some(l => l.kind === "system" && l.text === "Keeping clear of it: the girl in the shawl."));
+  assert.deepEqual([after.gm.combat!.fled, after.gm.absent.includes("moll")], [["moll"], false]);
 });
 
 test("who comes when a fight breaks out (the scene's reinforcements): the granary porters and Old Wat at the top of the third round, at the gate, each picked a side or sent running before its first turn", async () => {
@@ -111,7 +111,7 @@ test("who comes when a fight breaks out (the scene's reinforcements): the granar
     const c = request.combat;
     if (c.over) return { kind: "end_combat", outcome: c.over.outcome, narration: "Done." };
     return { kind: "end_turn", narration: "Circles." };
-  }, { sides: { moll: "flee", porters: "against_player", wat: "flee" } });
+  }, { sides: { moll: "flee", porters: "flee", wat: "against_player" } });
   let now = await line("I grab Cob by the collar.");
   for (let i = 0; i < 6 && !now.lines.some(l => l.text.startsWith("Arriving: ")); i++) now = await line("I wait.");
   const arriving = now.lines.find(l => l.text.startsWith("Arriving: "))!;
@@ -125,10 +125,10 @@ test("who comes when a fight breaks out (the scene's reinforcements): the granar
   assert.match(pick.combat.pending![0]!.about, /sack aprons/, "and their look");
   now = await line("I wait.");
   const combat = now.gm.combat!;
-  assert.equal(combat.order.find(f => f.id === "porters")?.side, "foes");
+  assert.equal(combat.order.find(f => f.id === "wat")?.side, "foes", "Wat, one of the cast, joined against the player");
   assert.deepEqual(combat.arrived, ["porters", "wat"]);
-  assert.ok(combat.fled!.includes("wat") && now.gm.absent.includes("wat"), "Wat ran");
-  assert.ok(now.lines.some(l => l.kind === "system" && /Joining the fight: .*porters.* \(against you\)\. Running from it: .*\./.test(l.text)));
+  assert.ok(combat.fled!.includes("porters") && now.gm.absent.includes("porters"), "the porters, who hold nothing the player needs, ran off: gone from the scene");
+  assert.ok(now.lines.some(l => l.kind === "system" && /Joining the fight: .*\(against you\)\. Running from it: the granary porters\./.test(l.text)));
   const later = await line("I wait.");
   assert.equal(later.lines.filter(l => l.text.startsWith("Arriving: ")).length, 1, "they come once");
 });
