@@ -1,9 +1,9 @@
-// After the prototype's src/web/static/worker.ts at 44c6d4a, its terminal half (write :69-81, scrub :83-94, the messages :275-316, and a report's :254-258), and its game.tsx (startGame, :36-77, with its report sink :50-57): the App over an AppModel on the Replica over a port, where the prototype's was over its Game; the key, the saves, the lock, the content and the jobs are the server worker's, and a report goes to the page from here (M5), the game in it the server worker's answer.
+// After the prototype's src/web/static/worker.ts at 44c6d4a, its terminal half (write :69-81, scrub :83-94, the messages :275-316, and a report's :254-258), and its game.tsx (startGame, :36-77, with its report sink :50-57 and the doors' overlay :47-48, M5): the App over an AppModel on the Replica over a port, where the prototype's was over its Game; the key, the saves, the lock, the content and the jobs are the server worker's, and a report goes to the page from here (M5), the game in it the server worker's answer.
 import { App } from "../../client/app.tsx";
 import { AppModel } from "../../client/app/model.ts";
 import { GLYPH_SETS, glyphSet, setGlyphSet, type GlyphSet } from "../../client/look/glyphs.ts";
 import { setPace } from "../../client/pace.ts";
-import { registerLookCanvas } from "../../client/look/opentui.ts";
+import { attachOverlay, registerLookCanvas } from "../../client/look/opentui.ts";
 import { portLink, type MessagePortLike } from "../../client/net/port.ts";
 import { Replica } from "../../client/net/replica.ts";
 import { attachReporting } from "../../client/report/attach.ts";
@@ -18,7 +18,7 @@ import { createCliRenderer, type CliRenderer } from "../../web/tui/renderer.ts";
  * over the Replica on a port to the server worker, drawing into the page's terminal. The page talks
  * to it in messages (understand-web.md §5.4):
  *
- *   page -> worker   {type: "start", port, cols, rows, glyphs?, reducedMotion?, zoo?, build?, foes?} (the port transferred), then
+ *   page -> worker   {type: "start", port, cols, rows, glyphs?, reducedMotion?, zoo?, build?, foes?, doors?} (the port transferred), then
  *                    {type: "input", data}, {type: "resize", cols, rows}, {type: "redraw"}, {type: "quit"}
  *   worker -> page   {type: "started"}, {type: "output", data}, {type: "exit"}, {type: "error", message},
  *                    {type: "report", name, data} (a report of a problem, gzipped: the page downloads it)
@@ -45,9 +45,10 @@ const scope = self as unknown as WorkerScope;
 /**
  * The page's start: its end of the channel to the server worker, the terminal's size, the glyph set its
  * fonts draw (kingmaker unless it says), whether the browser asks for reduced motion, and the zoo when the page's address asks for it (M6: ?zoo, the
- * zoo's menu on the title, "" here; ?zoo=ring, a visit to that exhibit at once, as `build` against `foes`).
+ * zoo's menu on the title, "" here; ?zoo=ring, a visit to that exhibit at once, as `build` against `foes`); `doors` false when the page
+ * draws no doors or lamps over the map (?doors=off).
  */
-interface Start { type: "start"; port: MessagePortLike; cols: number; rows: number; glyphs?: string; reducedMotion?: boolean; zoo?: string; build?: string; foes?: string }
+interface Start { type: "start"; port: MessagePortLike; cols: number; rows: number; glyphs?: string; reducedMotion?: boolean; zoo?: string; build?: string; foes?: string; doors?: boolean }
 type PageMessage = Start | { type: "input"; data: Uint8Array | string } | { type: "resize"; cols: number; rows: number } | { type: "redraw" } | { type: "quit" };
 
 /** What the client tells the page: the terminal's bytes, started, exit, why it couldn't start, and a report of a problem to download. */
@@ -79,6 +80,8 @@ export async function runClient(start: Start, page: Page): Promise<Running> {
   // The scene's place paints itself, live (<lookCanvas>).
   registerLookCanvas();
   const renderer = await createCliRenderer({ exitOnCtrlC: false, autoFocus: false, width: start.cols, height: start.rows, terminal: { write: page.write } });
+  // The page draws the doors and lamp posts as pictures over the ASCII (web/page/doors.ts): where they are goes out with each frame that moves them (M5).
+  attachOverlay(renderer as unknown as Parameters<typeof attachOverlay>[0], { doors: start.doors !== false });
   const root = createRoot(renderer);
   const app = new AppModel(game, { campaign: "caerwyn", intent: start.zoo && !visited ? "game" : "title", surface: "page", onQuit: leaving(root, renderer, game, page), reporting: pageReporting(start, renderer, page) });
   attachReporting(app, renderer);

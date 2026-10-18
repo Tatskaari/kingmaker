@@ -20,8 +20,8 @@ import { allowed, CONTENT, contentPaths, type Content } from "./content.ts";
 /** The site's files, by their path in it ("chunks/chunk-AB12CD34.js"). */
 export type Site = Map<string, Uint8Array>;
 
-/** What the site holds at its top: the page, both workers and the chunks they share, xterm.js, the fonts, the content. Nothing else. */
-export const TOP = ["chunks", "client-worker.js", "content.json", "fonts", "fonts.css", "fonts.json", "index.html", "page.js", "server-worker.js", "style.css", "transport.js", "vendor"];
+/** What the site holds at its top: the page (and its doors' pictures, M5), both workers and the chunks they share, xterm.js, the fonts, the content. Nothing else. */
+export const TOP = ["chunks", "client-worker.js", "content.json", "doors.js", "fonts", "fonts.css", "fonts.json", "index.html", "page.js", "server-worker.js", "style.css", "transport.js", "vendor"];
 
 /** xterm.js and the addons the page loads, from the repo's node_modules. */
 export const VENDOR = ["vendor/xterm.mjs", "vendor/xterm.css", "vendor/addon-fit.mjs", "vendor/addon-webgl.mjs", "vendor/addon-unicode11.mjs"];
@@ -45,10 +45,10 @@ export function stampOf(site: Site, script: string): string {
   return hash.digest("hex").slice(0, 12);
 }
 
-/** page.js with the stamp on its imports (xterm.js, its addons and the transport). Throws if one is missed: page.js changed under the build. */
+/** page.js with the stamp on its imports (xterm.js, its addons, the transport and the doors). Throws if one is missed: page.js changed under the build. */
 export function stampedScript(script: string, stamp: string): string {
   const stamped = script.replace(/(from\s+"\.\/[\w./-]+)"/g, `$1?v=${stamp}"`);
-  if (!stamped.includes(`from "./transport.js?v=${stamp}"`) || !stamped.includes(`from "./vendor/xterm.mjs?v=${stamp}"`)) throw new Error("page.js changed: the build couldn't stamp its imports");
+  if (!["transport.js", "vendor/xterm.mjs", "doors.js"].every(file => stamped.includes(`from "./${file}?v=${stamp}"`))) throw new Error("page.js changed: the build couldn't stamp its imports");
   return stamped;
 }
 

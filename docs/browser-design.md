@@ -161,7 +161,8 @@ Browser readiness, by DI (the brief: nothing reads config or process.env when it
 - `client/explore/model.ts:42` and `client/ui/between.tsx:31`: pacing as a setting (the checks set it),
   not `process.env` reads.
 - `client/look/opentui.ts:275`: `attachOverlay(renderer, {doors})` takes the flag. (The page doesn't
-  attach the overlay in this PR: the doors and lamps pictures are a follow-up.)
+  attach the overlay in this PR: the doors and lamps pictures are a follow-up. M5 attached it: the client
+  worker says where they are unless the page asks it not to, ?doors=off, and web/page/doors.ts draws them.)
 - A `surface: "terminal" | "page"` option on `AppModel`: on the page, Esc doesn't quit the title, and
   copy that only fits a terminal ("--join N to watch", `client/ui/scene.tsx:581-584`, `client/ui/explore.tsx:152`) is left out.
 
@@ -307,7 +308,8 @@ for the page.
 
 ## 8. Not in this PR
 
-- The doors and lamps pictures over the map (the client already emits them; the page half is ~356 lines).
+- The doors and lamps pictures over the map (the client already emits them; the page half is ~356 lines). Built since
+  (M5): the prototype's web/page/doors.ts and lamps.ts, bundled by the build as doors.js.
 - Problem reports (V16: built since, in M5, the page downloading each one), the zoo (V19), a `?demo` mode, the site's pitch and roadmap pages (they stay the
   prototype's until the drop), a browser tab against a SpacetimeDB server, several players in one browser.
 - Server-side subscription filtering (full push is right for one browser).
@@ -457,7 +459,7 @@ departs from the plan, and how it measures.
 
 ### Left for later
 
-- §8's list: the doors and lamps pictures, problem reports (built since: M5), the zoo, a tab against a SpacetimeDB server, several
+- §8's list: the doors and lamps pictures and problem reports (both built since: M5), the zoo, a tab against a SpacetimeDB server, several
   players in one browser, server-side subscription filtering, the parity verticals.
 - Every e2e scenario on both hosts: the contract test is the first step.
 - A deleted game's AI docs and logs stay in IndexedDB (the AI service has no game delete).
