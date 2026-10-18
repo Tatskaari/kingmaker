@@ -21,6 +21,7 @@ import { openLead } from "./lead.ts";
 import { FIGHT_FIRST, leave, walker } from "./moves.ts";
 import { mapPlaceOf, mapRowsOf, writeExplore } from "./rows.ts";
 import { openTalk } from "./talk.ts";
+import { fightFor, fightMenuMove } from "../fight/moves.ts";
 import { burns, keepTicking } from "./tick.ts";
 
 /**
@@ -79,8 +80,10 @@ const HOWS: AttackHow[] = ["attack", "throw", "shove", "grapple", "lift"];
 const tile = (t: Tile2): Tile2 => ({ x: t.x, y: t.y });
 const aim = (a: { at?: Tile2 | undefined; self?: boolean | undefined }) => (a.at ? { at: tile(a.at) } : a.self ? { self: true } : {});
 
-/** One of the menu's acts, by its id: refused, or done and its rows written. */
+/** One of the menu's acts, by its id: refused, or done and its rows written. In a fight (M6), it's a fight's move, on the player's turn. */
 function menuMove(tx: TxCtx, actor: Actor, move: MenuMove): void {
+  const fight = fightFor(tx, actor);
+  if (fight) return fightMenuMove(tx, actor, fight, move);
   const started = tx.elapsedMs();
   const { game, scene, row } = walker(tx, actor);
   const id = actionId(move);

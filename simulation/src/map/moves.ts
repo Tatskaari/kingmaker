@@ -14,6 +14,7 @@ import { placeWorldOf, savePlaceWorld } from "../world/place.ts";
 import { goOnReducer } from "../story/moves.ts";
 import { openLead } from "./lead.ts";
 import { inALiveTalk, leaveTalk, openTalk, walkOn } from "./talk.ts";
+import { fightFor, fightWalk, refuseInAFight } from "../fight/moves.ts";
 import { keepTicking } from "./tick.ts";
 import { mapPlaceOf, mapRowsOf, moveSeats, walkerOf, writeExplore, type ExploreTableRow } from "./rows.ts";
 
@@ -29,6 +30,9 @@ import { mapPlaceOf, mapRowsOf, moveSeats, walkerOf, writeExplore, type ExploreT
 
 export function walkReducer(tx: TxCtx, sender: Identity, args: WalkArgs): void {
   const actor = actorOf(tx, sender);
+  // In a fight (M6), a walk is a fight's move: walk@x,y on the player's turn, out once it's over.
+  const fight = fightFor(tx, actor);
+  if (fight) return fightWalk(tx, actor, fight, args);
   if (!onAMap(tx, actor)) return goOnReducer(tx, sender, args);
   if (args.toward === OUT && inALiveTalk(tx, actor)) walkOn(tx, actor);
   else if (args.toward === OUT) walkOut(tx, actor);
@@ -36,11 +40,15 @@ export function walkReducer(tx: TxCtx, sender: Identity, args: WalkArgs): void {
 }
 
 export function interactReducer(tx: TxCtx, sender: Identity, args: InteractArgs): void {
-  mapMove(tx, actorOf(tx, sender), { move: "interact", args });
+  const actor = actorOf(tx, sender);
+  refuseInAFight(tx, actor);
+  mapMove(tx, actor, { move: "interact", args });
 }
 
 export function travelReducer(tx: TxCtx, sender: Identity, args: TravelArgs): void {
-  mapMove(tx, actorOf(tx, sender), { move: "travel", args });
+  const actor = actorOf(tx, sender);
+  refuseInAFight(tx, actor);
+  mapMove(tx, actor, { move: "travel", args });
 }
 
 /** A move on the map by the prototype's action id: refused, or made and its row written (a walker in a scene that has ended walks out of it first). */

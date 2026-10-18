@@ -16,7 +16,8 @@ export type RefusalCode =
   | "not_creating" | "creation_busy" | "not_offered" | "still_making" | "not_now" | "bad_how"
   | "nothing_to_work_in" | "story_too_long" | "story_too_big" | "already_begun" | "not_yours" | "not_begun"
   | "scene_on" | "no_way" | "unavailable" | "not_in_scene" | "no_lead" | "story_over" | "not_stuck" | "no_scene" | "no_exit" | "no_fight"
-  | "no_line" | "out_of_reach" | "too_far" | "no_slot" | "shut";
+  | "no_line" | "out_of_reach" | "too_far" | "no_slot" | "shut"
+  | "not_your_turn";
 
 export interface Refusal { code: RefusalCode; text: string }
 
@@ -83,6 +84,8 @@ const WORDS: Record<RefusalCode, (v: Record<string, string>) => string> = {
   too_far: v => v.text ?? "(That's too far to get to from here.)",
   no_slot: v => v.text ?? "(No spell slots left for that: a rest brings them back.)",
   shut: v => v.text ?? "(That's shut at this hour.)",
+  // A fight (M6, docs/combat-design.md): the player's moves wait for their turn.
+  not_your_turn: () => "(It isn't your turn: wait for it.)",
 };
 
 /**

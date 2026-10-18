@@ -10,7 +10,8 @@ import { ROUND_MICROS } from "../../simulation/src/map/tick.ts";
  * order, the POSTs overlap, and each answer commits as it lands), a moment later, so the move's tx
  * and answer go first and nothing runs inside a commit. The reaper runs on its row's interval, and
  * the town's clock (tick_place, town-design §3.5: tickPlaces, every place_tick row) on theirs, 6 s, as
- * SpacetimeDB schedules each. A run is never drain()'s, which waits on each in turn.
+ * SpacetimeDB schedules each, and a fight's clock (fight_step, M6: fightSteps) when each of its rows'
+ * time comes. A run is never drain()'s, which waits on each in turn.
  *
  * At a start, nothing that was running has survived (recoverAfterRestart): every running job is
  * dispatched again now (the same step with the same key, so an answer the AI service kept is
@@ -22,7 +23,7 @@ export interface Jobs {
   afterCommit(changes: ChangeSet): void;
   /** Resolves once no job is running or due and none is about to start: a test's way to wait for the thinks to come in. */
   idle(): Promise<void>;
-  /** Nothing more started, and the reaper and the town's clock stopped: another tab has the game. */
+  /** Nothing more started, and the reaper, the town's clock and the fights' stopped: another tab has the game. */
   stop(): void;
 }
 
@@ -54,14 +55,26 @@ export function startJobs(sim: MemoryHost): Jobs {
     void run.finally(() => { running.delete(run); settle(); });
   };
 
+  /** A fight's next turn (its fight_clock row), when its time comes: the other side's turns, a step at a time, on the page's own time. */
+  const fightTimers = new Set<ReturnType<typeof setTimeout>>();
+  const fightAt = (at: unknown) => {
+    const time = at as { tag?: string; value?: { microsSinceUnixEpoch?: bigint } } | undefined;
+    if (stopped || time?.tag !== "Time" || typeof time.value?.microsSinceUnixEpoch !== "bigint") return;
+    const ms = Math.max(0, Number((time.value.microsSinceUnixEpoch - sim.now().microsSinceUnixEpoch) / 1000n));
+    const timer = setTimeout(() => { fightTimers.delete(timer); sim.fightSteps(); }, ms);
+    fightTimers.add(timer);
+  };
+
   const reaper = setInterval(() => sim.reap(), reapEveryMs(sim));
   const clock = setInterval(() => sim.tickPlaces(), TICK_EVERY_MS);
-  // What was due when the database was last kept (a dispatch saved before its run began).
+  // What was due when the database was last kept (a dispatch saved before its run began, a fight's next turn).
   dispatchSoon();
+  for (const row of sim.db.fightClock.iter()) fightAt(row.scheduledAt);
 
   return {
     afterCommit(changes) {
       if (changes.changes.some(change => change.table === "jobDispatch" && change.op === "insert")) dispatchSoon();
+      for (const change of changes.changes) if (change.table === "fightClock" && change.op === "insert") fightAt(change.row["scheduledAt"]);
     },
     idle: () => new Promise(resolve => { waiters.push(resolve); settle(); }),
     stop() {
@@ -70,6 +83,8 @@ export function startJobs(sim: MemoryHost): Jobs {
       soon = undefined;
       clearInterval(reaper);
       clearInterval(clock);
+      for (const timer of fightTimers) clearTimeout(timer);
+      fightTimers.clear();
     },
   };
 }

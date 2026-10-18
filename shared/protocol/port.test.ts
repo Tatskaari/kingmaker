@@ -42,12 +42,12 @@ test("a row is keyed by its primary key: a u64, a string, or an identity, the sa
   assert.throws(() => keyOf(undefined), /a u64, a string or an identity/);
 });
 
-test("the wire carries the caller's four views and the 32 public tables, each by its accessor in the bindings (the SQL name in camelCase), and no private table", () => {
+test("the wire carries the caller's four views and the 34 public tables, each by its accessor in the bindings (the SQL name in camelCase), and no private table", () => {
   assert.deepEqual(Object.keys(CLIENT_VIEWS), ["my_seat", "my_names", "my_games", "my_creation"]);
-  assert.equal(Object.keys(PUBLIC_TABLES).length, 32);
+  assert.equal(Object.keys(PUBLIC_TABLES).length, 34);
   const camel = (sql: string) => sql.replace(/_(\w)/g, (_, c: string) => c.toUpperCase());
   for (const [sql, { accessor }] of Object.entries(CLIENT_TABLES)) assert.equal(accessor, camel(sql), sql);
-  for (const secret of ["gm_state", "gm_note", "heard", "job", "job_dispatch", "reaper", "dice", "rules_state", "seat", "scene_def", "place_def", "admin", "co_gm_result", "creation"]) {
+  for (const secret of ["gm_state", "gm_note", "heard", "job", "job_dispatch", "reaper", "dice", "rules_state", "seat", "scene_def", "place_def", "admin", "co_gm_result", "creation", "fight_rules", "fight_clock"]) {
     assert.equal(secret in CLIENT_TABLES, false, secret);
   }
   assert.equal(PLAYER_MOVES.some(move => (OWNER_MOVES as readonly string[]).includes(move)), false, "a move is the player's or the owner's");

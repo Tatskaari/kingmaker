@@ -22,8 +22,11 @@ import { setSuggestionsReducer } from "./moves/set-suggestions.ts";
 import { interactReducer, travelReducer, walkReducer } from "./map/moves.ts";
 import { attackReducer, castReducer, hideReducer, leapReducer, restReducer, useFeatureReducer, useItemReducer } from "./map/acts.ts";
 import { tickPlace as tickPlaceBody } from "./map/tick.ts";
+import { fightTurnReducer } from "./fight/moves.ts";
+import { fightStep as fightStepBody } from "./fight/step.ts";
+import { startRingReducer } from "./zoo/moves.ts";
 import { loadRules } from "./rules/load.ts";
-import spacetimedb, { creation, GameSummary, jobDispatch, NameView, placeTick, reaper, SeatView, Tile2 } from "./schema.ts";
+import spacetimedb, { creation, fightClock, GameSummary, jobDispatch, NameView, placeTick, reaper, SeatView, Tile2 } from "./schema.ts";
 import { carryOnReducer, endSceneReducer, fightItOutReducer } from "./story/moves.ts";
 import { streamReplyReducer } from "./stream.ts";
 import { myCreationView, myGamesView, myNamesView, mySeatView } from "./views.ts";
@@ -90,6 +93,9 @@ export const useItem = spacetimedb.reducer({ item: t.string() }, (ctx, args) => 
 export const carryOn = spacetimedb.reducer(ctx => asReducer(ctx, tx => carryOnReducer(tx, ctx.sender, {})));
 export const fightItOut = spacetimedb.reducer(ctx => asReducer(ctx, tx => fightItOutReducer(tx, ctx.sender, {})));
 export const endScene = spacetimedb.reducer({ game: t.u64(), exit: t.string(), thorough: t.option(t.bool()) }, (ctx, args) => asReducer(ctx, tx => endSceneReducer(tx, ctx.sender, args)));
+// A fight (M6, docs/combat-design.md): one of the zoo's rings started, and the fight's own acts on the player's turn (the map's walk, attack and cast are its moves too).
+export const startRing = spacetimedb.reducer({ ring: t.string(), fast: t.option(t.bool()) }, (ctx, args) => asReducer(ctx, tx => startRingReducer(tx, ctx.sender, args)));
+export const fightTurn = spacetimedb.reducer({ act: t.string() }, (ctx, args) => asReducer(ctx, tx => fightTurnReducer(tx, ctx.sender, args)));
 
 // The AI service's: the reply as it's written, and proof its token reaches the module as itself.
 export const streamReply = spacetimedb.reducer(
@@ -123,6 +129,10 @@ export const reapJobs = spacetimedb.reducer({ onSchedule: reaper }, { arg: reape
 // The world's clock on the map (town-design §3.5): a map's own place, every 6 s while its game's host is in it.
 export const tickPlace = spacetimedb.reducer({ onSchedule: placeTick }, { arg: placeTick.rowType }, (ctx, { arg }) => {
   if (fromScheduler(ctx)) asReducer(ctx, tx => tickPlaceBody(tx, arg));
+});
+// The other side's turns in a fight (M6): one a step, each once the last has had its time on screen.
+export const fightStep = spacetimedb.reducer({ onSchedule: fightClock }, { arg: fightClock.rowType }, (ctx, { arg }) => {
+  if (fromScheduler(ctx)) asReducer(ctx, tx => fightStepBody(tx, arg));
 });
 
 // The views: the caller's seat, the names they know the cast by, the character they're making, and their games.

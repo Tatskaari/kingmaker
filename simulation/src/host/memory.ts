@@ -16,6 +16,9 @@ import { initDatabase } from "../lifecycle.ts";
 import * as acts from "../map/acts.ts";
 import * as map from "../map/moves.ts";
 import { tickPlace } from "../map/tick.ts";
+import { fightTurnReducer } from "../fight/moves.ts";
+import { fightStep } from "../fight/step.ts";
+import { startRingReducer } from "../zoo/moves.ts";
 import { joinGameReducer } from "../moves/join-game.ts";
 import { newGameReducer } from "../moves/new-game.ts";
 import { retryTurnReducer } from "../moves/retry-turn.ts";
@@ -141,6 +144,7 @@ const MOVES = {
   walk: map.walkReducer, interact: map.interactReducer, travel: map.travelReducer,
   cast: acts.castReducer, attack: acts.attackReducer, useFeature: acts.useFeatureReducer, leap: acts.leapReducer, hide: acts.hideReducer, rest: acts.restReducer, useItem: acts.useItemReducer,
   carryOn: story.carryOnReducer, fightItOut: story.fightItOutReducer, endScene: story.endSceneReducer,
+  startRing: startRingReducer, fightTurn: fightTurnReducer,
 };
 
 /** A caller's moves: each returns the refusal, or nothing when it was made. */
@@ -180,6 +184,13 @@ export interface MemoryHost {
    * A tick that throws is logged, as a scheduled reducer's panic is, and the rest still run.
    */
   tickPlaces(): void;
+  /**
+   * fight_step (M6) for every fight_clock row whose time has come, each in a transaction of its own
+   * (taking its row away as it runs, as SpacetimeDB does), at the clock's time: what a real-time host
+   * runs when a row's time comes, and a test when it likes. How many ran. One that throws is logged,
+   * as a scheduled reducer's panic is.
+   */
+  fightSteps(): number;
   /** The manual clock moves on, and the reaper runs (refused on an injected clock: its time isn't the host's to move). */
   advance(ms: number): void;
   view(identity: Identity): { mySeat(): ReturnType<typeof mySeatView>; myNames(): ReturnType<typeof myNamesView>; myCreation(): ReturnType<typeof myCreationView>; myGames(): ReturnType<typeof myGamesView> };
@@ -226,11 +237,24 @@ export function memoryHost(options: MemoryHostOptions): MemoryHost {
     }
   };
 
+  const fightSteps = () => {
+    const due = transact(tx => [...tx.db.fightClock.iter()].filter(r => r.scheduledAt.tag === "Time" && r.scheduledAt.value.microsSinceUnixEpoch <= tx.now.microsSinceUnixEpoch))
+      .sort((a, b) => (a.scheduledId < b.scheduledId ? -1 : 1));
+    for (const row of due) {
+      try {
+        transact(tx => { if (tx.db.fightClock.scheduledId.find(row.scheduledId)) fightStep(tx, row); });
+      } catch (e) {
+        log(`[fight_step] fight ${row.fightId} stopped: ${String(e)}`);
+      }
+    }
+    return due.length;
+  };
+
   transact(tx => initDatabase(tx, owner));
 
   const jobs = jobRunner(transact, now, env, options.ai, log);
   return {
-    db: store.db, owner, service, logs, transact, reap, tickPlaces,
+    db: store.db, owner, service, logs, transact, reap, tickPlaces, fightSteps,
     as: identity => callerAs(identity, call),
     streamReply: (args, from = service) => call(tx => streamReplyReducer(tx, from, args)),
     drain: jobs.drain,

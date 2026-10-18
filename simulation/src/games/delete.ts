@@ -1,5 +1,6 @@
 import type { TxCtx } from "../context.ts";
 import type { GameRow, PlaceRow, PlayerRow, SceneRow } from "../rows.ts";
+import { clearFights } from "../fight/rows.ts";
 
 /**
  * Every row of a game, deleted (v1-design §3.5): through a registry of the game's tables, a line a
@@ -25,6 +26,7 @@ const BY_GAME: Array<(tx: TxCtx, rows: GameRows) => void> = [
   (tx, { game }) => tx.db.journal.gameId.delete(game.id),
   (tx, { game }) => tx.db.attitude.gameId.delete(game.id),
   (tx, { game }) => tx.db.follower.gameId.delete(game.id),
+  (tx, { game }) => clearFights(tx, game.id),
   (tx, { game }) => tx.db.game.id.delete(game.id),
 ];
 
