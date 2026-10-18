@@ -25,24 +25,27 @@ test("a wolf's bite after a walk: the steps a tile at a time, the swing, then th
 });
 
 test("a turn's start has the beat between combatants before it; a bow's shot flies; a spell's area lights up", () => {
-  assert.deepEqual(partsOf(moment("turn")).map(p => p.part), ["beat", "turn"]);
-  assert.equal(playMs(moment("turn")), PACE.beat + PACE.turn);
-  assert.deepEqual(partsOf(moment("attack", { rolls: [roll({ with: "Shortbow", hit: false })] })).map(p => p.part), ["projectile", "hit"]);
+  const played = (e: Pick<FightEvent, "kind" | "detail">) => partsOf(e).map(p => p.part).filter(p => p !== "hold");
+  assert.deepEqual(played(moment("turn")), ["beat", "turn"]);
+  assert.equal(playMs(moment("turn")), Math.max(PACE.caption, PACE.beat + PACE.turn), "its caption up for its least time");
+  assert.deepEqual(played(moment("attack", { rolls: [roll({ with: "Shortbow", hit: false })] })), ["projectile", "hit"]);
   // An opportunity attack is a swing, whatever's in hand.
-  assert.deepEqual(partsOf(moment("attack", { rolls: [roll({ with: "Shortbow", opportunity: true })] })).map(p => p.part), ["swing", "hit"]);
-  assert.deepEqual(partsOf(moment("cast", { area: [{ x: 3, y: 3 }], hits: [hit()] })).map(p => p.part), ["area", "hit"]);
-  assert.deepEqual(partsOf(moment("cast", { rolls: [roll({ with: "Fire Bolt" })], hits: [hit()] })).map(p => p.part), ["projectile", "hit"]);
+  assert.deepEqual(played(moment("attack", { rolls: [roll({ with: "Shortbow", opportunity: true })] })), ["swing", "hit"]);
+  assert.deepEqual(played(moment("cast", { area: [{ x: 3, y: 3 }], hits: [hit()] })), ["area", "hit"]);
+  assert.deepEqual(played(moment("cast", { rolls: [roll({ with: "Fire Bolt" })], hits: [hit()] })), ["projectile", "hit"]);
 });
 
 test("a miss still has its moment to show it; each fall plays in turn; a caption with nothing under it is held to its least time", () => {
-  assert.deepEqual(partsOf(moment("attack", { rolls: [roll({ hit: false })] })).map(p => p.part), ["swing", "hit"]);
+  const miss = moment("attack", { rolls: [roll({ hit: false })] });
+  assert.deepEqual(partsOf(miss).map(p => p.part), PACE.swing + PACE.hit < PACE.caption ? ["swing", "hit", "hold"] : ["swing", "hit"]);
+  assert.equal(playMs(miss), Math.max(PACE.caption, PACE.swing + PACE.hit), "a caption with less under it than its least time is held up to it");
   const two = moment("cast", { area: [{ x: 1, y: 1 }], hits: [hit({ unit: "a", fell: true, state: "down" }), hit({ unit: "b", fell: true, state: "down" })] });
   assert.deepEqual(partsOf(two).map(p => p.part), ["area", "hit", "fall", "fall"]);
   assert.equal(playMs(two), PACE.area + PACE.hit + 2 * PACE.fall);
   assert.deepEqual(partsOf(moment("dodge")), [{ part: "hold", t: 0, ms: PACE.caption }]);
   assert.equal(playMs(moment("start")), PACE.start);
   // A shove is a swing too, then what it did.
-  assert.deepEqual(partsOf(moment("wrestle", { hits: [hit({ damage: [], gained: ["prone"] })] })).map(p => p.part), ["swing", "hit"]);
+  assert.deepEqual(partsOf(moment("wrestle", { hits: [hit({ damage: [], gained: ["prone"] })] })).map(p => p.part).filter(p => p !== "hold"), ["swing", "hit"]);
 });
 
 test("the simulation waits for the moments just written to play, five seconds at the most", () => {

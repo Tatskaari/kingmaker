@@ -2,7 +2,7 @@
 import { fromKey } from "../../shared/fight/grid.ts";
 import type { Tile2 } from "../../shared/map/types.ts";
 import { spellElement } from "../look/director.ts";
-import { activeTint, areaTint, feetOf, fightRegion, propActor, TINT, unitActor } from "../look/fight.ts";
+import { activeTint, areaTint, FALLS_AT, feetOf, fightRegion, propActor, TINT, unitActor } from "../look/fight.ts";
 import type { GlyphSet } from "../look/glyphs.ts";
 import type { Picks, RenderOptions, Viewport } from "../map/render.ts";
 import { renderXray } from "../map/xray.ts";
@@ -51,11 +51,14 @@ export function drawFight(model: FightModel, size: Viewport, options: DrawOption
   const dust = board.dust.map(fromKey), fire = board.fire.map(fromKey);
   const hazards = { dust, fire, ...(board.flags["dust_exploded"] ? { scorched: dust } : {}) };
   const lit = Object.values(board.props).some(p => p.lit && p.state === "standing");
+  // Someone falling is lit red while they're still up (unitActor shows them on the floor from FALLS_AT).
+  const flash = { ...play.flash };
+  for (const [id, k] of Object.entries(play.falling)) if (k < FALLS_AT) flash[id] = { fg: "#ffffff", bg: "#b8261e" };
   const opts: RenderOptions = {
     roofs: false, time: board.time ?? (lit ? "night" : "afternoon"), focus: pc, reveal: Object.values(play.stances).map(s => s.at), hazards, effects,
     t: options.t, ...(options.glyphs ? { glyphs: options.glyphs } : {}), ...(options.color === false ? { color: false } : {}), ...(options.pick ? { pick: options.pick } : {}),
     ...(marks.length ? { marks } : {}), ...(aimed?.at ? { cursor: aimed.at } : {}), ...(model.hover && !model.aim ? { hover: model.hover } : {}),
-    ...(Object.keys(play.flash).length ? { flash: play.flash } : {}),
+    ...(Object.keys(flash).length ? { flash } : {}),
   };
   return renderXray(map, actors, camera, size, opts);
 }
@@ -64,7 +67,7 @@ export function drawFight(model: FightModel, size: Viewport, options: DrawOption
  * The board's tints: whose turn it is (their tile breathing gold, brightest as their turn begins);
  * a spell's area as it plays (its tiles lit in its element's colour from its beat to the blast's
  * landing); on the player's turn, the tiles they can walk to (blue) and those a walk to would draw a
- * swing (rust); while aiming, how far it reaches (a faint ring), who it could be aimed at, and the
+ * swing (red); while aiming, how far it reaches (a faint ring), who it could be aimed at, and the
  * aimed area's tiles in its element's colour.
  */
 export function marksOf(model: FightModel, play: PlayFrame, t: number): NonNullable<RenderOptions["marks"]> {

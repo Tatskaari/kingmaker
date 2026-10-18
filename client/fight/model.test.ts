@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { PACE } from "../../shared/fight/pace.ts";
+import { PACE, playMs } from "../../shared/fight/pace.ts";
 import type { FightAct, FightOptions } from "../../shared/fight/types.ts";
 import { SCREEN_KEYS } from "../../shared/map/explore.ts";
 import { actionId, type MapMove } from "../../shared/map/moves.ts";
 import { screenOf } from "../app/model.ts";
-import { frameOf, wolvesAt } from "../check/fight.ts";
+import { frameOf, WOLVES, wolvesAt } from "../check/fight.ts";
 import { FightModel, menuEntries, menuGroups } from "./model.ts";
 
 /**
@@ -56,13 +56,14 @@ test("the player acts once the other side's moves before their turn have played:
   s.model.openMenu();
   assert.equal(s.model.menu, undefined);
   assert.match(s.model.status ?? "", /^Not yet: it isn't your turn/);
-  s.at(PACE.swing + PACE.hit + PACE.beat + 20);
+  // The bite (its caption held its least time), then the beat before the bar moves on to them.
+  s.at(playMs(WOLVES.events.find(e => e.seq === 14)!) + PACE.beat + 20);
   assert.equal(s.model.canAct(), true, "their turn on the bar");
   s.model.openMenu();
   assert.ok(s.model.menu);
 });
 
-test("aiming: the nearest target first, Tab on round them, fire does it as its move; the menu's other lines done at once", async () => {
+test("aiming: the nearest target first, Tab on round them, fire does it as its move, the next aim starting on whoever was aimed at last; the menu's other lines done at once", async () => {
   const s = staged(frameOf("step: wolf-3", 1));
   s.model.openMenu();
   s.model.chooseFromMenu(s.model.menu!.entries.findIndex(e => e.name === "Attack"));
@@ -75,6 +76,10 @@ test("aiming: the nearest target first, Tab on round them, fire does it as its m
   await Promise.resolve();
   assert.deepEqual(s.moves.map(m => actionId(m)), ["attack@5,8"]);
   assert.equal(s.model.aim, undefined);
+  s.model.openMenu();
+  s.model.chooseFromMenu(s.model.menu!.entries.findIndex(e => e.name === "Attack"));
+  assert.equal(s.model.aimed()?.id, "attack@5,8", "the wolf aimed at last, not the nearest");
+  s.model.cancelAim();
   s.model.openMenu();
   s.model.chooseFromMenu(s.model.menu!.entries.findIndex(e => e.name === "Dodge"));
   await Promise.resolve();

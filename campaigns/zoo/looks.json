@@ -12,12 +12,12 @@
   "crake-1": {
     "role": "person",
     "glyph": "C",
-    "fg": "#b8a888"
+    "fg": "#d4a46c"
   },
   "crake-2": {
     "role": "person",
     "glyph": "c",
-    "fg": "#9a8f80"
+    "fg": "#8fa0b0"
   },
   "dog-1": {
     "role": "creature",

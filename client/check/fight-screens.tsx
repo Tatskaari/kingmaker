@@ -104,6 +104,7 @@ async function othersTurn(checks: Array<[string, boolean]>, size: readonly [numb
   checks.push([`${name}: the caption line says it as it plays`, flat(frame).includes("W A grey wolf closes in on you, 30 ft.")]);
   checks.push([`${name}: the bar marks the grey wolf's turn`, /▶ W {1,2}a grey wolf/.test(frame.split("\n")[0]!)]);
   checks.push([`${name}: beside the board, whose turn, and the keys that finish the move or skip to yours`, inside(frame).includes("A grey wolf's turn") && inside(frame).includes("Space finish this move") && inside(frame).includes("skip to your turn")]);
+  checks.push([`${name}: beside the board, the grey wolf's own hit points and side, and yours labelled You (not yours under their name)`, /W +[█░]+ 11\/11 +foe/.test(inside(frame)) && /You [█░]+ 28\/28/.test(inside(frame))]);
   checks.push([`${name}: the log has its caption, under the turn's heading`, /— Round 1: a grey wolf's turn\./.test(flat(frame)) && /A grey wolf closes in on you, 30 ft\./.test(flat(frame))]);
   // Its bite after the walk: the wolf beside the player, the swing's flash between them, then the miss.
   const biteAt = playMs(walk);
@@ -245,6 +246,13 @@ async function theEnd(checks: Array<[string, boolean]>, show: boolean): Promise<
   frame = await s.draw();
   if (show) console.log(`fight 100x30, the end\n${frame}`);
   checks.push([`fight 100x30: the end: it's over, how it went, and the way back to the map`, inside(frame).includes("It's over: you won.") && inside(frame).includes("Back to the map") && /A lean grey wolf went down|went down/.test(inside(frame))]);
+  // The wolves down are drawn on the floor where they fell: an x, the mark at their feet.
+  const floored = Object.values(s.model.view.board.units).filter(u => u.state === "down").map(u => {
+    const at = s.drawn(u.id);
+    const row = at ? [...(frame.split("\n")[at.cell.y] ?? "")] : [];
+    return at ? `${row[at.cell.x]}${row[at.cell.x + 1]}` : "?";
+  });
+  checks.push([`fight 100x30: the end: everyone down is on the floor where they fell, an x with the mark at their feet (${floored.join(" ")})`, floored.length > 0 && floored.every(f => f === "x_")]);
   frame = await s.key("\r");
   checks.push([`fight 100x30: Enter goes back to the map (walk out)`, s.outs() === 1]);
   await s.setup.renderer.destroy();

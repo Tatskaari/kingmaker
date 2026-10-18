@@ -144,6 +144,13 @@ export function FightPlay({ fight: model }: { fight: FightModel; surface?: Surfa
   </box>;
 }
 
+/** Whose side someone's on, in a word and a colour: the bar's tiles and the side panel say it. */
+const SIDE: Partial<Record<Unit["side"], { short: string; color: string; tile: string }>> = {
+  ally: { short: "ally", color: "#7fb8e8", tile: "#1c3446" },
+  enemy: { short: "foe", color: "#f08a7a", tile: "#4a1e1c" },
+  neutral: { short: "bystander", color: "#b7b7b7", tile: "#33302c" },
+};
+
 /** The keys with nothing open: the playback's (anyone's), the player's turn's, and what opens over the fight. */
 function fightKey(model: FightModel, key: KeyEvent): void {
   const view = model.view;
@@ -214,7 +221,8 @@ function Portrait({ model, unit, stance, active, width, rows }: { model: FightMo
   const out = stance.state !== "fighting";
   const glyph = actor?.kind === "player" ? "@" : look?.glyph ?? unit.glyph;
   const fg = out ? C.faint : actor?.kind === "player" ? unit.color || "#ffffff" : look?.fg ?? unit.color;
-  const tile = active ? "#5a4600" : hexMix(unit.color || "#888888", C.bg, 0.78);
+  // The portrait's tile says whose side they're on (gold for whose turn it is): blue with you, red against you.
+  const tile = active ? "#5a4600" : SIDE[unit.side]?.tile ?? hexMix(unit.color || "#888888", C.bg, 0.78);
   const isYou = unit.id === model.view.board.pc;
   const name = isYou ? `${model.view.watching ? unit.name : "You"}` : unit.name.replace(/^(a|an|the) /i, m => m.toLowerCase());
   const nameW = Math.max(1, width - 6);
@@ -261,13 +269,22 @@ function SidePanel({ model, play, header, inner, rows, mine, over, othersPlaying
   line("head", <span fg={over ? C.title : mine ? C.lead : C.text} attributes={BOLD}>{truncate(mine ? `▶ ${header}` : header, inner)}</span>);
   line("round", <span fg={C.dim}>{truncate(`Round ${play.round} · ${view.place}`, inner)}</span>);
   if (view.watching) line("watching", <span fg={C.dim} attributes={ITALIC}>{truncate(`Watching ${view.watching}'s fight`, inner)}</span>);
+  // Hit points: on someone else's turn theirs first (their glyph, and whose side they're on), then the player's own, labelled.
+  const actor = view.status === "on" && !mine ? board.units[play.turn] : undefined;
+  const theirs = actor && actor.id !== board.pc ? play.stances[actor.id] : undefined;
+  const gaugeW = Math.max(4, Math.min(12, inner - 20));
+  if (actor && theirs) {
+    const g = hpGauge(theirs.hp, theirs.maxHp, gaugeW, glyphSet());
+    const side = SIDE[actor.side];
+    line("them", <><span fg={actor.color || C.text} attributes={BOLD}>{`${actor.glyph}`.padEnd(4)}</span><span fg={g.color}>{g.filled}</span><span fg={C.faint}>{g.empty}</span><span fg={C.text}>{` ${theirs.hp}/${theirs.maxHp}`}</span>{side ? <span fg={side.color}>{`  ${side.short}`}</span> : null}</>);
+  }
   if (me && !view.watching) {
-    const g = hpGauge(me.hp, me.maxHp, Math.max(4, Math.min(12, inner - 12)), glyphSet());
-    line("hp", <><span fg={C.dim}>{"HP   "}</span><span fg={g.color}>{g.filled}</span><span fg={C.faint}>{g.empty}</span><span fg={C.text}>{` ${me.hp}/${me.maxHp}`}</span></>);
+    const g = hpGauge(me.hp, me.maxHp, gaugeW, glyphSet());
+    line("hp", <><span fg={C.dim}>{"You "}</span><span fg={g.color}>{g.filled}</span><span fg={C.faint}>{g.empty}</span><span fg={C.text}>{` ${me.hp}/${me.maxHp}`}</span></>);
   }
   if (over) {
     out.push(<text key="gap" height={1} flexShrink={0}>{" "}</text>);
-    for (const [i, l] of wrap(view.result?.summary ?? "", inner).slice(0, Math.max(1, rows - 7)).entries()) line(`sum${i}`, <span fg={C.text}>{l}</span>);
+    for (const [i, l] of wrap(view.result?.told ?? view.result?.summary ?? "", inner).slice(0, Math.max(1, rows - 7)).entries()) line(`sum${i}`, <span fg={C.text}>{l}</span>);
     out.push(<text key="gap2" height={1} flexShrink={0}>{" "}</text>);
     if (!view.watching && !zooHints(model, true).length) out.push(<Clickable key="out" height={1} flexShrink={0} onClick={() => void model.out()}><text><span fg={C.lead}>{"▶ "}</span><span fg={C.lead} attributes={BOLD}>{truncate("Back to the map", inner - 10)}</span><span fg={C.faint}>{"  Enter"}</span></text></Clickable>);
   } else if (mine && o) {
@@ -284,6 +301,8 @@ function SidePanel({ model, play, header, inner, rows, mine, over, othersPlaying
     const acts = o.actions.length;
     out.push(<Clickable key="m" height={1} flexShrink={0} onClick={() => model.openMenu()}><text><span fg={C.title}>{"m  "}</span><span fg={C.text}>{truncate(`actions (${acts})`, inner - 3)}</span></text></Clickable>);
     line("click", <><span fg={C.title}>{"   "}</span><span fg={C.dim}>{truncate(o.moves.length ? "click a tile: walk there" : "no movement left", inner - 3)}</span></>);
+    // The board's two tints for a walk, said once there's a swing to warn of (where the panel has the room).
+    if (rows >= 18 && o.moves.length && o.swings?.length) line("tints", <><span fg={C.title}>{"   "}</span><span fg="#7fb8e8">{"blue"}</span><span fg={C.dim}>{" safe, "}</span><span fg="#f08a7a">{"red"}</span><span fg={C.dim}>{truncate(" a swing at you", Math.max(0, inner - 18))}</span></>);
     line("someone", <><span fg={C.title}>{"   "}</span><span fg={C.dim}>{truncate("click someone: act on them", inner - 3)}</span></>);
     out.push(<Clickable key="e" height={1} flexShrink={0} onClick={() => model.endTurn()}><text><span fg={C.title}>{"e  "}</span><span fg={C.text}>{"end your turn"}</span></text></Clickable>);
   } else if (view.status === "on") {
@@ -306,7 +325,8 @@ function SidePanel({ model, play, header, inner, rows, mine, over, othersPlaying
 /** The caption line: what's happening now, in a line, the one doing it marked in their colour. */
 function Caption({ model, play, width }: { model: FightModel; play: PlayFrame; width: number }) {
   const playing = play.playing;
-  const actor = playing?.event.actor ? model.view.board.units[playing.event.actor] : undefined;
+  // The mark is whoever did what the caption says (the moment playing once its turn has come round; till then the last one's).
+  const actor = play.captionBy ? model.view.board.units[play.captionBy] : undefined;
   const mark = actor ? (actor.id === model.view.board.pc ? "@" : actor.glyph) : "»";
   const text = play.caption || (model.view.status === "on" ? "" : "It's over.");
   return <box height={1} paddingX={1} flexShrink={0} backgroundColor={C.panel} onMouseDown={(e: MouseEvent) => { if (e.button === MouseButton.LEFT && !model.player.caughtUp) model.finish(); }}>
@@ -391,7 +411,7 @@ const DICE = /\d+ (?:\+|-)\d+ = \d+|vs AC \d+|^Damage:|takes? \d+ \w+ damage|HP 
 const FIGHT_HELP = [
   "Everyone fights in initiative order, the bar across the top: whose turn it is is marked, with everyone's hit points and how they are.",
   "The other side's moves play out one at a time on the board, each said on the caption line and kept in the log under it. Space finishes the move playing; F skips to your turn.",
-  "On your turn: move up to your speed, a tile at a time (click a blue tile, or the arrows), and take one action, and a bonus action if you have one. A rust tile is one a walk to would draw a swing at you, leaving someone's reach: Disengage first and it won't.",
+  "On your turn: move up to your speed, a tile at a time (click a blue tile, or the arrows), and take one action, and a bonus action if you have one. A red tile is one a walk to would draw a swing at you, leaving someone's reach: Disengage first and it won't.",
   "m (or Enter) is the action menu, by what each takes: your action (attack, spells, shove, grab, dash, dodge, disengage), your bonus action, your movement, your turn (let the dice decide, yield, end it). A line with ▸ is aimed on the board: its reach and targets lit, Tab between them, Enter or a click does it. A click on someone opens what you can do to them.",
   "e ends your turn; with nothing at all left, it ends by itself and says so. At 0 hit points you make death saves; nobody dies in these fights.",
   "c your sheet, r the whole log, Esc the menu (reduced motion, back to the title). When it's over, Enter goes back to the map.",

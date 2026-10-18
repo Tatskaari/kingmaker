@@ -26,27 +26,41 @@ export interface Stance { at: Tile2; hp: number; maxHp: number; state: UnitState
 /** Somebody the look draws by kind: beasts are creatures, the rest people. */
 const BEAST = /\b(wolf|wolves|dog|hound|rat|boar|bear|spider|snake|bat|cat|horse|goat|goose|swan)\b/i;
 
+/** When a fall, from 0 to 1, shows them on the floor: before it they're still up, lit red (the board's flash). */
+export const FALLS_AT = 0.3;
+
 /**
  * Someone in a fight as the map's renderer draws them: the cast by their look (Kell's blue K, Sallow's
  * $, the Crakes' C, or their sprites in Kingmaker Glyphs), the rest by the fight's own letter and
- * colour; the player their @. Down, they're an x on the floor where they fell (a % if they died), and
- * the glyph tips over as they fall (`falling`, 0 to 1: their letter lit red, then / and _, then the x).
- * Surrendered, they're greyed. The fled aren't on the board.
+ * colour; the player their @. Down, they're on the floor where they fell, dimmed, a mark at their
+ * feet (the look layer's "down": a sprite lies down, a dog curls up; a letter dims; anyone the fight
+ * set out an x), a % or a body if they died. Asleep (a Sleep spell) they lie down with a Z, prone
+ * they lie down. As they fall (`falling`, 0 to 1) they're still up until FALLS_AT (the board lights
+ * them red), then a letter of the fight's own tips over (/ then _) to the x, and a cast member's look
+ * lies down. Surrendered, they're greyed. The fled aren't on the board.
  */
 export function unitActor(u: Unit, stance: Stance, map: string, falling?: number): MapActor | undefined {
   if (stance.state === "fled") return undefined;
   const base = { id: u.id, name: u.name, map, at: { ...stance.at } };
   const fallen = stance.state === "down" || stance.state === "dead";
-  if (falling !== undefined && falling < 1) {
-    const glyph = falling < 0.25 ? (u.id === "player" || u.glyph === "@" ? "@" : u.glyph) : falling < 0.5 ? "/" : falling < 0.75 ? "_" : fallen ? (stance.state === "dead" ? "%" : "x") : u.glyph;
-    return { ...base, kind: "person", glyph, color: falling < 0.25 ? "#ff5a4a" : hexMix(u.color, "#6a6470", Math.min(1, falling)), states: ["fallen"] };
+  const kind = BEAST.test(u.name) ? "creature" as const : "person" as const;
+  // The cast keep their look from the one cast table (their letters, colours and sprites), down or up; the rest are drawn as the fight set them out.
+  const cast = u.castId ? { ref: u.castId } : {};
+  if (fallen && falling !== undefined && falling < FALLS_AT) return standing(u, { ...stance, state: "fighting" }, base, kind);
+  if (fallen) {
+    const tipping = !u.castId && falling !== undefined && falling < 1 ? (falling < (1 + FALLS_AT) / 2 ? "/" : "_") : undefined;
+    const glyph = tipping ?? (stance.state === "dead" ? "%" : "x");
+    return { ...base, kind, glyph, color: hexMix(u.color, "#6a6470", 0.6), ...cast, states: ["fallen", stance.state === "dead" ? "dead" : "down"] };
   }
-  if (fallen) return { ...base, kind: "person", glyph: stance.state === "dead" ? "%" : "x", color: hexMix(u.color, "#6a6470", 0.6), states: ["fallen"] };
-  const states = [...stance.conditions.filter(c => c === "prone"), ...(stance.state === "surrendered" ? ["surrendered"] : []), ...(stance.hp * 2 < stance.maxHp ? ["bloodied"] : [])];
+  return standing(u, stance, base, kind);
+}
+
+/** Someone up: the player their @; asleep or prone lying down, below half their hit points bloodied, surrendered greyed. */
+function standing(u: Unit, stance: Stance, base: Pick<MapActor, "id" | "name" | "map" | "at">, kind: "person" | "creature"): MapActor {
+  const asleep = stance.conditions.includes("unconscious");
+  const states = [...(asleep ? ["asleep"] : []), ...stance.conditions.filter(c => c === "prone"), ...(stance.state === "surrendered" ? ["surrendered"] : []), ...(stance.hp * 2 < stance.maxHp ? ["bloodied"] : [])];
   if (u.glyph === "@" || u.side === "player") return { ...base, kind: "player", glyph: "@", color: u.color || "#ffffff", ...(states.length ? { states } : {}) };
-  const kind = BEAST.test(u.name) ? "creature" : "person";
   const grey = stance.state === "surrendered" ? hexMix(u.color, "#6a6470", 0.55) : u.color;
-  // The cast keep their look from the one cast table (their letters, colours and sprites); the rest are drawn as the fight set them out.
   return u.castId && stance.state === "fighting" ? { ...base, kind, glyph: u.glyph, color: u.color, ref: u.castId, ...(states.length ? { states } : {}) } : { ...base, kind, glyph: u.glyph, color: grey, ...(states.length ? { states } : {}) };
 }
 
@@ -160,8 +174,8 @@ export function hitFlash(k: number): { fg: string; bg: string } | undefined {
 export const TINT = {
   /** A tile the player can walk to this turn. */
   reach: "#2f6fb0",
-  /** One a walk to would draw a swing on the way. */
-  swing: "#9a4a20",
+  /** One a walk to would draw a swing on the way: red, so it reads as a warning on sand or boards. */
+  swing: "#d0303a",
   /** How far what's being aimed reaches. */
   ring: "#4a4128",
   /** Who or what it could be aimed at. */
@@ -196,7 +210,7 @@ const TAGS: Record<string, { text: string; color: string }> = {
   dodged: { text: "dodging", color: "#8fc7ff" }, dodging: { text: "dodging", color: "#8fc7ff" }, frightened: { text: "afraid", color: "#c79bf2" },
   poisoned: { text: "poisoned", color: "#8fdc3a" }, blinded: { text: "blind", color: "#a8a49c" }, stunned: { text: "stunned", color: "#ffe680" },
   incapacitated: { text: "reeling", color: "#ffe680" }, paralyzed: { text: "frozen", color: "#bfefff" }, charmed: { text: "charmed", color: "#f08ad0" },
-  invisible: { text: "unseen", color: "#9aa4ae" }, unconscious: { text: "out cold", color: "#8a8273" }, deafened: { text: "deaf", color: "#a8a49c" },
+  invisible: { text: "unseen", color: "#9aa4ae" }, unconscious: { text: "asleep", color: "#9aa8c8" }, deafened: { text: "deaf", color: "#a8a49c" },
 };
 
 /** Someone's tags: their conditions worth showing, then how they are when they're out of it (down, gave up, gone). */

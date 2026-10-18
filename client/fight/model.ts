@@ -63,6 +63,8 @@ export class FightModel {
   readonly player: FightPlayer;
   menu?: FightMenu;
   aim?: FightAim;
+  /** Whom the player last aimed at: the next aim starts on them while they're a target. */
+  private lastTarget: string | undefined;
   /** The tile under the pointer, on the board. */
   hover?: Tile2;
   overlay?: FightOverlay;
@@ -203,12 +205,19 @@ export class FightModel {
     else void this.act(entry.options[0]!.id);
   }
 
-  /** Aim a line on the board: at what was clicked, if it can be aimed there, else its nearest target. */
+  /**
+   * Aim a line on the board: at what was clicked, if it can be aimed there; else at whoever the
+   * player last aimed at, while they're still a target; else the nearest (the most hurt of the
+   * nearest first).
+   */
   startAim(entry: MenuEntry, at?: Tile2): void {
-    const pc = this.view.board.units[this.view.board.pc]!.at;
-    const byDistance = [...entry.options.keys()].sort((a, b) => steps(pc, entry.options[a]!.at ?? pc) - steps(pc, entry.options[b]!.at ?? pc));
+    const board = this.view.board;
+    const pc = board.units[board.pc]!.at;
+    const hurt = (i: number) => { const u = board.units[entry.options[i]!.target ?? ""]; return u ? u.hp / Math.max(1, u.maxHp) : 1; };
+    const byDistance = [...entry.options.keys()].sort((a, b) => steps(pc, entry.options[a]!.at ?? pc) - steps(pc, entry.options[b]!.at ?? pc) || hurt(a) - hurt(b));
     const clicked = at ? entry.options.findIndex(o => o.at && o.at.x === at.x && o.at.y === at.y) : -1;
-    this.aim = { entry, index: clicked >= 0 ? clicked : byDistance[0] ?? 0 };
+    const again = this.lastTarget ? entry.options.findIndex(o => o.target === this.lastTarget) : -1;
+    this.aim = { entry, index: clicked >= 0 ? clicked : again >= 0 ? again : byDistance[0] ?? 0 };
     this.emit();
   }
 
@@ -236,11 +245,12 @@ export class FightModel {
     return true;
   }
 
-  /** Do what's aimed. */
+  /** Do what's aimed (and remember at whom, for the next aim). */
   fire(): void {
     const o = this.aimed();
     if (!o) return;
     this.aim = undefined;
+    if (o.target && o.target !== this.view.board.pc) this.lastTarget = o.target;
     void this.act(o.id);
   }
 

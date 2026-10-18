@@ -20,8 +20,9 @@ export interface PlayFrame {
   /** Whose turn the bar shows, and the round. */
   turn: string;
   round: number;
-  /** The caption line: the moment playing, or the last one played. */
+  /** The caption line: the moment playing, or the last one played; and who did what it says (their mark beside it). */
   caption: string;
+  captionBy?: string;
   /** The moment playing, and how far into it (ms). */
   playing?: { event: FightEvent; elapsed: number; ms: number };
   /** Someone falling, and how far into their fall (0 to 1). */
@@ -63,6 +64,7 @@ export class FightPlayer {
   private turn: string;
   private round: number;
   private caption: string;
+  private captionBy: string | undefined;
   private slots: Slot[] = [];
   /** The last moment scheduled. */
   private seen: number;
@@ -88,6 +90,7 @@ export class FightPlayer {
       this.round = view.round;
       const last = view.events[view.events.length - 1];
       this.caption = last?.caption ?? "";
+      this.captionBy = last?.actor;
       this.seen = last?.seq ?? 0;
       for (const e of view.events) this.log.push(entryOf(e));
     }
@@ -165,7 +168,7 @@ export class FightPlayer {
     this.advance(now);
     this.fx.prune(now);
     const stances = clone(this.base);
-    const out: PlayFrame = { stances, turn: this.turn, round: this.round, caption: this.caption, falling: {}, flash: {}, fresh: 0 };
+    const out: PlayFrame = { stances, turn: this.turn, round: this.round, caption: this.caption, ...(this.captionBy ? { captionBy: this.captionBy } : {}), falling: {}, flash: {}, fresh: 0 };
     const slot = this.slots[0];
     if (!slot || slot.start > now) return out;
     const e = slot.event, s = slot.script;
@@ -173,10 +176,10 @@ export class FightPlayer {
     out.playing = { event: e, elapsed, ms: slot.end - slot.start };
     if (this.reduced() || slot.end <= slot.start) {
       apply(stances, e);
-      return { ...out, turn: e.turn || out.turn, round: e.round, caption: e.caption || out.caption };
+      return e.caption ? { ...out, turn: e.turn || out.turn, round: e.round, caption: e.caption, ...by(e) } : { ...out, turn: e.turn || out.turn, round: e.round };
     }
     const turned = s.turnAt === undefined || elapsed >= s.turnAt;
-    if (turned) { out.turn = e.turn || out.turn; out.round = e.round; out.caption = e.caption || out.caption; }
+    if (turned) { out.turn = e.turn || out.turn; out.round = e.round; if (e.caption) Object.assign(out, { caption: e.caption }, by(e)); }
     if (s.turnAt !== undefined && turned) out.fresh = Math.max(0, 1 - (elapsed - s.turnAt) / (PACE.turn * 2));
     const landed = s.hitAt !== undefined && elapsed >= s.hitAt;
     for (const b of s.beats) {
@@ -190,13 +193,14 @@ export class FightPlayer {
         default: break;
       }
     }
-    // What it did lands all at once: hit points, conditions, pushes, anyone giving up or going (a fall waits for its own beat).
+    // What it did lands all at once: hit points, conditions, pushes, anyone giving up or going (a fall
+    // waits for its own beat, and so does the out cold that comes with it: till then they're struck, not asleep).
     if (landed) for (const h of e.detail.hits) {
       const who = stances[h.unit];
       if (!who) continue;
       who.hp = h.hp;
       who.maxHp = h.maxHp;
-      who.conditions = [...who.conditions.filter(c => !h.lost.includes(c)), ...h.gained.filter(c => !who.conditions.includes(c))];
+      who.conditions = [...who.conditions.filter(c => !h.lost.includes(c)), ...h.gained.filter(c => !who.conditions.includes(c) && !(h.fell && c === "unconscious"))];
       if (h.movedTo) who.at = { ...h.movedTo };
       if (!h.fell) who.state = h.state;
     }
@@ -261,7 +265,7 @@ export class FightPlayer {
     apply(this.base, slot.event);
     if (slot.event.turn) this.turn = slot.event.turn;
     this.round = slot.event.round;
-    if (slot.event.caption) this.caption = slot.event.caption;
+    if (slot.event.caption) { this.caption = slot.event.caption; this.captionBy = slot.event.actor; }
   }
 
   /** Nothing left to play: how things stand is the board's (the rows are the truth), whose turn and the round the fight row's. */
@@ -323,6 +327,9 @@ export function rewind(board: FightBoard, events: FightEvent[]): Record<string, 
   }
   return out;
 }
+
+/** Who did what a moment's caption says: its actor, else nobody's (the caption line's mark is then the plain one). */
+const by = (e: FightEvent): { captionBy?: string } => ({ captionBy: e.actor });
 
 const clone = (s: Record<string, Stance>): Record<string, Stance> => Object.fromEntries(Object.entries(s).map(([id, v]) => [id, { ...v, at: { ...v.at }, conditions: [...v.conditions] }]));
 

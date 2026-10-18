@@ -49,11 +49,14 @@ test("the grey wolf's turn as it comes: its walk a tile at a time from when it c
   assert.equal(f.stances["player"]!.hp, 28);
   // The next turn's beat: the bar holds on the grey wolf, then moves on to the big one.
   const turnAt = biteAt + playMs(WOLVES.events.find(e => e.seq === 9)!);
-  assert.equal(p.frame(turnAt + PACE.beat / 2).turn, "wolf-1", "the beat between combatants");
+  const beat = p.frame(turnAt + PACE.beat / 2);
+  assert.equal(beat.turn, "wolf-1", "the beat between combatants");
+  assert.deepEqual([beat.caption, beat.captionBy], ["A grey wolf snaps at you, and misses.", "wolf-1"], "the caption line marked with whoever its caption is about, not the one whose turn comes next");
   f = p.frame(turnAt + PACE.beat + 10);
   assert.equal(f.turn, "wolf-2");
+  assert.equal(f.captionBy, "wolf-2", "the next turn's caption, theirs");
   assert.ok(f.fresh > 0.9, "their tile lit as the bar moves on");
-  f = p.frame(turnAt + PACE.beat + PACE.turn + 1);
+  f = p.frame(turnAt + playMs(WOLVES.events.find(e => e.seq === 10)!) + 1);
   assert.equal(p.caughtUp, true);
   assert.equal(f.playing, undefined);
   assert.equal(f.turn, "wolf-2");
@@ -77,6 +80,7 @@ test("a wolf going down tips over through its fall's beat, then lies there", () 
   p.see(wolvesAt(at), T0);
   const fallAt = T0 + PACE.swing + PACE.hit;
   assert.equal(p.frame(fallAt - 10).stances["wolf-2"]!.state, "fighting");
+  assert.ok(!p.frame(fallAt - 10).stances["wolf-2"]!.conditions.includes("unconscious"), "struck, not asleep on its feet, till its fall");
   const falling = p.frame(fallAt + PACE.fall / 2);
   assert.equal(falling.stances["wolf-2"]!.state, "down");
   assert.ok(falling.falling["wolf-2"]! > 0.4 && falling.falling["wolf-2"]! < 0.6);

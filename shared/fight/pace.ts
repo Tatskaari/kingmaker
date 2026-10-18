@@ -7,8 +7,8 @@ import type { FightEvent } from "./types.ts";
  * and a spectator sees the same pace as the player.
  */
 export const PACE = {
-  /** A caption's least time up, whatever plays under it. */
-  caption: 500,
+  /** A caption's least time up, whatever plays under it: long enough to read a line (M6's first play: 500 was gone before it was read). */
+  caption: 900,
   /** The fight's start: the order coming up. */
   start: 1200,
   /** The short beat between one combatant's turn and the next: nothing moves. */
