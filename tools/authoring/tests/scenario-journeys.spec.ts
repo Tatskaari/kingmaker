@@ -12,6 +12,8 @@ const saved=async(page:Page,path:string)=>JSON.parse(await savedText(page,path))
 const files=(page:Page)=>page.evaluate(()=>({...(window as any).__kingmakerHarness.files}) as Record<string,string>);
 const card=(page:Page,id:string)=>page.locator(`.scenario-card[data-card="${id}"]`);
 const inspector=(page:Page)=>page.locator('.scenario-inspector .inspector-body');
+/** Whether a card is wholly in the diagram's view. */
+const inView=async(page:Page,id:string)=>{const c=await card(page,id).boundingBox(),d=await page.locator('.react-flow').first().boundingBox();return !!c&&!!d&&c.x>=d.x&&c.y>=d.y&&c.x+c.width<=d.x+d.width&&c.y+c.height<=d.y+d.height};
 const openScenario=async(page:Page)=>{
   await page.getByRole('combobox',{name:'Test file',exact:true}).selectOption('caerwyn.kmscenario');
   await expect(page.locator('.file-path')).toHaveText('caerwyn.kmscenario');
@@ -117,6 +119,14 @@ test('the scenario\'s own fields: the start, the story\'s order, a new map made 
   expect(doc.maps).toEqual([...scenario.maps,'the-cooperage']);
   const made=await saved(page,'maps/the-cooperage.kmmap');
   expect([made.id,made.title,made.grid.length,Object.keys(made.legend).length]).toEqual(['the-cooperage','The Cooperage',24,20]);
+  // A new scene: made in scenes/ as the format's skeleton and listed last in the story; its card, at the end of the story's row past the diagram's edge, is brought into view.
+  const scenes=inspector(page).locator('[data-section="scenes"]');
+  await scenes.getByLabel('New scene',{exact:true}).fill('The Lamplighter');
+  await scenes.getByRole('button',{name:'Create'}).click();
+  await expect(card(page,'scene:the-lamplighter')).toBeVisible();
+  expect((await saved(page,'caerwyn.kmscenario')).scenes.at(-1)).toBe('the-lamplighter');
+  expect((await saved(page,'scenes/the-lamplighter.kmscene')).nodes.map((n:any)=>n.id)).toEqual(['start','discovery','ending']);
+  await expect.poll(()=>inView(page,'scene:the-lamplighter')).toBe(true);
   // The purse and a quest.
   const purse=inspector(page).locator('[data-section="startingPurse"]');
   await purse.locator('summary').click();

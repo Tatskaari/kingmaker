@@ -72,6 +72,8 @@ function ScenarioEditor({initial,host}:{initial:ScenarioDocument;host:FileHost<S
   const [confirmation,setConfirmation]=useState<Confirmation|null>(null),[dragging,setDragging]=useState<Record<string,{x:number;y:number}>>({});
   const [measured,setMeasured]=useState<Record<string,{width:number;height:number}>>({});
   const flowApi=useReactFlow<CardNode,FlowEdgeData>(),shell=useRef<HTMLDivElement>(null),fitted=useRef(false);
+  /** A card just made from the Scenario tab (a new scene or map), to bring into view once it's on the diagram. */
+  const shown=useRef<string|null>(null);
   useEffect(()=>{if(!toast)return;const timer=setTimeout(()=>setToast(''),6000);return()=>clearTimeout(timer)},[toast]);
 
   // The campaign as this editor knows it: its own scenario as edited, and what it has written lately.
@@ -146,7 +148,7 @@ function ScenarioEditor({initial,host}:{initial:ScenarioDocument;host:FileHost<S
       const path=kind==='scenes'?pathIn.scene(known.root,id):kind==='maps'?pathIn.map(known.root,id):pathIn.place(known.root,id);
       const text=kind==='scenes'?serializeScene(skeletonScene(title,id)):kind==='maps'?serializeMap(newMap(title,id)):serializePlace(newPlace(title,id));
       if(edits.current.current[kind].includes(id)){setToast(`The scenario lists ${id} already.`);return}
-      void host.create(path,text).then(()=>{edits.commit(setScenarioField(edits.current.current,kind,[...edits.current.current[kind],id]));setToast(`Made ${path}, and listed it. Undo takes it off the list; the file stays.`)}).catch(error=>setToast(String(error instanceof Error?error.message:error)));
+      void host.create(path,text).then(()=>{edits.commit(setScenarioField(edits.current.current,kind,[...edits.current.current[kind],id]));if(kind!=='places')shown.current=kind==='scenes'?sceneCard(id):mapCard(id);setToast(`Made ${path}, and listed it. Undo takes it off the list; the file stays.`)}).catch(error=>setToast(String(error instanceof Error?error.message:error)));
     },
   };
 
@@ -164,6 +166,8 @@ function ScenarioEditor({initial,host}:{initial:ScenarioDocument;host:FileHost<S
   }),[flow,selection]);
   const initialised=useNodesInitialized();
   useEffect(()=>{if(!fitted.current&&campaign&&initialised&&flow.cards.length>1){fitted.current=true;void flowApi.fitView({padding:.12})}},[campaign,initialised,flow.cards.length]);
+  // A new scene's card goes at the end of the story's row, a new map's at the end of the maps': often past the diagram's edge, so the view moves to it.
+  useEffect(()=>{const id=shown.current,at=id?positions.get(id):undefined;if(!id||!at)return;shown.current=null;const size=measured[id]??{width:260,height:150};void flowApi.setCenter(at.x+size.width/2,at.y+size.height/2,{zoom:flowApi.getZoom(),duration:200})},[positions]);
   const nodeChanges=(changes:NodeChange<CardNode>[])=>{
     const sizes=changes.filter(change=>change.type==='dimensions');
     if(sizes.length)setMeasured(old=>{const next={...old};for(const change of sizes)if(change.type==='dimensions'&&change.dimensions)next[change.id]=change.dimensions;return next});
