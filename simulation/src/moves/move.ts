@@ -1,6 +1,6 @@
 import type {
-  ActRequest, BackstoriesRequest, BoundaryRequest, CharactersRequest, Endpoint, LooksRequest, OpenRequest, ReactionsRequest, RememberRequest, ReplyRequest,
-  SettleRequest, SuggestRequest, Usage,
+  ActRequest, BackstoriesRequest, BoardTurnRequest, BoundaryRequest, CharactersRequest, Endpoint, LooksRequest, NarrateRequest, OpenRequest, ReactionsRequest, RememberRequest, ReplyRequest,
+  SettleRequest, SidesRequest, SuggestRequest, Usage,
 } from "../../../shared/protocol/ai.ts";
 import type { Refusal } from "../../../shared/protocol/refusals.ts";
 import type { Actor, TxCtx } from "../context.ts";
@@ -66,6 +66,6 @@ export interface AiCall {
   timeoutMs: number;
   request:
     | OpenRequest | ActRequest | ReactionsRequest | ReplyRequest | SettleRequest | SuggestRequest | RememberRequest
-    | BoundaryRequest | LooksRequest
+    | BoundaryRequest | LooksRequest | SidesRequest | NarrateRequest | BoardTurnRequest
     | CharactersRequest | BackstoriesRequest;
 }

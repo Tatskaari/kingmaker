@@ -5,7 +5,7 @@ import type { RollResult } from "../../../shared/dice.ts";
 import type { Backstory } from "../../../shared/creation/types.ts";
 import type {
   ActResponse, BackstoriesRequest, BackstoriesResponse, BoundaryRequest, BoundaryResponse, CharactersRequest, CharactersResponse, LooksResponse, OpenResponse, ReactionsResponse,
-  RememberResponse, ReplyResponse, SettleResponse, SidesRequest, SidesResponse, SuggestResponse, Usage,
+  BoardTurnRequest, BoardTurnResponse, NarrateResponse, RememberResponse, ReplyResponse, SettleResponse, SidesRequest, SidesResponse, SuggestResponse, Usage,
 } from "../../../shared/protocol/ai.ts";
 import { CREATION_STEPS, type CreationStep } from "../../../shared/protocol/keys.ts";
 import { gmFromRow } from "../../../shared/gm/state.ts";
@@ -98,7 +98,7 @@ export const identity = (n: number) => new Identity(BigInt(0x1000 + n));
 // A scripted AI service.
 
 /** A turn's steps (its own, the lines beside it, and the jobs after it), a scene's boundary, and character creation's (named from the request: /v1/characters' ask, /v1/backstories' op). */
-export type Step = "open" | "act" | "reactions" | "reply" | "settle" | "suggest" | "remember" | "boundary" | "look" | "sides" | CreationStep;
+export type Step = "open" | "act" | "reactions" | "reply" | "settle" | "suggest" | "remember" | "boundary" | "look" | "sides" | "narrate" | "fight" | CreationStep;
 
 /** What an endpoint answers: the answer itself (200, as JSON), another HTTP reply, a thrown error (a refused connection), or a function of the request that gives one of those. */
 export type Scripted = unknown | { http: AiReply } | ((request: any, headers: Record<string, string>) => unknown);
@@ -121,6 +121,8 @@ export const DEFAULTS: {
   open: OpenResponse; act: ActResponse; reactions: ReactionsResponse; reply: ReplyResponse; settle: SettleResponse; suggest: SuggestResponse;
   remember: RememberResponse; boundary: (request: BoundaryRequest) => BoundaryResponse; look: LooksResponse;
   sides: (request: SidesRequest) => SidesResponse;
+  narrate: NarrateResponse;
+  fight: (request: BoardTurnRequest) => BoardTurnResponse;
 } = {
   open: { present: ["kell", "cob", "moll"], entries: [{ speaker: "gm", kind: "narration", text: "Sergeant Kell looks up from her notebook as you come through the gate. \"You'll be the King's investigator.\"" }], usage: usage(2, 0.002) },
   act: { usage: usage(0, 0) },
@@ -142,6 +144,9 @@ export const DEFAULTS: {
   look: { looks: {}, usage: usage(0, 0) },
   // The sides a fight's people take (docs/combat-gm.md): whoever has none runs.
   sides: request => ({ sides: Object.fromEntries(request.sides.pending.map(p => [p.id, "flee" as const])), entries: [], usage: usage(1, 0.0005) }),
+  // The GM on the board (docs/combat-gm.md): a turn told in a line; a typed turn ended at once.
+  narrate: { entries: [{ speaker: "gm", kind: "narration", text: "Steel rings on steel." }], usage: usage(1, 0.0004) },
+  fight: () => ({ move: { kind: "end_turn", narration: "You hold your ground." }, entries: [{ speaker: "gm", kind: "narration", text: "You hold your ground." }], usage: usage(1, 0.0004) }),
 };
 
 /** A boundary's answer going on to `next` (one of the request's candidates), with the canned GM's fallback hand-off; `also` adds what was handed on. */
@@ -157,7 +162,7 @@ export function crossedTo(request: BoundaryRequest, next: string, also: Partial<
 
 const STEPS: Record<string, Step> = {
   "/v1/scenes/open": "open", "/v1/turns/act": "act", "/v1/turns/reactions": "reactions", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle", "/v1/turns/suggest": "suggest",
-  "/v1/turns/remember": "remember", "/v1/scenes/boundary": "boundary", "/v1/looks": "look", "/v1/turns/sides": "sides",
+  "/v1/turns/remember": "remember", "/v1/scenes/boundary": "boundary", "/v1/looks": "look", "/v1/turns/sides": "sides", "/v1/fights/narrate": "narrate", "/v1/fights/turn": "fight",
 };
 
 /** A creation request's step: the builds asked for, or what's asked of the backstory. */
@@ -232,7 +237,7 @@ export const down = () => () => {
 
 export function scriptedAi() {
   const sent: Sent[] = [];
-  const queues: Record<Step, Scripted[]> = { open: [], act: [], reactions: [], reply: [], settle: [], suggest: [], remember: [], boundary: [], look: [], sides: [], offer: [], pick: [], own: [], draft: [], work: [], check: [], traits: [] };
+  const queues: Record<Step, Scripted[]> = { open: [], act: [], reactions: [], reply: [], settle: [], suggest: [], remember: [], boundary: [], look: [], sides: [], narrate: [], fight: [], offer: [], pick: [], own: [], draft: [], work: [], check: [], traits: [] };
 
   const ai: AiPost = async (endpoint, body, headers) => {
     const request = JSON.parse(body) as { key: string; ask?: { kind?: string }; op?: string };

@@ -82,7 +82,7 @@ export interface AiService {
 const THINKS: Record<Endpoint, keyof Endpoints> = {
   "/v1/scenes/open": "open", "/v1/turns/act": "act", "/v1/turns/reactions": "reactions", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle",
   "/v1/turns/suggest": "suggest", "/v1/turns/remember": "remember",
-  "/v1/scenes/boundary": "boundary", "/v1/looks": "looks", "/v1/turns/sides": "sides",
+  "/v1/scenes/boundary": "boundary", "/v1/looks": "looks", "/v1/turns/sides": "sides", "/v1/fights/narrate": "narrate", "/v1/fights/turn": "fight",
   "/v1/characters": "characters", "/v1/backstories": "backstories",
 };
 /** What a request is for, by its method and path: a think, a campaign PUT, or a game's own (V16). */

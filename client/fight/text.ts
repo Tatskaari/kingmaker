@@ -40,9 +40,12 @@ function head(view: FightView): string {
  */
 export function eventLines(events: FightEvent[], board?: FightBoard): string[] {
   const name = (id: string) => (board?.units[id] ? (id === board.pc ? "you" : board.units[id].called) : board?.props[id] ? `the ${board.props[id].name}` : id);
-  return events.flatMap(e => {
+  // The GM's words (docs/combat-gm.md) after the moment they follow, however late they came; the player's own as theirs.
+  const at = (e: FightEvent) => (e.kind === "gm" ? (e.detail.after ?? e.seq) + 0.5 : e.seq);
+  return [...events].sort((a, b) => at(a) - at(b) || a.seq - b.seq).flatMap(e => {
     const played = scriptLine(e, name);
-    return [e.kind === "turn" ? `— ${e.caption}` : e.caption, ...(played ? [`    ${played}`] : []), ...linesUnder(e).map(l => `    ${l}`)];
+    const head = e.kind === "turn" ? `— ${e.caption}` : e.kind === "say" && e.actor === board?.pc ? `> ${e.caption}` : e.kind === "gm" ? `GM: ${e.caption}` : e.caption;
+    return [head, ...(played ? [`    ${played}`] : []), ...linesUnder(e).map(l => `    ${l}`)];
   });
 }
 

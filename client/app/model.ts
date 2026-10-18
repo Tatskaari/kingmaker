@@ -343,6 +343,7 @@ export class AppModel implements AppPart {
       move: m => mapMove(this.backend, m),
       turn: act => this.backend.act("fightTurn", { act }),
       out: () => this.backend.walk({ toward: OUT }),
+      say: text => this.backend.act("fightSay", { text }),
       quit: () => this.go("title"),
       report: from => this.reportFrom(from),
     }, { fromStart: fresh, sheet: () => this.sheetShown(), zoo: fightZoo(this.backend, () => this.rows) });

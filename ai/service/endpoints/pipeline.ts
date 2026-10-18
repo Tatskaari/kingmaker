@@ -4,6 +4,7 @@ import { act } from "./act.ts";
 import { backstories } from "./backstories.ts";
 import { boundary } from "./boundary.ts";
 import { characters } from "./characters.ts";
+import { fight, narrate } from "./fights.ts";
 import { looks } from "./looks.ts";
 import { open } from "./open.ts";
 import { reactions } from "./reactions.ts";
@@ -21,7 +22,7 @@ import { suggest } from "./suggest.ts";
  * own calls (its call log, its costs, its usage).
  */
 export const pipeline: Endpoints = {
-  open, act, reactions, reply, settle, suggest, remember, boundary, looks, sides,
+  open, act, reactions, reply, settle, suggest, remember, boundary, looks, sides, narrate, fight,
   characters: characters(modelAsk), backstories: backstories(modelAsk),
 };
 

@@ -103,6 +103,14 @@ const NEEDS: Record<Step, Need[]> = {
   suggest: [...SCENE, ["offered (the scene's last set)", r => isList(r, "offered")]],
   remember: [...SCENE, REVIEWED],
   boundary: [...SCENE, ...BOUNDARY],
+  narrate: [
+    ...SCENE,
+    ["fight { why, round, whose, fighters } (the board as the GM sees it), whose, moments (the turn to tell)", r => isText(r, "fight.whose") && isList(r, "fight.fighters") && isText(r, "whose") && isList(r, "moments")],
+  ],
+  fight: [
+    ...TURN,
+    ["fight { why, round, whose, fighters }, options, movement, done (the player's turn on the board so far)", r => isList(r, "fight.fighters") && isList(r, "options") && isList(r, "done")],
+  ],
   sides: [
     ...TURN,
     ["sides { why, against, with, pending } (who's on which side, and who's to pick)", r => isText(r, "sides.why") && isList(r, "sides.against") && isList(r, "sides.with") && isList(r, "sides.pending")],

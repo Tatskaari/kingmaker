@@ -14,6 +14,7 @@ import { optionsOf } from "./options.ts";
 import { Table } from "./rules.ts";
 import { Skirmish, type Moment } from "./skirmish.ts";
 import { closeEncounter, ended } from "./end.ts";
+import { tellTurns } from "./gm.ts";
 import { playersTurn } from "./turns.ts";
 
 export type FightRow = RowOf<"fight">;
@@ -114,13 +115,17 @@ export function peek<T>(tx: TxCtx, fight: FightRow, look: (s: Skirmish) => T): T
 export function save(tx: TxCtx, fight: FightRow, s: Skirmish, moments: Moment[], campaign: string): FightRow {
   const { map: _map, ...board } = s.G;
   let seq = fight.seq;
+  const fresh: Array<{ seq: number; kind: Moment["kind"]; actor?: string }> = [];
   for (const m of moments) {
     seq++;
     tx.db.fightEvent.insert({
       id: 0n, fightId: fight.id, gameId: fight.gameId, seq, round: m.round, turn: m.turn, kind: m.kind, actor: m.actor, target: m.target,
       caption: m.caption, detail: JSON.stringify(m.detail), at: tx.now,
     });
+    fresh.push({ seq, kind: m.kind, ...(m.actor ? { actor: m.actor } : {}) });
   }
+  // A scene's fight: each turn these moments finished, for the GM to tell in the log (fight/gm.ts).
+  tellTurns(tx, fight, board, fresh.filter(w => w.kind === "turn" || w.kind === "over"), fresh);
   const over = !!board.outcome;
   const result: FightResult | undefined = over && fight.status === "on" ? ended(tx, fight, board, campaign) : undefined;
   const written = tx.db.fight.id.update({

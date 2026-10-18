@@ -26,6 +26,7 @@ import { interactReducer, travelReducer, walkReducer } from "./map/moves.ts";
 import { attackReducer, castReducer, hideReducer, leapReducer, restReducer, useFeatureReducer, useItemReducer } from "./map/acts.ts";
 import { tickPlace as tickPlaceBody } from "./map/tick.ts";
 import { fightTurnReducer } from "./fight/moves.ts";
+import { fightSayReducer } from "./fight/gm.ts";
 import { fightStep as fightStepBody } from "./fight/step.ts";
 import { startRingReducer } from "./zoo/moves.ts";
 import { openExhibitReducer, visitZooReducer } from "./zoo/exhibits.ts";
@@ -102,6 +103,8 @@ export const endScene = spacetimedb.reducer({ game: t.u64(), exit: t.string(), t
 // A fight (M6, docs/combat-design.md): one of the zoo's rings started, and the fight's own acts on the player's turn (the map's walk, attack and cast are its moves too).
 export const startRing = spacetimedb.reducer({ ring: t.string(), fast: t.option(t.bool()) }, (ctx, args) => asReducer(ctx, tx => startRingReducer(tx, ctx.sender, args)));
 export const fightTurn = spacetimedb.reducer({ act: t.string() }, (ctx, args) => asReducer(ctx, tx => fightTurnReducer(tx, ctx.sender, args)));
+// The player's turn in a scene's fight in their own words, the GM's to play on the board (docs/combat-gm.md).
+export const fightSay = spacetimedb.reducer({ text: t.string() }, (ctx, args) => asReducer(ctx, tx => fightSayReducer(tx, ctx.sender, args)));
 // The zoo (M6, campaigns/zoo): a visit made, opening one of its exhibits; and an exhibit opened again in it (the ring's fight again, or with other foes).
 export const visitZoo = spacetimedb.reducer({ exhibit: t.string(), build: t.string(), name: t.option(t.string()), foes: t.option(t.string()), fast: t.option(t.bool()) }, (ctx, args) => asReducer(ctx, tx => visitZooReducer(tx, ctx.sender, args)));
 export const openExhibit = spacetimedb.reducer({ exhibit: t.string(), foes: t.option(t.string()), fast: t.option(t.bool()) }, (ctx, args) => asReducer(ctx, tx => openExhibitReducer(tx, ctx.sender, args)));

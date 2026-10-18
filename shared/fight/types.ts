@@ -1,5 +1,6 @@
 // After the prototype's src/game/combat/model.ts at bc2ab1f: Side, Role, UnitState, Unit, Prop and LogLine as they are (LogLine's "said" kind is a typed line's, V13's, and goes); CombatG as FightBoard (the engine's campaign, its rng and the map are kept apart: fight_rules has the campaign, the fight row the map), with the setup's flags it plays by. New (M6, docs/combat-design.md): the fight's setup, its events (each one moment the screen plays, with its caption) and the player's options as the fight row carries them.
 import type { CombatantSetup, MapActor, Tile2 } from "../map/types.ts";
+import type { Speech } from "../markup.ts";
 import type { MapFile } from "../map/tiles.ts";
 import type { TimeOfDay } from "../scene/files.ts";
 
@@ -128,6 +129,15 @@ export interface FightBoard {
   scene?: string;
   /** The setup's: a fight that broke out on the town's map, whose people take how it went once the player is out. */
   town?: boolean;
+  // The GM on the board (a scene's fight, docs/combat-gm.md):
+  /** The last moment the GM has told (or that a typed turn's own words covered). */
+  told?: number;
+  /** A turn's telling the board waits on before the next of the other side's turns: its last moment, and since when (ms since the epoch). */
+  telling?: { to: number; since: number };
+  /** The player's turn in their own words: its line's moment. Its moments are the GM's told already. */
+  typed?: { at: number };
+  /** The GM is playing the player's typed turn: the menu waits. */
+  thinking?: boolean;
 }
 
 /** Which of the zoo's exhibits a fight was set out from, and with which line-up of foes (shared/zoo/exhibits.ts). */
@@ -184,7 +194,7 @@ export interface FightSetup {
  */
 export type FightEventKind =
   | "start" | "turn" | "move" | "attack" | "cast" | "dash" | "dodge" | "disengage" | "wrestle" | "use" | "feature"
-  | "say" | "nerve" | "yield" | "flee" | "walk-off" | "arrest" | "hazard" | "pass" | "over";
+  | "say" | "nerve" | "yield" | "flee" | "walk-off" | "arrest" | "hazard" | "pass" | "over" | "gm";
 
 /** An attack roll, as the engine rolled it: who at whom with what, the d20s, the bonus, the total against the armour class. */
 export interface FightRoll {
@@ -252,6 +262,9 @@ export interface FightEventDetail {
   /** The end's. */
   outcome?: FightOutcome;
   summary?: string;
+  /** The GM's words (a "gm" moment, docs/combat-gm.md): the moment they follow in the log, the turn they tell's last; and who says each part, as a reply's markup has it. */
+  after?: number;
+  speech?: Speech[];
 }
 
 /** One moment, as fight_event has it: its number in the fight, the round and whose turn, its kind, who did it, the caption and the details. */

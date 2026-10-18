@@ -23,7 +23,7 @@ import type { CreationStep, Step } from "./keys.ts";
 
 export type Endpoint =
   | "/v1/scenes/open" | "/v1/turns/act" | "/v1/turns/reactions" | "/v1/turns/reply" | "/v1/turns/settle" | "/v1/turns/suggest"
-  | "/v1/turns/remember" | "/v1/scenes/boundary" | "/v1/looks" | "/v1/turns/sides"
+  | "/v1/turns/remember" | "/v1/scenes/boundary" | "/v1/looks" | "/v1/turns/sides" | "/v1/fights/narrate" | "/v1/fights/turn"
   | "/v1/characters" | "/v1/backstories";
 
 /**
@@ -34,12 +34,12 @@ export type Endpoint =
  */
 export const STEP_ENDPOINT: Record<Step | CreationStep, Endpoint> = {
   open: "/v1/scenes/open", act: "/v1/turns/act", reactions: "/v1/turns/reactions", reply: "/v1/turns/reply", settle: "/v1/turns/settle",
-  suggest: "/v1/turns/suggest", remember: "/v1/turns/remember", boundary: "/v1/scenes/boundary", look: "/v1/looks", sides: "/v1/turns/sides",
+  suggest: "/v1/turns/suggest", remember: "/v1/turns/remember", boundary: "/v1/scenes/boundary", look: "/v1/looks", sides: "/v1/turns/sides", narrate: "/v1/fights/narrate", fight: "/v1/fights/turn",
   offer: "/v1/characters", pick: "/v1/characters", own: "/v1/characters",
   draft: "/v1/backstories", work: "/v1/backstories", check: "/v1/backstories", traits: "/v1/backstories",
 };
 export const STEP_TIMEOUT_MS: Record<Step | CreationStep, number> = {
-  open: 60_000, act: 20_000, reactions: 20_000, reply: 60_000, settle: 60_000, suggest: 30_000, remember: 170_000, boundary: 120_000, look: 30_000, sides: 30_000,
+  open: 60_000, act: 20_000, reactions: 20_000, reply: 60_000, settle: 60_000, suggest: 30_000, remember: 170_000, boundary: 120_000, look: 30_000, sides: 30_000, narrate: 30_000, fight: 45_000,
   offer: 60_000, pick: 60_000, own: 30_000, draft: 60_000, work: 60_000, check: 60_000, traits: 60_000,
 };
 
@@ -267,6 +267,53 @@ export interface SidesRequest extends AiRequest { turn: TurnContext; sides: { wh
 
 /** The GM's pick for each of them (pick_sides), and what the table sees as they take their sides, as the screen has it. */
 export interface SidesResponse { sides: Record<string, SidePick>; entries: Reply[]; usage: Usage }
+
+/**
+ * A scene's fight on the board as the GM sees it (docs/combat-gm.md): what it's about, the round,
+ * everyone in initiative order, and whose turn it is.
+ */
+export interface BoardView { why: string; round: number; whose: string; fighters: BoardFighter[] }
+
+/**
+ * Someone on the board as the GM sees them: who (by what the player calls them until they've heard
+ * the name), their side, how they stand (hit points, out of it or not, conditions), where they are
+ * and how far from each of the others (in feet), and whether it's their turn.
+ */
+export interface BoardFighter {
+  id: string; name: string; called?: string; side: "player" | "ally" | "enemy" | "neutral";
+  hp: number; max: number; state: string; conditions: string[]; feet: Record<string, number>;
+}
+
+/** A moment the board played: what kind, who did it, its caption and its dice lines. */
+export interface BoardMoment { kind: string; actor?: string; caption: string; lines: string[] }
+
+/** POST /v1/fights/narrate: a turn the board played (the moments of it), for the GM to tell in the fight's log, in the scene's voice. */
+export interface NarrateRequest extends AiRequest { turn: SceneContext; fight: BoardView; whose: string; moments: BoardMoment[] }
+
+/** The GM's telling of it, as the screen has it (who says each line). */
+export interface NarrateResponse { entries: Reply[]; usage: Usage }
+
+/** One of the player's options on the board, by the board's own id (attack@4,3, cast_fire-bolt@4,3, feature_second-wind, dash, yield…), and what it is. */
+export interface BoardOption { id: string; label: string; cost?: string }
+
+/** What the GM did so far of the player's typed turn: what it asked for, its narration, and what the board made of it (its moments), or why the board refused it. */
+export interface BoardDone { act: string; narration: string; moments: BoardMoment[]; refused?: string }
+
+/**
+ * POST /v1/fights/turn: the player's turn on the board in their own words (docs/combat-gm.md, the
+ * user's "if I click on it, I can still narrate what I do"): the line (`turn.line`), what they can do
+ * now (the board's options), and what's been done of it so far.
+ */
+export interface BoardTurnRequest extends AiRequest { turn: TurnContext; fight: BoardView; options: BoardOption[]; movement: number; done: BoardDone[] }
+
+/** The GM's next move on the player's turn: one of their options, a move toward (or away from) someone or something, or the turn's end, each with its narration. */
+export type BoardMove =
+  | { kind: "act"; id: string; narration: string }
+  | { kind: "toward"; target: string; away?: boolean; narration: string }
+  | { kind: "end_turn"; narration: string };
+
+/** The move, and its narration as the screen has it. */
+export interface BoardTurnResponse { move: BoardMove; entries: Reply[]; usage: Usage }
 
 /** A check the two-part GM's mouthpiece called: its skill and DC, and its five outcomes (shared/gm/two-part.ts BANDS), each the next words of the reply. */
 export interface SpokenCheck { skill: Skill; dc: number; outcomes: Record<Band, Reply> }

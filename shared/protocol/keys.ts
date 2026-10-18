@@ -14,8 +14,8 @@
  * (story-design §4.3), keyed by the scene's last turn; and the looks of what the stage manager made
  * in a turn, beside it (town-design §3.7).
  */
-export type Step = "open" | "act" | "reactions" | "reply" | "settle" | "suggest" | "remember" | "boundary" | "look" | "sides";
-export const STEPS: readonly Step[] = ["open", "act", "reactions", "reply", "settle", "suggest", "remember", "boundary", "look", "sides"];
+export type Step = "open" | "act" | "reactions" | "reply" | "settle" | "suggest" | "remember" | "boundary" | "look" | "sides" | "narrate" | "fight";
+export const STEPS: readonly Step[] = ["open", "act", "reactions", "reply", "settle", "suggest", "remember", "boundary", "look", "sides", "narrate", "fight"];
 
 /**
  * Character creation's steps (v1-design §3.5), each an AI call of its own: the three builds offered,
@@ -32,10 +32,12 @@ export const CREATION_STEPS: readonly CreationStep[] = ["offer", "pick", "own", 
  * turned back on), and each ask has its own answer: `ask` is the suggest step's k-th ask of the
  * turn, the second on keyed `suggest-<k>`. A scene's boundary is keyed by its last turn: a scene
  * ends once (story-design §4.2). The sides a fight's people take (docs/combat-gm.md) are asked once,
- * on the turn it broke out.
+ * on the turn it broke out; the GM's words on the board as it's fought, on that turn too, are
+ * counted by the fight's moments: `narrate-<k>` tells the turn whose last moment is the k-th, and
+ * `fight-<k>` is a step of the player's typed turn (its line's moment, times a hundred, and the step).
  */
 export const idempotencyKey = (game: string, scene: bigint | string, turn: number, step: Step, ask = 1) =>
-  `${game}:s${scene}:t${turn}:${step}${step === "suggest" && ask > 1 ? `-${ask}` : ""}`;
+  `${game}:s${scene}:t${turn}:${step}${(step === "suggest" && ask > 1) || step === "narrate" || step === "fight" ? `-${ask}` : ""}`;
 
 /**
  * A creation step's key: `<creation uid>:c<rev>:<step>`. The creation's rev is the row's when the
@@ -57,6 +59,8 @@ export interface CreationKeyParts { game: string; rev: number; step: CreationSte
 
 /** A key's parts (a turn's think has a turn, a creation's step a rev), or undefined when it isn't one. */
 export function keyParts(key: string): TurnKeyParts | CreationKeyParts | undefined {
+  const board = /^(.+):s(\d+):t(\d+):(narrate|fight)-([1-9]\d*)$/.exec(key);
+  if (board) return { game: board[1]!, scene: board[2]!, turn: Number(board[3]), step: board[4] as Step, ask: Number(board[5]) };
   const turn = /^(.+):s(\d+):t(\d+):(?:(open|act|reactions|reply|settle|remember|boundary|look|sides)|suggest(?:-([1-9]\d*))?)$/.exec(key);
   if (turn) {
     if (turn[5] === "1") return undefined;

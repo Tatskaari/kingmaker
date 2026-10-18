@@ -1,4 +1,4 @@
-import type { Outcome, SidesRequest, TurnAct, TurnCheck } from "../../../shared/protocol/ai.ts";
+import type { BoardDone, Outcome, SidesRequest, TurnAct, TurnCheck } from "../../../shared/protocol/ai.ts";
 import type { Act, Mechanic } from "../../../shared/rules/types.ts";
 
 /**
@@ -62,6 +62,20 @@ export interface SayPlan {
   /** A fight breaking out (docs/combat-gm.md): who's on which side, and who's the GM's to place (the sides step's request). */
   sides?: SidesRequest["sides"];
 }
+
+/**
+ * A turn the board played in a scene's fight, told by the GM (docs/combat-gm.md): one think beside the
+ * fight, POST /v1/fights/narrate. `from` and `to`: its moments' numbers; `whose`: whose turn it was;
+ * `n`: the scene's turn the fight broke out on (its key's), and the key counts by `to`.
+ */
+export interface NarratePlan { step: "narrate"; game: string; scene: string; n: number; fight: string; from: number; to: number; whose: string }
+
+/**
+ * The player's turn on the board in their own words (docs/combat-gm.md): a think a step, POST
+ * /v1/fights/turn, each answer one move done on the board and the next asked with what came of it.
+ * `at`: the line's moment; `done`: what's been done of it so far (the key counts by both).
+ */
+export interface BoardTurnPlan { step: "fight"; game: string; scene: string; n: number; fight: string; line: string; at: number; done: BoardDone[] }
 
 /** A turn's suggested lines (v5-design §3.4): one think, POST /v1/turns/suggest, for its k-th ask (from 1). */
 export interface SuggestPlan { step: "suggest"; game: string; scene: string; turn: string; n: number; ask: number }

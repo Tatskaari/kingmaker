@@ -68,7 +68,7 @@ export type MoveName =
   | "chooseAgain" | "begin" | "continueGame" | "deleteGame"
   | "walk" | "carryOn" | "fightItOut" | "endScene"
   | "cast" | "attack" | "useFeature" | "leap" | "hide" | "rest" | "useItem"
-  | "startRing" | "fightTurn" | "visitZoo" | "openExhibit";
+  | "startRing" | "fightTurn" | "fightSay" | "visitZoo" | "openExhibit";
 
 /** Each move's arguments, as the bindings have them. */
 export type Moves = { [K in MoveName]: Parameters<DbConnection["reducers"][K]>[0] };

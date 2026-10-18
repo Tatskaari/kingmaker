@@ -121,6 +121,7 @@ export function fakeFetch(options: FakeOptions = {}): FakeFetch {
     if (url !== "https://openrouter.ai/api/v1/responses") return json({ error: { message: `the fake OpenRouter doesn't answer ${url}` } }, 404);
     if (body.tools?.some(t => t.name === "move_scene")) return json(coGmRound(body, options.coGm ?? {}));
     if (body.tools?.some(t => t.name === "pick_sides")) return json(sidesRound(body, options.sides ?? {}));
+    if (body.tools?.some(t => t.name === "act")) return json(boardRound(body));
     const looped = body.tools?.[0] && options.toolCalls?.[body.tools[0].name];
     if (looped) return json(toolRound(looped, body.input ?? []));
     const format = body.text?.format;
@@ -136,7 +137,7 @@ export function fakeFetch(options: FakeOptions = {}): FakeFetch {
       : talking ? talkSuggestions![talked++ % talkSuggestions!.length]!
       : suggesting ? suggestions[suggested++ % suggestions.length]!
       : handing ? options.handoff!
-      : replies[next++ % replies.length]!;
+      : telling(body) ?? replies[next++ % replies.length]!;
     if (format && options.phased?.includes(format.name)) return phased(`${text.slice(0, 40)}"} \n\n the response is not valid json`, text);
     if (!body.stream) return json(completed(text));
     return options.streamMs ? sseSlowly(text, options.streamMs, init?.signal) : sse(text);
@@ -210,6 +211,31 @@ function sidesRound(body: Request, sides: NonNullable<FakeOptions["sides"]>): un
   const ids = [...(listed?.[1] ?? "").matchAll(/^- .*? \[([^\]]+)\]/gm)].map(m => m[1]!);
   const args = { sides: ids.map(id => ({ id, side: sides[id] ?? "flee" })), narration: "Everyone else takes a side, or a door." };
   return { status: "completed", output: [{ type: "function_call", call_id: "call_1", name: "pick_sides", arguments: JSON.stringify(args) }], usage: { input_tokens: 400, output_tokens: 40, cost: 0.0003 } };
+}
+
+/** A turn the board played, told (ai/gm/board.ts narrateTurn): its first moment's caption, and that the fight goes on. None for any other call. */
+function telling(body: Request): string | undefined {
+  const note = body.input?.filter(m => m.role === "system").at(-1)?.content ?? "";
+  if (!note.includes("## Tell this turn")) return undefined;
+  const first = /\n- (.+)/.exec(note.split("## Tell this turn")[1] ?? "")?.[1];
+  return `${first ?? "Steel rings."} The fight goes on.`;
+}
+
+/**
+ * The player's typed turn on the board (ai/gm/board.ts boardTurn), read off its note: the first
+ * attack the board lists, else a move towards the first of the other side, then the turn's end. One
+ * call a round; the loop stops on each.
+ */
+function boardRound(body: Request): unknown {
+  const note = body.input?.filter(m => m.role === "system").at(-1)?.content ?? "";
+  const call = (name: string, args: Record<string, unknown>) => ({ status: "completed", output: [{ type: "function_call", call_id: "call_1", name, arguments: JSON.stringify(args) }], usage: { input_tokens: 400, output_tokens: 40, cost: 0.0003 } });
+  const done = /## This turn so far\n([\s\S]*?)(?:\n\n|$)/.exec(note)?.[1]?.split("\n").filter(l => /^\d+\. /.test(l)).length ?? 0;
+  const attack = /^- (attack@\d+,\d+): /m.exec(note)?.[1];
+  const foe = /^- .*? \[([^\]]+)\], against the player: (?!down|dead|gone|gave up)/m.exec(note)?.[1];
+  if (done === 0 && attack) return call("act", { id: attack, narration: "You go for them." });
+  if (done === 0 && foe && /movement left: move_towards/.test(note)) return call("move_towards", { target: foe, narration: "You close in." });
+  if (done === 1 && attack && /^1\. move_towards/m.test(note)) return call("act", { id: attack, narration: "You swing." });
+  return call("end_turn", { narration: "You set your feet, breathing hard." });
 }
 
 /** A route as the co-GM's prep has it (routeLine's): its id, where it goes from and to, what it needs reached first, and whether the dice decide it. */

@@ -190,6 +190,9 @@ export function transcript(game: Backend, out: Out): number {
  * the world settles behind it) or, with `settled`, done; then what answered it and the phase.
  */
 export async function say(game: Backend, text: string, out: Out, waiting: Waiting = {}): Promise<number> {
+  // A fight on the board: the line is the player's turn in their own words, the GM's to play (docs/combat-gm.md).
+  const onTheBoard = game.fight?.();
+  if (onTheBoard) return await sayInTheFight(game, onTheBoard, text, out, waiting);
   if (!game.view()) return notInGame(out);
   const refused = await game.say(text);
   if (refused) return said(out, refused);
@@ -418,6 +421,22 @@ async function outOfTheFight(game: Backend, fight: FightView, out: Out, waiting:
 }
 
 const lastSeq = (view: FightView) => (view.events.length ? view.events[view.events.length - 1]!.seq : 0);
+
+/**
+ * The player's turn in a scene's fight in their own words (fight_say): the GM plays it on the board, a
+ * move at a time, and tells it; then the other side's turns up to the player's next (or the end). The
+ * fight as observe prints it, with every moment since the line (the GM's words among them).
+ */
+async function sayInTheFight(game: Backend, fight: FightView, text: string, out: Out, waiting: Waiting): Promise<number> {
+  if (fight.watching) return said(out, refusal("not_controller", { name: fight.watching }));
+  const seen = lastSeq(fight);
+  const refused = await game.act("fightSay", { text });
+  if (refused) return said(out, refused);
+  const after = await fightWhen(game, v => v.id !== fight.id || (!v.board.thinking && lastSeq(v) > seen && (myTurn(v) || v.status !== "on")), waiting.ms ?? TURN_MS)
+    .catch(() => game.fight?.() ?? fight);
+  out.print(boardText(game, after, after.events.filter(e => e.seq > seen)));
+  return 0;
+}
 
 // ---------------------------------------------------------------------------------------------
 // Between scenes (story-design §4.5): the testing end, the way on, the fight's stand-in, the notebook.
