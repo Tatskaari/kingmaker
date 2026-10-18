@@ -119,15 +119,17 @@ export class FightModel {
     this.emit();
   }
 
-  /** Stop the redraws (the screen's gone). */
+  /** Stop the redraws (the screen's gone; drawn again, its first frame starts them again). */
   close(): void {
     if (this.timer) clearTimeout(this.timer);
     this.timer = undefined;
   }
 
-  /** What's on screen now. */
+  /** What's on screen now (the board's painter asks every frame: with something still to play and no redraw due, one is set). */
   frame(): PlayFrame {
-    return this.player.frame(this.now());
+    const f = this.player.frame(this.now());
+    if (this.timers && !this.timer && !this.player.caughtUp) this.schedule();
+    return f;
   }
 
   /** The player's own options, on their turn. */
