@@ -87,8 +87,47 @@ export async function pickSides(scene: Scene, view: TurnView, ask: SidesRequest[
   const sides: Record<string, SidePick> = args
     ? Object.fromEntries((args.sides as Array<{ id: string; side: SidePick }>).map(x => [x.id, x.side]))
     : Object.fromEntries(ask.pending.map(p => [p.id, "flee" as const]));
-  const narration = String(args?.narration ?? result.text ?? "").trim();
+  const narration = withoutComers(String(args?.narration ?? result.text ?? "").trim(), ask.pending);
   return { sides, entries: narration ? [spoken(scene, view, narration, how.byKey)] : [], costUsd: result.costUsd };
+}
+
+/**
+ * The narration without a word of whoever's coming later (smoke5-1018, smoke6-1018: "after two
+ * rounds, the granary porters and the old porter will come in at the far gate", for all the prompt
+ * says): each sentence that names one of them goes, by their name, what they're called, their id, or
+ * a group's plural ("the porters").
+ */
+export function withoutComers(text: string, pending: readonly FightNewcomer[]): string {
+  const terms = pending.filter(p => p.coming).flatMap(p => [p.name, p.called, p.id].filter((x): x is string => !!x).flatMap(n => {
+    const bare = n.toLowerCase().replace(/^(the|a|an)\s+/, "").trim();
+    const last = bare.split(/\s+/).at(-1) ?? bare;
+    return [bare, ...(last !== bare && last.length > 3 && last.endsWith("s") ? [last] : [])];
+  }));
+  if (!terms.length) return text;
+  const names = (sentence: string) => terms.some(t => new RegExp(`\\b${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(sentence));
+  return sentencesOf(text).filter(s => !names(s)).join(" ").trim();
+}
+
+/** A text's sentences, each ending where a full stop, a question or an exclamation ends one outside a quote (a quote's closing mark with it). */
+function sentencesOf(text: string): string[] {
+  const out: string[] = [];
+  let from = 0;
+  let quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]!;
+    if (ch === "“") quoted = true;
+    else if (ch === "”") quoted = false;
+    else if (ch === "\"") quoted = !quoted;
+    if (quoted || !/[.!?…]/.test(ch)) continue;
+    let end = i + 1;
+    while (end < text.length && /[”"’)]/.test(text[end]!)) end++;
+    if (end < text.length && !/\s/.test(text[end]!)) continue;
+    out.push(text.slice(from, end).trim());
+    from = end;
+    i = end - 1;
+  }
+  const rest = text.slice(from).trim();
+  return [...out, ...(rest ? [rest] : [])].filter(Boolean);
 }
 
 /** pick_sides held to who has no side yet: each of them once, each a side or flee. */

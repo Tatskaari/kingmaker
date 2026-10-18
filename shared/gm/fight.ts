@@ -36,6 +36,8 @@ export interface SceneFight {
   beat?: string;
   sides: Record<string, FightSide>;
   pending?: string[];
+  /** Of those running from it, whoever the story needs (moves/fight.ts keepers): on the board they hide from it, as far off as they can get, but never leave the place. */
+  stays?: string[];
   board?: string;
 }
 

@@ -40,7 +40,7 @@ const fightRow = (host: MemoryHost, gameId: bigint) => host.transact(tx => fight
 const events = (host: MemoryHost, gameId: bigint): FightEvent[] => { const id = fightRow(host, gameId).id; return host.transact(tx => eventsOf(tx, id)); };
 const boardNow = (host: MemoryHost, gameId: bigint) => JSON.parse(fightRow(host, gameId).board) as FightBoard;
 
-test("one the story needs who'd run, runs (smoke5-1018: the girl the reply had bolt through the gate stood beside the axe, kept clear): off the board as the reply tells it, but never out of the scene: here after it, cowering if they got away", async () => {
+test("one the story needs who'd run, runs (smoke5-1018: the girl the reply had bolt through the gate stood beside the axe, kept clear), and hides from it on the board, but never leaves the place (smoke6-1018: Cob, bolting behind the water butt as the GM had it, out of the gate and gone): here after it, cowering", async () => {
   const { host, script, wren, scene } = await openedGame(7, "fighter");
   const gameId = scene.gameId;
   // Kell walks with the player once the yard's done (its onEnd follow): one the story needs.
@@ -51,18 +51,22 @@ test("one the story needs who'd run, runs (smoke5-1018: the girl the reply had b
   assert.match(sceneNow(host, scene.id).lines.at(-1)!.text, /Running from it: [^.]*Kell/, "running, not keeping clear");
   assert.equal(host.as(wren).fightItOut(), undefined);
   const kell = boardNow(host, gameId).units["kell"]!;
-  assert.deepEqual([kell.side, kell.role], ["neutral", "coward"], "on the board as one running");
+  assert.deepEqual([kell.side, kell.role, kell.stays], ["neutral", "coward", true], "on the board as one running, who stays");
+  const start = { ...kell.at };
   for (let i = 0; i < 600 && fightRow(host, gameId).status === "on"; i++) {
     if (fightRow(host, gameId).options) host.as(wren).fightTurn({ act: "auto" });
     else { host.advance(5000); host.fightSteps(); }
   }
-  const fled = boardNow(host, gameId).units["kell"]!.state === "fled";
+  const after = boardNow(host, gameId).units["kell"]!;
+  assert.notEqual(after.state, "fled", "never off the board");
+  const moved = after.at.x !== start.x || after.at.y !== start.y;
+  if (moved) assert.ok(!boardNow(host, gameId).exits.some(e => e.at.x === after.at.x && e.at.y === after.at.y), "nor on a way out");
   assert.equal(host.as(wren).walk({ toward: OUT }), undefined);
   await host.drain();
   const world = host.transact(tx => placeWorldOf(tx, sceneRow(tx, scene.id)).world);
   assert.ok(world.entities["kell"] && !world.entities["kell"].states.includes("gone"), `Kell is still in the yard: ${world.entities["kell"]?.states.join(", ")}`);
   assert.ok(!host.transact(tx => getGm(tx, scene.id)).absent.includes("kell"), "and not absent from the scene");
-  if (fled) assert.ok(world.entities["kell"].states.includes("cowering"), `got away, and cowers: ${world.entities["kell"].states.join(", ")}`);
+  assert.ok(world.entities["kell"].states.includes("cowering"), `cowers: ${world.entities["kell"].states.join(", ")}`);
 });
 
 test("the scene's reinforcements: the GM places them with everyone (told when they come and why); off the board until their round, then in at the way in, a moment of their own; in the yard's world after", async () => {

@@ -24,7 +24,7 @@ export function captionOf(m: Omit<FightEvent, "seq">, G: FightBoard): string {
     case "arrive": return c.arrive();
     case "use": return `${c.Who} ${/brazier/i.test(m.detail.with ?? "") ? `${c.s("kick")} over` : `${c.s("bring")} down`} the ${m.detail.with ?? "thing"}.${c.lit()}`;
     case "yield": return c.you ? "You put your hands up." : `${c.Who} puts ${c.their} hands up.`;
-    case "flee": return `${c.Who} ${c.s("go", "goes")} out through ${m.detail.with ?? "the way out"} and ${c.s("are", "is")} gone.`;
+    case "flee": return `${c.Who} ${c.s("go", "goes")} ${/^the way out of /i.test(m.detail.with ?? "") ? m.detail.with!.replace(/^the way /i, "") : `out through ${m.detail.with ?? "the way out"}`} and ${c.s("are", "is")} gone.`;
     case "walk-off": return m.detail.lines[0] ?? `${c.Who} walks off: nobody's paying for the rest of this.`;
     case "arrest": return `${c.Who} ${c.s("put")} the irons on ${c.name(m.target)}.`;
     case "over": return c.over();
@@ -169,7 +169,7 @@ class Caption {
     const came = this.m.detail.hits.filter(h => h.was?.state === "coming").map(h => this.name(h.unit));
     // A way of the place's own ("the yard gate") is come in through; the board's edge ("Out of the yard…", fight/scene.ts waysOut) into the place.
     const w = this.m.detail.with;
-    const way = !w ? "in" : /^out of /i.test(w) ? `into ${w.replace(/^out of /i, "")}` : `in through ${w}`;
+    const way = !w ? "in" : /^(the way )?out of /i.test(w) ? `into ${w.replace(/^(the way )?out of /i, "")}` : `in through ${w}`;
     return `${cap(listing(came.length ? came : ["someone"]))} ${came.length === 1 ? "comes" : "come"} ${way}.`;
   }
 

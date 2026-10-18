@@ -56,6 +56,8 @@ export interface Unit {
   /** One of the scene's reinforcements (coming): the round they come in at the way in, and why they come. */
   due?: number;
   why?: string;
+  /** Running from it but never out of the place (one the story needs): they hide from it on the board. */
+  stays?: boolean;
 }
 
 export interface Prop {

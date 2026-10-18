@@ -99,6 +99,8 @@ export interface CombatantSetup {
   /** One of the scene's reinforcements (docs/combat-gm.md): not on the board until the top of this round, when they come in at `at` (the way in); and why they come. */
   due?: number;
   why?: string;
+  /** Running from it but never out of the place (one the story needs): they hide from it on the board instead. */
+  stays?: boolean;
 }
 
 export interface CombatSetup {

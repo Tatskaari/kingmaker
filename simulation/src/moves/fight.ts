@@ -110,6 +110,10 @@ export function afterSides(tx: TxCtx, plan: SayPlan, answer: SidesResponse): Nex
 function toTheFight(tx: TxCtx, at: At, plan: SayPlan): Next<SayPlan> {
   const fight = at.gm.fight!;
   const world = placeWorldOf(tx, at.scene).world;
+  // Whoever the story needs who runs hides from it on the board, but never leaves (smoke6-1018: Cob, who the GM had bolt behind the water butt, out of the gate and gone).
+  const keep = keepers(tx, at);
+  const stays = onSideOf(fight, "flee").filter(id => keep.has(id));
+  if (stays.length) fight.stays = stays; else delete fight.stays;
   const name = (id: string) => nameOf(tx, at, world, id);
   const later = new Set((at.graph.reinforcements ?? []).map(r => r.id).filter(id => !world.entities[id]));
   const list = (side: FightSide) => onSideOf(fight, side).filter(id => !later.has(id)).map(name);

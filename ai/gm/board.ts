@@ -133,7 +133,7 @@ ${req.before.map(soFarLine).join("\n")}
 ## Tell this turn: ${who}
 What the board played, moment by moment (its dice under each):
 ${req.moments.map(momentLine).join("\n")}
-Tell it in the fight's log: what ${req.whose === "player" ? "you" : "they"} did on this turn and what came of it, exactly as the dice decided, in a sentence or two (a minor fighter's, one). Only this turn's: what came before is told. Reply with the narration alone.`;
+Tell it in the fight's log: what ${req.whose === "player" ? "you" : "they"} did on this turn and what came of it, exactly as the dice decided, in a sentence or two (a minor fighter's, one). Only this turn's: what came before is told, and what anyone else does is told on their own turn, when the board plays it, however the reply foretold it. Reply with the narration alone.`;
   const result = await respond({ operation: "fight.narrate", instructions: boardInstructions(scene, view), input: boardInput(scene, view, note), effort: "none", maxOutputTokens: 400, calls: how.calls });
   const text = result.text.trim();
   return { entries: text ? [spoken(scene, view, text, how.byKey)] : [], costUsd: result.costUsd };

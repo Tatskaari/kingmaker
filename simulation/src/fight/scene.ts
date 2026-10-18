@@ -83,7 +83,7 @@ export function sceneFightSetup(tx: TxCtx, scene: SceneRow, graph: Scene, fight:
     combatants.push({
       id, castId: id, name: nameOf(graph, world, heard, id, who), side: SIDE[side], role: roleOf(graph, who, side, against),
       ...(who.statblock ? { statblock: who.statblock } : {}), ...(who.weapon ? { weapon: who.weapon } : {}),
-      ...(npcs[id] ? { engine: { ...npcs[id] } } : {}),
+      ...(npcs[id] ? { engine: { ...npcs[id] } } : {}), ...(side === "flee" && fight.stays?.includes(id) ? { stays: true } : {}),
       at: tileFor(at, start),
     });
   }
@@ -202,7 +202,7 @@ function waysOut(board: SceneBoard): Array<{ at: Tile2; label: string }> {
       }
     }
   }
-  return out.size ? [...out.values()].map(at => ({ at, label: `Out of ${region.name}` })) : own;
+  return out.size ? [...out.values()].map(at => ({ at, label: `the way out of ${region.name}` })) : own;
 }
 
 /** The place's lit things that burn or give light (a brazier, a lantern) as the fight's props, where the world has them: one carried goes where its carrier does. */
@@ -255,7 +255,8 @@ export function fightIntoWorld(world: SceneWorld, region: PlaceRegion, board: Fi
     e.at = tileToFeet(region, u.at);
     if (u.id === board.pc) continue;
     const ran = u.state === "fled" && !keep.has(e.id);
-    e.states = [...e.states.filter(s => !FIGHT_STATES.has(s)), ...statesAfter(u, ran), ...(u.state === "fled" && !ran ? ["cowering"] : [])];
+    const hid = (u.stays && u.state === "fighting") || (u.state === "fled" && !ran);
+    e.states = [...e.states.filter(s => !FIGHT_STATES.has(s)), ...statesAfter(u, ran), ...(hid ? ["cowering"] : [])];
     if (ran) gone.push(e.id);
   }
   for (const p of Object.values(board.props)) {

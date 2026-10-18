@@ -41,7 +41,7 @@ export function decide(s: Skirmish, u: Unit, memo: Memo, style?: PlayerStyle): S
   if (memo.steps++ > 12 || !s.able(u)) return { kind: "end" };
   // Talked round (the player's words, and the dice): a turn let go by, or the way out.
   if (s.holding(u)) return { kind: "end" };
-  if (s.G.flags[`urged:${u.id}`] === "go") return u.conditions.includes("grappled") || !clearRun(s, u) ? { kind: "surrender" } : run(s, u, memo);
+  if (s.G.flags[`urged:${u.id}`] === "go") return u.conditions.includes("grappled") || (!u.stays && !clearRun(s, u)) ? { kind: "surrender" } : u.stays ? hide(s, u, memo) : run(s, u, memo);
   switch (u.role) {
     case "player": return style === "wizard" ? wizard(s, u, memo) : fighter(s, u, memo);
     case "ally": return ally(s, u, memo);
@@ -170,13 +170,14 @@ function bruiser(s: Skirmish, u: Unit, memo: Memo): Step {
   // Hired for the fee: the moment whoever pays them is down, yielding, taken or gone, nobody pays the
   // second half, and they leave him to it.
   if (villain && villain.state !== "fighting") return { kind: "standDown" };
-  const brothers = s.units.filter(v => v.side === u.side && v.id !== u.id && (v.role === "bruiser" || v.role === "brawler"));
+  // Those still coming aren't brothers fallen or gone (smoke6-1018: Kell "on her own", her porters yet to come).
+  const brothers = s.units.filter(v => v.side === u.side && v.id !== u.id && v.state !== "coming" && (v.role === "bruiser" || v.role === "brawler"));
   const alone = brothers.length > 0 && brothers.every(b => b.state !== "fighting");
   const nerve = s.G.flags[`nerve:alone:${u.id}`];
   // The last one standing of the hired hands: do they fancy it on their own?
   if (alone && nerve === undefined && u.role === "bruiser") {
     const fallen = brothers.find(b => b.state === "down" || b.state === "dead");
-    return { kind: "nerve", dc: 10, why: fallen ? `${u.called} looks at ${fallen.called} on the floor` : `${u.called} finds himself on his own` };
+    return { kind: "nerve", dc: 10, why: fallen ? `${u.called} looks at ${fallen.called} on the floor` : `Nobody's left beside ${u.called}` };
   }
   // The fight is lost, for them: their nerve gone with their brother, or beaten nearly senseless.
   const lost = nerve === "broke" || (u.role === "brawler" ? u.hp * 2 <= u.maxHp : u.hp * 4 <= u.maxHp);
@@ -304,7 +305,28 @@ function archer(s: Skirmish, u: Unit, memo: Memo): Step {
 
 function coward(s: Skirmish, u: Unit, memo: Memo): Step {
   if (!memo.remarked && !said(s, u, "flee:coward")) { memo.remarked = true; return { kind: "remark", line: "flee:coward" }; }
-  return run(s, u, memo);
+  return u.stays ? hide(s, u, memo) : run(s, u, memo);
+}
+
+/**
+ * One the story needs, running from it, never leaves the place (Unit.stays): they get as far from
+ * whoever's fighting as their move takes them this turn (never onto a way out), and stay there.
+ */
+function hide(s: Skirmish, u: Unit, memo: Memo): Step {
+  if (memo.moves >= 1 || s.movementLeft(u) < FEET) return { kind: "end" };
+  const fighting = s.units.filter(v => v.id !== u.id && v.state === "fighting" && !s.neutral(v));
+  if (!fighting.length) return { kind: "end" };
+  const far = (t: Tile2) => Math.min(...fighting.map(v => steps(v.at, t)));
+  let best: Tile2 | undefined;
+  let most = far(u.at);
+  for (const [k, r] of explore(s.G.map, u.at, s.pathRules(u))) {
+    const t = fromKey(k);
+    if (r.cost * FEET > s.movementLeft(u) || s.exitAt(t) || s.occupant(t, u.id)) continue;
+    if (far(t) > most) { best = t; most = far(t); }
+  }
+  if (!best) return { kind: "end" };
+  memo.moves++;
+  return { kind: "move", to: best };
 }
 
 // ---------------------------------------------------------------------------------------------
