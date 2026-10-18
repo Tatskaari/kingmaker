@@ -1,7 +1,7 @@
 // After the prototype's src/game/combat/fights.ts TacticalFight.observe at bc2ab1f (what happened lately, the head line, the grid, who's who, the key) and src/cli/qa.ts's ACTIONS: the fight as the headless client prints it (MODE: fight), from its view: whose turn, the order with everyone's hit points, the board, the last moments with what the screen plays of each (M6's screen: the same beats, as a line) and their dice, and the player's actions by id (docs/combat-design.md §7).
 import { gridText, KEY, orderLines } from "../../shared/fight/board.ts";
 import type { FightBoard, FightEvent } from "../../shared/fight/types.ts";
-import { scriptLine } from "./script.ts";
+import { linesUnder, scriptLine } from "./script.ts";
 import type { FightView } from "./view.ts";
 
 /** How many of the last moments observe shows. */
@@ -42,7 +42,7 @@ export function eventLines(events: FightEvent[], board?: FightBoard): string[] {
   const name = (id: string) => (board?.units[id] ? (id === board.pc ? "you" : board.units[id].called) : board?.props[id] ? `the ${board.props[id].name}` : id);
   return events.flatMap(e => {
     const played = scriptLine(e, name);
-    return [e.kind === "turn" ? `— ${e.caption}` : e.caption, ...(played ? [`    ${played}`] : []), ...e.detail.lines.filter(l => l !== e.caption).map(l => `    ${l}`)];
+    return [e.kind === "turn" ? `— ${e.caption}` : e.caption, ...(played ? [`    ${played}`] : []), ...linesUnder(e).map(l => `    ${l}`)];
   });
 }
 

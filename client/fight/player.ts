@@ -4,7 +4,7 @@ import type { FightBoard, FightEvent, Unit } from "../../shared/fight/types.ts";
 import type { Tile2 } from "../../shared/map/types.ts";
 import { Effects } from "../look/effects.ts";
 import { blast, bolt, feetOf, healed, hitFlash, said, shot, struck, swing, tagWord, type Stance } from "../look/fight.ts";
-import { scriptOf, type Script } from "./script.ts";
+import { linesUnder, scriptOf, type Script } from "./script.ts";
 import { myTurn, type FightView } from "./view.ts";
 
 /** A moment on the playback's clock: its script, when it starts and ends (the clock's ms), and whether it has begun (logged, its effects spawned). */
@@ -334,4 +334,4 @@ const by = (e: FightEvent): { captionBy?: string } => ({ captionBy: e.actor });
 const clone = (s: Record<string, Stance>): Record<string, Stance> => Object.fromEntries(Object.entries(s).map(([id, v]) => [id, { ...v, at: { ...v.at }, conditions: [...v.conditions] }]));
 
 /** A moment as a line of the log: its caption, its dice and words under it (not the caption twice). */
-const entryOf = (e: FightEvent): LogEntry => ({ seq: e.seq, kind: e.kind, ...(e.actor ? { actor: e.actor } : {}), caption: e.caption, lines: e.detail.lines.filter(l => l !== e.caption) });
+const entryOf = (e: FightEvent): LogEntry => ({ seq: e.seq, kind: e.kind, ...(e.actor ? { actor: e.actor } : {}), caption: e.caption, lines: linesUnder(e) });

@@ -119,7 +119,14 @@ class Caption {
     const hit = this.hitOn(target);
     const dmg = hit ? total(hit) : 0;
     const crit = rolls.some(r => r.critical);
-    return `: ${crit ? "a critical hit, " : ""}${dmg} damage${crit ? "!" : "."}${this.fall(hit)}`;
+    return `: ${crit ? "a critical hit, " : ""}${dmg} damage${crit ? "!" : "."}${this.fall(hit)}${this.woke(hit)}`;
+  }
+
+  /** " The talking Crake wakes up." when a blow woke a sleeper (Sleep ends with a hurt). */
+  private woke(hit: FightHit | undefined): string {
+    if (!hit || hit.fell || hit.state !== "fighting" || !hit.lost.includes("unconscious")) return "";
+    const who = this.name(hit.unit);
+    return ` ${cap(who)} ${who === "you" ? "wake" : "wakes"} up.`;
   }
 
   cast(): string {
@@ -149,7 +156,7 @@ class Caption {
     if (!hit || !hit.damage.length) return `${cast} at ${them}${hit?.saved ? `, and ${them} ${this.sFor(hit.unit, "shake")} it off` : ""}.${this.lit()}`;
     const type = hit.damage[0]?.type;
     const saved = hit.saved ? ` (${them} ${this.sFor(hit.unit, "save")}, and ${this.sFor(hit.unit, "take")} half)` : "";
-    return `${cast} at ${them}: ${total(hit)}${type ? ` ${type}` : ""} damage${saved}.${this.fall(hit)}${this.lit()}`;
+    return `${cast} at ${them}: ${total(hit)}${type ? ` ${type}` : ""} damage${saved}.${this.fall(hit)}${this.woke(hit)}${this.lit()}`;
   }
 
   wrestle(): string {

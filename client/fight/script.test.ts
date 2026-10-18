@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { PACE, playMs } from "../../shared/fight/pace.ts";
 import type { FightEvent, FightHit } from "../../shared/fight/types.ts";
 import { WOLVES } from "../check/fight.ts";
-import { scriptLine, scriptOf, type Beat } from "./script.ts";
+import { linesUnder, scriptLine, scriptOf, type Beat } from "./script.ts";
 
 /**
  * A moment as the screen plays it (M6's screen, docs/combat-design.md §3), beat by beat, on the
@@ -82,4 +82,10 @@ test("every recorded moment takes as long on screen as the simulation waits for 
     assert.equal(s.ms, playMs(e), `${e.seq} ${e.kind}`);
     for (const b of s.beats) assert.ok(b.t >= 0 && b.t + b.ms <= s.ms, `${e.seq}'s ${b.kind} fits`);
   }
+});
+
+test("a moment's lines under its caption leave out what the caption says already", () => {
+  const e = { caption: "You go out through the gate and are gone.", detail: { lines: ["You go out through the gate.", "You leave it all behind you."] } } as Pick<FightEvent, "caption" | "detail">;
+  assert.deepEqual(linesUnder(e), ["You leave it all behind you."]);
+  assert.deepEqual(linesUnder({ ...e, caption: "Roll for initiative!", detail: { ...e.detail, lines: ["Roll for initiative!", "Initiative: you 14 +1 = 15"] } }), ["Initiative: you 14 +1 = 15"]);
 });

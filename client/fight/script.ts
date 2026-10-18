@@ -131,3 +131,13 @@ export function scriptLine(e: Pick<FightEvent, "kind" | "actor" | "target" | "tu
 }
 
 const tile = (t: Tile2) => `${t.x},${t.y}`;
+
+/**
+ * A moment's lines under its caption, less what the caption says already: the caption itself, and
+ * a line the caption only adds to ("You go out through the gate." under "You go out through the gate
+ * and are gone.").
+ */
+export function linesUnder(e: Pick<FightEvent, "caption" | "detail">): string[] {
+  const said = e.caption.replace(/[.!]$/, "");
+  return e.detail.lines.filter(l => { const line = l.replace(/[.!]$/, ""); return l !== e.caption && !(line.length > 12 && said.startsWith(line)); });
+}

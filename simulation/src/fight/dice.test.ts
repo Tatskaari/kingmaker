@@ -66,3 +66,9 @@ test("an attack's advantage or disadvantage says why when the fight knows (Pack 
   assert.deepEqual(diceLines(table, [roll("disadvantage")], names, "Cudgel", why), ["Cudgel: a bandit's attack on you: 4/17 (disadvantage) +4 = 21 vs AC 14: hit"], "the reason the fight knew was for advantage");
   assert.deepEqual(diceLines(table, [roll("disadvantage")], names, "Shortbow", { disadvantage: "a foe's beside them" }), ["Shortbow: a bandit's attack on you: 4/17 (disadvantage: a foe's beside them) +4 = 21 vs AC 14: hit"]);
 });
+
+test("Sleep's sleeper falls asleep (not the engine's \"is unconscious\"), and a blow wakes them", () => {
+  const before2 = { ...names, hp: (id: string) => (id === "bandit" ? { hp: 11, maxHp: 11, state: "fighting" as const } : names.hp(id)) };
+  assert.deepEqual(diceLines(table, [event("ConditionApplied", { targetId: "bandit", conditionId: "unconscious" })], before2), ["A bandit falls asleep"]);
+  assert.deepEqual(diceLines(table, [event("DamageApplied", { targetId: "bandit", components: [{ amount: 3, type: "slashing" }] }), event("ConditionRemoved", { targetId: "bandit", conditionId: "unconscious" })], before2), ["A bandit takes 3 slashing damage (HP 8/11)", "A bandit wakes up"]);
+});

@@ -243,9 +243,14 @@ export function diceLines(table: Table, events: Dnd.EngineEvent[], names: Namer,
       case "ConditionApplied": {
         const condition = table.kit.engine.content.conditions.get(String(e["conditionId"]))?.name ?? String(e["conditionId"]);
         if (/active$/i.test(condition) || e["conditionId"] === "dodged") break;
-        lines.push(`${cap(who("targetId"))} ${who("targetId") === "you" ? "are" : "is"} ${condition.toLowerCase()}`);
+        // Out cold with hit points left is asleep (a Sleep spell's); at none, it's the fall's, said by the lines after.
+        const asleep = e["conditionId"] === "unconscious" && hpOf(String(e["targetId"])) > 0;
+        lines.push(asleep ? `${cap(who("targetId"))} ${who("targetId") === "you" ? "fall" : "falls"} asleep` : `${cap(who("targetId"))} ${who("targetId") === "you" ? "are" : "is"} ${condition.toLowerCase()}`);
         break;
       }
+      case "ConditionRemoved":
+        if (e["conditionId"] === "unconscious" && hpOf(String(e["targetId"])) > 0) lines.push(`${cap(who("targetId"))} ${who("targetId") === "you" ? "wake" : "wakes"} up`);
+        break;
       case "Healed": {
         const target = String(e["targetId"]);
         const c = table.char(target);

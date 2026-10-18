@@ -226,6 +226,20 @@ export class FightModel {
     return this.aim ? this.aim.entry.options[this.aim.index] : undefined;
   }
 
+  /**
+   * Who an area aimed there would catch, as the fight would (everyone on its tiles who's up or down:
+   * a cone or a cube that goes out from the caster never covers their own tile): each by what the
+   * player calls them, and whether they're the player or on their side, so the aim can warn before
+   * Sleep takes Kell, or a Thunderwave you.
+   */
+  caughtBy(o: FightAction): Array<{ id: string; name: string; friend: boolean }> {
+    const board = this.view.board;
+    if (!o.area?.length) return [];
+    return Object.values(board.units)
+      .filter(u => (u.state === "fighting" || u.state === "down") && o.area!.some(t => t.x === u.at.x && t.y === u.at.y))
+      .map(u => ({ id: u.id, name: u.id === board.pc ? "you" : u.called, friend: u.id === board.pc || u.side === "player" || u.side === "ally" }));
+  }
+
   /** The next (or the last) target, nearest first round the player (Tab, the arrows). */
   aimNext(back = false): void {
     const aim = this.aim;

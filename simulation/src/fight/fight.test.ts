@@ -537,6 +537,7 @@ test("Sleep: its caption says who it put to sleep, a sleeper's turn says they're
   const slept = cast.detail.hits.filter(h => h.gained.includes("unconscious") && h.state === "fighting");
   assert.deepEqual(slept.map(h => h.unit), ["bandit-1"], cast.detail.lines.join(" / "));
   assert.match(cast.caption, /^You cast Sleep, catching a bandit \(asleep\)\.$/);
+  assert.ok(cast.detail.lines.includes("A bandit falls asleep"), cast.detail.lines.join(" / "));
   // The order says so, and so does the sleeper's turn as it comes round.
   const b = board(host, game.id);
   assert.ok(orderLines(b, "").some(l => l.includes("a bandit") && /\(asleep\)$/.test(l)), orderLines(b, "").join("\n"));

@@ -345,8 +345,13 @@ function BottomLine({ model, play, width, mine, over, othersPlaying }: { model: 
     const n = model.aim.entry.options.length;
     // The keys first in what's left of a narrow line: what it'll do is cut short before they are.
     const keys = width >= 100 ? ` · Enter or click${n > 1 ? " · Tab next" : ""} · Esc cancel` : ` · Enter${n > 1 ? " · Tab next" : ""} · Esc`;
-    const what = truncate(aimed.label, Math.max(10, width - keys.length));
-    return <text flexShrink={0} height={1}><span fg={C.title} attributes={BOLD}>{what}</span><span fg={C.dim}>{truncate(keys, Math.max(0, width - what.length))}</span></text>;
+    // An area says whom it would catch, a warning when that's you or your side.
+    const caught = model.caughtBy(aimed);
+    const friendly = caught.some(c => c.friend);
+    const catches = aimed.area?.length ? ` · catches ${caught.length ? listOf(caught.map(c => c.name)) : "nobody"}${friendly ? "!" : ""}` : "";
+    const what = truncate(aimed.label, Math.max(10, width - keys.length - catches.length));
+    const room = Math.max(0, width - what.length - keys.length);
+    return <text flexShrink={0} height={1}><span fg={C.title} attributes={BOLD}>{what}</span><span fg={friendly ? C.warn : C.text} {...(friendly ? { attributes: BOLD } : {})}>{truncate(catches, room)}</span><span fg={C.dim}>{truncate(keys, Math.max(0, width - what.length - Math.min(room, catches.length)))}</span></text>;
   }
   const hover = model.hover;
   if (hover && !model.menu) {
@@ -502,5 +507,7 @@ function pickFightMenu(model: FightModel, index: number): void {
 
 const OUTCOME: Record<string, string> = { victory: "you won", surrender: "they gave up", defeat: "you lost", fled: "you got away", yielded: "you yielded" };
 const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+/** "a, b and c". */
+const listOf = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 const possessive = (name: string) => (name.endsWith("s") ? `${name}'` : `${name}'s`);
 const truncate = (t: string, n: number) => (n <= 0 ? "" : t.length > n ? `${t.slice(0, Math.max(1, n - 1))}…` : t);

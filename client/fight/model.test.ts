@@ -128,3 +128,14 @@ test("the app shows the fight while one is on (and its end until out), ahead of 
   assert.equal(screenOf({ seat: { gameId: 1n, sceneId: 4n }, sheet: true, scene: true, fight: true }, "game"), "fight");
   assert.equal(screenOf({ sheet: true, scene: false, fight: true }, "game"), "title", "no seat, no game");
 });
+
+test("an area aimed says whom it would catch, the player and their side among them (a warning before Sleep takes Kell or you)", () => {
+  const s = staged(frameOf("step: wolf-3", 1));
+  const board = s.model.view.board;
+  const me = board.units[board.pc]!, wolf = Object.values(board.units).find(u => u.side === "enemy" && u.state === "fighting")!;
+  const spell = { id: "cast_sleep@0,0", label: "Cast Sleep", kind: "cast" as const, name: "Sleep", cost: "action" as const, at: { ...wolf.at }, range: 60 };
+  assert.deepEqual(s.model.caughtBy({ ...spell, area: [{ ...wolf.at }] }).map(c => [c.name, c.friend]), [[wolf.called, false]]);
+  assert.deepEqual(s.model.caughtBy({ ...spell, area: [{ ...wolf.at }, { ...me.at }] }).map(c => [c.name, c.friend]).sort(), [[wolf.called, false], ["you", true]].sort());
+  assert.deepEqual(s.model.caughtBy({ ...spell, area: [{ x: 0, y: 0 }] }), [], "nobody there");
+  assert.deepEqual(s.model.caughtBy(spell), [], "not an area");
+});
