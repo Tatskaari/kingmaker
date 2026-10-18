@@ -20,7 +20,7 @@ import { fakeFetch, readPrep, walkTo, type FakeOptions } from "../llm/fake-openr
 import type { CallContext } from "../llm/openrouter.ts";
 import { CAERWYN, viewAt } from "./fixtures.ts";
 import { playerNow } from "./brief.ts";
-import { clockNote, closingDirective, coGm, coGmInput, coGmInstructions, companionRoles, companionsOf, deniesItself, deniesMoment, deniesTheLead, firstSentence, inReach, intoBad, intoBetter, mouthpieceInput, mouthpieceInstructions, movedDirective, movedText, narrationSoFar, owedDirective, prepOf, pressureOffered, reachNote, replySchema, routeLine, saidLast, saysNothing, setUpEarlier, speak, stillToCome, tellOf, twoPartNow, unsaidIn } from "./two-part.ts";
+import { actsDirective, clockNote, closingDirective, coGm, coGmInput, coGmInstructions, companionRoles, companionsOf, deniesItself, deniesMoment, deniesTheLead, firstSentence, inReach, intoBad, intoBetter, mouthpieceInput, mouthpieceInstructions, movedDirective, movedText, narrationSoFar, owedDirective, prepOf, pressureOffered, reachNote, replySchema, routeLine, saidLast, saysNothing, setUpEarlier, speak, stillToCome, tellOf, twoPartNow, unsaidIn } from "./two-part.ts";
 import type { Story } from "./story.ts";
 import type { TurnView } from "./view.ts";
 
@@ -310,6 +310,26 @@ test("the player character's state shows only when it's from play: a quarter dow
   assert.equal(at("HP 31/31, spell slots 1st 2/2"), undefined);
   assert.equal(at("HP 20/31"), "## The player character now\nHP 20/31. Let it show as what play has done to them (a blow they took, a fall, a spell): someone hurt moves and looks hurt, and nothing else is wrong with them.");
   assert.match(at("HP 31/31, poisoned")!, /^## The player character now\nHP 31\/31, poisoned\. Let it show/);
+});
+
+test("the player's act the rules resolved before the reply: the per-turn note says it's decided, never to be played against, with no check for it, before what they decided; the co-GM is told its dice lines and who reacted how, its fallout the roles' (the user's report: a rogue's Fire Bolt narrated with no rules)", () => {
+  assert.deepEqual(actsDirective([]), [], "no act, no word of one");
+  const refused = "The player reached for magic their character doesn't have ready (Fire Bolt). It doesn't come: nothing happens beyond a gesture, maybe a fizzle.";
+  const [decided, act] = actsDirective([refused]);
+  assert.equal(act, refused);
+  assert.match(decided!, /^The game's rules resolved the player's act before this reply, and the player has seen their dice: what they decided, below, is what happened\. Play it exactly so and never against it, whatever the player hoped/);
+  assert.match(decided!, /magic the character hasn't got doesn't come/);
+  assert.match(decided!, /Don't call a check for the act itself/);
+  const note = twoPartNow(clerk, yard({ turn: 1 }), actsDirective([refused]));
+  assert.ok(note.endsWith(`## For this reply\n${decided}\n\n${refused}`), "last in the note, in that order");
+
+  const view = yard({ turn: 1 });
+  const lines = ["Cast Magic Missile (1st-level slot) on the hoist rope", "The hoist rope takes 9 force damage and is destroyed"];
+  const input = coGmInput(clerk, view, undefined, { lines, reactions: { kell: "intervene", cob: "flee", moll: "unmoved" } })[0]!.content;
+  assert.match(input, /# The player's act this turn\nThe game's rules resolved it before the GM's reply, and it stands:\n- Cast Magic Missile \(1st-level slot\) on the hoist rope\n- The hoist rope takes 9 force damage and is destroyed\n/);
+  assert.match(input, /Who saw it reacted at once, and the reply played it: Sergeant Agnes Kell \[kell\] steps in to stop it, without fighting; Cob \[cob\] flees: gets out of the place\./, "the unmoved left out");
+  assert.match(input, /A fight starts only by a route that says so\./);
+  assert.doesNotMatch(coGmInput(clerk, view, undefined)[0]!.content, /The player's act this turn/, "none without one");
 });
 
 test("the closing goes on from where the last reply ended: what was said there is listed, and not said again", () => {

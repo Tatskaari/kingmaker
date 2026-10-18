@@ -1,4 +1,4 @@
-import type { Outcome, TurnCheck } from "../../../shared/protocol/ai.ts";
+import type { Outcome, TurnAct, TurnCheck } from "../../../shared/protocol/ai.ts";
 import type { Act, Mechanic } from "../../../shared/rules/types.ts";
 
 /**
@@ -21,11 +21,12 @@ export interface OpenPlan { step: "open"; game: string; scene: string; turn: str
 
 /**
  * A say turn's plan: the two-part GM's reply, then its settle (on the wind-down, the reply alone).
- * The reactions to the player's violence (world-bridge-design §3.4) are a step of their own, parked for
- * combat (nothing queues them since the old pipeline's decide went).
+ * Before the reply, a line that might be an act the rules resolve is asked what it is (the act
+ * step), and an act that was violence draws the reactions of everyone who saw it (the reactions
+ * step: world-bridge-design §3.4).
  */
 export interface SayPlan {
-  step: "reactions" | "reply" | "settle";
+  step: "act" | "reactions" | "reply" | "settle";
   game: string; scene: string; turn: string; n: number; player: string;
   input: string;
   /** settledFacts(gm) at the turn's start: the stage manager's `settled`. */
@@ -39,8 +40,12 @@ export interface SayPlan {
    * do doesn't happen) or met their Shield (a Shield they cast this turn is already up).
    */
   rulesFirst?: { directives: string[]; down: boolean; shielded: boolean };
-  /** The act the rules resolved, when it was violence people react to (scene-acts.ts violence): the reactions step's request (parked for combat). */
+  /** Why the line was asked what the rules resolve of it (shared/rules/acting.ts mightAct: "casting: cast"): the act step's, for the log. */
+  acting?: string;
+  /** The act the rules resolved, when it was violence people react to (scene-acts.ts violence): the reactions step's request. */
   act?: Act;
+  /** What the rules resolved of the player's act this turn, its dice lines and the reactions to it: the settle's, for the co-GM. */
+  acted?: TurnAct;
   outcome?: Outcome;
   /** The reply's plain text, for settle. */
   reply?: string;
@@ -49,6 +54,8 @@ export interface SayPlan {
   seen: Seen;
   /** What the rules resolve this turn, chosen already (town-design §3.4: turn.mechanic, the map's act), resolved as the turn starts. */
   forced?: Mechanic;
+  /** What the rules resolved this turn of the player's line, as the act step read it. */
+  read?: Mechanic;
   /** The check the two-part GM's mouthpiece called this turn, as rolled, for the co-GM. */
   check?: TurnCheck;
 }

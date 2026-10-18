@@ -109,7 +109,7 @@ test("Fire Bolt at Kell makes her an NPC the rules keep (npcs), the same one the
   assert.ok(s.world!.entities.kell!.states.some(x => /hurt|down/.test(x)), "a bolt landed, and the world shows it");
 });
 
-test("violence, the reactions and the blow they leave: Cob flees (gone, absent), Moll cowers, Kell fights (the brawl, and her blow lands as the next turn starts)", () => {
+test("violence and the reactions: Cob flees (gone, absent), Moll cowers, and Kell would fight, but starts none in a scene; the prototype's way, parked for combat, starts the brawl, and her blow lands as the next turn starts", () => {
   const s = yard();
   const before = statesOf(s);
   pinned(() => castSpell(rules, s, cast(s), "fire-bolt", ["kell"]));
@@ -120,9 +120,12 @@ test("violence, the reactions and the blow they leave: Cob flees (gone, absent),
   assert.ok(s.world!.entities.cob!.states.includes("gone"));
   assert.equal(s.world!.entities.cob!.notes.at(-1)?.text, "fled when the player cast Fire Bolt at Sergeant Agnes Kell");
   assert.ok(s.world!.entities.moll!.states.includes("cowering"));
-  assert.deepEqual(s.brawl, { turn: 1, cause: "cast Fire Bolt at Sergeant Agnes Kell", against: ["kell"], allies: [], fled: ["cob"] });
-  assert.deepEqual(s.threat, { kind: "attack", by: "kell", turn: 1 });
+  assert.deepEqual([s.brawl, s.threat], [undefined, undefined], "no fight starts in a scene: that's its routes' and the co-GM's");
   assert.deepEqual(cast(s).map(c => c.id), ["kell", "moll"], "Cob is off the stage");
+  // Parked for combat: the prototype's way, a fight if anyone wants one.
+  react(scene, s, act, { kell: "fight" }, { fights: true });
+  assert.deepEqual(s.brawl, { turn: 1, cause: "cast Fire Bolt at Sergeant Agnes Kell", against: ["kell"], allies: [], fled: [] });
+  assert.deepEqual(s.threat, { kind: "attack", by: "kell", turn: 1 });
   // The next turn: Kell's blow lands first, and the threat is taken off.
   s.turn = 2;
   const landed = pinned(() => landThreat(rules, scene, s, "I put my hands up."))!;

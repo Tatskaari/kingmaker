@@ -8,8 +8,8 @@ import type { Act, ActFrom, Jumping, Mechanic, Reaction, Rules, RulesSession, Sc
 /**
  * What the rules do around an act in a scene's world: the player moved to where they act from, a
  * jump landed where the world says, whether the act was violence people would react to, and the
- * reactions taking effect (the fleeing leave, the cowering cower, a fight starts if anyone wants
- * one). The simulation's decide and reactions commits call them on the world rebuilt from the rows.
+ * reactions taking effect (the fleeing leave, the cowering cower; no fight starts in a scene). The
+ * simulation's act and reactions commits call them on the world rebuilt from the rows.
  */
 
 /**
@@ -75,8 +75,13 @@ export function violence(rules: Rules, scene: Scene, state: SceneSession, m: Mec
   return { what: `cast ${spell.name} ${parts.join(", ")}`, victims, property };
 }
 
-/** The reactions take effect: the fleeing leave, the cowering cower, and a fight starts if anyone wants one. */
-export function react(scene: Scene, state: SceneSession, act: Act, reactions: Record<string, Reaction>): void {
+/**
+ * The reactions take effect: the fleeing leave, the cowering cower. Someone who'd fight starts no
+ * fight in a scene: starting one is the scene's routes' and its co-GM's (the reply plays them turning
+ * on the player, and the co-GM their role from there). With `fights`, the prototype's way, parked for
+ * combat: a fight starts if anyone wants one, its first fighter's blow left hanging over the player.
+ */
+export function react(scene: Scene, state: SceneSession, act: Act, reactions: Record<string, Reaction>, options: { fights?: boolean } = {}): void {
   const world = state.world;
   const fled: string[] = [];
   for (const [id, r] of Object.entries(reactions)) {
@@ -88,7 +93,7 @@ export function react(scene: Scene, state: SceneSession, act: Act, reactions: Re
     } else if (r === "cower" && e && !e.states.includes("cowering")) e.states.push("cowering");
   }
   const against = Object.entries(reactions).filter(([, r]) => r === "fight").map(([id]) => id);
-  if (!against.length) return;
+  if (!against.length || !options.fights) return;
   const allies = Object.entries(reactions).filter(([, r]) => r === "join_player").map(([id]) => id);
   state.brawl = { turn: state.turn, cause: act.what, against, allies, fled };
   // Without a map to fight it out on, the first of them swings at the player next turn.

@@ -618,7 +618,7 @@ export const job = table({ name: "job" }, {
   turnId: t.option(t.u64()),
   /** say, openScene, creation; beside a turn, suggest; after it, remember (one row a turn and move); after a scene, crossBoundary (its scene's, with no turn); inventLook. */
   move: t.string(),
-  /** open, reactions, reply, settle, suggest, remember, boundary, look; a creation's offer, pick, own, draft, work, check, traits. (decide, consider and repair until the old pipeline's salvage.) */
+  /** open, act, reactions, reply, settle, suggest, remember, boundary, look; a creation's offer, pick, own, draft, work, check, traits. (decide, consider and repair until the old pipeline's salvage.) */
   step: t.string(),
   endpoint: t.string(),
   timeoutMs: t.u32(),

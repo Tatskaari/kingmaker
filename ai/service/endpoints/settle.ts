@@ -14,12 +14,13 @@ import { sceneAndView } from "./turn.ts";
  * POST /v1/turns/settle (v0-design §5.3, docs/two-part-design.md step 3): after the reply, the world
  * kept in step and the scene moved on, the two-part GM's way. A scene of the story's has the stage
  * manager's operations (16 at most, by game key, best effort: none when it fails) beside the co-GM,
- * told how this turn's check went. A talk's (town-design §3.6, talk.ts talkTurn) has no world to keep
- * in step (a talk has none): its co-GM beside the next lines (talk.suggest, when the controller has
- * lines suggested), and once the one thing they were keeping back is out (the co-GM's move into the
- * talk's discovery, now or before) a line that they told it goes in the GM's notes on them, once. The
- * old pipeline's settle (the director's read after the reply) went with it (docs/migration-log.md,
- * M2's "The old pipeline's salvage").
+ * told how this turn's check went and what the rules resolved of the player's act (its dice lines
+ * and who reacted how), whose fallout is its to play. A talk's (town-design §3.6, talk.ts talkTurn)
+ * has no world to keep in step (a talk has none): its co-GM beside the next lines (talk.suggest, when
+ * the controller has lines suggested), and once the one thing they were keeping back is out (the
+ * co-GM's move into the talk's discovery, now or before) a line that they told it goes in the GM's
+ * notes on them, once. The old pipeline's settle (the director's read after the reply) went with it
+ * (docs/migration-log.md, M2's "The old pipeline's salvage").
  */
 export const settle: Handler<SettleRequest, SettleResponse> = async (req, ctx) => {
   const { scene, view } = sceneAndView(ctx, req.turn.scene.key, turnSource(req));
@@ -40,7 +41,7 @@ async function twoPartSettle(req: SettleRequest, ctx: AiContext, scene: Scene, v
   const cast = presentCast(scene, view).map(c => ({ id: c.id, name: c.name, look: c.look }));
   const staging = stageManage(world, view.player, line, req.reply, { rules: req.lines, cast, settled: req.settled }, ctx.calls).catch(() => undefined);
   // The co-GM reads the story's other scenes from the first scene on: who a revelation names that nobody has said yet (two-part.ts unsaidIn).
-  const coGming = coGm(scene, view.story ? view : { ...view, story: ctx.campaign.story }, req.turn.gm, req.check, ctx.calls).catch((error: unknown): CoGmAnswer => ({ roles: {}, moves: [], log: [], error: error instanceof Error ? error.message : String(error) }));
+  const coGming = coGm(scene, view.story ? view : { ...view, story: ctx.campaign.story }, req.turn.gm, req.check, ctx.calls, req.act).catch((error: unknown): CoGmAnswer => ({ roles: {}, moves: [], log: [], error: error instanceof Error ? error.message : String(error) }));
   const [staged, co] = await Promise.all([staging, coGming]);
   const { costUsd: _cost, ...answer } = co as CoGmAnswer & { costUsd?: number };
   return { ops: (staged?.ops ?? []).map(op => opToGame(op, world, keys)), coGm: answer, usage: ctx.usage() };

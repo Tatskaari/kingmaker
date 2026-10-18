@@ -14,8 +14,9 @@ import { streamSink, type StreamTarget } from "./stream.ts";
 
 /**
  * The AI service's HTTP API (v0-design §5.1, v5-design §3.6, v1-design §3.7, full-gm-design §4.1,
- * world-bridge-design §3.1): the thinks (the opening, a turn's own with the reactions to the
- * player's violence, its suggested lines, the memory reviews after it, a scene's boundary, the looks,
+ * world-bridge-design §3.1): the thinks (the opening, a turn's own with what the rules resolve of
+ * its line and the reactions to the player's violence, its suggested lines, the memory reviews after
+ * it, a scene's boundary, the looks,
  * and character creation's builds and backstories), a campaign's words, its health, and a game's own
  * for a report of a problem (V16, M5): its calls and memory reviews, and its docs, read or given.
  *
@@ -79,7 +80,7 @@ export interface AiService {
 
 /** The thinks, by endpoint: the handler that serves each (STEP_ENDPOINT says which steps are whose). */
 const THINKS: Record<Endpoint, keyof Endpoints> = {
-  "/v1/scenes/open": "open", "/v1/turns/reactions": "reactions", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle",
+  "/v1/scenes/open": "open", "/v1/turns/act": "act", "/v1/turns/reactions": "reactions", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle",
   "/v1/turns/suggest": "suggest", "/v1/turns/remember": "remember",
   "/v1/scenes/boundary": "boundary", "/v1/looks": "looks",
   "/v1/characters": "characters", "/v1/backstories": "backstories",

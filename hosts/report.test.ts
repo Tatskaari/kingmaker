@@ -159,6 +159,9 @@ function inProcess(host: PageHost): typeof fetch {
   }) as typeof fetch;
 }
 
+/** The lines the reported game plays: two ordinary ones, then one the rules are asked about first. */
+const LINES = ["Sergeant, who found him?", "(I look closely at Prout's boots)", "(I cast Light on my palm to read the boots' lining)"];
+
 test("a game played on the fake model, reported from the headless client, inspected (its summary, a turn, a call, a table), restored for another session and played on a turn there", { timeout: 120_000 }, async (t: TestContext) => {
   const runs = mkdtempSync(join(tmpdir(), "km-report-"));
   const content = repoContent();
@@ -173,13 +176,13 @@ test("a game played on the fake model, reported from the headless client, inspec
   };
   t.after(() => { host.stop(); rmSync(runs, { recursive: true, force: true }); });
 
-  // Played: a ready-made ranger, into the yard (Kell's talk opens it), two lines.
+  // Played: a ready-made ranger, into the yard (Kell's talk opens it), three lines, the last one the rules are asked about first (the fake finds no act in it).
   const game = client("wren");
   await game.ready;
   const quiet = printed();
   assert.equal(await verbs.newGame(game, { campaign: "caerwyn", name: "Wren Ashdown", concept: "a quick-witted investigator", build: "ranger" }, quiet.out), 0);
   assert.equal(await verbs.act(game, "talk_kell", quiet.out), 0);
-  for (const line of ["Sergeant, who found him?", "(I look closely at Prout's boots)"]) assert.equal(await verbs.say(game, line, quiet.out, { settled: true }), 0, quiet.last());
+  for (const line of LINES) assert.equal(await verbs.say(game, line, quiet.out, { settled: true }), 0, quiet.last());
 
   // Reported, as the headless client reports one: kept under runs/reports.
   const said = printed();
@@ -192,16 +195,18 @@ test("a game played on the fake model, reported from the headless client, inspec
   const text = summary(report, { file });
   assert.match(text, /The player said: "Kell never says who found him"/);
   assert.match(text, /Build: [0-9a-f]{12}.*; the headless client \(npm run play\); Node v\d+/);
-  assert.match(text, /Where: the scene screen\. The game: in the scene The Hanged Clerk \(row \d+\), turn 2 \(done\)/);
+  assert.match(text, /Where: the scene screen\. The game: in the scene The Hanged Clerk \(row \d+\), turn 3 \(done\)/);
   assert.match(text, /── The screen as it was ──\nMODE: scene/);
   assert.match(text, /Turn 1 · The Hanged Clerk · \d\d:\d\d:\d\d · done\n> Wren Ashdown: Sergeant, who found him\?/);
   assert.match(text, /Turn 2 · The Hanged Clerk[^\n]*\n> Wren Ashdown: \(I look closely at Prout's boots\)/);
-  assert.match(text, /── Calls by operation ──[\s\S]*two-part\.reply +2 /);
+  assert.match(text, /── Calls by operation ──[\s\S]*two-part\.reply +3 [\s\S]*director\.rules +1 /);
   const turn = turnDetail(report, "1");
   assert.match(turn, /^Turn 1 of The Hanged Clerk \(scene row \d+, hanged-clerk\) · done · \d\d:\d\d:\d\d → first text \+[\d.]+ s → done/);
   assert.match(turn, /── The reply \(#\d+ two-part\.reply[^)]*\) ──\n\S/);
   assert.match(turn, /── The co-GM \(#\d+ two-part\.co-gm[^)]*\) ──\n {2}(move|role|\(it changed nothing\))/);
   assert.match(turn, /── The stage manager \(#\d+ world\.stage[^)]*\) ──/);
+  assert.doesNotMatch(turn, /What the rules were asked/, "an ordinary line: nothing asked of the rules");
+  assert.match(turnDetail(report, "3"), /── What the rules were asked \(#\d+ director\.rules[^)]*\) ──\n {2}mechanic: none \(0\.97\)/);
   assert.match(callDetail(report, 1), /^Call #1 of \d+: two-part\.opening \(scene row \d+, turn 0, open\)[\s\S]*── Instructions ──/);
   assert.match(rowsDetail(report, "transcript"), /"text": "Sergeant, who found him\?"/);
   assert.match(rowsDetail(report), /^game +1$/m);
@@ -213,9 +218,9 @@ test("a game played on the fake model, reported from the headless client, inspec
   assert.equal(restored.from, report.game && "id" in report.game ? report.game.id : "");
   const theirs = client("tamsin");
   await theirs.ready;
-  assert.equal(theirs.view()?.entries.filter(e => e.kind === "player").map(e => e.text).join(" | "), "Sergeant, who found him? | (I look closely at Prout's boots)");
+  assert.equal(theirs.view()?.entries.filter(e => e.kind === "player").map(e => e.text).join(" | "), LINES.join(" | "));
   const on = printed();
   assert.equal(await verbs.say(theirs, "And the boy with the stones?", on.out, { settled: true }), 0, on.last());
-  assert.equal(theirs.view()?.turn, 3);
+  assert.equal(theirs.view()?.turn, 4);
   assert.notEqual(theirs.home().seat?.gameId, game.home().seat?.gameId, "a new game, beside the one it came from");
 });

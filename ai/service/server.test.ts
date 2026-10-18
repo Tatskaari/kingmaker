@@ -7,7 +7,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import type {
-  AiRequest, BackstoriesRequest, BackstoryOp, BoundaryRequest, BoundaryResponse, CharactersRequest, Entry, OpenRequest, ReactionsRequest, ReplyRequest, ReplyResponse,
+  ActRequest, AiRequest, BackstoriesRequest, BackstoryOp, BoundaryRequest, BoundaryResponse, CharactersRequest, Entry, OpenRequest, ReactionsRequest, ReplyRequest, ReplyResponse,
   SettleRequest, SuggestRequest, SuggestResponse, TurnContext,
 } from "../../shared/protocol/ai.ts";
 import { creationKey } from "../../shared/protocol/keys.ts";
@@ -87,6 +87,12 @@ function openRequest(): OpenRequest {
 function replyRequest(n = 1): ReplyRequest {
   const { game, player, turn } = turnParts(n);
   return { key: `${GAME}:s1:t${n}:reply`, game, player, turn, outcome: { lines: [], directives: [] }, stream: { turn: "2" } };
+}
+
+/** What the rules resolve of a line that might be an act (the act step). */
+function actRequest(n = 1): ActRequest {
+  const { game, player, turn } = turnParts(n, "(I cast Fire Bolt at the boy)");
+  return { key: `${GAME}:s1:t${n}:act`, game, player, turn };
 }
 
 /** The reactions to what the rules decided the player did (world-bridge-design §3.1). */
@@ -446,6 +452,21 @@ test("the reactions to the player's violence (world-bridge-design §3.1): withou
   assert.deepEqual(exits, [137]);
   assert.ok(await stores.answers.get(reactionsRequest().key));
   assert.deepEqual(readConfig({ KM_AI_TOKEN: "t", KM_AI_FAULTS: "exit-after-store:reactions" }).faults, { exitAfterStore: "reactions" });
+});
+
+test("what the rules resolve of a line (the act step, before the reply): without the turn's line it's a 400; the canned GM finds no act, kept by the key; exit-after-store names the step", async () => {
+  const { ai, stores, exits } = service({ faults: { exitAfterStore: "act" } });
+  await ai.answer(put());
+  const missing = await ai.answer(post("/v1/turns/act", without(actRequest(), "turn.line")));
+  const answer = await ai.answer(post("/v1/turns/act", actRequest()));
+
+  assert.equal(missing.status, 400);
+  assert.match(JSON.parse(missing.body).error.message, /turn\.line \{ text \}/);
+  assert.equal(answer.status, 200);
+  assert.deepEqual(JSON.parse(answer.body), { usage: { calls: 0, costUsd: 0, byOperation: {} } });
+  assert.deepEqual(exits, [137]);
+  assert.ok(await stores.answers.get(actRequest().key));
+  assert.deepEqual(readConfig({ KM_AI_TOKEN: "t", KM_AI_FAULTS: "exit-after-store:act" }).faults, { exitAfterStore: "act" });
 });
 
 test("shutting down, it takes nothing new: 503 not_ready", async () => {

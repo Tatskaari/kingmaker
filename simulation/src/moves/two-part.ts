@@ -13,6 +13,7 @@ import { rollerFor } from "../dice-row.ts";
 import { afterTurn } from "../gm/background.ts";
 import { putGm } from "../gm/rows.ts";
 import { playerRow, updateScene, updateTurn, type SceneRow, type TurnRow } from "../rows.ts";
+import { mightAct, spellsOf } from "../../../shared/rules/acting.ts";
 import { markConjured } from "../../../shared/rules/acts.ts";
 import { carryGearAfter, rulesFirst } from "../rules/play.ts";
 import { refreshPockets } from "../rules/session.ts";
@@ -25,7 +26,7 @@ import { syncStage } from "../world/stage.ts";
 import { keysIn, lookForNew } from "./looks.ts";
 import type { Next } from "./move.ts";
 import type { SayPlan } from "./plans.ts";
-import { atTurn, endScene, noteReply, takeAct, type At } from "./say-commits.ts";
+import { atTurn, beforeReply, endScene, noteReply, resolveAct, type At } from "./say-commits.ts";
 import { suggestAfter } from "./suggest.ts";
 
 /**
@@ -42,9 +43,11 @@ export function openingRolesFor(graph: Scene, gm: GmState): void {
  * A two-part turn's plan as it starts (startPlan's, for a scene that plays two-part): in a talk, the
  * goodbye said in so many words (its last choice, say_goodbye) taken now, so this reply is its
  * closing; unless this is the wind-down, the rules first (a spell's time, fire's tick, coming round, a
- * blow left hanging), then the map's act when it's this turn's (town-design §3.4: resolved by the
- * rules as it is now, without the decider; its directive the reply's, after the rules'), each with
- * its dice lines; the reply next. Nothing reacts to the act: the reactions step is parked for combat.
+ * blow left hanging), each with its dice lines; then the player's act. The map's, its mechanic chosen
+ * already (town-design §3.4), is resolved by the rules now (resolveAct: its dice lines, its directive
+ * the reply's after the rules'); a line that might be one (actingIn: a spell, a blow, a shot or a
+ * throw, a class feature, by its words) is asked what it is first, by the act step. An act that was
+ * violence draws the reactions of whoever saw it; then the reply.
  */
 export function twoPartStart(tx: TxCtx, scene: SceneRow, graph: Scene, gm: GmState, turn: TurnRow, line: string, base: Omit<SayPlan, "step" | "lines" | "outcome">): SayPlan {
   if (scene.kind === "talk" && !gm.closing && isFarewell(line)) farewell(tx, scene, graph, gm, turn.n);
@@ -55,9 +58,25 @@ export function twoPartStart(tx: TxCtx, scene: SceneRow, graph: Scene, gm: GmSta
   };
   const rules = first?.directives.length ? { rulesFirst: { directives: first.directives, down: first.down, shielded: first.shielded } } : {};
   const forced = turn.mechanic && !gm.closing ? JSON.parse(turn.mechanic) as Mechanic : undefined;
-  if (forced) takeAct(tx, { scene, graph, gm }, { n: turn.n, input: line, ...rules }, forced, outcome);
+  const resolved = forced ? resolveAct(tx, { scene, graph, gm }, { n: turn.n, input: line, ...rules }, forced, outcome) : undefined;
+  const acting = forced || gm.closing ? undefined : actingIn(tx, scene, line);
   putGm(tx, scene.id, gm);
-  return { ...base, ...rules, step: "reply", windDown: !!gm.closing, outcome, lines: outcome.lines, ...(forced ? { forced } : {}) };
+
+  const plan: SayPlan = { ...base, ...rules, step: "reply", windDown: !!gm.closing, outcome, lines: outcome.lines, ...(forced ? { forced } : {}) };
+  if (acting) tx.log(`[scene ${scene.id} turn ${turn.n}] the line might be an act (${acting}): the rules are asked first`);
+  return acting ? { ...plan, step: "act", acting } : beforeReply(plan, resolved);
+}
+
+/**
+ * Why the player's line might be an act the rules resolve (shared/rules/acting.ts mightAct: by its
+ * words, on the character's sheet and every spell the rules know), in a scene of the story for a
+ * character the rules have made; undefined for any other line, so it goes straight to the reply. A
+ * talk is a conversation between scenes, with no world and no dice: its lines are the GM's alone.
+ */
+function actingIn(tx: TxCtx, scene: SceneRow, line: string): string | undefined {
+  if (scene.kind === "talk" || !tx.db.rulesState.playerId.find(scene.controllerId)) return undefined;
+  const sheet = tx.db.sheet.playerId.find(scene.controllerId);
+  return sheet ? mightAct(line, sheet, spellsOf(tx.rules())) : undefined;
 }
 
 /**
@@ -156,7 +175,7 @@ function arrivalsShown(tx: TxCtx, at: At, n: number, turnId: bigint): void {
 
 /**
  * After a two-part settle (twoPartTurn's, after the reply): the stage manager's operations through
- * the gate (what the map's spell conjured marked as the spell's); the co-GM's moves taken again with
+ * the gate (what the turn's spell conjured, the map's or a line's, marked as the spell's); the co-GM's moves taken again with
  * takeRoute on the rows, which are the authority, and the roles it set; the stage's count of
  * exchanges bumped, or, when the stage moved, the move kept for the next reply to show; whoever an
  * event brought on given a role (the stage's cast note, else their attitude), and joined to the world
@@ -170,7 +189,8 @@ export function afterTwoPartSettle(tx: TxCtx, plan: SayPlan, answer: SettleRespo
   const place = placeWorldOf(tx, at.scene);
   const keys = keysIn(tx, at.scene.placeId);
   const staged = applyStage(place, answer.ops ?? [], plan.n);
-  if (plan.forced?.kind === "cast") markConjured(place.world, plan.forced.spell, plan.n);
+  const cast = plan.forced ?? plan.read;
+  if (cast?.kind === "cast") markConjured(place.world, cast.spell, plan.n);
   const stageBefore = at.gm.beat;
   const moved = coGmTakesEffect(tx, at, plan.n, answer.coGm);
   const tp = at.gm.twoPart;

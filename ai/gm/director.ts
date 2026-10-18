@@ -1,4 +1,4 @@
-// Copied from the prototype's src/runtime/director.ts at 44c6d4a: lines 24-52 (decisionState) as they are (reading a TurnView), which the parked questions below read. The rest of decideBefore (:718-1019, the turn's one decision: the route, the cue, the roll call, the same push again, a plan off the graph, earned, daft, out of character, an ending on the brink, a limit) went with the old pipeline's decide (docs/migration-log.md, M2's "The old pipeline's salvage"), but for the rules' mechanic question (:793-809, with the world bridge: world-bridge-design §2.2) and the act's details call (:988-1009, withMechanic's), parked for combat as mechanicQuestion, readMechanic and mechanicOf; freeformCheck (:639-650, the plain check a considered turn rolled when its ruling failed) and the tries that failed (:1231-1232 and 1360-1369, failedTries) went with considered rolls; decideAfter (:1234-1358, the read after the reply) went with the old pipeline's settle, but for its threat and severity (:1284-1295, :1343-1349), parked for combat as threatQuestions and readThreat; a talk's settings and its staged secrets after the reply (:1219-1229, :1263-1275, :1324) went with the old pipeline's talk. The details' questions are gm/mechanics.ts.
+// Copied from the prototype's src/runtime/director.ts at 44c6d4a: lines 24-52 (decisionState) as they are (reading a TurnView), which the questions below read. The rest of decideBefore (:718-1019, the turn's one decision: the route, the cue, the roll call, the same push again, a plan off the graph, earned, daft, out of character, an ending on the brink, a limit) went with the old pipeline's decide (docs/migration-log.md, M2's "The old pipeline's salvage"), but for the rules' mechanic question (:793-809, with the world bridge: world-bridge-design §2.2) and the act's details call (:988-1009, withMechanic's), parked for combat as mechanicQuestion, readMechanic and mechanicOf, and asked again of a line in a scene since "After the migration: spells and blows said in a scene" (the act step: service/endpoints/act.ts), offering the acts a scene's rules resolve (SCENE_ACTS); freeformCheck (:639-650, the plain check a considered turn rolled when its ruling failed) and the tries that failed (:1231-1232 and 1360-1369, failedTries) went with considered rolls; decideAfter (:1234-1358, the read after the reply) went with the old pipeline's settle, but for its threat and severity (:1284-1295, :1343-1349), parked for combat as threatQuestions and readThreat; a talk's settings and its staged secrets after the reply (:1219-1229, :1263-1275, :1324) went with the old pipeline's talk. The details' questions are gm/mechanics.ts.
 
 import type { ChoiceQuestion, Decider, Decision as Answers } from "../llm/decide.ts";
 import { HAZARD_KINDS } from "../../shared/rules/acts.ts";
@@ -36,31 +36,47 @@ const READ_TURN = "plain words are what their character says out loud, and what 
 const SCENE_ENDING_CONFIDENCE = 0.6;
 
 // ---------------------------------------------------------------------------------------------
-// Parked for combat (docs/migration-log.md, M2's "The old pipeline's salvage"): what the player's
-// line does that the D&D rules resolve, as decideBefore asked it (director.ts:793-809) in the turn's
-// one decision and read it (:887-893, a rest at once), then asked the act's details in a second small
-// call (:988-1009, withMechanic's). The old pipeline's decide asked it for a character with a build;
-// nothing asks it since its decide went with the rest of its scene steps, and a scene of the story
-// resolves only the map's act (its mechanic chosen already, the turn's), narrating a spell said in
-// words. The route an act held back (alsoQuestion) and the act that's only the means to something
-// risky (meansQuestion) can ride along in the details call (mechanicDetails' `extra`).
+// What the player's line does that the D&D rules resolve, as decideBefore asked it
+// (director.ts:793-809) in the turn's one decision and read it (:887-893, a rest at once), then asked
+// the act's details in a second small call (:988-1009, withMechanic's). The old pipeline's decide
+// asked it of every line, for a character with a build; it was parked for combat when that decide
+// went (docs/migration-log.md, M2's "The old pipeline's salvage"), and since "After the migration:
+// spells and blows said in a scene" the act step asks it of a line in a scene that might be an act
+// (the simulation's line check, shared/rules/acting.ts), offering the acts a scene's rules resolve.
+// The route an act held back (alsoQuestion) and the act that's only the means to something risky
+// (meansQuestion) can ride along in the details call (mechanicDetails' `extra`), parked for combat:
+// in a scene the GM's mouthpiece calls the checks.
 
-/** Whether the player, in their line, is doing one of the things the game's rules resolve: a spell, a blow, a grab, a shove, a jump, a class feature, a rest. */
-export function mechanicQuestion(rules: RulesOptions): ChoiceQuestion {
+/** What the mechanic question can offer: the acts the rules resolve (gm/mechanics.ts RULED_ACTS), and the rests. */
+export type MechanicChoice = RuledAct | "short_rest" | "long_rest";
+
+/** Every act the rules resolve, as the old pipeline's decide offered them (parked for combat: a line typed in a fight, V13). */
+export const EVERY_ACT: readonly MechanicChoice[] = ["cast", "attack", "grapple", "shove", "jump", "feature", "short_rest", "long_rest"];
+
+/**
+ * The acts the rules resolve of a line in a scene of the story: a spell, a blow (a stab, a shot, a
+ * thrown thing), a class feature. A grab, a shove or a jump is the GM's to roll for there (Athletics,
+ * as the reply's format has it: two-part.ts FORMAT), and a rest is the map's (its action menu's, once
+ * a time of day: town-design §3.3).
+ */
+export const SCENE_ACTS: readonly MechanicChoice[] = ["cast", "attack", "feature"];
+
+/** Whether the player, in their latest turn, is doing one of the things the game's rules resolve (`offered`, of a spell, a blow, a grab, a shove, a jump, a class feature, a rest), or none of them. */
+export function mechanicQuestion(rules: RulesOptions, offered: readonly MechanicChoice[] = EVERY_ACT): ChoiceQuestion {
+  const criteria: Record<MechanicChoice, string | undefined> = {
+    // Offered to everyone: a character without magic who tries it gets the rules' "it doesn't come", not a fireball.
+    cast: "Casting a spell now (naming a spell, or plainly working new magic). Not using what a spell already running gives them (seeing through a familiar's eyes, keeping up an illusion, a light already lit).",
+    attack: "Attacking someone or something right now, to hurt a person or break a thing: a blow, a stab, a punch, a kick, a shot or a thrown weapon. Threats, grabs, shoves and drawing a weapon aren't attacks, and nor is tossing something to someone or working on something in hand.",
+    grapple: "Grabbing hold of someone who'd resist, to hold or restrain them: a grapple, a headlock, pinning them, or a hold in a wrestling bout (a sparring partner resists too).",
+    shove: "Shoving someone who'd resist: to knock them down, or push them back or away.",
+    jump: "Jumping: across a gap or over something, up onto something, or down from it.",
+    feature: rules.features?.length ? `Using one of their class features: ${rules.features.map(f => f.name).join(", ")}.` : undefined,
+    short_rest: "Stopping to rest for an hour or so: catching their breath, binding wounds, a meal and a sit-down.",
+    long_rest: "Sleeping the night, or resting for many hours.",
+  };
   return {
     instructions: `Is the player, in their latest turn, doing one of these things the game's rules resolve? (In a turn, ${READ_TURN}.)`,
-    criteria: {
-      // Offered to everyone: a character without magic who tries it gets the rules' "it doesn't come", not a fireball.
-      cast: "Casting a spell now (naming a spell, or plainly working new magic). Not using what a spell already running gives them (seeing through a familiar's eyes, keeping up an illusion, a light already lit).",
-      attack: "Attacking someone or something right now, to hurt a person or break a thing: a blow, a stab, a punch, a kick, a shot or a thrown weapon. Threats, grabs, shoves and drawing a weapon aren't attacks, and nor is tossing something to someone or working on something in hand.",
-      grapple: "Grabbing hold of someone who'd resist, to hold or restrain them: a grapple, a headlock, pinning them, or a hold in a wrestling bout (a sparring partner resists too).",
-      shove: "Shoving someone who'd resist: to knock them down, or push them back or away.",
-      jump: "Jumping: across a gap or over something, up onto something, or down from it.",
-      ...(rules.features?.length ? { feature: `Using one of their class features: ${rules.features.map(f => f.name).join(", ")}.` } : {}),
-      short_rest: "Stopping to rest for an hour or so: catching their breath, binding wounds, a meal and a sit-down.",
-      long_rest: "Sleeping the night, or resting for many hours.",
-      none: "None of these.",
-    },
+    criteria: { ...Object.fromEntries(offered.flatMap(o => (criteria[o] ? [[o, criteria[o]]] : []))), none: "None of these." },
   };
 }
 
@@ -74,13 +90,14 @@ export function readMechanic(decision: Answers): RuledAct | Extract<Mechanic, { 
 
 /**
  * What the rules resolve of the player's line, for a character with a build (`rules`: rulesOptions,
- * gm/mechanics.ts): the mechanic question in a call of its own (`director.rules`), then, for a spell,
- * a blow, a grab, a shove, a jump or a feature, its details in a second small call (mechanicDetails:
- * which spell at whom, which blow, where they act from), `extra` questions riding along in it. None
- * when the line does nothing the rules resolve.
+ * gm/mechanics.ts): the mechanic question in a call of its own (`director.rules`), offering the acts
+ * `offered` (all of them unless it's said: a scene's are SCENE_ACTS), then, for a spell, a blow, a
+ * grab, a shove, a jump or a feature, its details in a second small call (mechanicDetails: which
+ * spell at whom, which blow, where they act from), `extra` questions riding along in it. None when
+ * the line does nothing the rules resolve.
  */
-export async function mechanicOf(decider: Decider, scene: Scene, state: TurnView, line: string, rules: RulesOptions, extra: Record<string, ChoiceQuestion> = {}): Promise<{ mechanic?: Mechanic; details?: Answers }> {
-  const asked = await decider.decide(decisionState(scene, state, line), { mechanic: mechanicQuestion(rules) }, "director.rules");
+export async function mechanicOf(decider: Decider, scene: Scene, state: TurnView, line: string, rules: RulesOptions, extra: Record<string, ChoiceQuestion> = {}, offered: readonly MechanicChoice[] = EVERY_ACT): Promise<{ mechanic?: Mechanic; details?: Answers }> {
+  const asked = await decider.decide(decisionState(scene, state, line), { mechanic: mechanicQuestion(rules, offered) }, "director.rules");
   const act = readMechanic(asked);
   if (!act) return {};
   if (typeof act !== "string") return { mechanic: act };

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { Outcome, ReplyRequest, SettleRequest, SettleResponse } from "../../../shared/protocol/ai.ts";
+import type { ActRequest, ActResponse, Outcome, ReactionsRequest, ReplyRequest, SettleRequest, SettleResponse } from "../../../shared/protocol/ai.ts";
 import { idText } from "../../../shared/protocol/keys.ts";
 import type { Mechanic, Reaction, Threat, ThreatRead } from "../../../shared/rules/types.ts";
 import { ignite } from "../../../shared/world/systems.ts";
@@ -14,12 +14,13 @@ import { atTurn, reactionsTakeEffect, takeAct } from "./say-commits.ts";
 
 /**
  * The world bridge in a scene (world-bridge-design §3.4), on the memory host with the AI service
- * scripted and the rules engine the module's own, on the two-part GM's turn: the map's act, its
- * mechanic chosen already, resolved by the rules as its turn starts (its dice rows, the world and the
- * sheet); what the rules leave hanging landing as the next turn starts (a blow, a hold, fire burning
- * on, a spell running out); and the rules' state kept from turn to turn. The reactions to the
- * player's violence are parked for combat (nothing asks them on the two-part GM): their taking
- * effect is tested as the parked code has it.
+ * scripted and the rules engine the module's own, on the two-part GM's turn: a spell or a blow said
+ * in words, asked of the act step and resolved by the rules before the reply, and the map's act, its
+ * mechanic chosen already, resolved as its turn starts (their dice rows, the world and the sheet);
+ * the reactions of everyone who saw it when it was violence (no fight starts); a spell the character
+ * hasn't got refused by the rules; an ordinary line with no step before its reply; what the rules
+ * leave hanging landing as the next turn starts (a blow, a hold, fire burning on, a spell running
+ * out); and the rules' state kept from turn to turn.
  */
 
 const none = { calls: 0, costUsd: 0, byOperation: {} };
@@ -29,9 +30,9 @@ const MISSILE: Mechanic = { kind: "cast", spell: "magic-missile", targets: ["hoi
 /** fake.json's quiet reactions for the yard. */
 const QUIET: Record<string, Reaction> = { kell: "intervene", cob: "flee", moll: "cower" };
 
-/** A game with the ready-made wizard, opened: the yard, Kell, Cob and Moll. */
-async function wizard() {
-  const opened = await openedGame(7, "wizard");
+/** A game with the ready-made wizard (or another of builds.json's), opened: the yard, Kell, Cob and Moll. */
+async function wizard(build = "wizard") {
+  const opened = await openedGame(7, build);
   const { host, script, wren, scene, player } = opened;
   const now = () => sceneNow(host, scene.id);
   const world = () => host.transact(tx => placeWorldOf(tx, sceneRow(tx, scene.id)).world);
@@ -60,11 +61,97 @@ async function wizard() {
   /** What the last reply left hanging over the player (gm.threat, as a reaction's fight or the old pipeline's read after the reply left it), for the next turn's start to land. */
   const hanging = (threat: ThreatRead) => host.transact(tx => { const gm = getGm(tx, scene.id); putGm(tx, scene.id, { ...gm, threat: { ...threat, turn: sceneRow(tx, scene.id).turns } as Threat }); });
   const turnLines = (n: number) => now().lines.filter(l => l.turn === n).map(l => [l.kind, l.text]);
-  return { host, script, scene, player, now, world, sheet, rules, onStage, line, act, hanging, turnLines };
+  /** The steps a turn's own thinks took, in order (the lines beside it and the memory review after it left out). */
+  const stepsOf = (n: number) => script.sent.filter(s => s.key.endsWith(`:t${n}:${s.step}`) && ["act", "reactions", "reply", "settle"].includes(s.step)).map(s => s.step);
+  return { host, script, scene, player, now, world, sheet, rules, onStage, line, act, hanging, turnLines, stepsOf };
 }
 
-test("the map's act, resolved by the rules as its turn starts: a spell at a thing writes the dice rows, the world and the sheet; the reply is told the act, the stage manager its dice lines; nothing reacts to it", async () => {
-  const { script, scene, now, world, sheet, onStage, act, turnLines } = await wizard();
+const asked = (mechanic?: Mechanic): ActResponse => ({ ...(mechanic ? { mechanic } : {}), usage: { calls: 2, costUsd: 0.0004, byOperation: {} } });
+
+test("a spell said in words: the line asks the act step, and the rules resolve it before the reply (its dice rows first, the world and the sheet changed); the people who saw it react (Cob gone, Moll cowering); the reply is told the act and the reactions, the co-GM what the rules decided", async () => {
+  const { script, scene, now, world, sheet, onStage, line, turnLines, stepsOf } = await wizard();
+  script.then("act", asked(MISSILE));
+  script.then("reactions", { reactions: QUIET, directive: "Rules: that was violence, and everyone here reacts at once.", usage: { calls: 1, costUsd: 0.0002, byOperation: {} } });
+
+  const ended = await line("(I cast Magic Missile at the hoist rope)");
+
+  assert.deepEqual(stepsOf(1), ["act", "reactions", "reply", "settle"]);
+  const lines = turnLines(1);
+  const dice = lines.filter(([kind]) => kind === "roll").map(([, text]) => text!);
+  assert.deepEqual(lines.map(([kind]) => kind), ["player", ...dice.map(() => "roll"), "narration"], "the rules' lines before the reply");
+  assert.match(dice[0]!, /^Cast Magic Missile \(1st-level slot\) on the hoist rope$/);
+  assert.ok(dice.some(d => /hoist rope takes \d+ force damage and is destroyed/i.test(d)), dice.join("\n"));
+  assert.ok(world().entities["hoist-rope"]!.states.includes("destroyed"));
+  assert.ok(!world().entities.prout!.states.includes("hanging"), "what hung from the rope falls");
+  assert.match(sheet().statusLine, /1st 3\/4/);
+  assert.deepEqual(ended.gm.path.map(p => p.via), ["rules:cast:magic-missile", "reactions:kell=intervene,cob=flee,moll=cower"]);
+  assert.deepEqual([ended.gm.absent, onStage().sort()], [["cob"], ["kell", "moll", `pc:${scene.controllerId}`]]);
+  assert.ok(world().entities.moll!.states.includes("cowering"));
+  assert.deepEqual([ended.gm.brawl, ended.gm.threat], [undefined, undefined], "no fight starts: that's the scene's routes' and the co-GM's");
+
+  const reactions = script.to("reactions")[0]!.body as ReactionsRequest;
+  assert.match(reactions.act.what, /^cast Magic Missile/);
+  const reply = script.to("reply")[0]!.body as ReplyRequest;
+  assert.deepEqual(reply.outcome.lines, dice);
+  assert.equal(reply.outcome.acts?.length, 2);
+  assert.match(reply.outcome.acts![0]!, /^Rules: the player cast Magic Missile/);
+  assert.equal(reply.outcome.acts![1], "Rules: that was violence, and everyone here reacts at once.");
+  assert.ok(reply.turn.transcript.filter(e => e.turn === 1 && e.kind === "roll").length === dice.length, "written before the reply was asked");
+  const settle = script.to("settle")[0]!.body as SettleRequest;
+  assert.deepEqual(settle.act, { lines: dice, reactions: QUIET }, "the co-GM is told what the rules decided, and who reacted how");
+  assert.deepEqual(now().turns.map(t => t.phase), ["done", "done"]);
+});
+
+test("the user's report, turns 9 and 10: a rogue's Fire Bolt at Cob is no spell of hers, and the rules say so before the reply (no slot, no damage, nobody reacting); the reply is told the magic doesn't come", async () => {
+  const { script, scene, world, sheet, line, turnLines, stepsOf } = await wizard("rogue");
+  const status = sheet().statusLine;
+  script.then("act", asked({ kind: "cast", spell: "not_theirs", targets: [] }), asked({ kind: "cast", spell: "not_theirs", targets: [] }));
+
+  for (const [n, said] of [[1, "(I cast firebolt at the boy)"], [2, "(I cast firebolt at cob)"]] as const) {
+    const done = await line(said);
+    assert.deepEqual(stepsOf(n), ["act", "reply", "settle"], "nothing to react to");
+    assert.deepEqual(turnLines(n), [["player", said], ["roll", "(Fire Bolt isn't a spell Wren Ashdown has ready: /sheet shows what they have.)"], ["narration", "Kell taps her pencil on the notebook. \"Noted.\""]]);
+    assert.equal(done.gm.path.at(-1)?.via, "rules:cast:not_theirs");
+    const reply = script.to("reply").at(-1)!.body as ReplyRequest;
+    assert.deepEqual(reply.outcome.acts, ["The player reached for magic their character doesn't have ready (Fire Bolt). It doesn't come: nothing happens beyond a gesture, maybe a fizzle. Say so in a few words, in the fiction, without inventing any effect, and let them choose something else."]);
+    assert.deepEqual((script.to("settle").at(-1)!.body as SettleRequest).act, { lines: ["(Fire Bolt isn't a spell Wren Ashdown has ready: /sheet shows what they have.)"] });
+  }
+  assert.equal(sheet().statusLine, status, "nothing spent");
+  assert.deepEqual(world().entities.cob!.states.filter(st => ["hurt", "badly hurt", "down", "gone"].includes(st)), []);
+  assert.deepEqual(script.to("reactions"), []);
+  assert.deepEqual((script.to("act")[0]!.body as ActRequest).turn.party[0]!.spells, [], "the act step is told her sheet");
+  void scene;
+});
+
+test("what a spell said in words conjured is the spell's, as the map's act's is: the stage manager's spectral weapon marked conjured, to fade with the scene", async () => {
+  const { script, world, line } = await wizard("cleric");
+  script.then("act", asked({ kind: "cast", spell: "spiritual-weapon", targets: ["kell"] }));
+  const weapon = { op: "create", what: "", to: "yard", how: "", feet: 0, name: "a spectral weapon", kind: "object", text: "A floating mace of light.", add: [], remove: [], quantity: 0 };
+  script.then("settle", { ...settled(), ops: [weapon] });
+
+  await line("(I cast Spiritual Weapon to hover over Kell's shoulder)");
+
+  const made = Object.values(world().entities).find(e => e.name === "a spectral weapon");
+  assert.deepEqual(made?.tags.filter(t => t.startsWith("conjured")), ["conjured", "conjured:spiritual-weapon"]);
+});
+
+test("an ordinary line goes straight to the reply, with no step before it; a line the check lets through that isn't an act asks once, and nothing comes of it", async () => {
+  const { script, now, line, turnLines, stepsOf } = await wizard();
+
+  await line("Sergeant, who found him, and when?");
+  assert.deepEqual(stepsOf(1), ["reply", "settle"], "no act step: the line has nothing the rules resolve");
+
+  const kicked = await line("(I kick the loose board by the water butt)");
+  assert.deepEqual(stepsOf(2), ["act", "reply", "settle"], "the check asked: a kick might be a blow");
+  assert.deepEqual(turnLines(2).map(([kind]) => kind), ["player", "narration"], "no dice: the act step answered none");
+  assert.deepEqual(kicked.gm.path.filter(p => p.turn === 2), []);
+  assert.equal((script.to("reply")[1]!.body as ReplyRequest).outcome.acts, undefined);
+  assert.equal((script.to("settle")[1]!.body as SettleRequest).act, undefined);
+  assert.deepEqual(now().turns.map(t => t.phase), ["done", "done", "done"]);
+});
+
+test("the map's act, resolved by the rules as its turn starts: a spell at a thing writes the dice rows, the world and the sheet; the reply is told the act, the stage manager its dice lines; breaking the rope where people are draws their reactions, as a line's act does", async () => {
+  const { script, scene, now, world, sheet, onStage, act, turnLines, stepsOf } = await wizard();
   assert.deepEqual(onStage().sort(), ["cob", "kell", "moll", `pc:${scene.controllerId}`]);
 
   const ended = await act("(I cast Magic Missile at the hoist rope)", MISSILE);
@@ -83,12 +170,13 @@ test("the map's act, resolved by the rules as its turn starts: a spell at a thin
   assert.equal(reply.outcome.acts?.length, 1);
   assert.match(reply.outcome.acts![0]!, /Magic Missile/);
   assert.deepEqual((script.to("settle")[1]!.body as SettleRequest).lines, dice);
-  assert.deepEqual(script.to("reactions"), [], "nothing reacts to the act on the two-part GM: the reactions are parked for combat");
-  assert.deepEqual(onStage().sort(), ["cob", "kell", "moll", `pc:${scene.controllerId}`]);
+  assert.deepEqual(stepsOf(2), ["reactions", "reply", "settle"], "no act step: its mechanic was chosen already");
+  assert.match((script.to("reactions")[0]!.body as ReactionsRequest).act.what, /^cast Magic Missile setting the hoist rope burning or breaking it$/);
+  assert.deepEqual(onStage().sort(), ["cob", "kell", "moll", `pc:${scene.controllerId}`], "the scripted AI's nobody reacts");
   assert.deepEqual(now().turns.map(t => t.phase), ["done", "done", "done"]);
 });
 
-test("parked for combat: the reactions to the player's violence take effect on the world and the bookkeeping (the fleeing gone, absent and off the stage, the cowering cowering), their directive after the act's; a fight that breaks out leaves the first fighter's blow over the player, which lands as the next turn starts", async () => {
+test("the reactions to the player's violence take effect on the world and the bookkeeping (the fleeing gone, absent and off the stage, the cowering cowering), their directive after the act's; someone who'd fight starts no fight, and nothing hangs over the player as the next turn starts", async () => {
   const { host, script, scene, world, onStage, line, turnLines } = await wizard();
   const directive = "Rules: that was violence, and everyone here reacts at once.";
   const outcome = host.transact(tx => {
@@ -110,21 +198,20 @@ test("parked for combat: the reactions to the player's violence take effect on t
   assert.deepEqual(gm.path.map(p => p.via), ["rules:cast:magic-missile", "reactions:kell=intervene,cob=flee,moll=cower"]);
   assert.equal(gm.brawl, undefined);
 
-  // A fight: Kell goes for the player, and her blow lands as the next turn starts.
+  // Kell would fight: she turns on the player, but no fight starts and no blow hangs over them.
   host.transact(tx => {
     const at = atTurn(tx, { scene: idText(scene.id) });
     const out: Outcome = { lines: [], directives: [] };
     const violence = takeAct(tx, at, { n: 1, input: "*I hit the sergeant with my staff.*" }, { kind: "attack", target: "kell" }, out)!;
-    reactionsTakeEffect(tx, at, { n: 1 }, violence, { kell: "fight", moll: "cower" }, "Rules: that was violence. It's a fight now: end on the moment it breaks out.", out);
+    reactionsTakeEffect(tx, at, { n: 1 }, violence, { kell: "fight", moll: "cower" }, "Rules: that was violence. End on the moment they turn on the player.", out);
     putGm(tx, scene.id, at.gm);
   });
-  const fighting = sceneNow(host, scene.id).gm;
-  assert.deepEqual([fighting.brawl?.against, fighting.threat], [["kell"], { kind: "attack", by: "kell", turn: 1 }]);
-  const next = await line("(I put my hands up)");
-  const first = turnLines(1).filter(([kind]) => kind === "roll").map(([, text]) => text!);
-  assert.ok(first.some(l => /Kell's attack on you/.test(l)), first.join("\n"));
-  assert.equal(next.gm.threat, undefined, "taken off as it lands");
-  assert.match((script.to("reply")[0]!.body as ReplyRequest).outcome.directives[0]!, /^Rules/);
+  const angry = sceneNow(host, scene.id).gm;
+  assert.deepEqual([angry.brawl, angry.threat], [undefined, undefined]);
+  assert.equal(angry.path.at(-1)?.via, "reactions:kell=fight,moll=cower");
+  await line("(I put my hands up)");
+  assert.ok(!turnLines(1).some(([kind, text]) => kind === "roll" && /attack on you/.test(text!)), "no blow lands as the next turn starts");
+  assert.deepEqual((script.to("reply")[0]!.body as ReplyRequest).outcome.directives, []);
 });
 
 test("a blow the last reply left hanging lands as the next turn starts, before the reply; a hold catches the player with a saving throw as it lands", async () => {

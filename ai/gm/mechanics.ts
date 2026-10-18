@@ -1,4 +1,4 @@
-// Copied from the prototype at 44c6d4a: src/runtime/director.ts:433-623 (RulesOptions, the acts' words, alsoQuestion, meansQuestion, mechanicDetails, aimedPeople, aimedThing, namedThing), 1100-1131 (jumpDetails) and 1133-1190 (Witness, decideReactions, reactionDirective), and src/runtime/engine.ts:1329 (nameIn), 1360-1369 (witnessesOf) and 1391-1409 (aimable), with the usual edits: a TurnView for the SessionState, the scene passed in for sceneById (aimable), SpellRef and WeaponRef for SpellChoice and WeaponChoice, Mechanic, Jumping, ActFrom, Reaction and Act from v2/shared/rules/types.ts (A's copies), worldView from v2/shared/world; alsoQuestion, meansQuestion, mechanicDetails, RuledAct, RULED_ACTS, nameIn, witnessesOf and aimable exported, for the director's details call (director.ts mechanicOf, withMechanic's) and the reactions endpoint; rulesOptions is the old decide endpoint's (engine.ts:559). All of it is parked for combat since the old pipeline's decide went (docs/migration-log.md, M2's "The old pipeline's salvage"): nothing in a scene asks the mechanic question, its details or the reactions now.
+// Copied from the prototype at 44c6d4a: src/runtime/director.ts:433-623 (RulesOptions, the acts' words, alsoQuestion, meansQuestion, mechanicDetails, aimedPeople, aimedThing, namedThing), 1100-1131 (jumpDetails) and 1133-1190 (Witness, decideReactions, reactionDirective), and src/runtime/engine.ts:1329 (nameIn), 1360-1369 (witnessesOf) and 1391-1409 (aimable), with the usual edits: a TurnView for the SessionState, the scene passed in for sceneById (aimable), SpellRef and WeaponRef for SpellChoice and WeaponChoice, Mechanic, Jumping, ActFrom, Reaction and Act from v2/shared/rules/types.ts (A's copies), worldView from v2/shared/world; alsoQuestion, meansQuestion, mechanicDetails, RuledAct, RULED_ACTS, nameIn, witnessesOf and aimable exported, for the director's details call (director.ts mechanicOf, withMechanic's) and the reactions endpoint; rulesOptions is the old decide endpoint's (engine.ts:559). It was parked for combat when the old pipeline's decide went (docs/migration-log.md, M2's "The old pipeline's salvage"), and since "After the migration: spells and blows said in a scene" a scene asks it again: the act step's details call (service/endpoints/act.ts) on what rulesOptions offers, and the reactions endpoint when the act was violence. Of it, alsoQuestion, meansQuestion and jumpDetails stay parked (a scene's GM calls its own checks, and a jump is one of them), and so does a fight reaction's brawl (scene-acts.ts react): reactionDirective's fight ends the reply as they turn on the player.
 
 import type { ChoiceQuestion, Decider, Decision } from "../llm/decide.ts";
 import { titleCase } from "../../shared/dice.ts";
@@ -278,8 +278,9 @@ export async function decideReactions(decider: Decider, scene: Scene, state: Tur
   return { reactions, ...(decision ? { decision } : {}) };
 }
 
-const REACTION_TEXT: Record<Reaction, string> = {
-  fight: "fights: goes for the player",
+/** Each reaction as the GM is told it: the reply's direction, and the co-GM's note of the act (two-part.ts actNote). */
+export const REACTION_TEXT: Record<Reaction, string> = {
+  fight: "turns on the player, ready to fight",
   flee: "flees: gets out of the place",
   raise_alarm: "runs for help (the watch, their friends): gets out to fetch them",
   cower: "cowers where they are",
@@ -288,11 +289,15 @@ const REACTION_TEXT: Record<Reaction, string> = {
   unmoved: "carries on as if nothing happened",
 };
 
-/** The GM's direction for the reactions the decider chose. */
+/**
+ * The GM's direction for the reactions the decider chose. Someone who'd fight turns on the player, and
+ * the reply ends there, before any blow: in a scene the reactions start no fight (scene-acts.ts
+ * react), and whether it comes to one is the scene's.
+ */
 export function reactionDirective(reactions: Record<string, Reaction>, name: (id: string) => string): string {
   const fight = Object.values(reactions).includes("fight");
   const lines = Object.entries(reactions).filter(([, r]) => r !== "unmoved").map(([id, r]) => `${name(id)} ${REACTION_TEXT[r]}`);
-  return `Rules: that was violence, and everyone here reacts at once, each in their own way (decided: play it so): ${lines.join("; ")}. Show each reaction briefly, in the same reply as the act itself, and keep everyone to their reaction.${fight ? " It's a fight now: end on the moment it breaks out, before anyone's blow lands." : ""}`;
+  return `Rules: that was violence, and everyone here reacts at once, each in their own way (decided: play it so): ${lines.join("; ")}. Show each reaction briefly, in the same reply as the act itself, and keep everyone to their reaction.${fight ? " End on the moment they turn on the player, before anyone's blow lands: whether it comes to a fight is for the story to decide, not this reply." : ""}`;
 }
 /** Someone by the name the player knows them by (engine.ts:1329). */
 export const nameIn = (scene: Scene, state: TurnView, id: string) => state.rules?.aliases?.[id] ?? scene.cast.find(c => c.id === id)?.name ?? state.world?.entities[id]?.name ?? id;
@@ -310,7 +315,7 @@ export function witnessesOf(scene: Scene, state: TurnView, act: Act): Witness[] 
  * What the decider offers the rules' act (engine.ts:559), for a character with a build: their spells,
  * weapons and features from the sheet, and from the world what's near enough to aim at, the people
  * outside the cast, and where they might act from. None without a build. (The old pipeline's decide
- * endpoint made it; parked for combat with the mechanic question: director.ts mechanicOf.)
+ * endpoint made it; the act step's now: service/endpoints/act.ts.)
  */
 export function rulesOptions(scene: Scene, view: TurnView, line: string): RulesOptions | undefined {
   if (!view.rules) return undefined;
