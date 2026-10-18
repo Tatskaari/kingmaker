@@ -1,7 +1,10 @@
-import { test } from "node:test";
+import { after, test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { configureDocs } from "../docs/config.ts";
+import { note } from "../docs/notes.ts";
 import { rolesNote } from "../../shared/gm/two-part.ts";
 import type { GmState } from "../../shared/gm/state.ts";
 import { openRoutes, takeRoute } from "../../shared/scene/beats.ts";
@@ -20,6 +23,11 @@ import type { TurnView } from "./view.ts";
  * prep as the design orders it, the per-turn note, the narration read as it streams, the mouthpiece
  * and the co-GM on the fake model, and the fake co-GM's walk through every scene of the campaign.
  */
+
+/** The campaign's lore, and each game's own copy of it in a folder of the test's (the GM's notes on the people are written there). */
+const COPIES = mkdtempSync(join(tmpdir(), "km-two-part-"));
+after(() => rmSync(COPIES, { recursive: true, force: true }));
+configureDocs({ loreRoot: join(CAERWYN, "lore"), overlay: game => join(COPIES, game) });
 
 const sceneFile = (id: string): Scene => effectiveScene(loadScene(readFileSync(join(CAERWYN, "scenes", `${id}.kmscene`), "utf8")), []);
 const clerk = sceneFile("hanged-clerk");
@@ -256,6 +264,22 @@ test("an open route into an ending says how it went and what's true there, for t
   assert.match(lines.find(l => l.startsWith("- [case-lost]"))!, /\. It's a bad ending\. What's true there: The player failed/);
   assert.doesNotMatch(twoPartNow(clerk, view, []), /What's true there/);
   assert.doesNotMatch(prepOf(clerk, view, { coGm: true }), /It's a good ending/, "the prep has the endings under their own headings");
+});
+
+test("the co-GM's input has the GM's notes on each person on stage who has any (how they stand and why, a promise owed), above their roles; someone with none, or off stage, isn't listed, nobody noted is no such part, and the mouthpiece sees none of it", () => {
+  const view = yard({ id: "notes-game", turn: 3 });
+  assert.doesNotMatch(coGmInput(clerk, view, undefined)[0]!.content, /Notes on the people here/, "nobody has any yet");
+  const kell = { id: "kell", name: "Sergeant Agnes Kell" };
+  note("notes-game", kell, "standing", "Warming: the investigator kept Cob's name out of her book, as she asked.");
+  note("notes-game", kell, "promises", "Promised the investigator a look at the watch's night book once Prout is signed in.");
+  note("notes-game", { id: "tull", name: "Corporal Abner Tull" }, "did", "Waited at the gate with the dead-cart, as the Captain ordered.");
+  const input = coGmInput(clerk, view, undefined)[0]!.content;
+  assert.match(input, /\n\n# Notes on the people here \(what's happened with them in play\)\n\nThe GM's notes on each of them so far, this scene's included: [^\n]*Let a role follow from them where they bear on the moment \(a promise kept or owed, how the player character has treated them\)[^\n]*\n\n## Sergeant Agnes Kell \[kell\]\nStanding with the player: Warming: the investigator kept Cob's name out of her book, as she asked\.\nPromises:\n- Promised the investigator a look at the watch's night book once Prout is signed in\.\n\n# Current character roles\n/);
+  assert.doesNotMatch(input, /## Cob \[cob\]|## Moll \[moll\]/, "no notes on the children");
+  assert.doesNotMatch(input, /dead-cart, as the Captain ordered/, "Tull isn't on stage yet");
+  assert.match(coGmInstructions(clerk, view), /what a character remembers \(the notes on the people here, in your input\), wants, has been promised or owes/);
+  assert.doesNotMatch(mouthpieceInput(clerk, view, []).map(m => m.content).join("\n"), /night book/, "the mouthpiece plays the roles, not the notes");
+  assert.doesNotMatch(mouthpieceInstructions(clerk, view), /night book/);
 });
 
 test("the co-GM's tools: a route only as its condition is written, the player's own act for a condition about it; no move for what hasn't happened; the ending the player achieved; an overdue cue brought about; roles as behaviour, moved past what has happened", () => {
