@@ -1,4 +1,4 @@
-// Copied from the prototype's src/game/combat/flavour.ts at bc2ab1f, whole: what a fight looks like in words, in the house style, picked by a hash of the moment. ES2021: listing's .at(-1) is the last index.
+// Copied from the prototype's src/game/combat/flavour.ts at bc2ab1f, whole but for three lines made to fit any hour (M6's first play: the zoo's ring is fought in the afternoon, and its master's surrender said "night business"): what a fight looks like in words, in the house style, picked by a hash of the moment. ES2021: listing's .at(-1) is the last index.
 /**
  * What a fight looks like, in the house style (Pratchett, Monty Python: the world plays it
  * straight, and daft acts send a bill). A line is picked by a hash of the moment, never by the
@@ -43,11 +43,11 @@ const pools: Record<string, string[]> = {
     "'That's the end of the paid bit,' the talking Crake announces. The Crakes lower their cudgels together, nod to the sergeant as if to a colleague, and walk out of {place}, leaving the gentleman to it.",
   ],
   "walkoff:crake-1": ["'We was never here,' the talking Crake tells nobody in particular, 'and we wasn't paid for this bit.' He tucks his cudgel under his arm and walks out, leaving the gentleman to it."],
-  "walkoff:crake-2": ["The silent Crake looks at his employer, lowers his cudgel, and walks out without a word: the most eloquent thing he's done all night."],
+  "walkoff:crake-2": ["The silent Crake looks at his employer, lowers his cudgel, and walks out without a word: the most eloquent thing he's done in years."],
   "walkoff:many": ["The hired hands look at their employer, look at each other, and walk out: nobody pays the second half of a lost fight."],
   "walkoff:any": ["{Who} decides nobody's paying for the rest of this, puts the {weapon} down and walks out."],
   "flee:bruiser": ["{Who} decides {place} isn't paying enough and heads for the door."],
-  "flee:coward": ["The lantern-boy, the only person in {place} with any sense, runs for the door.", "The lantern-boy runs, which is the first sensible thing anyone has done tonight."],
+  "flee:coward": ["The lantern-boy, the only person in {place} with any sense, runs for the door.", "The lantern-boy runs, which is the first sensible thing anyone in here has done."],
   "down:crake-1": ["The talking Crake goes down mid-sentence, which is the first time anyone can remember."],
   "down:crake-2": ["The silent Crake goes down like a sack of the King's grain: heavily, and with a certain irony."],
   "down:sallow": ["Master Sallow folds up neatly, like a letter, and lies on the floor of his own racket."],
@@ -63,7 +63,7 @@ const pools: Record<string, string[]> = {
   "disengage": ["{Who} back{s} off carefully, blade first."],
   "victory": ["And then it's quiet, except for the river and somebody's teeth chattering."],
   "victory:elsewhere": ["And then it's quiet, except for somebody's teeth chattering."],
-  "surrender": ["It's over: {place}'s night business ends with its master's hands in the air."],
+  "surrender": ["It's over: {place}'s business ends with its master's hands in the air."],
   // Nobody in charge: the last of them gave up rather than went down.
   "surrender:yielded": ["It's over: the last of them has their hands up, and {place} goes very quiet.", "It's over: the last of them puts their hands up, slowly, as if the idea had been theirs all along."],
   "defeat": ["The last thing you see is the floor of {place} coming up to meet you, and Master Sallow's very good shoes."],
