@@ -218,10 +218,15 @@ test('a region tied to a scene lays its place on the map, and a thing of the pla
   // Selected, the thing's inspector edits the place: its name and states.
   await page.getByRole('button',{name:'Thing a long mirror'}).click();
   const thing=page.locator('.place-inspector[data-place-part="thing:mirror"]');
-  await thing.getByLabel('Name',{exact:true}).fill('a cheval glass');
+  // Typed a key at a time, each a write of the place's file: they queue, and none is lost.
+  const name=thing.getByLabel('Name',{exact:true});
+  await name.fill('');
+  await name.pressSequentially('a cheval glass');
+  await expect(name).toHaveValue('a cheval glass');
   await expect.poll(async()=>(await saved(page,'places/dressing-room.kmplace')).things.find((t:any)=>t.id==='mirror').name).toBe('a cheval glass');
-  // Undo puts the place back as it was, a step at a time.
+  // Undo puts the place back as it was, a step at a time: the name typed in one go is one step.
   await page.getByRole('button',{name:'Undo map edit'}).click();
+  await expect.poll(async()=>(await saved(page,'places/dressing-room.kmplace')).things.find((t:any)=>t.id==='mirror').name).toBe('a long mirror');
   await page.getByRole('button',{name:'Undo map edit'}).click();
   await expect.poll(()=>savedText(page,'places/dressing-room.kmplace')).toBe(await readFile(new URL('places/dressing-room.kmplace',CAMPAIGN),'utf8'));
   expect((await saved(page,'maps/palace.kmmap')).regions.at(-1).worldOrigin).toEqual({x:5,y:2});

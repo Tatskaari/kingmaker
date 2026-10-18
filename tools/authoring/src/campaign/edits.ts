@@ -71,6 +71,8 @@ export function useEdits<T>({host,initial,shape,serialize,onError}:{host:FileHos
     const live=changes.filter(change=>change.before!==change.after);
     // The first file is written at once (so the editor sees it straight away); the rest follow it.
     const first=live[0]?host.write(live[0].path,live[0].before,live[0].after):Promise.resolve();
+    // Handled here too, so a write that fails before the queue reaches it isn't an unhandled rejection meanwhile.
+    first.catch(()=>{});
     return enqueue(async()=>{
       const done:FileChange[]=[];
       try{
