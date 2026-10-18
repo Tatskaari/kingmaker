@@ -274,7 +274,11 @@ function effectProblems(effect: Effect, keys: Set<string>, cast: Set<string>, fa
     for (const who of [effect.by, effect.to]) if (who !== "$player" && !cast.has(who)) problems.push(`promise names unknown ${who}`);
   } else if (effect.op === "quest") {
     if (!(effect.quest in quests)) problems.push(`quest ${effect.quest} isn't one of campaign.json's quests`);
-  } else if (effect.op !== "flag" && effect.op !== "journal") {
+  } else if (effect.op === "flag") {
+    if (!effect.name?.trim()) problems.push("flag has no name");
+  } else if (effect.op !== "journal") {
+    // A world op acts on something (a create makes something, by its name): without it, it does nothing.
+    if (effect.op === "create" ? !effect.name?.trim() : !effect.what?.trim()) problems.push(effect.op === "create" ? "create doesn't name what it creates" : `${effect.op} doesn't say what it acts on`);
     for (const k of namedKeys(effect)) if (!keys.has(k)) problems.push(`${effect.op} names unknown ${k}`);
   }
   return problems;

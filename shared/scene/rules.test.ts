@@ -68,6 +68,19 @@ test("a scene's file name is its id, and what's unreachable is the node's; what 
   assert.deepEqual(sceneStoryProblems(doc, new Set(scenes.map(s => s.id))).map(p => p.at), [{ kind: "scene", field: "overtaken" }, { kind: "scene", field: "assumes" }]);
 });
 
+test("an effect that would do nothing is a problem: a world op that doesn't say what it acts on (a create, what it creates), a flag without a name", () => {
+  const doc = clerk();
+  const failed = doc.nodes.find(n => n.id === "failed")!.data as { effects: Array<Record<string, unknown>> };
+  failed.effects.push({ op: "give", what: "", to: "$player" }, { op: "create", name: " ", kind: "object" }, { op: "flag", name: "", value: "x" }, { op: "ignite", what: "hoist-rope" });
+  const at = (i: number) => ({ kind: "node", id: "failed", field: `effects.${i}` });
+  const n = failed.effects.length;
+  assert.deepEqual(sceneRuleProblems("hanged-clerk", doc, contextFor(doc)), [
+    { message: "ending failed: give doesn't say what it acts on", at: at(n - 4) },
+    { message: "ending failed: create doesn't name what it creates", at: at(n - 3) },
+    { message: "ending failed: flag has no name", at: at(n - 2) },
+  ]);
+});
+
 test("the carried things another scene brings in count: Prout's page comes into the Rat with the granary's motive", () => {
   const rat = scenes.find(s => s.id === "drowned-rat")!;
   const alone: SceneContext = { ...contextFor(rat), others: [] };
