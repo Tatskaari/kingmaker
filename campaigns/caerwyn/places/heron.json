@@ -44,7 +44,7 @@
         "w": 15,
         "h": 15
       },
-      "description": "A glass-sided box hung over the floor in the north-east corner: a high desk, a lamp, and the true book under Mister Scrope's hand."
+      "description": "A glass-sided box hung over the floor in the north-east corner: a high desk, a lamp, and the green ledger under Mister Scrope's hand."
     },
     {
       "id": "plank-walk",
@@ -416,7 +416,7 @@
     },
     {
       "id": "true-book",
-      "name": "the Heron's true book",
+      "name": "the green ledger",
       "kind": "item",
       "in": "counting-desk",
       "size": "small",
@@ -493,6 +493,33 @@
       ],
       "size": "large",
       "material": "wood"
+    },
+    {
+      "id": "day-book",
+      "name": "the Heron's day book",
+      "kind": "item",
+      "in": "counting-desk",
+      "size": "small",
+      "material": "leather",
+      "description": "The book anyone may see, in Scrope's small careful hand: tonight's lot entered as condemned stock, lawfully sold by the Royal Purveyor's office. It proves nothing but the story it tells."
+    },
+    {
+      "id": "bill-of-lading",
+      "name": "the Patience's bill of lading",
+      "kind": "item",
+      "in": "bargees",
+      "size": "tiny",
+      "material": "paper",
+      "description": "From the Heron to her master: heron sacks of condemned grain, lawfully sold, for Saltmere. It says what the day book says."
+    },
+    {
+      "id": "tally-stick",
+      "name": "Hep's tally stick",
+      "kind": "item",
+      "in": "hep",
+      "size": "tiny",
+      "material": "wood",
+      "description": "In her apron pocket: a notch for every sack she skims a night for the gang's families, in nobody's book but hers."
     }
   ],
   "people": {
@@ -533,7 +560,7 @@
         77,
         22
       ],
-      "note": "at his desk, his left hand on the true book"
+      "note": "at his desk, his left hand on the green ledger"
     },
     "hobb": {
       "in": "floor",

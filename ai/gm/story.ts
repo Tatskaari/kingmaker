@@ -65,7 +65,7 @@ export function storyOf(id: string, installed: Installed, vocabulary: Vocabulary
  */
 function stubOf(e: VocabularyEntry): StoryScene {
   return {
-    id: e.id, title: e.id, summary: "", setting: "", premise: "", hook: e.hook, opening: "", start: "", beats: [],
+    id: e.id, title: e.id, summary: "", setting: "", premise: "", hook: e.hook, opening: "", start: "", beats: [], routes: [],
     cast: e.cast.map(c => ({ ...c, look: "", voice: "", wants: "", knows: [], attitude: "" })),
     exits: e.next.map(next => ({ id: `to-${next}`, kind: "progress", title: next, outcome: "", closing: "", next })),
     ...(e.worldNames ? { world: { name: "", description: "", size: { w: 0, h: 0 }, areas: e.worldNames.map(name => ({ id: name, name, rect: { x: 0, y: 0, w: 0, h: 0 } })), things: [], people: {} } } : {}),

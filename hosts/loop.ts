@@ -1,19 +1,24 @@
 // After the GM loop's src/eval/loop/cli.ts at 5f01806 (origin/claude/gm-loop, draft PR #663): its QA rounds' commands (round, games, brief, start, say, the views, review-pack, review-check, triage, report, archive), on the game; the cases, fixtures and evals (case, fixture, run, run-report, rejudge, sample, import) aren't ported yet. New: stack up, down and status, the dev stack the games are played on.
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync } from "node:fs";
+import { appendFileSync, cpSync, existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { connect } from "../client/net/connection.ts";
 import { ownerAt, ownerFor } from "../client/net/owner.ts";
 import { keepToken, serverFor, sessionAt } from "../client/net/session.ts";
+import { apiKey } from "../ai/llm/openrouter.ts";
 import { keptCalls, readCalls } from "../qa/loop/calls.ts";
 import { callsPath, CAMPAIGNS, recordPath, REPO, reviewPath, roundDir, shortPath, type LoopConfig } from "../qa/loop/paths.ts";
 import { brief, look, say, start, transcript, type PlayDeps, type Played } from "../qa/loop/play.ts";
+import { probeMouthpiece, probeTurn, storyOf, type LoggedCall, type MouthpieceTry, type ProbeTry } from "../qa/loop/probe.ts";
+import { BANDS, type Band } from "../shared/gm/two-part.ts";
 import { readRecord, turnsTaken, type GameRecord } from "../qa/loop/record.ts";
 import { roundReport, type ReportDeps } from "../qa/loop/report.ts";
 import { checkReviewFile, reviewPack } from "../qa/loop/review.ts";
 import { loadRound, newRound, parseArms, parseScenes, personas } from "../qa/loop/round.ts";
 import { campaignAt, endingsOf, playable, sceneOf, type Loaded } from "../qa/loop/scenes.ts";
 import { triageSheet } from "../qa/loop/triage.ts";
+import { effectiveScene } from "../shared/scene/graph.ts";
+import { loadScene } from "../shared/scene/load.ts";
 import { ping, sql } from "./dev/spacetime.ts";
 import { readStackFile } from "./dev/stack-file.ts";
 import { stackDown, stackStatus, stackUp } from "./loop/stack.ts";
@@ -49,6 +54,20 @@ Rounds: blind testers play scenes, blind reviewers judge them, a report shows it
   loop triage <round>                          every finding with its key and turn, to write triage.json from
   loop report <round>                          report/index.html and report/games/*.html
   loop archive <round> [--to dir]              copy the round to KM_LOOP_ARCHIVE (or --to), to outlive this checkout
+  loop probe <round> <game> <turn>[-<turn>] [--tries 3] [--want <node>] [--not <node>] [--log <file>]
+             [--reply | --reply-text <file>] [--drop <route>,…] [--owe <discovery>,…] [--band <band>] [--role <id>]
+                                               the co-GM asked again on a game's turns with this checkout's code and
+                                               scenes, on real models: each try's moves, and how many reached --want
+                                               or kept off --not (reads the round, writes nothing to it); --reply asks
+                                               the turn's reply again first (a check it calls rolled, or set at --band),
+                                               --reply-text puts a reply of your own in its place,
+                                               --drop leaves the round's moves on those routes out of what's rebuilt,
+                                               --owe owes those leads' names in it (a reply asked again is told who says it),
+                                               --role shows the role each try set for that person
+  loop probe <round> <game> <turn>[-<turn>] --mouthpiece [--arm before|after|both] [--tries 3] [--log <file>]
+                                               the mouthpiece asked again: as the round sent it (before), and with this
+                                               checkout's rules and per-turn note parts (after); each try's narration,
+                                               check and outcomes, and whether a closing closed
 
 Rounds go under KM_LOOP_DIR (default runs/loop). Not ported yet: the cases, fixtures and evals.`;
 
@@ -79,6 +98,7 @@ async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<number> {
     case "triage": return shown({ code: 0, text: triageSheet(config, need(pos[0])) });
     case "report": return await report(config, need(pos[0]), deps);
     case "archive": return archive(config, need(pos[0]), flags.to || env.KM_LOOP_ARCHIVE);
+    case "probe": return await probe(config, need(pos[0]), need(pos[1]), need(pos[2]), flags);
     default:
       console.log(USAGE);
       return command && command !== "help" && command !== "--help" ? 1 : 0;
@@ -160,7 +180,7 @@ async function report(config: LoopConfig, name: string, deps: PlayDeps): Promise
     async scene(record, key) {
       const loaded = record?.campaign ? await campaignOfRecord(record, deps) : await deps.campaign(STACK, "caerwyn", "");
       const scene = sceneOf(loaded, key);
-      return { title: typeof scene.title === "string" ? scene.title : key, endings: endingsOf(scene) };
+      return { title: scene.title, endings: endingsOf(scene) };
     },
   };
   const { dir, files, bytes, strays } = await roundReport(config, name, reading);
@@ -225,6 +245,87 @@ function build(): { commit: string; dirty: boolean } {
   } catch {
     return { commit: "unknown", dirty: true };
   }
+}
+
+/**
+ * The co-GM asked again on a game's turns (qa/loop/probe.ts), `--tries` times each, the tries of a
+ * turn side by side: the scene is this checkout's campaign's, the bookkeeping rebuilt from the
+ * round's co-GM moves, and the transcript, roles and prep's head the round's own. Each try's moves
+ * and the nodes they reached; `--want` counts the tries that reached a node, `--not` those that kept
+ * off one; and what it all cost, kept off the stack's ledger. `--reply` asks each try's reply again
+ * first and shows it, `--drop` leaves the round's moves on those routes out of the bookkeeping (the
+ * bad ending a co-GM took the turn before), `--owe` owes those leads' names in it (as if the co-GM
+ * before had been refused them: a reply asked again is told who says the name), `--band` sets how a
+ * check called there comes out, and `--role` shows the role each try set for that person.
+ */
+async function probe(config: LoopConfig, name: string, game: string, turns: string, flags: Flags): Promise<number> {
+  const record = readRecord(recordPath(config, name, game));
+  if (!record?.sceneRow || !record.player) return shown({ code: 1, text: `${game} of ${name} has no scene played` });
+  if ("mouthpiece" in flags) return await probeMouthpieceTurns(config, name, game, record, turns, flags);
+  const scenesDir = join(CAMPAIGNS, record.campaign?.id ?? "caerwyn", "scenes");
+  const scenes = readdirSync(scenesDir).filter(f => f.endsWith(".kmscene")).map(f => effectiveScene(loadScene(readFileSync(join(scenesDir, f), "utf8")), []));
+  const scene = scenes.find(s => s.id === record.scene);
+  if (!scene) return shown({ code: 1, text: `no scene ${record.scene} in ${shortPath(scenesDir)}` });
+  const story = storyOf(record.campaign?.id ?? "caerwyn", scenes);
+  const calls = readFileSync(callsPath(config, name, game), "utf8").split("\n").filter(Boolean).map(line => JSON.parse(line) as LoggedCall);
+  const [from, to = from] = turns.split("-").map(Number) as [number, number?];
+  const tries = Number(flags.tries || 3);
+  let spent = 0;
+  const context = { fetch, apiKey: apiKey(), cost: (line: { costUsd: number }) => { spent += line.costUsd; }, log: (entry: Record<string, unknown>) => { if (flags.log) appendFileSync(resolve(flags.log), `${JSON.stringify({ at: new Date().toISOString(), ...entry })}\n`); } };
+  const tally = { want: 0, not: 0, all: 0 };
+  const list = (flag: string | undefined) => (flag || "").split(",").map(s => s.trim()).filter(Boolean);
+  const how = { reply: "reply" in flags || !!flags["reply-text"], drop: list(flags.drop), owe: list(flags.owe), ...(flags.band ? { band: flags.band as Band } : {}), ...(flags["reply-text"] ? { replyText: readFileSync(resolve(flags["reply-text"]), "utf8") } : {}) };
+  if (how.band && !BANDS.includes(how.band)) return shown({ code: 1, text: `--band takes one of ${BANDS.join(", ")}` });
+  for (let turn = from; turn <= to!; turn++) {
+    const done = await Promise.all(Array.from({ length: tries }, () => probeTurn(scene, calls, record.sceneRow!, turn, { player: record.player!, absent: record.handedOn?.absent ?? [], story }, context, how)));
+    const { rebuilt, logged } = done[0]!;
+    const same = rebuilt.reached.join() === logged.reached.join() && rebuilt.turnsInBeat === logged.turnsInBeat;
+    console.log(`${game} turn ${turn}: rebuilt ${rebuilt.reached.join(", ")} (${rebuilt.turnsInBeat} at the stage)${how.owe.length ? `, the name owed for ${how.owe.join(", ")}` : ""}${how.reply ? `${how.drop.length ? `, without the round's ${how.drop.join(", ")}` : ""}; the reply asked again` : same ? ", as the round had it" : `; the round had ${logged.reached.join(", ")} (${logged.turnsInBeat})`}`);
+    done.forEach((t: ProbeTry, i) => {
+      const wanted = !!flags.want && t.reached.includes(flags.want), avoided = !!flags.not && !t.reached.includes(flags.not);
+      tally.all++; if (wanted) tally.want++; if (avoided) tally.not++;
+      console.log(`  try ${i + 1}: ${t.error ? `failed: ${t.error}` : t.moves.length ? t.moves.map(m => `${m.route}${m.outcome === "none" ? "" : ` (${m.outcome})`}: "${m.why}"`).join("; ") : "no move"}${t.reached.length ? ` -> ${t.reached.join(", ")}` : ""}${t.owed.length ? `; the name owed for ${t.owed.join(", ")}` : ""} [roles: ${t.roles.join(", ") || "none"}; ${(t.ms / 1000).toFixed(1)} s]`);
+      if (t.replied) console.log(`    the reply: ${t.replied.narration}${t.replied.dice ? `\n    [${t.replied.dice}] ${t.replied.outcome}` : ""}`);
+      const role = flags.role ? t.given[flags.role] : undefined;
+      if (flags.role) console.log(`    ${flags.role}'s role: ${role ? role.conversation_role : "(not set)"}`);
+    });
+  }
+  const rate = (n: number) => `${n} of ${tally.all}`;
+  console.log(`${flags.want ? `reached ${flags.want}: ${rate(tally.want)}. ` : ""}${flags.not ? `kept off ${flags.not}: ${rate(tally.not)}. ` : ""}Spent $${spent.toFixed(4)}.`);
+  return 0;
+}
+
+/**
+ * The mouthpiece asked again on a game's turns (qa/loop/probe.ts probeMouthpiece), `--tries` times
+ * for each arm: before (the round's request as sent) and after (this checkout's rules and per-turn
+ * note parts in it), each try's narration as the model wrote it (tags and all), its check with the
+ * five outcomes, and whether a closing closed; with `--log`, each try as a line of JSON.
+ */
+async function probeMouthpieceTurns(config: LoopConfig, name: string, game: string, record: GameRecord, turns: string, flags: Flags): Promise<number> {
+  const loaded = await campaignAt(join(CAMPAIGNS, record.campaign?.id ?? "caerwyn"));
+  // The story's scenes have their places: the world the per-turn note's names and the companion are read from.
+  const story = (id: string) => loaded.campaign.story.scene(id);
+  const scene = story(record.scene);
+  if (!scene) return shown({ code: 1, text: `the campaign has no scene ${record.scene}` });
+  const calls = readFileSync(callsPath(config, name, game), "utf8").split("\n").filter(Boolean).map(line => JSON.parse(line) as LoggedCall);
+  const [from, to = from] = turns.split("-").map(Number) as [number, number?];
+  const tries = Number(flags.tries || 3);
+  const arms = (flags.arm && flags.arm !== "both" ? [flags.arm] : ["before", "after"]) as Array<"before" | "after">;
+  let spent = 0;
+  const context = { fetch, apiKey: apiKey(), cost: (line: { costUsd: number }) => { spent += line.costUsd; } };
+  for (let turn = from; turn <= to!; turn++) {
+    console.log(`\n${game} turn ${turn}: > ${record.turns[String(turn)]?.said ?? "(the opening)"}`);
+    for (const arm of arms) {
+      const done = await Promise.all(Array.from({ length: tries }, () => probeMouthpiece(scene, story, calls, record.sceneRow!, turn, { ...record, player: record.player! }, arm, context)));
+      done.forEach((t: MouthpieceTry, i) => {
+        if (flags.log) appendFileSync(resolve(flags.log), `${JSON.stringify({ at: new Date().toISOString(), round: name, game, turn, try: i + 1, ...t })}\n`);
+        console.log(`\n  ${arm} ${i + 1}: ${t.error ? `failed: ${t.error}` : t.narration}${t.closes !== undefined ? `\n    [closes: ${t.closes}]` : ""}`);
+        if (t.check) console.log(`    [check ${t.check.skill} DC ${t.check.dc}]\n${Object.entries(t.check.outcomes).map(([band, words]) => `    - ${band}: ${words}`).join("\n")}`);
+      });
+    }
+  }
+  console.log(`\nSpent $${spent.toFixed(4)}.`);
+  return 0;
 }
 
 // ---------------------------------------------------------------------------------------------

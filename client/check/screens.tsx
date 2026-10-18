@@ -1,22 +1,21 @@
-// After the prototype's src/app/smoke/screens-check.tsx at 44c6d4a (its scene's checks, :1355-1453; the suggested lines, :606-720; the popover's card, :1359-1460), drawing view models: no game core, no server, no model.
+// After the prototype's src/app/smoke/screens-check.tsx at 44c6d4a (its scene's checks, :1355-1453; the suggested lines, :606-720; its popover's card, :1359-1460, went with the notes in M2), drawing view models: no game core, no server, no model.
 /**
  * The scene screen drawn by the real components, offline, from view models (no server, no model):
- * at 80x24 and up, the last reply's every word drawn whole, each speaker's colour, the marks on
- * their tints, the box's placeholder; then a turn through its phases as the rows would give it (the
- * line said and sent, the GM thinking, the reply growing with its cursor, the note being made, the
- * box open again), a refusal on the status line, a line kept in the box while the GM has the floor,
- * a failed turn's word, the commands over the box and the help, a mark opened by a click and by
- * Tab and Enter. And V0's: the game's number, a turn waiting on the AI service (its note), the
- * reply written again from the start (attempt 2), a mark with no note drawn as plain words, a
+ * at 80x24 and up, the last reply's every word drawn whole, each speaker's colour and nothing
+ * underlined (the notes on marked words went in M2), the box's placeholder; then a turn through its
+ * phases as the rows would give it (the line said and sent, the GM thinking, the reply growing with
+ * its cursor, the world settling, the box open again), a refusal on the status line, a line kept in
+ * the box while the GM has the floor, a failed turn's word, the commands over the box and the help.
+ * And V0's: the game's number, a turn waiting on the AI service (its note), the reply written again
+ * from the start (attempt 2), a markup row from before M2 with notes in it drawn as plain words, a
  * spectator's shut box and their line refused (the refusal giving way when the turn moves on), a
  * scene a reply has closed and its end, a failed turn's box and a line sent to be refused with its
  * /retry, a long paste kept to a turn's 2,000 characters, a game gone from the server, and a session
  * the server turned away. And V5's: the suggested lines, from rows (their rows kept while they come,
  * numbered over the box, a number or a click into the box, typing puts them away, /suggestions off,
- * none for a spectator), each speaker's colour as the draft grows, and the popover's card, dropped
- * first when there's no room. Last, the screen coming up as the rows move on: a change between its
- * first render and its subscription to the model is drawn. Then the full GM's: a considered turn
- * from rows, its status line, its shut box and its dice line before the reply. Then V1's: the
+ * none for a spectator), and each speaker's colour as the draft grows. Last, the screen coming up as the rows move on: a change between its
+ * first render and its subscription to the model is drawn. (The full GM's considered turn went with
+ * considered rolls.) Then V1's: the
  * title, character creation's six screens and the sheet (check/creation.tsx). Then the story's:
  * the way on between scenes, Kell's talk, the card, the notebook, the quests, the fight's card and
  * The End (check/story-screens.tsx). (The prototype's src/app/smoke/screens-check.tsx, for this client.)
@@ -26,11 +25,11 @@
 import { act, useLayoutEffect } from "react";
 import { testRender } from "@opentui/react/test-utils";
 import { ScenePlay } from "../app.tsx";
-import { CONSIDERING, GM_BUSY } from "../busy.ts";
+import { GM_BUSY } from "../busy.ts";
 import { SceneModel, SUGGESTIONS_OFF, SUGGESTIONS_ON, type SceneActions } from "../scene/model.ts";
 import { markupOf, sceneViewOf, type SceneRows } from "../scene/rows.ts";
 import type { SceneView, Suggestion } from "../scene/view.ts";
-import { C, MARK_TINT } from "../theme.ts";
+import { C } from "../theme.ts";
 import { sceneSide } from "../ui/scene.tsx";
 import { checkCreation } from "./creation.tsx";
 import { checkMap } from "./map-screens.tsx";
@@ -93,11 +92,11 @@ for (const [w, h] of SIZES) {
   checks.push([`${size}: the scene's title and the time`, frame.split("\n")[0]!.includes(" The Hanged Clerk · Morning ")]);
   checks.push([`${size}: the side panel names who's there, as the player knows them`, /At the scene/.test(frame) && /Sergeant Agnes Kell/.test(frame) && /the boy in the too/.test(frame)]);
   checks.push([`${size}: the side panel gives the game's number, to watch it by`, /Game 1/.test(frame) && /--join 1 to watch/.test(frame)]);
-  // Colours: a speaker's line in their look's colour, the narration in the GM's, a mark underlined on its kind's tint.
+  // Colours: a speaker's line in their look's colour, the narration in the GM's, nothing underlined (no marks since M2).
   checks.push([`${size}: Kell's line in her colour (${style("“You told the boy")?.fg})`, style("“You told the boy")?.fg === "#6d9eeb"]);
   checks.push([`${size}: the narration in the GM's colour`, style("The boy looks at your hands")?.fg === C.gm]);
-  const you = style("asking");
-  checks.push([`${size}: a "you" mark underlined on its tint, in Kell's colour (${you?.fg} on ${you?.bg})`, !!you && you.underline && you.bg === MARK_TINT.you && you.fg === "#6d9eeb"]);
+  const asking = style("asking");
+  checks.push([`${size}: words the prototype marked drawn plain, in Kell's colour (${asking?.fg}), not underlined`, !!asking && !asking.underline && asking.fg === "#6d9eeb"]);
   checks.push([`${size}: the box is open, with its hint`, /What do you say\?/.test(frame) && /Say it out loud/.test(frame)]);
   checks.push([`${size}: the hints offer a deed V0 can play (the box's whole, the side panel's where there's room), never a spell`, !/Fireball|I cast/.test(frame) && (w < 100 || /\(I check his pockets\)/.test(frame)) && /Say it out loud[^│]*(things|pockets\)) *│/.test(frame)]);
 
@@ -110,11 +109,11 @@ for (const [w, h] of SIZES) {
 
   // The rows come back: the line in its own turn, the GM thinking.
   const turn = view.entries.at(-1)!.turn + 1;
-  set({ entries: [...view.entries, { turn, speaker: "player:1", kind: "player", name: view.player.name, text: "Sergeant, who found him?" }], phase: "deciding", mayType: false });
+  set({ entries: [...view.entries, { turn, speaker: "player:1", kind: "player", name: view.player.name, text: "Sergeant, who found him?" }], phase: "queued", mayType: false });
   frame = await draw();
-  if (show) console.log(`${size}, deciding\n${frame}`);
+  if (show) console.log(`${size}, queued\n${frame}`);
   const thinking = GM_BUSY.find(l => frame.includes(l.slice(0, 20)));
-  checks.push([`${size}: deciding: the line in a turn under the player's name, the spinner's line (${thinking ?? "none"}), the box shut`, /╭─ Pell Marrow/.test(frame) && /Sergeant, who found him\?/.test(frame) && !!thinking && /The GM has the floor/.test(frame)]);
+  checks.push([`${size}: queued: the line in a turn under the player's name, the spinner's line (${thinking ?? "none"}), the box shut`, /╭─ Pell Marrow/.test(frame) && /Sergeant, who found him\?/.test(frame) && !!thinking && /The GM has the floor/.test(frame)]);
 
   // A line typed while the GM has the floor waits in the box.
   await act(async () => { await setup.mockInput.typeText("Who else"); });
@@ -147,7 +146,7 @@ for (const [w, h] of SIZES) {
   if (show) console.log(`${size}, attempt 2\n${frame}`);
   checks.push([`${size}: the reply written again (attempt 2) is drawn at once, the first attempt's words gone`, said(frame).includes("Sergeant Kell looks up.") && !said(frame).includes("First light") && /The GM is speaking…/.test(frame)]);
 
-  // Settling: the reply in the transcript, the draft gone, the box open, the GM making a note.
+  // Settling: the reply in the transcript, the draft gone, the box open, the GM making a note (the world settling behind it).
   const { draft: _gone, ...rest } = view;
   view = rest;
   set({ entries: [...view.entries, { turn, speaker: "gm", kind: "narration", text: "Sergeant Kell glances up at the body, then back to her notebook. “The porters. First light. They came to open the yard, saw him, and ran for the watch.”" }], phase: "settling", mayType: true });
@@ -213,38 +212,18 @@ for (const [w, h] of SIZES) {
   frame = await draw();
   checks.push([`${size}: Esc closes it`, !scene.overlay && !/How to play/.test(frame)]);
 
-  // A mark: Tab picks out the last reply's (here the yard's last mark is two replies up: none in the last), so put the yard back.
-  view = YARD;
+  // A markup row from before M2, with notes on marks in it: its words drawn plain (who says each line kept), and Tab and a click open nothing.
+  const noted = YARD.entries.at(-1)!;
+  const old = markupOf(JSON.stringify({ ...noted.markup, marks: [{ start: noted.text.indexOf("asking"), end: noted.text.indexOf("asking") + 6, kind: "you", note: "You barked at him." }] }));
+  view = { ...YARD, entries: [...YARD.entries.slice(0, -1), { ...noted, ...(old ? { markup: old } : {}) }] };
   set({});
   frame = await draw();
   act(() => setup.mockInput.pressTab());
-  frame = await draw();
-  const bottom = frame.split("\n").filter(r => r.trim()).at(-1)!.trim();
-  checks.push([`${size}: Tab picks out the last reply's mark, and the bottom line says what it is (${bottom.slice(0, 40)})`, scene.markFocus?.mark === 0 && /^You did this: you're asking him for help/.test(bottom)]);
-  act(() => setup.mockInput.pressEnter());
-  frame = await draw();
-  checks.push([`${size}: Enter opens it`, scene.overlay?.kind === "mark" && /You barked at him/.test(frame)]);
-  await esc();
   frame = await draw();
   const p = at(frame, "asking");
   if (p) await act(async () => { await setup.mockMouse.click(p.x, p.y); });
   frame = await draw();
-  checks.push([`${size}: a click on a mark opens it, clear of the words clicked`, scene.overlay?.kind === "mark" && /You did this/.test(frame) && (frame.split("\n")[p?.y ?? 0] ?? "").includes("asking")]);
-  await act(async () => { await setup.mockMouse.click(w - 3, h - 2); });
-  frame = await draw();
-  // (The bottom line still says what Tab picked out, note and all, on a wide screen: the popover's frame is what goes.)
-  checks.push([`${size}: a click outside it closes it`, !scene.overlay && !/╭─ You did this/.test(frame)]);
-
-  // A mark that came with no note: its words drawn plain, and nothing for Tab to pick out.
-  scene.markFocus = undefined;
-  const noted = YARD.entries.at(-1)!;
-  const bare = markupOf(JSON.stringify({ ...noted.markup, marks: noted.markup!.marks.map(m => ({ ...m, note: "" })) }));
-  view = { ...YARD, entries: [...YARD.entries.slice(0, -1), { ...noted, ...(bare ? { markup: bare } : {}) }] };
-  set({});
-  frame = await draw();
-  act(() => setup.mockInput.pressTab());
-  frame = await draw();
-  checks.push([`${size}: a mark with no note is drawn as plain words, with nothing for Tab to pick out`, style("asking")?.underline === false && style("asking")?.fg === "#6d9eeb" && scene.markFocus === undefined]);
+  checks.push([`${size}: a markup row from before M2 with a note in it: its words plain, and Tab and a click on them open nothing`, Object.keys(old ?? {}).join() === "speech" && style("asking")?.underline === false && style("asking")?.fg === "#6d9eeb" && !scene.overlay && !/You barked at him/.test(frame)]);
 
   // A spectator: the same conversation; the box never opens and says who has the lead; a line typed
   // there goes to the simulation, which refuses it in the game's words.
@@ -264,7 +243,7 @@ for (const [w, h] of SIZES) {
   // The lead says a line: the refusal (still on the view, as the connection keeps it until the next
   // move) gives way to the spinner, and then to the turn's note.
   const next = YARD.entries.at(-1)!.turn + 1;
-  set({ entries: [...view.entries, { turn: next, speaker: "player:1", kind: "player", name: "Pell Marrow", text: "Who found him?" }], phase: "deciding", turn: next });
+  set({ entries: [...view.entries, { turn: next, speaker: "player:1", kind: "player", name: "Pell Marrow", text: "Who found him?" }], phase: "queued", turn: next });
   frame = await draw();
   const spinning = GM_BUSY.find(l => frame.includes(l.slice(0, 20)));
   checks.push([`${size}: when the lead's next line comes, the spectator's refusal gives way to the spinner (${spinning ?? "none"})`, !!spinning && !/has the lead here: you're watching\.\)/.test(frame)]);
@@ -377,9 +356,9 @@ const LINES: Suggestion[] = [
   { kind: "leave", text: "(I leave the yard to the pigeons)" },
 ];
 
-/** A turn's rows, as the moves and the GM's jobs leave them: its phase, its notes and its lines' state. */
+/** A turn's rows, as the moves and the GM's jobs leave them: its phase and its lines' state. */
 function turnRow(n: number, phase: string, more: Partial<SceneRows["turns"][number]> = {}): SceneRows["turns"][number] {
-  return { id: BigInt(100 + n), n, phase, note: undefined, error: undefined, notes: "none", suggest: "none", ...more };
+  return { id: BigInt(100 + n), n, phase, note: undefined, error: undefined, suggest: "none", ...more };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -387,7 +366,7 @@ function turnRow(n: number, phase: string, more: Partial<SceneRows["turns"][numb
 // makes of the rows as the moves and the GM's jobs would change them. A line said takes the last
 // set away at once and keeps its rows for the next while it comes, so the conversation doesn't move
 // when it does; they're numbered over the box, a line each that fits (a second line to say gives
-// way on a short screen); a number puts one in the box with the GM still making a note, and the
+// way on a short screen); a number puts one in the box with the GM still making a note (the world settling), and the
 // box's line puts them away; emptied, they're back; a click puts another in; Enter sends it;
 // typing puts them away; /suggestions off says so and keeps no rows for them; on says so; a
 // spectator gets none. "/" lists /suggestions, and the help has their paragraph.
@@ -410,7 +389,7 @@ for (const [w, h] of SIZES) {
   const talkColumns = w - sceneSide(w) - 3;
 
   // Turn 2's lines are in, numbered over the box. A line is said: the move, then its rows (turn 3
-  // deciding; the old set's rows are still in the table, for turn 2).
+  // replying; the old set's rows are still in the table, for turn 2).
   rows.suggestions = linesFor(2);
   changed();
   let frame = await draw();
@@ -422,23 +401,23 @@ for (const [w, h] of SIZES) {
   await draw();
   entry(3, "player:1", "player", "Who else was here?");
   rows.scene = { ...rows.scene, turns: 3, turnId: 103n };
-  turn(turnRow(3, "deciding"));
+  turn(turnRow(3, "replying"));
   changed();
   frame = await draw();
   if (show) console.log(`${size}, lines coming\n${frame}`);
   checks.push([`${size}: lines: a line said, the old lines go at once, and their ${keep} rows are kept blank over the box`, sent.at(-1) === "Who else was here?" && over(frame).length === keep && over(frame).every(r => !r.trim())]);
 
-  // The reply in: the world settling, the notes being written, the lines asked for. Still kept.
+  // The reply in: the world settling, the lines asked for. Still kept.
   const reply = "Kell shrugs. “The porters, at first light. Nobody else, unless you count the pigeons.”";
-  entry(3, "gm", "narration", reply, JSON.stringify({ speech: [{ start: reply.indexOf("“"), end: reply.length, speaker: "kell" }], marks: [] }));
-  turn(turnRow(3, "settling", { notes: "writing", suggest: "coming" }));
+  entry(3, "gm", "narration", reply, JSON.stringify({ speech: [{ start: reply.indexOf("“"), end: reply.length, speaker: "kell" }] }));
+  turn(turnRow(3, "settling", { suggest: "coming" }));
   changed();
   frame = await draw();
   const before = framed(frame, talkColumns);
   checks.push([`${size}: lines: the reply in, its lines on their way: their rows still kept, the GM making a note`, over(frame).length === keep && over(frame).every(r => !r.trim()) && /The GM makes a note…/.test(frame)]);
 
-  // The world settled, the notes still coming (noting); the lines land.
-  turn(turnRow(3, "noting", { notes: "writing", suggest: "landed" }));
+  // The world still settling; the lines land.
+  turn(turnRow(3, "settling", { suggest: "landed" }));
   rows.suggestions = linesFor(3);
   changed();
   frame = await draw();
@@ -486,7 +465,7 @@ for (const [w, h] of SIZES) {
   rows.players = rows.players.map(p => (p.id === rows.me ? { ...p, suggestions: false } : p));
   entry(4, "player:1", "player", "Show me the loft.");
   rows.scene = { ...rows.scene, turns: 4, turnId: 104n };
-  turn(turnRow(3, "done", { notes: "written", suggest: "landed" }));
+  turn(turnRow(3, "done", { suggest: "landed" }));
   turn(turnRow(4, "replying"));
   changed();
   frame = await draw();
@@ -507,12 +486,12 @@ for (const [w, h] of SIZES) {
   act(() => setup.mockInput.pressEnter());
   frame = await draw();
   checks.push([`${size}: lines: the help says how they work`, scene.overlay?.kind === "help" && doubled(frame).includes("After each reply, suggested lines come up over the box (a risky try in yellow): a number or a click puts one in the box to send or change; typing hides them. A talk's are said at once. /suggestions off turns them off.")]);
-  checks.push([`${size}: the help says how the marks work, and nothing of ⓘ lines (V1's)`, doubled(frame).includes("Underlined words are the GM's marks") && doubled(frame).includes("for a note from what you know.") && !/ⓘ/.test(frame)]);
+  checks.push([`${size}: the help says nothing of marks (gone with the notes in M2) nor of ⓘ lines (V1's)`, !doubled(frame).includes("Underlined words") && !doubled(frame).includes("marks") && doubled(frame).includes("the GM calls a check, the dice say how far it made or missed it") && !/ⓘ/.test(frame)]);
   checks.push([`${size}: the help's example of a deed is one to do in the yard, never a spell`, doubled(frame).includes("*looks over my shoulder*, (I check his pockets).") && doubled(frame).includes("(🎲 lines)") && !/Fireball|I cast/.test(doubled(frame))]);
   await esc();
 
   // A spectator: the same rows, the turn's lines in; none for them, and no rows kept.
-  turn(turnRow(4, "done", { notes: "written", suggest: "landed" }));
+  turn(turnRow(4, "done", { suggest: "landed" }));
   rows.scene = { ...rows.scene, turnId: undefined };
   rows.suggestions = linesFor(4);
   rows.me = 2n;
@@ -523,11 +502,9 @@ for (const [w, h] of SIZES) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The GM's markup as the draft grows, and the popover's card (the prototype's :1359-1460): Kell's,
-// Cob's and Moll's lines each in their colour while the reply is still being written (speakers by
-// game key, as the AI service streams them); a mark opened with room has its card under the note
-// (the title bold in the title's colour, its lines dimmed), and without room the card goes first,
-// the note whole.
+// The GM's markup as the draft grows (the prototype's :1359-1460, but its popover's card: the notes
+// went in M2): Kell's, Cob's and Moll's lines each in their colour while the reply is still being
+// written (speakers by game key, as the AI service streams them).
 
 for (const [w, h] of SIZES) {
   const size = `${w}x${h}`;
@@ -546,7 +523,7 @@ for (const [w, h] of SIZES) {
   const growing = (upTo: number, seq: number) => {
     const speakers = ["kell", "cob", "moll"];
     const speech = quotes.filter(q => q.start < upTo).map((q, i) => ({ start: q.start, end: Math.min(q.end, upTo), speaker: speakers[i]! }));
-    set({ phase: "replying", mayType: false, suggestions: [], suggestionsComing: true, draft: { speaker: "gm", kind: "narration", text: reply.slice(0, upTo), markup: { speech, marks: [] }, attempt: 1, seq } });
+    set({ phase: "replying", mayType: false, suggestions: [], suggestionsComing: true, draft: { speaker: "gm", kind: "narration", text: reply.slice(0, upTo), markup: { speech }, attempt: 1, seq } });
   };
   growing(quotes[1]!.start + 4, 1);
   await soon();
@@ -558,60 +535,6 @@ for (const [w, h] of SIZES) {
   await soon();
   frame = await draw();
   checks.push([`${size}: the draft: Moll's line in hers (${colour("“Weren't anyone")}), Cob's whole in his`, colour("“Weren't anyone") === "#e07ab0" && colour("“Weren't me") === "#e8b15a" && colour("“The porters") === "#6d9eeb"]);
-  const { draft: _draft, ...rest } = view;
-  view = { ...rest, phase: "done", mayType: true, suggestions: LINES, suggestionsComing: false };
-  set({});
-
-  // The popover: Tab and Enter open the last reply's mark (a "you", its card what the player did).
-  frame = await draw();
-  act(() => setup.mockInput.pressTab());
-  await draw();
-  act(() => setup.mockInput.pressEnter());
-  frame = await draw();
-  if (show) console.log(`${size}, the card\n${frame}`);
-  const card = YARD.entries.at(-1)!.markup!.marks[0]!.card!;
-  const popover = flat(frame);
-  const note = "You barked at him to stop throwing stones a minute ago.";
-  const whole = (text: string) => popover.includes(text) || frame.split("\n").some(r => r.includes(text));
-  if (h >= 26) {
-    checks.push([`${size}: the popover, with room: the note, then the card's title (bold, in the title's colour) and its lines (dimmed)`, scene.overlay?.kind === "mark" && /You barked at him/.test(frame)
-      && whole(card.title) && card.lines.every(whole) && styleIn(setup, card.title)?.fg === C.title && styleIn(setup, card.title)?.bold === true && styleIn(setup, card.lines[0]!)?.fg === C.dim]);
-  } else {
-    checks.push([`${size}: the popover, without room (the lines over the box): the card goes first, the note whole`, scene.overlay?.kind === "mark" && !whole(card.title) && flat(frame.split("\n").map(r => r.replace(/[│╭╮╰╯─]/g, " ")).join(" ")).includes(note)]);
-  }
-  await act(async () => { setup.mockInput.pressEscape(); await new Promise(r => setTimeout(r, 80)); });
-  await setup.dispose();
-}
-
-// ---------------------------------------------------------------------------------------------
-// A mark's popover by its phrase over a conversation shorter than its frame (the opening alone, as
-// a game starts), at the sizes a tester uses: Tab and Enter open it just below the phrase (or just
-// above), never over it, with its card when there's room. The prototype took the reply to end at
-// the frame's foot, so here it opened rows below the phrase, or over it, and dropped the card.
-
-const OPENING = { ...YARD.entries[0]!, markup: { ...YARD.entries[0]!.markup!, marks: YARD.entries[0]!.markup!.marks.map(m => ({ ...m, card: { title: "The granary yard", lines: ["The yard behind the King's Granary, where the palace's grain comes in by cart and goes up by hoist.", "What anyone in Caerwyn could tell you."] } })) } };
-
-for (const [w, h] of [[100, 30], [120, 36], [120, 40], [160, 50]] as const) {
-  const size = `${w}x${h}`;
-  const { actions } = recorder();
-  const scene = new SceneModel({ ...YARD, entries: [OPENING], turn: 0, suggestions: LINES.slice(0, 4) }, actions);
-  const setup = await testRender(<ScenePlay scene={scene} />, { width: w, height: h });
-  const draw = async () => { await setup.renderOnce(); return setup.captureCharFrame(); };
-  await draw();
-  await draw();
-  act(() => setup.mockInput.pressTab());
-  const phrase = (await draw()).split("\n").findIndex(r => r.includes("behind the King's Granary"));
-  act(() => setup.mockInput.pressEnter());
-  const frame = await draw();
-  if (show) console.log(`${size}, the opening's mark opened\n${frame}`);
-  const rows = frame.split("\n");
-  const top = rows.findIndex(r => r.includes("╭─ You'd know"));
-  const column = top < 0 ? -1 : [...rows[top]!].indexOf("╭");
-  const bottom = rows.findIndex((r, i) => i > top && [...r][column] === "╰");
-  const beside = bottom === phrase - 1 || top === phrase + 1;
-  checks.push([`${size}: the opening alone, a mark opened by Tab and Enter: the popover by its phrase (row ${phrase}; popover rows ${top}-${bottom}), never over it`, phrase > 0 && top > 0 && beside]);
-  if (h >= 36) checks.push([`${size}: the opening alone: with room by its phrase, the card is there`, frame.includes("The granary yard") && frame.includes("What anyone in Caerwyn could tell you.")]);
-  await act(async () => { setup.mockInput.pressEscape(); await new Promise(r => setTimeout(r, 80)); });
   await setup.dispose();
 }
 
@@ -645,56 +568,6 @@ for (const [what, next, shows] of comingUp) {
   const frame = setup.captureCharFrame();
   if (show) console.log(`coming up: ${what}\n${frame}`);
   checks.push([`the screen coming up: ${what}, though it came between the first render and the screen's subscription`, shows(frame)]);
-  await setup.dispose();
-}
-
-// ---------------------------------------------------------------------------------------------
-// A considered turn, from rows (full-gm-design §4.3): the GM rules on a risky act no route covers
-// before the reply. The turn's considering phase puts the prototype's CONSIDERING on the status
-// line, whole, for the whole step; the box is shut, as while deciding, and a line typed waits in
-// it; the suggested lines' rows are kept while they come. Then the ruling's dice line, before the
-// reply as it's written.
-
-for (const [w, h] of [[80, 24], [120, 40]] as const) {
-  const size = `${w}x${h}`;
-  const { sent, actions } = recorder();
-  const rows = yardRows();
-  const scene = new SceneModel(sceneViewOf(rows), actions);
-  const setup = await testRender(<ScenePlay scene={scene} />, { width: w, height: h });
-  const draw = async () => { await setup.renderOnce(); return setup.captureCharFrame(); };
-  const changed = () => act(() => scene.update(sceneViewOf(rows)));
-  const entry = (n: number, speaker: string, kind: string, text: string) => { rows.transcript = [...rows.transcript, { seq: rows.transcript.length + 1, turn: n, speaker, kind, text, markup: undefined }]; };
-  const phase = (n: number, p: string) => { rows.turns = [...rows.turns.filter(t => t.n !== n), turnRow(n, p)]; };
-  await draw();
-
-  // The line said: its turn deciding, then considering.
-  entry(3, "player:1", "player", "(I try to lift the folded paper out of the boy's boot while he watches the sergeant)");
-  rows.scene = { ...rows.scene, turns: 3, turnId: 103n };
-  phase(3, "deciding");
-  changed();
-  await draw();
-  phase(3, "considering");
-  changed();
-  let frame = await draw();
-  if (show) console.log(`${size}, considering\n${frame}`);
-  checks.push([`${size}: considering: the status line says the GM is considering the ramifications, whole`, frame.includes(CONSIDERING) && scene.busy() === CONSIDERING]);
-  checks.push([`${size}: considering: the box is shut, as while deciding, and the lines' rows are kept`, /The GM has the floor/.test(frame) && styleIn(setup, "What do you say?")?.fg === C.border && over(frame).length === (h < 26 ? 4 : 5)]);
-  await act(async () => { await setup.mockInput.typeText("Easy, lad."); });
-  await draw();
-  act(() => setup.mockInput.pressEnter());
-  frame = await draw();
-  checks.push([`${size}: considering: a line typed waits in the box, unsent`, sent.length === 0 && /Easy, lad\./.test(frame)]);
-  for (let i = 0; i < "Easy, lad.".length; i++) act(() => setup.mockInput.pressBackspace());
-
-  // The ruling rolled: its dice line in the transcript, then the reply as it's written.
-  entry(3, "dice", "roll", "Sleight of Hand check to lift it unseen: 14 + 5 = 19 vs DC 12: success");
-  phase(3, "replying");
-  rows.drafts = [{ turnId: 103n, speaker: "gm", text: "Cob doesn't feel a thing.", markup: undefined, attempt: 1, seq: 1 }];
-  changed();
-  frame = await draw();
-  if (show) console.log(`${size}, the ruling's dice line\n${frame}`);
-  const talk = talkIn(frame, w - sceneSide(w));
-  checks.push([`${size}: the ruling's dice line, then the reply as it's written, the GM speaking`, talk.includes("Sleight of Hand check to lift it unseen: 14 + 5 = 19 vs DC 12: success") && talk.indexOf("vs DC 12") < talk.indexOf("Cob doesn't feel a thing.") && /The GM is speaking…/.test(frame) && !frame.includes(CONSIDERING)]);
   await setup.dispose();
 }
 

@@ -250,9 +250,9 @@ export function kellTalk(patch: Partial<SceneView> = {}): SceneView {
   return {
     ...YARD, sceneId: "9", title: "A word with Sergeant Agnes Kell", time: "Morning", hook: "A word with Sergeant Agnes Kell, between one thing and the next.",
     present: [YARD.present[0]!],
-    entries: [{ turn: 0, speaker: "gm", kind: "narration", text: KELL_GREETING, markup: { speech: [{ start: KELL_GREETING.indexOf("“"), end: KELL_GREETING.length, speaker: "kell" }], marks: [] } }],
+    entries: [{ turn: 0, speaker: "gm", kind: "narration", text: KELL_GREETING, markup: { speech: [{ start: KELL_GREETING.indexOf("“"), end: KELL_GREETING.length, speaker: "kell" }] } }],
     phase: "done", turn: 0, mayType: true, over: false,
-    suggestions: KELL_LINES.map(text => ({ kind: "say" as const, text })), suggestionsComing: false, suggestionsOn: true, notesComing: false,
+    suggestions: KELL_LINES.map(text => ({ kind: "say" as const, text })), suggestionsComing: false, suggestionsOn: true,
     onMap: true, talk: true, story: storyOf(ratWaiting()),
     ...patch,
   };

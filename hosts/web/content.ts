@@ -16,7 +16,7 @@ export type { Content };
 
 /** The allowlist, by the repo's folders: what may go into content.json. Nothing hidden does. */
 export const CONTENT = [
-  { dir: "campaigns/caerwyn", include: /\.(md|json)$/, what: "the campaign's Markdown and JSON" },
+  { dir: "campaigns/caerwyn", include: /\.(md|json|kmscene)$/, what: "the campaign's Markdown, JSON and scene files" },
   { dir: "ai/prompts", include: /^(?!README\.md$).*\.md$/, what: "the prompts" },
   { dir: "hosts/dev", include: /^fake\.json$/, what: "the fake model's options" },
 ] as const;

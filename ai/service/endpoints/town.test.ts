@@ -2,19 +2,18 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { memoryLines } from "../../docs/docs.ts";
+import { note, readNotes } from "../../docs/notes.ts";
 import { fakeFetch, type FakeFetch, type FakeOptions, type Request } from "../../llm/fake-openrouter.ts";
 import { LOOK_MODEL } from "../../look/invent.ts";
 import { initialGm, type GmState, type TalkRecord } from "../../../shared/gm/state.ts";
-import type { DecideRequest, Entry, LooksRequest, OpenRequest, SettleRequest, SheetRow, Story, TalkPrep } from "../../../shared/protocol/ai.ts";
-import type { Mechanic } from "../../../shared/rules/types.ts";
-import type { PlaceFile } from "../../../shared/scene/files.ts";
+import { openingRoles, rolesNote } from "../../../shared/gm/two-part.ts";
+import type { Entry, LooksRequest, OpenRequest, SettleRequest, SheetRow, Story, TalkPrep } from "../../../shared/protocol/ai.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
-import { talkSceneId } from "../../../shared/scene/talk.ts";
-import { keysFor, worldToRows, type PlaceRows } from "../../../shared/world/rows.ts";
-import { buildWorld, joinWorld } from "../../../shared/world/scene-world.ts";
+import { CONFIDED, GOODBYE, talkSceneId, TOLD } from "../../../shared/scene/talk.ts";
+import type { PlaceRows } from "../../../shared/world/rows.ts";
 import { callContext } from "../calls.ts";
 import { campaigns } from "../campaigns.ts";
+import { withTestClerk } from "../../gm/fixtures.ts";
 import type { AiContext } from "../context.ts";
 import { memoryStores } from "../memory-stores.ts";
 import { aiService } from "../server.ts";
@@ -24,13 +23,14 @@ import { pipeline } from "./pipeline.ts";
 
 /**
  * The town's thinks (docs/town-design.md §3.4-3.8, package A's done-when), on the stand-in for
- * OpenRouter: a talk with Kell opening (her greeting streamed beside the prep: the facts, the one
- * thing she might tell on her card with its route out and how near the surface it is, two to four
- * lines, the deepest of her story withheld before the third talk), a talk's settle (the guard
- * questions, her stage and the next lines, and once it's told, out is out and her memory of telling
- * it, written once), decide with the map's menu's act already chosen (forced: no mechanic question,
- * the act is the decision's), and the looks of what the story made (an Invention per key; the canned
- * GM's none).
+ * OpenRouter: a talk with Kell opening on the two-part GM (her greeting, the mouthpiece's, streamed
+ * beside the prep: the facts, the one thing she might tell on her card and filling the talk's
+ * discovery with the ways it can come out, two to four lines, the deepest of her story withheld
+ * before the third talk), a talk's settle (the co-GM, her role and the discovery its target, and the
+ * next lines; once the co-GM has it out, a line of the GM's notes on her that she told it, written
+ * once), and the looks of what the story made (an Invention per key; the canned GM's none). (Decide
+ * with the map's menu's act already chosen went with the old pipeline's decide: the two-part GM's turn
+ * resolves the act in the simulation, simulation/src/map/acts.test.ts.)
  */
 
 const CAERWYN = join(import.meta.dirname, "..", "..", "..", "campaigns", "caerwyn");
@@ -46,7 +46,7 @@ function filesOf(dir: string): Record<string, string> {
   return files;
 }
 
-const FILES = filesOf(CAERWYN);
+const FILES = withTestClerk(filesOf(CAERWYN));
 const stores = memoryStores();
 const installed = campaigns(stores.campaigns, stores.docs);
 await installed.put("caerwyn", "0.1.0", FILES);
@@ -72,15 +72,6 @@ const WIZARD: SheetRow = {
   weapons: [{ id: "quarterstaff", name: "Quarterstaff" }], features: [],
 };
 
-/** The yard as the hanged clerk opens it, by the game's keys. */
-function yardRows(gm: GmState): PlaceRows {
-  const place = JSON.parse(FILES["places/granary-yard.json"]!) as PlaceFile;
-  const people = presentCast(campaign.scene("hanged-clerk"), gm).map(c => ({ id: c.id, name: c.name }));
-  const world = buildWorld("hanged-clerk", place, people, { name: "Wren Ashdown" });
-  joinWorld(world, people, 0);
-  return worldToRows(world, keysFor("granary-yard", "hanged-clerk", "pc:1"));
-}
-
 /** The town's own place, as a talk's requests carry it (a talk has no world of its own: the AI service reads none of it). */
 const TOWN: PlaceRows = {
   place: { id: "9", key: "map:caerwyn", name: "Caerwyn", rootId: "10", sizeW: 80, sizeH: 40, round: 0, rev: 1 },
@@ -101,15 +92,23 @@ const STORY: Story = {
 const PLAN = {
   told: [], standing: "Warming, a little.", willing: "yes", note: `${KELL}/knowledge/Nan Quill.md`, topic: "the door at the Drowned Rat",
   what: "Twenty years ago Nan Quill put her out through the Drowned Rat's door, and she has never been back.", shows: "a pause at the Rat's name", opens: "asking what she has against the Rat",
-  ready: "when_asked", memory: "I told the investigator about Nan Quill's door. They didn't laugh.",
+  first: "I know the Rat's door. From the wrong side.", ready: "when_asked",
   suggestions: ["How long have you been with the watch, Sergeant?", "What did you make of the yard this morning?", "Do you know the Drowned Rat at all?"],
 };
 const GREETING = "Kell is writing in her notebook by the granary lane. She looks up. “Investigator.”";
 
+/** A talk's bookkeeping as it opens (simulation/src/map/talk.ts openTalk): her opening role, the template's start's, as the co-GM's note -1. */
+function talkGm(n = 1): GmState {
+  const gm = initialGm({ start: "talk" });
+  const scene = campaign.scene(talkSceneId("kell", n));
+  const roles = openingRoles(scene, gm, presentCast(scene, gm));
+  return { ...gm, twoPart: { roles, notes: [{ turn: -1, text: rolesNote(scene, roles, -1) }] }, talk: { with: "kell", where: "Granary Street in Caerwyn, evening" } };
+}
+
 function talkOpen(n: number, record: TalkRecord, suggest = true): OpenRequest {
   return {
     key: `${GAME}:s${10 + n}:t0:open`, game, player, scene: { id: String(10 + n), key: talkSceneId("kell", n), kind: "talk" }, pc: "pc:1",
-    gm: initialGm({ start: "talk" }), world: TOWN, party: [WIZARD], story: STORY, stream: { turn: "50" },
+    gm: talkGm(n), world: TOWN, party: [WIZARD], story: STORY, stream: { turn: "50" },
     talk: { with: "kell", where: "Granary Street in Caerwyn, evening", record, lead: "Kell is going down the river stairs to the Drowned Rat.", earlier: [], suggest },
   };
 }
@@ -119,19 +118,28 @@ const asking = (fake: FakeFetch, question: string) => fake.sent.filter(b => b.qu
 const formatted = (fake: FakeFetch, name: string) => fake.sent.filter(b => b.text?.format?.name === name);
 const inputOf = (body: Request) => (body.input ?? []).map(m => m.content).join("\n\n");
 
-test("a talk's open streams Kell's greeting and answers its prep: the facts, a confide patch and stage, two to four lines, the deepest withheld before the third talk", async () => {
+test("a talk's open on the two-part GM: the mouthpiece streams Kell's greeting (her opening role, the talk's opening, the facts, her lore and the GM's notes on her, no dice) beside its prep: the facts, her card's secret and the talk's discovery filled with the ways it can come out, two to four lines, the deepest withheld before the third talk", async () => {
   const { fake, shown, contextFor } = setUp({ replies: [GREETING], byName: { talk: PLAN } });
   const req = talkOpen(1, { count: 1, told: [] });
+  note(GAME, { id: "kell", name: "Sergeant Agnes Kell" }, "seen", "Saw the investigator look at the body before they looked at her.", { origin: { scene: "hanged-clerk", turn: 3 } });
   const answer = await pipeline.open(req, contextFor(req.key));
 
   assert.equal(answer.entries[0]!.text, GREETING);
   assert.equal(shown.at(-1), GREETING, "streamed to the opening's draft");
   assert.deepEqual(answer.present, ["kell"]);
-  // The greeting: the talk's own opening, on the facts the talk opens on.
-  const greeting = fake.sent.find(b => inputOf(b).includes("Open the talk."))!;
-  assert.match(inputOf(greeting), /Open the talk\. The player has come over for a word with Sergeant Agnes Kell/);
-  assert.match(inputOf(greeting), /Where and when: Granary Street in Caerwyn, evening\./);
-  assert.match(inputOf(greeting), /What Sergeant Agnes Kell knew in The Hanged Clerk/);
+  // The greeting: the mouthpiece's, on the talk's own opening, her role and the facts the talk opens on.
+  const greeting = formatted(fake, "reply")[0]!;
+  const said = inputOf(greeting);
+  assert.match(said, /Character role for Sergeant Agnes Kell:\nConversation role: Characterise: at their own business in their own manner, a word of greeting/);
+  assert.match(said, /## For this reply\nOpen the talk, as "Where it starts" has it \(as the talk opens\): in a sentence or two, what Sergeant Agnes Kell is doing/);
+  assert.match(said, /Where and when: Granary Street in Caerwyn, evening\./);
+  assert.match(said, /What Sergeant Agnes Kell knew in The Hanged Clerk/);
+  assert.match(said, /## The GM's notes on Sergeant Agnes Kell from play \(what's happened with them\)\n[^#]*Seen the player do:\n- Saw the investigator look at the body before they looked at her\./);
+  assert.match(greeting.instructions!, /## Where it starts: A word between scenes \[talk\]\nThe player has stopped for a word with Sergeant Agnes Kell[^]*As the talk opens: the player has come over for a word with Sergeant Agnes Kell/);
+  assert.match(greeting.instructions!, /### Sergeant Agnes Kell: who they are, in their own lore\n[^]*#### Voice\n- Dry, calm, precise and sparing/, "her lore entry, theirs");
+  assert.doesNotMatch(greeting.instructions!, /Read when relevant/, "no links for disclosure to open");
+  assert.match(greeting.instructions!, /`check`: always null\. Nothing in a talk is decided by dice/);
+  assert.deepEqual(greeting.text?.format?.schema.properties?.check, { type: "null" }, "a talk's reply has no check");
   // Beside it, the sift (a question a note, and which is the deepest), then the plan.
   const sift = asking(fake, "deepest")[0]!;
   assert.ok(Object.keys(sift.questions!).includes("told_1"));
@@ -139,22 +147,29 @@ test("a talk's open streams Kell's greeting and answers its prep: the facts, a c
   assert.doesNotMatch(inputOf(formatted(fake, "talk")[0]!), /The truth about them \(the GM's notes\)/, "the GM's truth only from the third talk");
 
   const prep = answer.talk as TalkPrep;
-  assert.deepEqual(prep.confide, { note: `${KELL}/knowledge/Nan Quill.md`, topic: "the door at the Drowned Rat", what: PLAN.what, memory: PLAN.memory });
-  assert.deepEqual(prep.patches.map(p => (p.cast ? "card" : p.transition ? `${p.transition.beat}:${p.transition.transition.id}->${p.transition.transition.to}` : "?")), ["card", "talk:confided->told"]);
-  assert.match(prep.patches[0]!.cast!.secrets[0]!, /^Twenty years ago Nan Quill put her out .* It shows first as: a pause at the Rat's name\. What would bring it out: asking what she has against the Rat\.$/);
-  assert.deepEqual(prep.guard, { stage: "torn", turn: 0 }, "told when asked: torn, a step from out");
+  assert.deepEqual(prep.confide, { note: `${KELL}/knowledge/Nan Quill.md`, topic: "the door at the Drowned Rat", what: PLAN.what });
+  assert.deepEqual(prep.patches.map(p => (p.cast ? "card" : p.fill ? `fill ${p.fill.id}` : "?")), ["card", `fill ${TOLD}`]);
+  assert.deepEqual(prep.patches[0]!.cast!.secrets, [
+    "Shows: a pause at the Rat's name. Opens: asking what she has against the Rat. First: 'I know the Rat's door. From the wrong side.'",
+    `${PLAN.what} They tell it once, in their own words; told is told.`,
+  ], "as the scenes' cards keep a secret: the tell, then the thing itself");
+  assert.deepEqual(prep.patches[1]!.fill, {
+    id: TOLD, revelation: PLAN.what, paths: [
+      { via: "kell", clue: "It shows before it comes out: a pause at the Rat's name.", earn: "Free, when the talk comes near it: a tell, never what it's about.", strength: "hook" },
+      { via: "kell", clue: `${PLAN.what} The first of it: 'I know the Rat's door. From the wrong side.'`, earn: "Asked about it, they tell it. What brings it out: asking what she has against the Rat.", strength: "strong" },
+    ],
+  });
   assert.deepEqual(prep.suggestions, PLAN.suggestions);
   assert.ok(prep.suggestions.length >= 2 && prep.suggestions.length <= 4);
   // The deepest of her story (the stand-in's sift picks the first note: Cob) waits for a later talk.
-  assert.deepEqual(prep.withheld, [`${KELL}/knowledge/Cob.md`]);
   const facts = prep.established.join("\n");
   assert.match(facts, /This is the first time Wren Ashdown has stopped for a word with Sergeant Agnes Kell between scenes\./);
-  assert.match(facts, /may open up about is the door at the Drowned Rat/);
+  assert.match(facts, /may open up about is the door at the Drowned Rat \(what they're keeping back: on their card, and the talk's discovery\), a piece at a time as the player earns it/);
   assert.match(facts, /Not in this talk, however it comes up: the deepest of Sergeant Agnes Kell's own story \(their note "Cob"/);
   assert.match(facts, /Where the story goes next, and how the time since passed, as Wren Ashdown knows it: Kell is going down the river stairs to the Drowned Rat\./);
 });
 
-test("the third talk: the deepest may come out (nothing withheld) and the plan reads the GM's truth; lines only when the controller has them suggested; a prep that fails keeps the facts the talk opened on", async () => {
+test("the third talk: the deepest may come out (nothing held back) and the plan reads the GM's truth; lines only when the controller has them suggested; a prep that fails keeps the facts the talk opened on, with nothing to confide", async () => {
   const third = setUp({ replies: [GREETING], byName: { talk: PLAN } });
   const opened = talkOpen(3, { count: 3, told: [{ note: `${KELL}/knowledge/Wendell Prout.md`, topic: "why Prout's case matters to her", turn: 9 }] }, false);
   const earlier: Entry[] = [
@@ -163,7 +178,7 @@ test("the third talk: the deepest may come out (nothing withheld) and the plan r
   ];
   const req = { ...opened, talk: { ...opened.talk!, earlier } };
   const prep = (await pipeline.open(req, third.contextFor(req.key))).talk!;
-  assert.deepEqual(prep.withheld, []);
+  assert.doesNotMatch(prep.established.join("\n"), /Not in this talk, however it comes up/);
   const planned = inputOf(formatted(third.fake, "talk")[0]!);
   assert.match(planned, /## The truth about them \(the GM's notes\)/);
   assert.match(planned, /## What they've already told the player of their own story\n- why Prout's case matters to her/);
@@ -173,15 +188,15 @@ test("the third talk: the deepest may come out (nothing withheld) and the plan r
 
   const failing = setUp({ replies: [GREETING], capped: { talk: 0.001 } });
   const failed = (await pipeline.open(talkOpen(2, { count: 2, told: [] }), failing.contextFor(`${GAME}:s12:t0:open`))).talk!;
-  assert.deepEqual([failed.patches, failed.guard, failed.confide, failed.withheld, failed.suggestions], [[], undefined, undefined, [], []]);
+  assert.deepEqual([failed.patches.map(p => p.drop), failed.confide, failed.suggestions], [[TOLD], undefined, []], "the talk's discovery isn't this talk's");
   assert.match(failed.established.join("\n"), /keeps their own story to themselves/);
 });
 
 /** The talk's bookkeeping after its open, as the open's commit keeps it. */
 function afterOpen(prep: TalkPrep): GmState {
+  const gm = talkGm();
   return {
-    ...initialGm({ start: "talk" }), established: prep.established, patches: prep.patches, withheld: prep.withheld,
-    ...(prep.guard ? { guard: { kell: prep.guard } } : {}),
+    ...gm, established: prep.established, patches: prep.patches,
     talk: { with: "kell", where: "Granary Street in Caerwyn, evening", ...(prep.confide ? { confide: prep.confide } : {}) },
   };
 }
@@ -207,75 +222,56 @@ function talkSettle(n: number, gm: GmState, line: string, reply: string, suggest
 
 const LINES = "Why do you write everything down?\n- What do you make of the King?\n“Have you always been with the watch?”\nWho taught you to read hands?\nOne line too many";
 
-test("a talk's settle asks the guard questions beside the next lines, and answers her stage and the lines; no world to keep in step", async () => {
+const ROLE = { status: "Walking beside the investigator, notebook away.", mental_state: "At ease, a little wary of the Rat's name.", conversation_role: "Could let slip she knows the Rat's door; holds back how." };
+
+test("a talk's settle on the two-part GM: the co-GM, her role (the talk's discovery its target, its paths her clues, the GM's notes on her), beside the next lines; no world to keep in step, and nothing in her notes of telling it until it's told", async () => {
   const gm = afterOpen(await openedPrep());
-  const { fake, contextFor } = setUp({ talkSuggestions: LINES, choices: { guard_kell: "stirred" } });
+  note(GAME, { id: "kell", name: "Sergeant Agnes Kell" }, "standing", "Warming to the investigator, a little.");
+  const { fake, contextFor } = setUp({ talkSuggestions: LINES, coGm: { roles: { kell: ROLE } } });
   const req = talkSettle(1, gm, "What have you got against the Drowned Rat?", "Kell's pencil stops. “Nothing it would understand.”");
   const answer = await pipeline.settle(req, contextFor(req.key));
 
-  const after = asking(fake, "guard_kell")[0]!;
-  assert.deepEqual(Object.keys(after.questions!.guard_kell!.criteria), ["surface", "tell", "stirred", "torn", "settled"]);
-  assert.ok(after.questions!.outcome!.criteria.confided, "the route by which it comes out is judged after the reply");
-  assert.deepEqual(answer.after?.guard, { kell: "stirred" });
+  assert.deepEqual(answer.coGm?.roles, { kell: ROLE });
+  assert.deepEqual(answer.coGm?.moves, [], "the stand-in walks a talk only where a recipe says: its ending is the player's, and what she tells hers");
+  const co = fake.sent.find(b => b.tools?.some(t => t.name === "move_scene"))!;
+  assert.match(inputOf(co), /# The targets\nThe discoveries not reached yet, each with its paths \(your prep has each path's clue and what earns it\):\n- Told \[told\]: Twenty years ago Nan Quill put her out[^\n]* Its paths: Sergeant Agnes Kell \[kell\] \(hook\) and Sergeant Agnes Kell \[kell\] \(strong\)\.\n/);
+  assert.match(inputOf(co), new RegExp(`# Open routes\\n- \\[${GOODBYE}\\] from A word between scenes \\[talk\\] to Goodbye for now \\[${GOODBYE}\\]\\. When: The player says goodbye or ends the talk[^\\n]*\\n- \\[${CONFIDED}\\] from A word between scenes \\[talk\\] to Told \\[told\\]\\. When: the player has its heart, by one of its paths \\(Twenty years ago`));
+  assert.doesNotMatch(inputOf(co), /Nobody has said/, "a talk's discovery is the companion's own past, not a lead: nobody's name is held back from it");
+  assert.match(inputOf(co), /# Notes on the people here \(what's happened with them in play\)\n[\s\S]*## Sergeant Agnes Kell \[kell\]\nStanding with the player: Warming to the investigator, a little\./);
+  assert.match(co.instructions!, /- The clues that are theirs to give:\n  - Towards Told \[told\]: It shows before it comes out: a pause at the Rat's name\./);
+  assert.match(co.instructions!, /Suggested roles while the scene is here:\n- Sergeant Agnes Kell \[kell\]: Characterise: at their own business/);
   assert.deepEqual(answer.talk, { suggestions: ["Why do you write everything down?", "What do you make of the King?", "Have you always been with the watch?", "Who taught you to read hands?"] });
   const lines = fake.sent.find(b => b.instructions?.startsWith("You suggest what the player might say next in a conversation with Sergeant Agnes Kell"))!;
   assert.match(inputOf(lines), /## What Sergeant Agnes Kell might open up about in this talk \(one line may lead towards it without naming it\)\nthe door at the Drowned Rat/);
   assert.match(inputOf(lines), /Wren Ashdown \(player\): What have you got against the Drowned Rat\?\n\nGM: Kell's pencil stops/, "the talk so far, the reply included");
   assert.deepEqual(answer.ops, []);
   assert.equal(formatted(fake, "world_ops").length, 0, "no stage manager: a talk has no world");
-  assert.equal(memoryLines(GAME, "kell").length, 0, "nothing told, nothing remembered");
+  assert.equal(asking(fake, "guard_kell").length, 0, "nothing asks how far she's opened up: her role stages it");
+  assert.equal(readNotes(GAME, "kell").did.length, 0, "nothing told, nothing in her notes");
 
-  // Not asked for (the controller's setting), or the reply closed the talk: no lines, and no call for them.
+  // Not asked for (the controller's setting): no lines, and no call for them.
   const quiet = setUp({ talkSuggestions: LINES });
   const off = await pipeline.settle(talkSettle(2, gm, "Fair enough.", "Kell nods.", false), quiet.contextFor(`${GAME}:s11:t2:settle`));
   assert.deepEqual(off.talk, { suggestions: [] });
-  const closed = await pipeline.settle(talkSettle(3, { ...gm, ended: { exitId: "goodbye", turn: 3 } }, "I'll leave you to it.", "Kell touches her notebook to her brow."), quiet.contextFor(`${GAME}:s11:t3:settle`));
-  assert.deepEqual([closed.after, closed.talk], [undefined, { suggestions: [] }]);
   assert.equal(quiet.fake.sent.filter(b => b.instructions?.startsWith("You suggest what the player might")).length, 0);
 });
 
-test("once the settle finds it told, out is out: her guard settled, and her memory of telling it written once", async () => {
+test("once the co-GM takes the way into told, a line of the GM's notes on her that she told it is written, once however often it's found told", async () => {
   const gm = afterOpen(await openedPrep());
-  const told = setUp({ talkSuggestions: LINES, choices: { outcome: "confided" } });
+  const told = setUp({ talkSuggestions: LINES, coGm: { endings: [TOLD] } });
   const req = talkSettle(4, gm, "What happened at the Rat?", "“She put me out through the door. Through it.” Kell says it flatly, and writes nothing down.");
   const answer = await pipeline.settle(req, told.contextFor(req.key));
 
-  assert.equal(answer.after?.outcome?.route, "confided");
-  assert.equal(answer.after?.guard?.kell, "settled");
-  const remembered = memoryLines(GAME, "kell");
-  assert.equal(remembered.length, 1);
-  assert.match(remembered[0]!, /Told Wren about the door at the Drowned Rat/);
+  assert.deepEqual(answer.coGm?.moves.map(m => m.route), [CONFIDED]);
+  const remembered = () => readNotes(GAME, "kell").did.filter(l => l.startsWith("Told Wren"));
+  assert.equal(remembered().length, 1);
+  assert.match(remembered()[0]!, /^Told Wren about the door at the Drowned Rat, in a word between scenes/);
 
-  // The next turn finds it told already (the route on the path): nothing written twice.
-  const later = { ...gm, beat: "told", path: [{ turn: 4, from: "talk", to: "told", via: "confided", source: "post" as const }], guard: { kell: { stage: "settled" as const, turn: 4 } } };
-  const again = await pipeline.settle(talkSettle(5, later, "And you never went back?", "“Never.”"), setUp({ talkSuggestions: LINES }).contextFor(`${GAME}:s11:t5:settle`));
-  assert.equal(again.after?.guard, undefined, "settled already: not asked again");
-  assert.equal(memoryLines(GAME, "kell").length, 1);
-});
-
-const RAY: Mechanic = { kind: "cast", spell: "ray-of-frost", targets: ["kell"], from: { backOff: 30 } };
-
-test("decide with the menu's act chosen already (forced): no mechanic question, no details call, the act is the decision's, and no ruling over it", async () => {
-  const { fake, contextFor } = setUp({ choices: { roll_call: "new", mechanic: "attack" } });
-  const gm = initialGm({ start: "yard" });
-  const line = "(I cast Ray of Frost at Sergeant Agnes Kell)";
-  const req: DecideRequest = {
-    key: `${GAME}:s1:t1:decide`, game, player,
-    turn: { scene: { id: "1", key: "hanged-clerk", kind: "scene", turn: 1 }, pc: "pc:1", gm, transcript: [{ turn: 0, speaker: "gm", kind: "narration", text: "Rain on the cobbles." }, { turn: 1, speaker: "player:1", kind: "player", text: line }], line: { speaker: "player:1", text: line }, world: yardRows(gm), party: [WIZARD], present: [], story: { time: "morning", day: 1, flags: {} } },
-    landed: [], forced: RAY,
-  };
-  const { decision } = await pipeline.decide(req, contextFor(req.key));
-
-  assert.deepEqual(decision.mechanic, RAY);
-  assert.equal(decision.considered, undefined, "the act settles it: no ruling, whatever the roll call says");
-  const before = asking(fake, "earned")[0]!;
-  assert.equal(before.questions!.mechanic, undefined, "not asked: it's chosen");
-  assert.equal(fake.sent.filter(b => b.questions?.spell || b.questions?.target || b.questions?.weapon).length, 0, "no details call");
-
-  // Without it, the same line is asked as ever.
-  const asked = setUp();
-  await pipeline.decide({ ...req, key: `${GAME}:s1:t2:decide`, forced: undefined }, asked.contextFor(`${GAME}:s1:t2:decide`));
-  assert.ok(asking(asked.fake, "earned")[0]!.questions!.mechanic);
+  // The next turn finds it told already (the discovery reached): nothing written twice, nothing moved.
+  const later = { ...gm, reached: ["talk", TOLD], path: [{ turn: 4, from: "talk", to: TOLD, via: CONFIDED, source: "post" as const }] };
+  const again = await pipeline.settle(talkSettle(5, later, "And you never went back?", "“Never.”"), setUp({ talkSuggestions: LINES, coGm: { endings: [TOLD] } }).contextFor(`${GAME}:s11:t5:settle`));
+  assert.deepEqual(again.coGm?.moves, []);
+  assert.equal(remembered().length, 1);
 });
 
 test("POST /v1/looks: an Invention per key it answers (the model's words made safe), a key it left out none, one call a batch of twenty; the canned GM's none", async () => {
@@ -330,5 +326,5 @@ test("the service: a looks request with no things, or a talk with someone who ha
 
   const opened = await post("/v1/scenes/open", { ...talkOpen(1, { count: 1, told: [] }), key: `${GAME}:s22:t0:open` });
   assert.equal(opened.status, 200);
-  assert.deepEqual(opened.body.talk, { established: [], patches: [], withheld: [], suggestions: ["How are you keeping?", "What do you make of it all?"] });
+  assert.deepEqual(opened.body.talk, { established: [], patches: [{ turn: 0, why: "Canned: nothing to confide.", drop: TOLD }], suggestions: ["How are you keeping?", "What do you make of it all?"] });
 });

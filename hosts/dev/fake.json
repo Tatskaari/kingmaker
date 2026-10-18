@@ -1,111 +1,22 @@
 {
-  "about": "What npm run dev -- --fake plays (v5-design §3.10): the fake model’s options (ai/llm/fake-openrouter.ts), this field aside, with KM_AI_FAKE’s on top (hosts/dev/fake.ts). The replies are the GM’s four golden ones (the prototype’s tools/v2/golden-replies.json, in git history at bc2ab1f), one a turn from the opening and round again after the fourth. The notes are the writer’s answer at every call, each on words only one reply has: a know and a why on the opening, two whys on the first reply, a you (when one of the player’s lines shares its words) and a why on the second, a know on the third. Twelve suggested lines (seven to say, two deeds, two risky tries, a way out), so that four are left after every reply once those offered last time and the last three said are screened out, and a way out joins them after four lines. Every model call streams over 2 s (the reply, the stage manager, the notes, the lines); the notes wait 1.5 s more and the lines 0.8 s, so the lines come 2.8 s after the reply, as the prototype’s did live, and the notes 3.5 s after it, once the world has settled: “The GM makes a note…” shows for a moment, and a line can be typed through it. The full GM’s calls (full-gm-design §4.4) answer quietly, so a scene of many lines plays as it does on real models: the memory review’s attention filter flags only what someone witnessed (every other category not flagged), and its memories agent saves one memory for Kell, “What the investigator did” (toolCalls.save_memory); the co-GM finds the scene on track, with a short note and no move of the tracker (the fake’s least JSON would move it back to the first beat); and a considered act (none, unless KM_AI_FAKE’s choices make roll_call new) is ruled a contest with Cob: lifting the folded paper from his boot, Sleight of Hand, guarded, plausible cover, wary: DC 12. The reactions to the player’s violence (world-bridge-design §1.4) are quiet too: in the granary yard Kell intervenes, Cob flees, Moll cowers and Tull is unmoved, so nobody fights (the fake’s default is a reaction’s first option, fight). Between scenes (story-design §4.4) the hand-off is a plain one that fits any boundary (the golden replies are the yard’s, with their markup), so the notebook’s “how things stood” reads as it would; the verdict is the least JSON (the first scene on, nothing rewritten, no lead), and presence the quiet “here”. KM_AI_FAKE’s choices, byName and toolCalls go beside these, name by name. The town (town-design §3.6-3.7): a talk with Kell opens on a prep that keeps the deepest of her story (the sift’s first note, Cob) back for a later talk and has her ready to tell the door at the Drowned Rat when she’s asked (talk.plan, under `talk`), with three lines to open on, and each reply in it brings four plain lines of its own (`talkSuggestions`: talk.suggest, apart from a scene’s); her guard stays where it starts unless KM_AI_FAKE’s choices move it (`guard_kell`), and nothing is told unless they take the route (`outcome`: `confided`). A swan the story makes up (the stage manager’s answer under `world_ops`, which KM_AI_FAKE gives: none by default) gets a look of its own (look.invent, under `looks`: a white S that bobs).",
+  "about": "What npm run dev -- --fake plays (v5-design §3.10): the fake model’s options (ai/llm/fake-openrouter.ts), this field aside, with KM_AI_FAKE’s on top (hosts/dev/fake.ts). The replies are the GM’s four golden ones (the prototype’s tools/v2/golden-replies.json, in git history at bc2ab1f, their notes on marked words taken out with the notes in M2), one a turn from the opening and round again after the fourth: on the two-part GM (docs/two-part-design.md), each is its mouthpiece’s narration, with no check (KM_AI_FAKE’s `mouthpiece.check` makes it call one on every reply but an opening or a closing, and `mouthpiece.holds` makes a closing wait once). Its co-GM walks each scene to its first good ending, a route a turn on the shortest way there, the required discoveries first (`coGm.endings` names the endings to walk to instead, the first a scene has; `coGm.still` keeps it from moving; `coGm.roles` are roles it sets each turn), so the scenes end and the story can be walked to The End: the hanged clerk closes after four lines, its wind-down the fifth. Twelve suggested lines (seven to say, two deeds, two risky tries, a way out), so that four are left after every reply once those offered last time and the last three said are screened out, and a way out joins them after four lines. Every model call streams over 2 s (the reply, the stage manager, the lines), and the lines wait 0.8 s more, so they come 2.8 s after the reply, as the prototype’s did live. The memory reviews answer quietly, so a scene of many lines plays as it does on real models: the attention filter flags only what someone saw the player do (every other category not flagged), and its notes review adds one line to Kell’s notes, that she watched everything the investigator did in the yard (byName.gm_notes), once: the same line again changes nothing. The reactions to the player’s violence (world-bridge-design §1.4, parked for combat: nothing asks them in a scene) are Kell intervening, Cob fleeing, Moll cowering and Tull unmoved. Between scenes (story-design §4.4) the hand-off is a plain one that fits any boundary (the golden replies are the yard’s), so the notebook’s “how things stood” reads as it would; the verdict is the least JSON (the first scene on, nothing rewritten, no lead), and presence the quiet “here”. KM_AI_FAKE’s choices, byName and toolCalls go beside these, name by name. The town (town-design §3.6-3.7): a talk with Kell opens on a prep that keeps the deepest of her story (the sift’s first note, Cob) back for a later talk and has her ready to tell the door at the Drowned Rat when she’s asked (talk.plan, under `talk`), with three lines to open on, and each reply in it brings four plain lines of its own (`talkSuggestions`: talk.suggest, apart from a scene’s); the talk plays on the two-part GM, its greeting a golden reply like any opening, and its co-GM walks a talk only where KM_AI_FAKE’s `coGm.endings` says (`[\"told\"]` has her tell it on the next line, and a line that she told it goes in her notes, once), so nothing is told unless that says so, and the talk goes on until the goodbye (“I’ll leave you to it.”, which closes it with her reply) or walking on. A swan the story makes up (the stage manager’s answer under `world_ops`, which KM_AI_FAKE gives: none by default) gets a look of its own (look.invent, under `looks`: a white S that bobs).",
   "replies": [
     "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. [Sergeant Kell] “Sergeant Agnes Kell. The Captain calls it suicide. I haven’t written that down.” A stone clangs off the hoist hook.",
-    "Kell gives a small nod. [Sergeant Kell] “Morning, investigator. Wendell Prout, under-clerk of the Royal Granary Roll. The porters found him at first light. His satchel was empty; I’ve kept it, and his spectacles.” She glances at the stones, pencil poised. “The Captain calls it suicide. I haven’t written that down.”\n\nCob pauses just long enough to choose a smaller stone. [Cob] “Cob’s helping the dead man spin. He don’t mind.” One stone strikes the cobbles near your boots. “And Cob don’t talk to bluebottles.”[why: You’re beside Sergeant Kell, the watch officer who has caught him twice before.]\n\nThe girl on the wall drums her heels. [the girl in the shawl] “He jumped. I saw him. Moonlight and everything.” The sky is still a flat grey after the drizzle.",
-    "(Moll’s smirk thins at your question)[you: You told her that from the wall she’d have had her back to the hoist.]. [Moll] “I saw him jump. Didn’t say I saw him climb. You want every bit of it now?”\n\nKell writes without looking up. [Sergeant Agnes Kell] “Moll says she saw Prout jump at midnight. The rest is not yet stated.” Her pencil pauses.",
-    "(Out of character: You can question Kell, Cob or Moll, look closer at the body, the hoist or the barred loft door, or search the yard; if you press someone or try something risky, the dice decide how it goes.)\n\nKell waits, pencil poised. Out in the lane, a wagon under the wheat-ear canvas of (the Royal Purveyor’s office)[know: The office buys everything the palace eats and burns, by the King’s old right; its wheat-ear is on every palace wagon in the street.] rumbles past the gate."
+    "Kell gives a small nod. [Sergeant Kell] “Morning, investigator. Wendell Prout, under-clerk of the Royal Granary Roll. The porters found him at first light. His satchel was empty; I’ve kept it, and his spectacles.” She glances at the stones, pencil poised. “The Captain calls it suicide. I haven’t written that down.”\n\nCob pauses just long enough to choose a smaller stone. [Cob] “Cob’s helping the dead man spin. He don’t mind.” One stone strikes the cobbles near your boots. “And Cob don’t talk to bluebottles.”\n\nThe girl on the wall drums her heels. [the girl in the shawl] “He jumped. I saw him. Moonlight and everything.” The sky is still a flat grey after the drizzle.",
+    "Moll’s smirk thins at your question. [Moll] “I saw him jump. Didn’t say I saw him climb. You want every bit of it now?”\n\nKell writes without looking up. [Sergeant Agnes Kell] “Moll says she saw Prout jump at midnight. The rest is not yet stated.” Her pencil pauses.",
+    "(Out of character: You can question Kell, Cob or Moll, look closer at the body, the hoist or the barred loft door, or search the yard; if you press someone or try something risky, the dice decide how it goes.)\n\nKell waits, pencil poised. Out in the lane, a wagon under the wheat-ear canvas of the Royal Purveyor’s office rumbles past the gate."
   ],
   "byName": {
-    "notes": {
-      "notes": [
+    "gm_notes": {
+      "updates": [
         {
-          "on": "",
-          "words": "King’s Granary",
-          "kind": "know",
-          "note": "Where the palace’s grain is stored and counted, in the granary quarter.",
-          "turn": 0,
-          "lore": "D1"
-        },
-        {
-          "on": "",
-          "words": "I haven’t written that down.",
-          "kind": "why",
-          "note": "Kell won’t put the Captain’s verdict in her book until she has seen for herself.",
-          "turn": 0,
-          "lore": ""
-        },
-        {
-          "on": "",
-          "words": "And Cob don’t talk to bluebottles.",
-          "kind": "why",
-          "note": "On the street a bluebottle is the watch, and Sergeant Kell is the watch.",
-          "turn": 0,
-          "lore": ""
-        },
-        {
-          "on": "",
-          "words": "Moll’s smirk thins at your question",
-          "kind": "you",
-          "note": "You asked whether she really saw him jump from up on that wall.",
-          "turn": 2,
-          "lore": ""
-        },
-        {
-          "on": "",
-          "words": "The rest is not yet stated.",
-          "kind": "why",
-          "note": "Kell writes down only what has been said, not what anyone guesses.",
-          "turn": 0,
-          "lore": ""
-        },
-        {
-          "on": "",
-          "words": "the Royal Purveyor’s office",
-          "kind": "know",
-          "note": "It buys everything the palace eats and burns, by the King’s old right; its wheat-ear is on every palace wagon.",
-          "turn": 0,
-          "lore": "D18"
+          "characterId": "kell",
+          "section": "seen",
+          "line": "Watched everything the King’s investigator did in the yard, close enough to swear to it, and wrote it down.",
+          "replaces": ""
         }
-      ]
-    },
-    "co_gm_notes": {
-      "assessment": "The investigator is getting the measure of the yard and the people in it; the scene is moving.",
-      "status": "on_track",
-      "notes": "Keep Kell writing down only what is said, not what anyone guesses.",
-      "whispers": [],
-      "relocations": [],
-      "no_but": [],
-      "canon": [],
-      "move_to": null,
-      "move_to_because": null,
-      "add_beat": null,
-      "add_transitions": []
-    },
-    "ruling": {
-      "act": "lift the folded paper from the boy’s boot",
-      "target": "cob",
-      "lie": false,
-      "skill": "sleight_of_hand",
-      "stakes": "guarded",
-      "approach": "plausible",
-      "disposition": "wary",
-      "freely": false,
-      "same_again": false,
-      "difficulty": "moderate",
-      "reason": "to lift the folded paper from the boy’s boot without him noticing",
-      "success": {
-        "happens": "While the boy watches the sergeant, your fingers find the folded paper at the top of his boot and it comes away. He doesn’t feel a thing.",
-        "gets": "all",
-        "to": "stay",
-        "counts_as": "none",
-        "establishes": [
-          "The investigator has the folded paper from the boy’s boot."
-        ],
-        "reveals": [],
-        "closes": []
-      },
-      "failure": {
-        "happens": "The boy jerks his foot away and backs off to the wall, glaring. “Hands off! Cob knows your sort.” The paper stays in his boot, and he keeps the sergeant between you.",
-        "gets": "none",
-        "to": "stay",
-        "counts_as": "none",
-        "establishes": [
-          "The boy caught the investigator reaching for his boot."
-        ],
-        "reveals": [],
-        "closes": []
-      }
+      ],
+      "summary": "Kell has seen what the investigator did in the yard."
     },
     "talk": {
       "told": [],
@@ -116,8 +27,8 @@
       "what": "Twenty years ago, as a constable of nineteen, Kell was put out through the Drowned Rat's door by Nan Quill, and she has never been back.",
       "shows": "a pause at the Rat's name",
       "opens": "asking her what she has against the Drowned Rat",
+      "first": "I know the Rat’s door. From the wrong side.",
       "ready": "when_asked",
-      "memory": "I told the investigator about Nan Quill's door. They didn't laugh.",
       "suggestions": [
         "How long have you been with the watch, Sergeant?",
         "What did you make of the yard this morning?",
@@ -166,38 +77,21 @@
     }
   },
   "choices": {
-    "immediate_commitment": "not_flagged",
-    "deferred_commitment": "not_flagged",
-    "general_commitment": "not_flagged",
+    "promise": "not_flagged",
+    "standing": "not_flagged",
+    "seen": "flagged",
+    "learned": "not_flagged",
+    "did": "not_flagged",
     "improvised_detail": "not_flagged",
-    "relationship_or_knowledge_change": "not_flagged",
-    "conversational_exchange": "not_flagged",
-    "witnessed": "flagged",
     "other_world_update": "not_flagged",
     "react_kell": "intervene",
     "react_cob": "flee",
     "react_moll": "cower",
     "react_tull": "unmoved"
   },
-  "toolCalls": {
-    "save_memory": [
-      {
-        "name": "save_memory",
-        "args": {
-          "characterId": "kell",
-          "title": "What the investigator did",
-          "context": "In the granary yard, the morning Wendell Prout was found hanged, with the investigator the King lent me.",
-          "content": "I watched what the King’s investigator did in the yard, close enough to swear to it. I wrote it down. If anyone asks, I can say what I saw."
-        }
-      }
-    ]
-  },
   "suggestions": "say: Sergeant, who found him, and when?\nsay: Cob, that's a good arm. Were you about here last night?\ndo: (I look up at the loft door above the hoist)\ntry: (I try to win the boy over with a friendly word and a coin, to hear what he saw)\nsay: Who's the girl on the wall?\nsay: Was the loft door shut like that when he was found?\ndo: (I walk once round the yard, looking at the ground under the hoist)\ntry: (I try to read the girl while Cob throws, to see if she's hiding something)\nleave: (I tell Kell I've seen enough for now and head back to the palace)\nsay: Sergeant, why haven't you written it down?\nsay: Has anyone been up to the loft since he was found?\nsay: Did anyone hear anything in the night?",
   "talkSuggestions": "Why do you write everything down?\nWhat do you make of the King, Sergeant?\nHave you always been with the watch?\nWho taught you to read people's hands?",
   "handoff": "The scene ended as it was played, and Sergeant Kell has it all in her notebook.\n- Kell was beside the investigator throughout: she saw and heard everything they did, and can swear to it.\n- Nothing changed hands that isn't written down.\n- Kell goes on with the investigator.",
   "streamMs": 2000,
-  "byNameDelayMs": {
-    "notes": 1500
-  },
   "suggestDelayMs": 800
 }

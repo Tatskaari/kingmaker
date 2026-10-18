@@ -6,7 +6,7 @@ import { FAREWELL } from "../../shared/scene/talk.ts";
 import * as verbs from "../../client/headless.ts";
 import { onTop } from "../dev/fake.ts";
 import type { Stack } from "../dev/stack.ts";
-import { bigints, check, doneTurn, fixDice, mapUntil, moduleLog, nextTurn, note, ok, pause, restartAi, seconds, step, until, type Player } from "./kit.ts";
+import { bigints, callLog, check, doneTurn, fixDice, mapUntil, moduleLog, nextTurn, note, ok, pause, restartAi, seconds, step, until, type Player } from "./kit.ts";
 
 /**
  * The e2e's steps for the town between scenes (town-design §4, the integrator's): a new wizard's
@@ -16,10 +16,13 @@ import { bigints, check, doneTurn, fixDice, mapUntil, moduleLog, nextTurn, note,
  * the guards shouting, a spectator's map drawing it, and the town's clock (tick_place,
  * SpacetimeDB's schedule) burning it on. Ray of Frost at Kell from the lane: the hanged clerk opens
  * as walking in does, and once the opening's in the act is turn 1, its mechanic on the
- * turn's row. A thing the stage manager makes in the yard gets a look of its own (look.invent). Then,
- * the yard ended, a word with Kell between scenes: a talk opens with her greeting and lines to
- * choose, a line chosen brings her reply and new lines, and walking on puts the player back on the
- * map with the waiting Rat exactly as it was. The menu acts' times, as the module logged them.
+ * turn's row. A thing the stage manager makes in the yard gets a look of its own (look.invent).
+ * Then, the yard ended, a word with Kell between scenes, played on the two-part GM: a talk opens with
+ * her greeting (the mouthpiece's, from her opening role) and lines to choose, told the GM's notes on
+ * her (the memory reviews' line, and what the yard's ending says of her), a line chosen brings her
+ * reply and new lines beside the co-GM, and walking on puts the player back on the map
+ * with the waiting Rat exactly as it was; a second talk's goodbye said closes it with her reply. The
+ * menu acts' times, as the module logged them.
  */
 
 const WREN = { campaign: "caerwyn", name: "Wren Ashdown", concept: "a hedge wizard who has read about fire extensively", build: "wizard" };
@@ -56,9 +59,9 @@ async function acted(p: Player, what: string, move: () => ReturnType<Player["con
  * 36–39. The town. `lead` is a client with the dev stack's owner (end_scene, as /end does); `b`
  * watches its game.
  */
-export async function theTown(stack: Stack, lead: Player, b: Player, fake: FakeOptions): Promise<void> {
+export async function theTown(stack: Stack, root: string, lead: Player, b: Player, fake: FakeOptions): Promise<void> {
   step("36. The action menu on the map: Fire Bolt with no clear line refused, writing nothing; from the street the watch house door catches, the guards shout, and the town's clock burns it on");
-  const quiet = onTop(fake, { streamMs: 0, byNameDelayMs: { notes: 0 }, suggestDelayMs: 0 });
+  const quiet = onTop(fake, { streamMs: 0, suggestDelayMs: 0 });
   await restartAi(stack, quiet, RAISED);
   const was = lead.conn.explore()?.game;
   await fixDice(stack, TOWN_DICE);
@@ -106,7 +109,7 @@ export async function theTown(stack: Stack, lead: Player, b: Player, fake: FakeO
   check(`turn 1 is the act: "${line?.text}", with its dice line`, line?.text === "(I cast Ray of Frost at Sergeant Kell)" && first.transcript.some(t => t.turn === 1 && t.kind === "roll" && /^Ray of Frost/.test(t.text)));
   const [turn1] = await stack.sql(`SELECT * FROM turn WHERE scene_id = ${opened.scene.id} AND n = 1`);
   const mechanic = typeof turn1?.mechanic === "string" ? turn1.mechanic : JSON.stringify(turn1?.mechanic, bigints);
-  check(`its mechanic is on the turn's row (decide's forced): ${mechanic}`, /ray-of-frost/.test(mechanic) && /kell/.test(mechanic));
+  check(`its mechanic is on the turn's row (forced: the rules resolve it before the reply): ${mechanic}`, /ray-of-frost/.test(mechanic) && /kell/.test(mechanic));
   await until(b, "B to see the yard", 10_000, r => r.scene.id === opened.scene.id);
   ok("B's seat went into the yard with the lead");
 
@@ -124,9 +127,9 @@ export async function theTown(stack: Stack, lead: Player, b: Player, fake: FakeO
   check(`its look row is invented ${invented ? `(${String(invented.role)}: "${String(invented.glyph)}" in ${String(invented.fg)})` : ""}, ${seconds(performance.now() - t1)} after the turn`, !!invented && invented.role === "invented");
   await restartAi(stack, quiet, RAISED);
 
-  step("39. A word with Kell between scenes: the yard ended, a talk opens with her greeting and lines; a line chosen brings her reply and new ones; walking on leaves the waiting Rat as it was");
+  step("39. A word with Kell between scenes, on the two-part GM: the yard ended, a talk opens with her greeting and lines, told the GM's notes on her; a line chosen brings her reply and new ones; walking on leaves the waiting Rat as it was; the next talk's goodbye closes it");
   const ended = { text: [] as string[] };
-  check("the yard ended as the owner (end --exit open-case)", await verbs.end(lead.conn, "open-case", { print: t => ended.text.push(t), progress: () => {} }) === 0);
+  check("the yard ended as the owner (end --exit murder-unknown)", await verbs.end(lead.conn, "murder-unknown", { print: t => ended.text.push(t), progress: () => {} }) === 0);
   await until(lead, "the Rat to wait as the lead", 60_000, r => r.story?.game.leadScene === "drowned-rat" && r.story.game.onward === undefined && r);
   const rat = await ratRows(stack, game);
   check(`the Drowned Rat waits (${String(rat.scene?.status)})`, rat.scene?.status === "waiting");
@@ -144,12 +147,20 @@ export async function theTown(stack: Stack, lead: Player, b: Player, fake: FakeO
   const [kellLook] = await stack.sql(`SELECT * FROM look WHERE entity_id = ${String(kellRow.id)}`);
   const here = lead.conn.view()?.present ?? [];
   check(`Kell is here in the talk, by her name and in her look's colour: ${here.map(p => `${p.name} (${p.color})`).join(", ") || "nobody"}`, here.some(p => p.key === "kell" && p.name === "Sergeant Agnes Kell" && p.color === kellLook?.fg));
+  const [gameRow] = await stack.sql(`SELECT uid FROM game WHERE id = ${game}`);
+  const uid = String(gameRow!.uid);
+  const greeting = callLog(root, uid).filter(c => !c.started && c.operation === "two-part.opening" && String(c.key).endsWith(`:s${talk.scene.id}:t0:open`)).at(-1) as { request?: { input?: Array<{ content: string }> } } | undefined;
+  const told = greeting?.request?.input?.map(m => m.content).join("\n") ?? "";
+  check("her greeting is the mouthpiece's (two-part.opening), from her opening role (the co-GM's note -1)", /Character role for Sergeant Agnes Kell:\nConversation role: Characterise: at their own business/.test(told));
+  check("her greeting was told the GM's notes on her (the memory reviews' line, and what the yard's ending says of her)", /## The GM's notes on Sergeant Agnes Kell from play \(what's happened with them\)\n[\s\S]*Watched everything the King’s investigator did in the yard/.test(told) && told.includes("The Hanged Clerk, as it ended: The King's investigator proved Prout was murdered"));
   await until(b, "B's seat to follow into the talk", 10_000, r => r.scene.id === talk.scene.id);
   ok("B's seat went into the talk with the lead");
   check(`${lead.name} chooses the first: "${lines[0]!.text}"`, (await lead.conn.say(lines[0]!.text)) === undefined);
   const replied = await doneTurn(lead, 1);
   const next = await until(lead, "her next lines", 10_000, r => r.suggestions.some(s => s.turn === 1) && r);
   check(`her reply, and ${next.suggestions.filter(s => s.turn === 1).length} new lines`, replied.transcript.some(t => t.turn === 1 && t.kind === "narration") && next.suggestions.filter(s => s.turn === 1).length >= 2);
+  const asked = callLog(root, uid).filter(c => c.started && String(c.key).includes(`:s${talk.scene.id}:t1:`));
+  check(`played on the two-part GM: ${[...new Set(asked.map(c => c.operation))].join(", ")} for its turn`, asked.some(c => c.operation === "two-part.reply") && asked.some(c => c.operation === "two-part.co-gm"));
   check(`the goodbye is a line too ("${FAREWELL}"): not said here; walking on (walk toward out)`, (await lead.conn.walk({ toward: "out" })) === undefined);
   const back = await mapUntil(lead, `${lead.name} back on the map after the talk`, 10_000, v => !v.ex.scene && v);
   const [talked] = await stack.sql(`SELECT * FROM scene WHERE id = ${talk.scene.id}`);
@@ -159,6 +170,21 @@ export async function theTown(stack: Stack, lead: Player, b: Player, fake: FakeO
   check("the waiting Rat's scene, gm_state and place rows are as they were", JSON.stringify(after, bigints) === JSON.stringify(rat, bigints));
   const [record] = await stack.sql(`SELECT * FROM talk_record WHERE game_id = ${game}`);
   check(`Kell's talk record: count ${String(record?.count)}`, record?.cast_key === "kell" && Number(record.count) === 1);
+
+  check("a second word with Kell (interact talk kell)", (await lead.conn.interact({ verb: "talk", target: "kell" })) === undefined);
+  const again = await until(lead, "the second talk to open", 30_000, r => r.scene.kind === "talk" && r.scene.id !== talk.scene.id && r);
+  await doneTurn(lead, 0);
+  check(`${lead.name} says the goodbye ("${FAREWELL}")`, (await lead.conn.say(FAREWELL)) === undefined);
+  const closed = await until(lead, "the talk to close", 30_000, r => r.scene.id === again.scene.id && r.scene.status === "ended" && r);
+  const [second] = await stack.sql(`SELECT * FROM scene WHERE id = ${again.scene.id}`);
+  const farewell = closed.transcript.filter(t => t.turn === 1);
+  check(`it closes with her reply: "${farewell.find(t => t.kind === "narration")?.text.slice(0, 60)}…", then "${farewell.at(-1)?.text}" (exit ${String(second?.exit_key)})`, farewell.some(t => t.kind === "narration") && farewell.at(-1)?.text === "Scene ends: Goodbye for now" && second?.exit_key === "goodbye");
+  const closing = callLog(root, uid).filter(c => c.started && String(c.key).includes(`:s${again.scene.id}:t1:`)).map(c => c.operation);
+  check(`the goodbye's reply was the closing (${[...new Set(closing)].join(", ")}), with no settle after it`, closing.includes("two-part.closing") && !closing.includes("two-part.co-gm"));
+  check("walk out (walk toward out)", (await lead.conn.walk({ toward: "out" })) === undefined);
+  await mapUntil(lead, `${lead.name} back on the map after the goodbye`, 10_000, v => !v.ex.scene && v);
+  const [counted] = await stack.sql(`SELECT * FROM talk_record WHERE game_id = ${game}`);
+  check(`Kell's talk record: count ${String(counted?.count)}`, Number(counted?.count) === 2);
 
   const log = await moduleLog(stack);
   const acts = [...log.matchAll(/\[map\] (game \d+ (?:cast_|feature_|attack@|throw@|shove@|grapple@|lift@|jump@|hide|rest_|use_)\S* \d+ ms)/g)].map(m => m[1]!);

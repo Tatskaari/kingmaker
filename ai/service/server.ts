@@ -5,7 +5,7 @@ import { KeyRefused } from "../llm/openrouter.ts";
 import { budget } from "./budget.ts";
 import type { Campaign, Campaigns } from "./campaigns.ts";
 import { callContext, type Transport } from "./calls.ts";
-import { CONSIDER_DEADLINE_MS, type Faults } from "./config.ts";
+import type { Faults } from "./config.ts";
 import { Failure, type AiContext, type Endpoints } from "./context.ts";
 import { checkRequest } from "./requests.ts";
 import type { Stores } from "./stores.ts";
@@ -14,7 +14,7 @@ import { streamSink, type StreamTarget } from "./stream.ts";
 /**
  * The AI service's HTTP API (v0-design §5.1, v5-design §3.6, v1-design §3.7, full-gm-design §4.1,
  * world-bridge-design §3.1): the thinks (the opening, a turn's own with the reactions to the
- * player's violence, its notes and its suggested lines, the memory reviews and the co-GM after it,
+ * player's violence, its suggested lines, the memory reviews after it, a scene's boundary, the looks,
  * and character creation's builds and backstories), a campaign's words, and its health.
  *
  * - Every route but health wants the bearer the module sends (401 otherwise).
@@ -50,8 +50,6 @@ export interface ServiceOptions {
   dailyUsd?: number;
   /** What the player is told once the day's ceiling is reached (402 over_budget): this host's words for it. Absent: overBudget's, which name KM_AI_DAILY_USD. */
   overBudget?: string;
-  /** How long a considered turn's review may take (KM_CONSIDER_DEADLINE_MS); absent: 12 s. */
-  considerDeadlineMs?: number;
   /** What the player is told when OpenRouter turns the key down (403 key_refused): where this host's key is changed. Absent: KEY_REFUSED's words. */
   keyRefused?: string;
   faults: Faults;
@@ -74,8 +72,8 @@ export interface AiService {
 
 /** The thinks, by endpoint: the handler that serves each (STEP_ENDPOINT says which steps are whose). */
 const THINKS: Record<Endpoint, keyof Endpoints> = {
-  "/v1/scenes/open": "open", "/v1/turns/decide": "decide", "/v1/turns/reactions": "reactions", "/v1/turns/consider": "consider", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle",
-  "/v1/turns/notes": "notes", "/v1/turns/suggest": "suggest", "/v1/turns/remember": "remember", "/v1/turns/repair": "repair",
+  "/v1/scenes/open": "open", "/v1/turns/reactions": "reactions", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle",
+  "/v1/turns/suggest": "suggest", "/v1/turns/remember": "remember",
   "/v1/scenes/boundary": "boundary", "/v1/looks": "looks",
   "/v1/characters": "characters", "/v1/backstories": "backstories",
 };
@@ -164,7 +162,7 @@ export function aiService(options: ServiceOptions): AiService {
     const { calls, usage } = callContext(options.transport(transportTurn(parts)), options.stores, { game: body.game.id, key: body.key, attempt });
     const ctx: AiContext = {
       campaign, calls, usage, attempt, stream: turn => streamSink({ ...options.stream, log: options.log }, { turn, attempt, started }),
-      considerDeadlineMs: options.considerDeadlineMs ?? CONSIDER_DEADLINE_MS, reviews: options.stores.reviews,
+      reviews: options.stores.reviews,
     };
     try {
       return await (options.endpoints[handler] as (req: unknown, ctx: AiContext) => Promise<{ usage: { calls: number; costUsd: number } }>)(body, ctx);

@@ -1,4 +1,4 @@
-// Copied from the prototype's src/runtime/speakers.ts at 44c6d4a, whole and unchanged.
+// Copied from the prototype's src/runtime/speakers.ts at 44c6d4a, whole, but that quoteSpeaker's sentence leading into a line starts after the line before it (QA round qa1-1018: Hobb's whisper went to Hep, whose line came just before); and, since QA round qa2-1018, that what someone's called by a word anyone could be is its last two words ("the big man"), a sentence naming nobody who might speak goes on about whoever its pronoun is, and a line whose speech tag names someone nobody here is known as is theirs (strangerTagged). Since QA round qa3-1018, a line after a verb of speech said of someone named just before it ("…, and the forewoman with the sack-needle calls,") is theirs (saidBy), and one whose lead-in is about nobody who might speak ("The room’s attention follows.") goes back a sentence, to whoever that one is about alone.
 
 /**
  * Who says a quoted line in the GM's prose: by its speaker's tag when the GM wrote one
@@ -62,12 +62,19 @@ function lookWords(look: string | undefined): string[] {
   return [...new Set(first.match(/[a-z][a-z'-]{3,}/g) ?? [])].filter(w => !/^(with|from|that|this|their|them|very|much|more|most|some|about|into|over|under|like|years|forties|fifties|sixties|thirties|twenties|fifty|sixty|seventy|forty|thirty|twenty|eleven|twelve|thirteen|always|never|sizes|three|pair|good|worn|kept|keeps|wears|wearing|holds|half|both|each|other)$/.test(w) && !SHE_NOUN.test(w) && !HE_NOUN.test(w) && !YOUNG.test(w));
 }
 
-/** What they're called without its article ("boy in the too-big boots"), and its head word with the rest of its words. */
+/**
+ * What they're called without its article ("boy in the too-big boots"), and its head word with the
+ * rest of its words. A head word anyone could be ("man", "woman") takes the word before it: "the big
+ * man with the bandaged hand" is "the big man" (QA round qa2-1018: his "Not tonight, Arlo." after
+ * "The big man’s shoulders tighten." was nobody's, and after "the big man says" Arlo's).
+ */
 function aliasOf(called?: string): { alias: string; head?: string; rest: string[] } | undefined {
   const alias = called?.toLowerCase().replace(/^(the|a|an)\s+/, "");
   if (!alias) return undefined;
-  const head = alias.split(/\s+(with|in|by|from|at|on)\s+/)[0]!.split(/\s+/).at(-1);
-  const rest = (alias.match(/[a-z][a-z'-]{2,}/g) ?? []).filter(w => w !== head && !/^(the|with|from|and)$/.test(w));
+  const words = alias.split(/\s+(with|in|by|from|at|on)\s+/)[0]!.split(/\s+/);
+  const last = words.at(-1);
+  const head = last && GENERIC.test(last) && words.length > 1 && words.at(-2)!.length >= 3 ? words.slice(-2).join(" ") : last;
+  const rest = (alias.match(/[a-z][a-z'-]{2,}/g) ?? []).filter(w => !head?.split(" ").includes(w) && !/^(the|with|from|and)$/.test(w));
   return { alias, ...(head && head.length >= 3 && !GENERIC.test(head) ? { head } : {}), rest };
 }
 
@@ -79,7 +86,9 @@ function aliasOf(called?: string): { alias: string; head?: string; rest: string[
 export function namesFor(name: string, called?: string, aka: string[] = []): string[] {
   const lower = name.toLowerCase();
   const alias = aliasOf(called)?.alias;
-  return [...new Set([lower, ...lower.split(/\s+/).filter(w => w.length >= 3 && !COMMON.test(w)),
+  // A name that's what someone is ("the silent Crake", "the re-sacking gang") is told apart by its own names and its last word, not the words that describe them ("silent" is anyone's).
+  const words = /^(?:the|a|an)\s/i.test(name) ? name.split(/\s+/).filter((w, i, all) => i === all.length - 1 || /^\p{Lu}/u.test(w)).map(w => w.toLowerCase()) : lower.split(/\s+/);
+  return [...new Set([lower, ...words.filter(w => w.length >= 3 && !COMMON.test(w)),
     ...(alias ? [alias] : []), ...aka.map(a => a.toLowerCase())])];
 }
 
@@ -197,7 +206,7 @@ export function firstNamed(words: string, people: Speaker[]): { id: string; at: 
 }
 
 /** People the prose brings in without a name we know them by ("A porter turns.", "the old man"), and what they'd be called: a sentence's subject. */
-const PERSON = "man|woman|boy|girl|lad|lass|child|gentleman|lady|fellow|stranger|figure|voice|someone|porter|clerk|guard|valet|servant|page|watchman|constable|soldier|sailor|bargee|bargeman|bargewoman|lighterman|docker|dockhand|dockman|regular|drinker|cook|maid|barmaid|landlady|landlord|forewoman|foreman|labourer|carter|urchin|beggar|vendor|seller|pie-seller|eel-wife";
+const PERSON = "man|woman|boy|girl|lad|lass|child|youth|gentleman|lady|fellow|stranger|figure|voice|someone|porter|clerk|guard|valet|servant|page|watchman|constable|soldier|sailor|bargee|bargeman|bargewoman|boatman|ferryman|fisherman|fishwife|washerwoman|widow|lighterman|docker|dockhand|dockman|regular|drinker|cook|maid|barmaid|landlady|landlord|forewoman|foreman|labourer|apprentice|carter|urchin|beggar|vendor|seller|pie-seller|eel-wife|bruiser|thug|ruffian|brother|sister|twin|mother|father|son|daughter|husband|wife";
 const NEWCOMER = new RegExp(`^(?:then\\s+|and\\s+|but\\s+|now\\s+|behind\\s+\\w+,?\\s+|from\\s+[a-z ]{2,30},\\s+)?(?:the|a|an|one\\s+of\\s+the|another|some\\s+of\\s+the|two\\s+of\\s+the)\\s+(?:[a-z'-]+\\s+){0,3}?(${PERSON})(e?s)?\\b`);
 const pronounOfNoun = (noun: string): Pronoun | undefined => (SHE_NOUN.test(noun) ? "she" : HE_NOUN.test(noun) ? "he" : undefined);
 
@@ -220,15 +229,19 @@ const pronounWord = (w: string): Pronoun => (/^(she|her|hers)$/.test(w) ? "she" 
  * down.", "For a moment, she says nothing.", "The book lies open before him; Sallow’s papers beside
  * it."): its subject "she" or "he", or a pronoun before anyone it names but as what's theirs or whom
  * it looks at. Which, or undefined for a sentence about someone it names ("Beneath him, a scrawny
- * boy lobs stones." is the boy's).
+ * boy lobs stones." is the boy's). One that names nobody who might speak goes on about whoever its
+ * pronoun is ("At his boots, the mastiff opens one eye and sniffs." is still the watchman's: QA
+ * round qa2-1018, where the line after it was nobody's).
  */
 function leadingPronoun(sentence: string, people: Speaker[]): Pronoun | undefined {
   const s = sentence.toLowerCase().trimStart();
   const m = /^(?:(?:then|and|but|still|now|again|so|instead|slowly|finally|at last|at once|for a (?:moment|beat|while|heartbeat)|after a (?:moment|beat|while|pause)),?\s+)*(she|her|he|his)\b/.exec(s);
   if (m) return pronounWord(m[1]!);
   const p = /\b(she|her|hers|he|his|him)\b/.exec(s);
-  const first = p ? namedIn(s, people)[0] : undefined;
-  if (!p || !first || first.at < p.index || newcomer(s)) return undefined;
+  if (!p || newcomer(s)) return undefined;
+  const first = namedIn(s, people)[0];
+  if (!first) return pronounWord(p[1]!);
+  if (first.at < p.index) return undefined;
   return first.mentioned || /^[a-z-]+['’]s\b/.test(s.slice(first.at)) ? pronounWord(p[1]!) : undefined;
 }
 
@@ -286,6 +299,19 @@ export function speechTagged(text: string, end: number, people: Speaker[]): stri
   return people.find(p => p.names.some(n => taggedBy(after, n)) || Object.keys(p.heads ?? {}).some(h => taggedBy(after, h, true)))?.id;
 }
 
+/**
+ * A speech tag after a quote that names someone, but nobody `speechTagged` knows ("…,” the big man
+ * says, quietly" before he's known by it; "…?” a voice asks"): the line is theirs, whoever they
+ * are, so not the lead-in's subject's or the last speaker's (QA round qa2-1018: the big man's "Not
+ * tonight, Arlo," went to Arlo, whom the sentence before was about). Only after a line that ends as
+ * one a tag follows does (",", "?", "!", a dash): after a full stop, the words are a new sentence.
+ */
+export function strangerTagged(text: string, end: number): boolean {
+  if (!/[,?!—–…-]\s*[”"]$/.test(text.slice(Math.max(0, end - 3), end))) return false;
+  const after = tagAfter(text, end);
+  return new RegExp(`^[^a-z]*(?:the|a|an|one|another|some|someone|somebody|voices?)\\b[^.!?;:]{0,40}?\\s(?:${SPEECH})\\b|^[^a-z]*(?:${SPEECH})\\s+(?:the|a|an|one|another|someone|somebody)\\b`).test(after);
+}
+
 /** A speech tag after a quote that's only "she says" or "he blurts": which. */
 export function pronounTagged(text: string, end: number): Pronoun | undefined {
   const m = new RegExp(`^[^a-z]*(she|he)\\s+(?:${SPEECH})\\b`).exec(tagAfter(text, end));
@@ -295,26 +321,68 @@ export function pronounTagged(text: string, end: number): Pronoun | undefined {
 /**
  * Who says the quote at text[start, end) (its quote marks included): whoever the speech tag after
  * it says (speechTagged, or the one its "she says" means), else the one the sentence leading in is
- * about: the first named there who isn't only mentioned, or, for a sentence that goes on about
- * "her" or "him" ("Her eyes flick to Sergeant Kell’s notebook."), the one that means. Undefined when
- * the prose doesn't say. `lines`: the lines said before it and who said them, which "she" may mean.
+ * about: whoever its verb of speech just before the line is said of (saidBy), the first named there
+ * who isn't only mentioned, or, for a sentence that goes on about "her" or "him" ("Her eyes flick to
+ * Sergeant Kell’s notebook."), the one that means; and for one about nobody who might speak, the
+ * one the sentence before it is about, alone. Undefined when the prose doesn't say. `lines`: the
+ * lines said before it and who said them, which "she" may mean.
  */
 export function quoteSpeaker(text: string, start: number, end: number, people: Speaker[], lines: Said[] = []): string | undefined {
   const tagged = speechTagged(text, end, people);
   if (tagged) return tagged;
   const pronoun = pronounTagged(text, end);
   if (pronoun) return antecedent(text, start, pronoun, people, lines);
+  // Its tag names someone nobody here is known as: theirs, not the sentence before's.
+  if (strangerTagged(text, end)) return undefined;
   // The sentence leading into the quote: the one it's in, or the one before when it opens one (a
   // sentence ends at its stop, its closing quote included, and an earlier line's words don't count).
   // A line that opens its paragraph after one that ended on a line said has none.
-  const before = text.slice(Math.max(0, start - 200), start);
-  if (/[”"]\s*\n\s*$/.test(before)) return undefined;
+  const window = text.slice(Math.max(0, start - 200), start);
+  if (/[”"]\s*\n\s*$/.test(window)) return undefined;
+  // Only the narration since the line before, when there is some: blanked out, that line's closing
+  // stop went with it, and "…shut!” Hobb lowers his voice." read as one sentence that Hep began.
+  const since = window.slice(Math.max(window.lastIndexOf("”"), window.lastIndexOf("\"")) + 1);
+  const before = /[.!?…]/.test(since) || since.trim().length > 2 ? since : window;
   const sentences = unquoted(before.toLowerCase()).split(/(?<=[.!?…:][”"’]?)\s+|\n+/);
   const lead = (sentences.at(-1)?.trim() ? sentences.at(-1) : sentences.at(-2)) ?? "";
+  // "…, and the forewoman with the sack-needle calls, “…”": whoever the speech verb just before the line is said of (nobody we know for "a voice calls,").
+  const calling = saidBy(lead, people);
+  if (calling) return calling.id;
   const going = leadingPronoun(lead, people);
   if (going) return antecedent(text, start, going, people, lines);
-  return firstNamed(lead, people)?.id;
+  const first = firstNamed(lead, people)?.id;
+  if (first || !aboutNobody(lead, people)) return first;
+  // A lead-in about nobody who might speak ("The room’s attention follows."): the sentence before it, in its paragraph, when it's about one of them alone.
+  const paragraph = unquoted(before.toLowerCase()).split(/\n+/).at(-1)!.split(/(?<=[.!?…:][”"’]?)\s+/).filter(s => s.trim());
+  const earlier = paragraph.at(-1)?.trim() === lead.trim() ? paragraph.at(-2) : undefined;
+  const subjects = earlier && !newcomer(earlier) ? namedIn(earlier, people).filter(n => !n.mentioned) : [];
+  return subjects.length === 1 ? subjects[0]!.id : undefined;
 }
+
+/**
+ * A lead-in whose speech verb comes just before the line, and who it's said of: someone named right
+ * before it, by a name or what they're called, its extra words and all ("…, and the forewoman with
+ * the sack-needle calls,", "the young lighterman, grinning, says:"), or someone the prose brings in
+ * whom we can't name ("…, and a voice calls,": nobody we know, `{}`). The words before the name may
+ * make them look only mentioned ("and the"), but a verb of speech straight after it makes them its
+ * subject (QA round qa3-1018: the forewoman's count went out as "Someone's"). Undefined when the
+ * lead-in doesn't end on a verb of speech with its subject before it.
+ */
+function saidBy(lead: string, people: Speaker[]): { id?: string } | undefined {
+  const verb = new RegExp(`\\s*(?:,[^,.!?]{1,40},)?\\s+(?:${SPEECH})\\b(?:\\s+(?:out|up|back|across|over|down|again|softly|quietly|loudly|sharply|flatly|dryly|drily|low))*[\\s,:—–-]*$`).exec(lead);
+  if (!verb) return undefined;
+  const subject = lead.slice(0, verb.index);
+  const ends = (words: string) => new RegExp(`(?<![a-z'])${escape(words)}$`).test(subject);
+  // What they're called by its head word, as "the boy" or beside another word of theirs ("the young lighterman").
+  const headed = ([head, rest]: [string, string[]]) => new RegExp(`\\bthe\\s+(?:[a-z'-]+\\s+){0,2}${escape(head)}$`).test(subject) && (/\bthe\s+$/.test(subject.slice(0, subject.length - head.length)) || rest.some(w => subject.includes(w)));
+  const known = people.find(p => p.names.some(ends) || Object.entries(p.heads ?? {}).some(headed))?.id;
+  if (known) return { id: known };
+  const clause = subject.split(/[,;:]\s*|\s+(?:and|but|then|while)\s+/).at(-1) ?? "";
+  return newcomer(clause) ? {} : undefined;
+}
+
+/** A sentence about nobody who might speak: no one named, no "she" or "he", nobody brought in ("The room’s attention follows.", "The fire pops."). */
+const aboutNobody = (sentence: string, people: Speaker[]) => !namedIn(sentence, people).length && !/\b(she|her|hers|he|his|him|they|them|their)\b/.test(sentence) && !newcomer(sentence);
 
 /**
  * Who a speaker's tag means ("Kell", "Sergeant Agnes Kell", "the landlady", "the King", "you"): the
@@ -333,6 +401,6 @@ export function tagSpeaker(tag: string, people: Speaker[]): string | undefined {
   const named = people.find(p => words.some(w => p.names.includes(w)));
   if (named) return named.id;
   if (!/^the\s/.test(t)) return undefined;
-  const last = bare.split(/\s+/).at(-1);
-  return people.find(p => Object.keys(p.heads ?? {}).some(h => last === h))?.id;
+  // Their head word last ("[the big porter]"), or the two of one that's two ("[the big man]").
+  return people.find(p => Object.keys(p.heads ?? {}).some(h => bare === h || bare.endsWith(` ${h}`)))?.id;
 }

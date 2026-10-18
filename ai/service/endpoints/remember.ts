@@ -12,9 +12,9 @@ import { sceneAndView } from "./turn.ts";
  * POST /v1/turns/remember (full-gm-design §4.1): the memory reviews of a turn once it's over, as the
  * prototype's job runs them. The attention filter (Jev) reads the turn's exchange; nothing flagged,
  * nothing more is asked (one call). Each agent the flags fire (the memories, then the lore) is a Luna
- * tool loop at medium effort that writes into the game's copy of the lore: first-person notes under
- * each person's memories, linked from their index, which disclosure opens from the next turn on. What
- * was flagged and what each review changed are a line in memory-reviews.jsonl, and the answer.
+ * tool loop at medium effort that writes into the game's copy of the lore: the GM's notes on each
+ * person present (docs/notes.ts), and the world's facts. What was flagged and what each review
+ * changed are a line in memory-reviews.jsonl, and the answer.
  *
  * The attention filter failing is a 500, with nothing written yet (the simulation's job tries again
  * or gives up with a log line); an agent's own failure is its record's `error`, as the prototype's is.

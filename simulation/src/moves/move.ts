@@ -1,5 +1,5 @@
 import type {
-  BackstoriesRequest, BoundaryRequest, CharactersRequest, ConsiderRequest, DecideRequest, Endpoint, LooksRequest, NotesRequest, OpenRequest, ReactionsRequest, RememberRequest, RepairRequest, ReplyRequest,
+  BackstoriesRequest, BoundaryRequest, CharactersRequest, Endpoint, LooksRequest, OpenRequest, ReactionsRequest, RememberRequest, ReplyRequest,
   SettleRequest, SuggestRequest, Usage,
 } from "../../../shared/protocol/ai.ts";
 import type { Refusal } from "../../../shared/protocol/refusals.ts";
@@ -13,7 +13,7 @@ import type { Actor, TxCtx } from "../context.ts";
  * host.
  *
  * Whose job a move's think is, the job loop asks its owner (v1-design §3.5): absent, a turn's. A job
- * queued beside a turn's own steps (the notes on a reply's marks, the lines suggested after it:
+ * queued beside a turn's own steps (the lines suggested after it:
  * v5-design §3.4) changes how its turn treats it with the last five, each optional: without them a
  * turn's job is treated as V0 treats every one.
  */
@@ -35,9 +35,9 @@ export interface Move<Args, Plan> {
   giveUp?(tx: TxCtx, plan: Plan, why: string): void;
   /** How long a failing job keeps trying. Default: 10 minutes. */
   giveUpMs?: number;
-  /** A turn's job in the background (the notes, the lines): its retries leave turn.note alone (unless the turn waits on it: waitedOn), and it never fails the turn. */
+  /** A turn's job in the background (the lines): its retries leave turn.note alone (unless the turn waits on it: waitedOn), and it never fails the turn. */
   background?: boolean;
-  /** A background job the turn is waiting on now (its notes, once all else is in): its retries say so on the turn, as its own steps' do. */
+  /** A background job the turn is waiting on now: its retries say so on the turn, as its own steps' do. (None since M2 took the notes out: the turn never waits on its lines.) */
   waitedOn?(tx: TxCtx, plan: Plan): boolean;
 }
 
@@ -65,7 +65,7 @@ export interface AiCall {
   key: string;
   timeoutMs: number;
   request:
-    | OpenRequest | DecideRequest | ReactionsRequest | ConsiderRequest | ReplyRequest | SettleRequest | NotesRequest | SuggestRequest | RememberRequest | RepairRequest
+    | OpenRequest | ReactionsRequest | ReplyRequest | SettleRequest | SuggestRequest | RememberRequest
     | BoundaryRequest | LooksRequest
     | CharactersRequest | BackstoriesRequest;
 }

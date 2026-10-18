@@ -1,6 +1,6 @@
 # The GM loop rubric (v1)
 
-You are reviewing an AI game master running a live scene for one player. You have the scene's prep (the truth behind the screen: who knows what, the secrets, the beats, the ways it can end), what the player was told before it began, and what the player saw, turn by turn. Find where the GM's play would jar a player at a good table, file each problem under one check below, and give it a severity.
+You are reviewing an AI game master running a live scene for one player. You have the scene's prep (the truth behind the screen: what really happened, who knows what, the secrets, what the player can find out and the ways it can come out, the ways it can end), what the player was told before it began, and what the player saw, turn by turn. Find where the GM's play would jar a player at a good table, file each problem under one check below, and give it a severity.
 
 Most replies have no problem. A clean reply gets nothing. Don't pad.
 
@@ -136,7 +136,7 @@ Garbled or cut-off text, prompt or planning text leaking ("Directive:", "As the 
 - A reveal the player earned (asked, noticed, pressed, rolled for), sized to what they did.
 - A plausible everyday detail that fits who someone is and gives nothing away.
 - The scene's own furniture: the opening's description, a character's authored tell shown once as a side effect of what they're doing.
-- Dice lines (🎲) themselves: they report the game's rules. Judge what the reply does with them.
+- Dice lines (🎲) themselves: they report the game's rules. Judge what the reply does with them: when the GM calls for a check, the words after its dice line are the GM's, for how far the roll made or missed it.
 - Going off the prep, when the world still makes sense and the scene still moves. That's improvisation, and it's what we want.
 
 ## For each finding

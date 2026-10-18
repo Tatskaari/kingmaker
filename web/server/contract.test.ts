@@ -18,7 +18,7 @@ import { portDuplex } from "./transport.ts";
  * the port link against the page host, over a real MessageChannel (every message a real structured
  * clone, revived on the client's side), on the fake model (hosts/dev/fake.json, its delays taken
  * out). A new game with a ready-made build, the map with its lead, the walk into the yard (what g
- * makes), the opening streamed, then a line with its reply, the notes on it and the suggested lines.
+ * makes), the opening streamed, then a line with its reply and the suggested lines.
  * Then the server rebuilt from what the database in memory kept, a new client on a new channel, and
  * the game carried on from where it was.
  */
@@ -36,7 +36,7 @@ function repoContent(): Content {
   return {
     campaign: readCampaignFiles(join(V2, "campaigns", "caerwyn")),
     prompts: Object.fromEntries(names.map(path => [relative(prompts, join(prompts, path)).split(sep).join("/").slice(0, -3), readFileSync(join(prompts, path), "utf8")])),
-    fake: onTop(devFake(), { streamMs: 0, suggestDelayMs: 0, byNameDelayMs: { notes: 0 } }),
+    fake: onTop(devFake(), { streamMs: 0, suggestDelayMs: 0 }),
   };
 }
 
@@ -68,7 +68,7 @@ const turn = (replica: Replica, n: number) => replica.rows()?.turns.find(row => 
 /** A column the client's row types leave out (they pick what the screens read), though the row came with every one. */
 const column = (row: object, name: string) => (row as Record<string, unknown>)[name];
 
-test("the page's two halves over a real MessageChannel, on the fake model: a new game, the map, into the yard, the opening streamed, a line with its reply, notes and suggested lines; then the server rebuilt from what was kept, and the game carried on", { timeout: 120_000 }, async t => {
+test("the page's two halves over a real MessageChannel, on the fake model: a new game, the map, into the yard, the opening streamed, a line with its reply and suggested lines; then the server rebuilt from what was kept, and the game carried on", { timeout: 120_000 }, async t => {
   const database = memoryDatabase();
   const content = repoContent();
 
@@ -88,9 +88,9 @@ test("the page's two halves over a real MessageChannel, on the fake model: a new
   assert.ok(events.indexOf(`reply_draft insert ${opening.id}`) >= 0 && events.indexOf(`reply_draft delete ${opening.id}`) > events.indexOf(`reply_draft insert ${opening.id}`), "its draft came, and went as the reply committed");
   assert.ok(replica.view()!.entries.some(entry => /Behind the King’s Granary/.test(entry.text ?? "")), "the fake's first golden reply");
 
-  // A line, its reply, the notes on it and the suggested lines.
+  // A line, its reply and the suggested lines.
   assert.equal(await replica.say(LINE), undefined);
-  await until(() => turn(replica, 1)?.phase === "done" && turn(replica, 1)?.notes === "written" && !!replica.rows()?.suggestions.some(line => line.turn === 1), "the line's reply, notes and lines");
+  await until(() => turn(replica, 1)?.phase === "done" && !!replica.rows()?.suggestions.some(line => line.turn === 1), "the line's reply and lines");
   const rows = replica.rows()!;
   assert.deepEqual(rows.transcript.filter(line => line.turn === 1).map(line => line.kind), ["player", "narration"]);
   assert.ok(rows.suggestions.filter(line => line.turn === 1).length >= 3, "three or more lines suggested");

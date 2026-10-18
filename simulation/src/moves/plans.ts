@@ -1,8 +1,5 @@
-import type { Ruling, Verdict } from "../../../shared/gm/consider.ts";
-import type { GmState } from "../../../shared/gm/state.ts";
-import type { Decision, Drafted, Outcome } from "../../../shared/protocol/ai.ts";
+import type { Outcome, TurnCheck } from "../../../shared/protocol/ai.ts";
 import type { Act, Mechanic } from "../../../shared/rules/types.ts";
-import type { Transition } from "../../../shared/scene/types.ts";
 
 /**
  * The plans a move keeps in its job row between thinks (v0-design §4.3, §6.1): plain JSON, ids as
@@ -17,22 +14,20 @@ export interface Seen { scene: number; place: number }
  * scene picking up after a fight on a turn of its own: the think is told how the fight went, and its
  * commit applies what the stage manager says the aftermath did. With `act` (town-design §3.4), the
  * map's action menu opened it: once the opening is in, the commit queues the act as turn 1, its
- * words the player's line and its mechanic the turn's (decide's `forced`). A talk's opening (§3.6)
+ * words the player's line and its mechanic the turn's (the say plan's `forced`). A talk's opening (§3.6)
  * is told its own in the request (`talk`), and keeps the answer's prep.
  */
 export interface OpenPlan { step: "open"; game: string; scene: string; turn: string; seen: Seen; aftermath?: { summary: string }; act?: { text: string; mechanic: Mechanic } }
 
 /**
- * A say turn's plan: decide, then reply, then settle (or, on the wind-down, decide and reply). A turn
- * whose act the rules resolved as violence (world-bridge-design §3.4) has reactions after decide; a
- * turn the GM rules on (full-gm-design §4.2) has consider before the reply.
+ * A say turn's plan: the two-part GM's reply, then its settle (on the wind-down, the reply alone).
+ * The reactions to the player's violence (world-bridge-design §3.4) are a step of their own, parked for
+ * combat (nothing queues them since the old pipeline's decide went).
  */
 export interface SayPlan {
-  step: "decide" | "reactions" | "consider" | "reply" | "settle";
+  step: "reactions" | "reply" | "settle";
   game: string; scene: string; turn: string; n: number; player: string;
   input: string;
-  /** Who was on stage as the player spoke (presentCast): whyItWaits' arrivals. */
-  onStage: string[];
   /** settledFacts(gm) at the turn's start: the stage manager's `settled`. */
   settledBefore: string[];
   /** gm.closing was set when the turn started: this is the wind-down. */
@@ -44,38 +39,19 @@ export interface SayPlan {
    * do doesn't happen) or met their Shield (a Shield they cast this turn is already up).
    */
   rulesFirst?: { directives: string[]; down: boolean; shielded: boolean };
-  decision?: Decision;
-  /** The decide commit's act, when the rules resolved it as violence people react to (scene-acts.ts violence): the reactions step's request. */
+  /** The act the rules resolved, when it was violence people react to (scene-acts.ts violence): the reactions step's request (parked for combat). */
   act?: Act;
-  /** Where a turn with reactions goes after them: the full GM's consider, or the reply. */
-  then?: "consider" | "reply";
-  /**
-   * A considered turn's: the ending held for the player's answer, which the decide commit took off
-   * the bookkeeping (consider's `pending`, and the held ending the consider commit decides).
-   */
-  pendingExit?: GmState["pendingExit"];
-  /** A considered turn's, from the consider answer: the GM's ruling, its verdict and its route. */
-  ruling?: Ruling;
-  verdict?: Verdict;
-  route?: Transition;
-  /** What the ruling's outcome not played would have brought out: it doesn't land this turn, whatever the reply let slip (landRuling, at the settle). */
-  withheld?: string[];
   outcome?: Outcome;
   /** The reply's plain text, for settle. */
   reply?: string;
   /** This turn's dice lines. */
   lines: string[];
   seen: Seen;
-  /** What the rules resolve this turn, chosen already (town-design §3.4: turn.mechanic, the map's act): the decide request's `forced`. */
+  /** What the rules resolve this turn, chosen already (town-design §3.4: turn.mechanic, the map's act), resolved as the turn starts. */
   forced?: Mechanic;
+  /** The check the two-part GM's mouthpiece called this turn, as rolled, for the co-GM. */
+  check?: TurnCheck;
 }
-
-/**
- * The notes on a reply's marks (v5-design §3.4): one think, POST /v1/turns/notes. `seq` is the
- * reply's transcript row; `drafted`, the marks the GM made as it wrote, which the row never keeps
- * (only their notes, once written, reach it), so the request is built from the plan.
- */
-export interface NotesPlan { step: "notes"; game: string; scene: string; turn: string; n: number; seq: number; drafted: Drafted[] }
 
 /** A turn's suggested lines (v5-design §3.4): one think, POST /v1/turns/suggest, for its k-th ask (from 1). */
 export interface SuggestPlan { step: "suggest"; game: string; scene: string; turn: string; n: number; ask: number }
@@ -85,12 +61,6 @@ export interface SuggestPlan { step: "suggest"; game: string; scene: string; tur
  * POST /v1/turns/remember. `n` is the turn reviewed: the request's transcript is cut there.
  */
 export interface RememberPlan { step: "remember"; game: string; scene: string; turn: string; n: number }
-
-/**
- * The background co-GM's review of a turn once it's over (full-gm-design §4.2): one think, POST
- * /v1/turns/repair, its answer a co_gm_result row the next turn's start merges. `n` as remember's.
- */
-export interface RepairPlan { step: "repair"; game: string; scene: string; turn: string; n: number }
 
 /**
  * A scene's boundary once it has ended (story-design §4.3): one think, POST /v1/scenes/boundary,

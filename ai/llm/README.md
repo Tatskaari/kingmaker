@@ -32,15 +32,15 @@ A thin client over OpenRouter with no SDK: `fetch`, server-sent events and JSON 
 |---|---|---|
 | `openai/gpt-6-luna` | `LUNA` | The default for `respond`. Every voice (GM, narrator, actors) at reasoning `none`; the hand-off, the boundary verdict and the fronts at `low`; the full co-GM at `medium` and the quick one at `none`. Also the stage manager, the scribe, the memory reviews, the character sheet, the talk's plan and lines, the look inventions, and the eval judge at `high`. |
 | `openai/gpt-6-luna-decisions` | `LUNA_DECISIONS_MODEL` | `luna-decisions`, the decider of `v2` and most approaches: the director, who is present, reactions, a talk's sift |
-| `typesafe/jev-1.13` | `JEV_MODEL` | Disclosure and the attention filter (the docs service makes its own `JevDecider`, whatever the approach), the `jev` approaches, and the fast half of a cascade |
+| `typesafe/jev-1.13` | `JEV_MODEL` | The attention filter (the docs service makes its own `JevDecider`, whatever the approach), the `jev` approaches, and the fast half of a cascade |
 | `openai/gpt-6-sol` | `SOL` | Nothing in the game (the prototype's eval judge took it for a second opinion) |
 
 ## How it fits
 
 ```mermaid
 flowchart LR
-  text["voices, co-GM, boundary, talks,<br/>stage manager, ruling, notes, lines,<br/>builds, backstories, looks"] --> respond["respond, respondJson"]
-  judge["director, presence, reactions,<br/>disclosure, attention filter"] --> decider["Decider"]
+  text["voices, co-GM, boundary, talks,<br/>stage manager, lines,<br/>builds, backstories, looks"] --> respond["respond, respondJson"]
+  judge["director, presence, reactions,<br/>attention filter"] --> decider["Decider"]
   agents["the memory review agents"] --> tools["runTools"]
   decider -->|"LunaDecider"| respond
   decider -->|"JevDecider"| decisions[("Decisions API")]
@@ -52,8 +52,8 @@ Each of the three logs every call to the caller's call log (a request's call con
 
 | Caller | Uses |
 |---|---|
-| [gm/](../gm/) | `respond` and `respondJson` (the GM's voice, the hand-off, the boundary verdict and the fronts, the co-GM, the ruling, a talk's plan and lines, the stage manager, the notes, the suggested lines) |
-| [service/endpoints/turn.ts](../service/endpoints/turn.ts) | `JevDecider`: the director (Luna's decision mode), disclosure (Jev) |
+| [gm/](../gm/) | `respond` and `respondJson` (the GM's voices, the two-part GM's mouthpiece and co-GM, the hand-off, the boundary verdict and the fronts, a talk's plan and lines, the stage manager, the suggested lines) |
+| [service/endpoints/turn.ts](../service/endpoints/turn.ts) | `JevDecider`: the director (Luna's decision mode) |
 | [the docs service](../docs/README.md) | `JevDecider` (the attention filter), `runTools` (the review agents), `respondJson` (the backstory, the lite reviews) |
 | [rules/](../rules/), [look/](../look/) | `respondJson` (the builds, the look inventions) |
 | [service/calls.ts](../service/calls.ts) | each request's call context: its fetch, key, log and cost |

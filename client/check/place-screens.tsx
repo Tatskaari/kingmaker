@@ -75,7 +75,7 @@ async function placeAt(checks: Array<[string, boolean]>, [w, h]: readonly [numbe
   checks.push([`${size}: the yard is drawn in the side panel, the lead's @ in it, and who's in it under it, by the names the lead knows`,
     top > 0 && list > top + 4 && placeRows.some(r => r.includes("@")) && /K Sergeant Agnes K/.test(frame) && /c the boy in the to/.test(frame) && /m the girl in the/.test(frame)]);
   checks.push([`${size}: the game's number still, to watch it by`, w < 100 ? /Game 1 · --join 1/.test(frame) : /Game 1/.test(frame) && /--join 1 to watch/.test(frame)]);
-  checks.push([`${size}: the keys say Tab goes through the place`, /Tab (marks, )?the place/.test(under(frame))]);
+  checks.push([`${size}: the keys say Tab goes through the place`, /Tab the place/.test(under(frame))]);
 
   /**
    * Point at each cell of the place until the bottom line names someone (and `also` holds there),
@@ -195,13 +195,11 @@ async function placeAt(checks: Array<[string, boolean]>, [w, h]: readonly [numbe
   act(() => setup.mockInput.pressEnter());
   frame = await draw();
   checks.push([`${size}: Enter sends the line in the box`, sent.at(-1) === "Sergeant Kell, who cut him down?" && !scene.sceneMenu]);
-  // By key: Tab through the last reply's marks, then to the nearest person, ↓ the next, Enter for the menu, a letter puts it away and goes in the box.
+  // By key: Tab to the nearest person (no marks in the reply to go through since M2), ↓ the next, Enter for the menu, a letter puts it away and goes in the box.
   await act(async () => { await setup.mockMouse.moveTo(1, 1); });
   act(() => setup.mockInput.pressTab());
   frame = await draw();
-  const mark = under(frame);
-  for (let i = 0; i < scene.lastMarks().length && !under(frame).startsWith("Sergeant Agnes Kell"); i++) { act(() => setup.mockInput.pressTab()); frame = await draw(); }
-  checks.push([`${size}: Tab picks out the last reply's marks (${mark.slice(0, 30)}), then the nearest person (${under(frame).slice(0, 40)})`, /^You did this:/.test(mark) && under(frame).startsWith("Sergeant Agnes Kell")]);
+  checks.push([`${size}: Tab picks out the nearest person at once (${under(frame).slice(0, 40)})`, under(frame).startsWith("Sergeant Agnes Kell")]);
   act(() => setup.mockInput.pressArrow("down"));
   frame = await draw();
   checks.push([`${size}: ↓ (nothing typed) the next (${under(frame).slice(0, 40)})`, under(frame).startsWith("The girl in the shawl")]);
@@ -217,7 +215,7 @@ async function placeAt(checks: Array<[string, boolean]>, [w, h]: readonly [numbe
   checks.push([`${size}: Esc lets go of what Tab picked out`, !/^The girl in the shawl/.test(under(frame))]);
 
   // While the GM has the floor: only looking (Prout's menu is a glance, and the rope's under it), and a deed waits for nobody.
-  set({ ...yard, phase: "deciding", mayType: false });
+  set({ ...yard, phase: "replying", mayType: false });
   await click(prout, RIGHT);
   const busy = scene.sceneMenu?.actions.map(a => a.id) ?? [];
   checks.push([`${size}: while the GM has the floor, Prout's menu only looks (${busy.join(", ")})`, busy[0] === "look" && !busy.includes("get-down") && !busy.includes("cast")]);

@@ -415,6 +415,18 @@
         "water"
       ],
       "description": "High, fast, black and cold."
+    },
+    {
+      "id": "heron-token",
+      "name": "a brass heron token on a greasy string",
+      "kind": "item",
+      "in": "hobb",
+      "size": "tiny",
+      "material": "brass",
+      "tags": [
+        "evidence"
+      ],
+      "description": "Stamped with a heron, worn round Hobb's neck: shown at the grille of the Heron's river door, it lets a hand in on a loading night."
     }
   ],
   "people": {

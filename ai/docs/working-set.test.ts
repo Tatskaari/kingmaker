@@ -3,19 +3,19 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import type { ChoiceQuestion, Decider } from "../llm/decide.ts";
 import { configureDocs } from "./config.ts";
-import { disclose, keepOpened, memoryBrief, withhold } from "./disclosure.ts";
-import { characterEntry, memoryLines } from "./docs.ts";
-import { broadcastEnding } from "./reviews.ts";
+import { memoryBrief } from "./disclosure.ts";
+import { characterEntry } from "./docs.ts";
+import { note } from "./notes.ts";
 import type { WorkingSet } from "./types.ts";
 
 /**
  * The docs service on plain data, with no game behind it: a working set made by hand, a lore of
- * four docs and a folder for the game's own copy (configureDocs), and a decider that opens whatever
- * it's asked about. That the prompts are byte for byte the prototype's was checked once, at the
- * move, by a characterization run kept outside the repo; nothing in the repo checks it again. The
- * prototype's tests play the docs service through its adapters (src/lore).
+ * four docs and a folder for the game's own copy (configureDocs). That the prompts are byte for byte
+ * the prototype's was checked once, at the move, by a characterization run kept outside the repo;
+ * nothing in the repo checks it again. The prototype's tests play the docs service through its
+ * adapters (src/lore). (Disclosure's own tests, with a decider that opened whatever it was asked
+ * about, went with disclosure.)
  */
 
 const DIR = mkdtempSync(join(tmpdir(), "km-working-set-"));
@@ -39,58 +39,19 @@ const VIEW: WorkingSet = {
   transcript: [{ turn: 1, text: "Wren (player): Who found him?" }, { turn: 1, text: "Kell: Cob did." }],
 };
 
-/** Opens everything it's asked about, and keeps what it was asked. */
-function opener(): Decider & { asked: Array<{ state: string; questions: Record<string, ChoiceQuestion>; operation: string }> } {
-  const asked: Array<{ state: string; questions: Record<string, ChoiceQuestion>; operation: string }> = [];
-  return {
-    name: "opener",
-    asked,
-    async decide(state, questions, operation) {
-      asked.push({ state: String(state), questions, operation });
-      return { answers: Object.fromEntries(Object.keys(questions).map(id => [id, { choice: id, probabilities: { [id]: 0.95 } }])), latencyMs: 1, costUsd: 0, decider: "opener" };
-    },
-  };
-}
-
 test("the lore and the game's own copy are where configureDocs says", () => {
   assert.equal(characterEntry("kell"), "Cast/Kell/private.md");
   assert.equal(characterEntry("nobody"), undefined);
 });
 
-test("disclosure on a working set: each scope's linked notes, only those it may read, on the view's turn", async () => {
-  const decider = opener();
-  const d = await disclose(VIEW, "Who found him?", decider);
-  assert.deepEqual(d.opened.map(n => [n.scope, n.path, n.title, n.turn, n.p]).sort(), [
-    ["character:kell", "Cast/Kell/knowledge/Cob.md", "Cob", 2, 0.95],
-    ["gm", "World/Secret.md", "The secret", 2, 0.95],
-  ]);
-  const kell = decider.asked.find(a => a.operation === "memory.disclose.kell")!;
-  assert.match(kell.state, /# Lore: Cast\/Kell\/private\.md\n# Kell\n\nA sergeant of the watch/);
-  assert.match(kell.state, /The scene so far \(latest part\):\nWren \(player\): Who found him\?\n\nKell: Cob did\.\n\nThe player's latest turn: Who found him\?$/);
-  assert.ok(!JSON.stringify(kell.questions).includes("World/Secret.md"), "a gm doc is never offered to a character");
-  assert.ok(existsSync(join(DIR, "games", "g1", "docs", "Player", "Wren.md")), "the player's doc, in the game's own copy");
-});
-
-test("what disclosure keeps comes back as a value for the game to keep: opened, then withheld", async () => {
-  const memory = keepOpened(undefined, (await disclose(VIEW, "Who found him?", opener())).opened);
-  assert.deepEqual(memory.opened.map(n => Object.keys(n).sort()), [["path", "scope", "title", "turn"], ["path", "scope", "title", "turn"]]);
-  const held = withhold(memory, "World/Secret.md");
-  assert.deepEqual(held.opened.map(n => n.path), ["Cast/Kell/knowledge/Cob.md"]);
-  assert.deepEqual(held.withheld, ["World/Secret.md"]);
-  const again = await disclose({ ...VIEW, memory: held }, "And the secret?", opener());
-  assert.deepEqual([again.opened, again.asked], [[], 0], "nothing open is asked again, and nothing withheld");
-});
-
-test("the GM's memory block: each person's lore, and the notes open for them", async () => {
+test("the GM's memory block: each person's lore, then the GM's notes on them from play; the player's doc made in the game's own copy", () => {
   assert.match(memoryBrief(VIEW, "stable")!, /### Kell: their own lore\n# Kell\n\nA sergeant of the watch/);
-  const memory = keepOpened(undefined, (await disclose(VIEW, "Who found him?", opener())).opened);
-  const live = memoryBrief({ ...VIEW, memory }, "live")!;
-  assert.match(live, /### Kell: their own memories\n#### Cob\n# Cob\n\nHe found the body at dawn\./);
-  assert.match(live, /### The GM's notes\n#### The secret\n# The secret\n\nSallow did it\./);
-});
-
-test("an ending is remembered by everyone present, in the game's own copy", () => {
-  const [path] = broadcastEnding(VIEW, { title: "Case made", outcome: "Kell takes the page to the King." });
-  assert.ok(path && existsSync(join(DIR, "games", "g1", "docs", path)));
-  assert.deepEqual(memoryLines("g1", "kell").map(l => l.replace(/\]\([^)]*\)/, "](…)")), ["- [The Yard: how it ended](…) — I was there when it ended Case made."]);
+  assert.ok(existsSync(join(DIR, "games", "g1", "docs", "Player", "Wren.md")), "the player's doc, in the game's own copy");
+  assert.doesNotMatch(memoryBrief(VIEW, "live") ?? "", /notes on them from play/, "no notes yet, none shown");
+  note("g1", { id: "kell", name: "Kell" }, "standing", "Wary: the investigator is new and asks a lot.");
+  note("g1", { id: "kell", name: "Kell" }, "seen", "Watched the investigator crouch to talk to Cob, kindly.");
+  const live = memoryBrief(VIEW, "live")!;
+  assert.match(live, /### Kell: their own memories\nThe GM's notes on Kell from play \(what's happened with them\):\nStanding with the player: Wary: the investigator is new and asks a lot\.\nSeen the player do:\n- Watched the investigator crouch to talk to Cob, kindly\.$/m);
+  assert.doesNotMatch(live, /Sallow did it/, "nothing opened: the notes disclosure opened went with it");
+  assert.doesNotMatch(memoryBrief(VIEW, "stable")!, /notes from play/, "the notes change from turn to turn: never in the stable part");
 });

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { After, Decision, DecideResponse, SettleResponse, Suggestion, SuggestRequest, SuggestResponse, Usage } from "../../../shared/protocol/ai.ts";
+import type { CoGmAnswer, ReplyResponse, SettleResponse, Suggestion, SuggestRequest, SuggestResponse, Usage } from "../../../shared/protocol/ai.ts";
 import { idText, keyParts, turnKeyParts } from "../../../shared/protocol/keys.ts";
 import type { MemoryHost } from "../host/memory.ts";
 import { all, DEFAULTS, down, held, http, identity, openedGame, sceneNow, tick } from "../host/testing.ts";
@@ -16,8 +16,10 @@ import { suggest } from "./suggest.ts";
 
 const usage = (calls: number, costUsd = 0): Usage => ({ calls, costUsd, byOperation: {} });
 const lines = (...texts: string[]): SuggestResponse => ({ lines: texts.map(text => ({ kind: "say", text })), dropped: [], usage: usage(2, 0.0008) });
-const decided = (d: Partial<Decision> = {}): DecideResponse => ({ decision: { earned: false, daft: false, outOfCharacter: false, ...d }, opened: [], usage: usage(1) });
-const read = (a: Partial<After> = {}): SettleResponse => ({ ops: [], after: { landed: [], hinted: [], unanswered: false, theirs: false, ...a }, usage: usage(2) });
+/** The settle's answer: the co-GM's moves (none by default). */
+const settled = (moves: CoGmAnswer["moves"] = []): SettleResponse => ({ ops: [], coGm: { roles: {}, moves, log: [] }, usage: usage(2) });
+/** The two-part GM's reply; a closing that waits says `closes: false`. */
+const replied = (more: Partial<ReplyResponse> = {}): ReplyResponse => ({ ...DEFAULTS.reply, ...more });
 
 /** The scene's set as it stands: [turn, ord, kind, text] by ord. */
 const setOf = (host: MemoryHost, sceneId: bigint) => [...host.db.sceneSuggestion.sceneId.filter(sceneId)].sort((a, b) => a.ord - b.ord).map(s => [s.turn, s.ord, s.kind, s.text]);
@@ -184,7 +186,7 @@ test("turned on while a turn waits for /retry after its settle failed, this mome
   assert.deepEqual(setOf(host, scene.id), asSet(1, DEFAULTS.suggest.lines));
 
   host.as(wren).setSuggestions({ on: false });
-  script.then("decide", http(400));
+  script.then("reply", http(400));
   host.as(wren).say({ text: "Who found him?" });
   await host.drain();
   assert.equal(host.as(wren).setSuggestions({ on: true }), undefined);
@@ -209,55 +211,42 @@ test("lines that can't be had are given up after 60 s: the moment has none, and 
   assert.match(host.logs.join("\n"), /\[scene \d+ turn 1\] lines lost: the set cleared/);
 });
 
-test("a reply that ends the scene asks for no lines; a wind-down out of character does", async () => {
+test("a closing reply that closes the scene asks for no lines; one that waits, once, does", async () => {
   const { host, script, wren, scene } = await openedGame();
-  const say = async (text: string, decide = decided(), settle?: SettleResponse) => {
-    script.then("decide", decide);
-    if (settle) script.then("settle", settle);
+  const say = async (text: string) => {
     host.as(wren).say({ text });
     await host.drain();
   };
   const askedFor = () => script.to("suggest").map(s => turnKeyParts(s.key)!.turn);
 
-  await say("I'll take the page to the King myself.", decided(), read({ ending: { exitId: "case-made", probability: 0.9 }, theirs: true }));
-  await say("(ooc: can I still look around?)", decided({ outOfCharacter: true }));
-  assert.deepEqual(askedFor(), [0, 1, 2], "the scene is closing, but this reply was out of character: it goes on");
+  script.then("settle", settled([{ route: "make-case", outcome: "none", why: "The case is made." }]));
+  await say("I'll take the page to the King myself.");
+  assert.equal(sceneNow(host, scene.id).scene.status, "closing");
+  script.then("reply", replied({ closes: false }));
+  await say("Wait: Cob, who was the big man?");
+  assert.deepEqual(askedFor(), [0, 1, 2], "the scene is closing, but this closing waited: it goes on");
   await say("Thank you, Sergeant.");
   assert.equal(sceneNow(host, scene.id).scene.status, "ended");
-  assert.deepEqual(askedFor(), [0, 1, 2], "the wind-down's reply closed the scene");
-
-  const { host: again, script: script2, wren: wren2 } = await openedGame();
-  script2.then("decide", decided({ route: { id: "walk-away", phase: "attempt" } }));
-  again.as(wren2).say({ text: "*I walk out of the gate.*" });
-  await again.drain();
-  assert.deepEqual(script2.to("suggest").map(s => turnKeyParts(s.key)!.turn), [0], "a route into an ending closes the scene in its reply");
+  assert.deepEqual(askedFor(), [0, 1, 2], "the closing reply closed the scene");
 });
 
-test("a reply that ends the scene gets no lines while it settles, the scene ending: set_suggestions asks for none, and a set for it that comes is dropped", async () => {
+test("a set that comes for a scene that's over is dropped, the rows left", async () => {
   const { host, script, wren, scene } = await openedGame();
-  const settle = held<SettleResponse>();
-  script.then("decide", decided({ route: { id: "walk-away", phase: "attempt" } }));
-  script.then("settle", () => settle.promise);
+  script.then("settle", settled([{ route: "walk-away", outcome: "none", why: "She walks out of the gate." }]));
   host.as(wren).say({ text: "*I walk out of the gate.*" });
-  const first = host.drain();
-  await tick();
   await host.drain();
+  host.as(wren).say({ text: "Good day, Sergeant." });
+  await host.drain();
+  const ended = sceneNow(host, scene.id);
+  assert.deepEqual([ended.scene.status, ended.scene.exitKey], ["ended", "walked-away"]);
+  const set = setOf(host, scene.id);
 
-  const settling = sceneNow(host, scene.id);
-  assert.deepEqual([settling.scene.status, settling.turns[1]!.phase, settling.gm.ended?.exitId], ["ending", "settling", "walked-away"]);
-  assert.equal(host.as(wren).setSuggestions({ on: true }), undefined);
-  assert.deepEqual([all(host.db.job).filter(j => j.move === "suggest").length, sceneNow(host, scene.id).turns[1]!.suggest], [0, "none"], "nothing asked for the closing reply");
-
-  const turn = settling.turns[1]!;
+  const turn = ended.turns[2]!;
   script.then("suggest", lines("A line for a scene that's over"));
-  host.transact(tx => queueThink(tx, suggest, { step: "suggest", game: idText(scene.gameId), scene: idText(scene.id), turn: idText(turn.id), n: 1, ask: 1 }));
+  host.transact(tx => queueThink(tx, suggest, { step: "suggest", game: idText(scene.gameId), scene: idText(scene.id), turn: idText(turn.id), n: 2, ask: 1 }));
   await host.drain();
-  assert.deepEqual([sceneNow(host, scene.id).turns[1]!.suggest, setOf(host, scene.id)], ["dropped", asSet(0, DEFAULTS.suggest.lines)], "a set that comes before the settle ends the scene is dropped, the rows left");
-  assert.match(host.logs.join("\n"), /\[scene \d+ turn 1\] lines dropped \(the scene is over\)/);
-
-  settle.settle(read());
-  await first;
-  assert.deepEqual([sceneNow(host, scene.id).scene.status, sceneNow(host, scene.id).turns[1]!.phase], ["ended", "done"]);
+  assert.deepEqual([sceneNow(host, scene.id).turns[2]!.suggest, setOf(host, scene.id)], ["dropped", set], "a set for a scene that's over is dropped, the rows left");
+  assert.match(host.logs.join("\n"), /\[scene \d+ turn 2\] lines dropped \(the scene is over\)/);
 });
 
 test("lines given up once their moment has passed are lost, and leave the set that's there", async () => {

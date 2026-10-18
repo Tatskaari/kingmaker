@@ -1,18 +1,19 @@
 import type { GmState, ScenePatch } from "../../shared/gm/state.ts";
-import { campaignId, type BuildFile, type BuildsFile, type CampaignFile, type LooksFile, type PlaceFile, type SceneFile } from "../../shared/scene/files.ts";
+import type { SceneDocument } from "../../shared/scene/document.ts";
+import { campaignId, type BuildFile, type BuildsFile, type CampaignFile, type LooksFile, type PlaceFile } from "../../shared/scene/files.ts";
 import { effectiveScene } from "../../shared/scene/graph.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
 import type { Exit, Scene } from "../../shared/scene/types.ts";
 import { refusal } from "../../shared/protocol/refusals.ts";
-import { FAREWELL, talkOf, talkSceneFile, type TalkCompanion } from "../../shared/scene/talk.ts";
+import { talkOf, talkSceneDocument, type TalkCompanion } from "../../shared/scene/talk.ts";
 import { Refused, type TxCtx } from "./context.ts";
 import { gameRow, type CampaignRow, type GameRow, type SceneDefRow, type SceneRow } from "./rows.ts";
 
 /**
- * A game's content as the simulation has it: the campaign version it started on, its scenes'
- * structure and its places, installed by install_campaign. A scene's graph is the prototype's Scene
- * with no words but its hook, the improvised ending added, as the AI service's own graph is: the two
- * run the same graph helpers (shared/scene/graph.ts) on it and must agree.
+ * A game's content as the simulation has it: the campaign version it started on, its scenes (each
+ * .kmscene file whole, with its words) and its places, installed by install_campaign. A scene's graph
+ * is the runtime's Scene made from its file, the improvised ending added, as the AI service's own
+ * graph is: the two run the same graph helpers (shared/scene/graph.ts, beats.ts) on it and must agree.
  */
 
 /** The campaign version a game plays: "caerwyn@0.1.0". */
@@ -60,25 +61,24 @@ export function sceneDefOf(tx: TxCtx, game: GameRow, sceneKey: string): SceneDef
 
 /**
  * A talk's scene def (docs/town-design.md §3.6), made as it's asked for, never kept: the
- * campaign's talk template (campaign.json's `talk` names its folder, installed as a scene def of that
- * key) filled for the companion (shared/scene/talk.ts talkSceneFile: their name, their id, the
+ * campaign's talk template (campaign.json's `talk` names it, installed as a scene def of that key)
+ * filled for the companion (shared/scene/talk.ts talkSceneDocument: their name, their id, the
  * farewell, and the statblock and weapon of their card in the scene they came from), its hook too.
  */
 function talkDefOf(tx: TxCtx, game: GameRow, sceneKey: string, talk: { companion: string; n: number }): SceneDefRow {
-  const folder = campaignFile(campaignOfGame(tx, game)).talk;
-  const template = folder ? tx.db.sceneDef.id.find(`${gameCampaignId(game)}/${folder}`) : undefined;
+  const key = campaignFile(campaignOfGame(tx, game)).talk;
+  const template = key ? tx.db.sceneDef.id.find(`${gameCampaignId(game)}/${key}`) : undefined;
   if (!template) throw new Error(`${gameCampaignId(game)} has no talk template for ${sceneKey}`);
   const who = companionCard(tx, game, talk.companion);
-  const file = talkSceneFile(sceneFileOf(template), who, talk.n);
-  const hook = template.hook.split("{name}").join(who.name).split("{companion}").join(who.id).split("{farewell}").join(FAREWELL);
-  return { id: `${gameCampaignId(game)}/${sceneKey}`, campaignId: template.campaignId, key: sceneKey, title: file.title, hook, json: JSON.stringify(file) };
+  const doc = talkSceneDocument(documentOf(template), who, talk.n);
+  return { id: `${gameCampaignId(game)}/${sceneKey}`, campaignId: template.campaignId, key: sceneKey, title: doc.title, hook: doc.hook, json: JSON.stringify(doc) };
 }
 
 /** Who a talk is with, as the story's scenes have them: their name, statblock and weapon on the card of the latest scene that has them (or, with none, their cast id). */
 function companionCard(tx: TxCtx, game: GameRow, id: string): TalkCompanion {
   const scenes = [...tx.db.scene.gameId.filter(game.id)].filter(s => s.kind !== "talk").sort((a, b) => (a.id > b.id ? -1 : 1));
   for (const s of scenes) {
-    const card = sceneOf(sceneFileOf(sceneDefOf(tx, game, s.sceneKey))).cast.find(c => c.id === id);
+    const card = documentOf(sceneDefOf(tx, game, s.sceneKey)).cast.find(c => c.id === id);
     if (card) return { id, name: card.name, ...(card.statblock ? { statblock: card.statblock } : {}), ...(card.weapon ? { weapon: card.weapon } : {}) };
   }
   return { id, name: id };
@@ -91,17 +91,18 @@ export function placeFileOf(tx: TxCtx, game: GameRow, placeKey: string): PlaceFi
   return JSON.parse(def.json) as PlaceFile;
 }
 
-export const sceneFileOf = (def: SceneDefRow) => JSON.parse(def.json) as SceneFile;
+/** A scene's file as its def keeps it (install_campaign held it to the format: shared/scene/document.ts). */
+export const documentOf = (def: SceneDefRow) => JSON.parse(def.json) as SceneDocument;
 
-/** A scene's graph from its def: the structure, the hook (for the names heard), and the improvised ending; with `patches`, as play has changed it. */
+/** A scene's graph from its def: the scene with its words, and the improvised ending; with `patches`, as play has changed it. */
 export function graphOf(def: SceneDefRow, patches: ScenePatch[] = []): Scene {
-  return effectiveScene({ ...sceneOf(sceneFileOf(def)), hook: def.hook }, patches);
+  return effectiveScene(sceneOf(documentOf(def)), patches);
 }
 
 /**
  * The graph of a scene being played, as play has changed it (full-gm-design §4.2): the co-GM's routes
  * and bridging beats, and the ways of trying a ruling shut (gm.patches), as the AI service's own graph
- * has them, so a route it offers is one the decide commit finds. `{ patches: [] }`: the scene as
+ * has them, so a route it offers is one the simulation finds. `{ patches: [] }`: the scene as
  * authored.
  */
 export function sceneGraph(tx: TxCtx, scene: SceneRow, gm: Pick<GmState, "patches">): Scene {

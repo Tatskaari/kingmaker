@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { copyFileSync, cpSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import type { Backend } from "../../client/backend.ts";
+import type { Backend, Moves } from "../../client/backend.ts";
 import { YARD } from "../../client/check/fixture.ts";
 import { demoBackend } from "../../client/demo.ts";
 import type { SceneView } from "../../client/scene/view.ts";
 import { patiently, worthWaiting } from "./patience.ts";
-import { CAMPAIGNS, recordPath, type LoopConfig } from "./paths.ts";
+import { CAMPAIGNS, recordPath, REPO, type LoopConfig } from "./paths.ts";
 import { brief, say, start, transcript, type PlayDeps } from "./play.ts";
 import { entriesOf, newRecord, readRecord, writeRecord, type Wait } from "./record.ts";
 import { reachScene } from "./reach.ts";
@@ -23,6 +23,18 @@ import { campaignAt } from "./scenes.ts";
 
 const CONFIG = (): LoopConfig => ({ rounds: mkdtempSync(join(tmpdir(), "km-loop-")), command: "npm run -s loop --" });
 const loaded = campaignAt(join(CAMPAIGNS, "caerwyn"));
+
+/**
+ * The campaign as the demo plays it: the demo's yard ends through the tests' own hanged clerk's
+ * endings (shared/scene/testdata: case-made, open-case, ...), not the re-authored clerk's, so the loop
+ * reads a copy of the campaign with that clerk in the yard's place.
+ */
+const asTheDemo = (() => {
+  const dir = mkdtempSync(join(tmpdir(), "km-loop-campaign-"));
+  cpSync(join(CAMPAIGNS, "caerwyn"), dir, { recursive: true });
+  copyFileSync(join(REPO, "shared", "scene", "testdata", "hanged-clerk.kmscene"), join(dir, "scenes", "hanged-clerk.kmscene"));
+  return campaignAt(dir);
+})();
 
 /** The demo as every command's connection (its close a no-op: the next command finds the game as the last left it). */
 function demoDeps(): PlayDeps & { game: Backend } {
@@ -106,10 +118,10 @@ test("say: a scene that ended behind the loop's back (the owner ended it, or a c
 
 /**
  * The yard on a backend whose turns fail as the game's do when the GM can't answer (`fails` times,
- * with `words`), then answer when carried on (retry); `said` counts the lines said.
+ * with `words`), then answer when carried on (retry), with `reply`'s entries; `said` counts the lines said.
  */
-function staged(words: string, fails: number): Backend & { said: number } {
-  let view: SceneView = { ...YARD, phase: "done", mayType: true, suggestions: [], suggestionsOn: false, notesComing: false, suggestionsComing: false };
+function staged(words: string, fails: number, reply: (turn: number) => SceneView["entries"] = turn => [{ turn, speaker: "kell", kind: "dialogue", name: "Sergeant Agnes Kell", text: "The porters." }]): Backend & { said: number } {
+  let view: SceneView = { ...YARD, phase: "done", mayType: true, suggestions: [], suggestionsOn: false, suggestionsComing: false };
   const listeners = new Set<() => void>();
   const set = (patch: Partial<SceneView>) => { view = { ...view, ...patch }; for (const l of listeners) l(); };
   let left = fails;
@@ -118,7 +130,7 @@ function staged(words: string, fails: number): Backend & { said: number } {
     const turn = view.entries.at(-1)!.turn;
     const { failed: _, ...rest } = view;
     view = rest as SceneView;
-    set({ entries: [...view.entries, { turn, speaker: "kell", kind: "dialogue", name: "Sergeant Agnes Kell", text: "The porters." }], phase: "done", mayType: true });
+    set({ entries: [...view.entries, ...reply(turn)], phase: "done", mayType: true });
   };
   const game = {
     said: 0,
@@ -176,19 +188,41 @@ test("say: a turn that failed is waited on and carried on, the wait on the turn;
   assert.equal(readRecord(recordPath(config3, "r1", "g01"))!.turns[String(Math.max(...YARD.entries.map(e => e.turn)) + 1)]!.waits.length, 0, "the ceiling isn't waited on");
 });
 
-test("a later scene reached: the scene before it ended for QA on its first good or mixed ending the game takes, the story moved on, then on to the lead", async () => {
+test("say: a check the GM calls, as the player sees it: the narration that sets it up, the dice line with how far it made or missed the DC, then the outcome that came up, its speaker by name", async () => {
+  const outcome = "Up close, a thin cord mark runs straight across his throat. “That's no rope,” Kell says.";
+  const checked = staged("", 0, turn => [
+    { turn, speaker: "gm", kind: "narration", text: "You climb the outside stair and lean out towards the body." },
+    { turn, speaker: "dice", kind: "roll", text: "Medicine check: 11 + 2 = 13 vs DC 12: success (only just)." },
+    { turn, speaker: "gm", kind: "narration", text: outcome, markup: { speech: [{ start: outcome.indexOf("“"), end: outcome.indexOf("”") + 1, speaker: "kell" }] } },
+  ]);
+  const config = CONFIG();
+  const said = await say(config, "r1", "g01", "(I climb the outside stair and look at his neck)", startedOn(config, checked));
+  assert.equal(said.code, 0, said.text);
+  assert.equal(said.text, [
+    "You climb the outside stair and lean out towards the body.",
+    "🎲 Medicine check: 11 + 2 = 13 vs DC 12: success (only just).",
+    "Up close, a thin cord mark runs straight across his throat. Sergeant Agnes Kell: “That's no rope,” Kell says.",
+    "(Turn 3 of 5.)",
+  ].join("\n\n"));
+});
+
+test("a later scene reached: the scene before it ended for QA, thorough, on its first good or mixed ending the game takes, the story moved on, then on to the lead", async () => {
   // The demo's own game (Pell Marrow's, in the yard and on no map: the demo's map can't walk to the Rat, as the game's can).
   const game = demoBackend({ ms: 1 });
+  const ends: Array<[string, boolean | undefined]> = [];
+  const act = game.act.bind(game);
+  game.act = (move, args) => { if (move === "endScene") ends.push([(args as Moves["endScene"]).exit, (args as Moves["endScene"]).thorough]); return act(move, args); };
   const record = newRecord({ round: "r1", game: "g01", scene: "drowned-rat", stack: "demo" });
   const waits: Wait[] = [];
-  await reachScene(game, "drowned-rat", await loaded, record, { sleep: async () => {}, now: () => new Date(0), waits, backoff: [1] });
+  await reachScene(game, "drowned-rat", await asTheDemo, record, { sleep: async () => {}, now: () => new Date(0), waits, backoff: [1] });
 
   assert.equal(game.view()?.title, "The Drowned Rat");
   assert.equal(game.view()?.mayType, true, "its opening is over");
   // The demo's end_scene takes only open-case: case-made, the first of the yard's good endings, was refused, so the next was tried.
   assert.deepEqual(record.skipped, [{ scene: "hanged-clerk", exit: "open-case", title: "Murder by persons unknown", result: "good" }]);
+  assert.deepEqual(ends, [["case-made", true], ["open-case", true]], "each end thorough: its discoveries reached first");
   assert.deepEqual(waits, []);
-  await assert.rejects(reachScene(game, "hanged-clerk", await loaded, record, { sleep: async () => {}, now: () => new Date(0), waits, backoff: [1] }), /The story passed over hanged-clerk and opened drowned-rat/);
+  await assert.rejects(reachScene(game, "hanged-clerk", await asTheDemo, record, { sleep: async () => {}, now: () => new Date(0), waits, backoff: [1] }), /The story passed over hanged-clerk and opened drowned-rat/);
 });
 
 test("a tester's brief: their character, how they play, the commands with the round and game, where their notes go; nothing of the build", () => {

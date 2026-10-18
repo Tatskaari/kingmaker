@@ -1,1 +1,0 @@
-Can the player find the big man with the bandaged hand and get out of him what he knows (who he works for, what happened in the loft, the Heron warehouse and how to get in), and what becomes of Big Hobb when they do?

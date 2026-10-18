@@ -7,16 +7,16 @@ const KELL_LINE = "Kell looks up. “You’re the King’s man?” She snaps the
 
 /** A scene's view as the client makes it, with what the record reads of it. */
 function view(entries: SceneView["entries"], present = [{ key: "kell", name: "Sergeant Agnes Kell" }, { key: "cob", name: "the boy in the too-big boots" }]): SceneView {
-  return { title: "The Hanged Clerk", game: "1", player: { name: "Nell Quickfingers" }, present, entries, phase: "done", mayType: true, over: false, suggestions: [], suggestionsComing: false, suggestionsOn: false, notesComing: false };
+  return { title: "The Hanged Clerk", game: "1", player: { name: "Nell Quickfingers" }, present, entries, phase: "done", mayType: true, over: false, suggestions: [], suggestionsComing: false, suggestionsOn: false };
 }
 
-test("the entries as the player saw them: each spoken line's speaker by the name the player knows them by, their own words by their name, someone no one can place, no notes", () => {
+test("the entries as the player saw them: each spoken line's speaker by the name the player knows them by, their own words by their name, someone no one can place", () => {
   const start = KELL_LINE.indexOf("“");
   const entries = entriesOf(view([
-    { turn: 0, speaker: "gm", kind: "narration", text: KELL_LINE, markup: { speech: [{ start, end: start + 23, speaker: "kell" }], marks: [{ start: 0, end: 4, kind: "why", note: "a note" }] } },
+    { turn: 0, speaker: "gm", kind: "narration", text: KELL_LINE, markup: { speech: [{ start, end: start + 23, speaker: "kell" }] } },
     { turn: 1, speaker: "player:1", kind: "player", text: "Who found him?" },
     { turn: 1, speaker: "dice", kind: "roll", text: "Insight check, DC 12: d20 14 + 1 = 15. A success." },
-    { turn: 1, speaker: "gm", kind: "narration", text: "“Mine!” “Yours?” “Ours.”", markup: { speech: [{ start: 0, end: 7, speaker: "cob" }, { start: 8, end: 16, speaker: "you" }, { start: 17, end: 24, tag: "a porter" }], marks: [] } },
+    { turn: 1, speaker: "gm", kind: "narration", text: "“Mine!” “Yours?” “Ours.”", markup: { speech: [{ start: 0, end: 7, speaker: "cob" }, { start: 8, end: 16, speaker: "you" }, { start: 17, end: 24, tag: "a porter" }] } },
     { turn: 1, speaker: "moll", kind: "dialogue", name: "the girl in the shawl", text: "Sod off." },
   ]));
 

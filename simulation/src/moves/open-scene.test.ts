@@ -103,7 +103,7 @@ test("the opening's commit: the GM's entry, the draft gone, the scene live, turn
   host.as(wren).newGame({ campaign: "caerwyn", name: "Wren Ashdown", concept: "a hedge wizard", build: "ranger" });
   script.then("open", (request: OpenRequest) => {
     host.streamReply({ turnId: BigInt(request.stream.turn), attempt: 1, seq: 1, speaker: "gm", text: "Sergeant Kell", done: false });
-    return { present: ["kell", "cob", "moll"], entries: [{ speaker: "gm", kind: "narration", text: "Sergeant Kell looks up. A boy is lobbing stones at the body: \"Cob, stop that.\"", markup: { speech: [{ start: 40, end: 54, tag: "Kell" }], marks: [] } }], opened: [{ path: "Cast/Kell.md", title: "Kell", scope: "character:kell", turn: 0, p: 0.95 }], usage: { calls: 3, costUsd: 0.0021, byOperation: {} } };
+    return { present: ["kell", "cob", "moll"], entries: [{ speaker: "gm", kind: "narration", text: "Sergeant Kell looks up. A boy is lobbing stones at the body: \"Cob, stop that.\"", markup: { speech: [{ start: 40, end: 54, tag: "Kell" }] } }], usage: { calls: 3, costUsd: 0.0021, byOperation: {} } };
   });
   await host.drain();
 
@@ -111,12 +111,11 @@ test("the opening's commit: the GM's entry, the draft gone, the scene live, turn
   const now = sceneNow(host, scene.id);
   assert.equal(now.scene.status, "live");
   assert.equal(now.scene.turnId, undefined);
-  assert.deepEqual(now.turns.map(t => [t.n, t.phase, t.calls, t.costMicros]), [[0, "done", 3 + 1 + 2, 2100n + 200n + 800n]], "the opening's calls, then its notes' and its lines'");
+  assert.deepEqual(now.turns.map(t => [t.n, t.phase, t.calls, t.costMicros]), [[0, "done", 3 + 2, 2100n + 800n]], "the opening's calls, then its lines' (the notes' went in M2)");
   assert.ok(now.turns[0]!.firstTextAt, "the stream set the first text's time");
   assert.deepEqual(now.lines.map(l => [l.seq, l.turn, l.speaker, l.kind]), [[1, 0, "gm", "narration"]]);
-  assert.deepEqual(JSON.parse(now.lines[0]!.markup!), { speech: [{ start: 40, end: 54, tag: "Kell" }], marks: [] });
+  assert.deepEqual(JSON.parse(now.lines[0]!.markup!), { speech: [{ start: 40, end: 54, tag: "Kell" }] });
   assert.equal(all(host.db.replyDraft).length, 0);
-  assert.deepEqual(now.gm.opened, [{ path: "Cast/Kell.md", title: "Kell", scope: "character:kell", turn: 0 }]);
   assert.deepEqual(all(host.db.job), [], "the move is done");
   assert.ok(all(host.db.heard).some(h => h.entityKey === "cob"), "Cob's name was said in the opening");
   assert.match(host.logs.join("\n"), /\[job \d+ .+:s\d+:t0:open attempt 1\] 200 in \d+ ms: committed/);

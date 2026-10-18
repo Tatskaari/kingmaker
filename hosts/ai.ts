@@ -33,7 +33,6 @@ async function main(): Promise<void> {
     stream: { ...config.stdb, periodMs: config.streamMs },
     serves: { model: config.model, gm: config.gm },
     dailyUsd: config.dailyUsd,
-    considerDeadlineMs: config.considerDeadlineMs,
     faults: config.faults,
     log,
     exit: code => process.exit(code),

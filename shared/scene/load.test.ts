@@ -1,66 +1,51 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { PlaceFile, SceneFile } from "./files.ts";
+import type { SceneDocument } from "./document.ts";
+import type { CampaignFile, PlaceFile } from "./files.ts";
 import { effectiveScene, IMPROVISED_EXIT_ID } from "./graph.ts";
-import { sceneOf } from "./load.ts";
+import { loadScene, sceneOf } from "./load.ts";
 import { validateScene } from "./types.ts";
 
+/** Every scene of the campaign loads as the game loads it (scenes/<id>.kmscene, parsed and made the runtime's Scene), whole. */
+
 const CAERWYN = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
-const DIR = join(CAERWYN, "scenes", "hanged-clerk");
-const file = JSON.parse(readFileSync(join(DIR, "scene.json"), "utf8")) as SceneFile;
-const place = JSON.parse(readFileSync(join(CAERWYN, "places", "granary-yard.json"), "utf8")) as PlaceFile;
-const words = (path: string) => (existsSync(join(DIR, path)) ? readFileSync(join(DIR, path), "utf8") : undefined);
-const routesOf = (scene: ReturnType<typeof sceneOf>) => [...scene.beats.flatMap(b => b.transitions), ...(scene.anytime ?? [])];
+const read = (path: string) => readFileSync(join(CAERWYN, path), "utf8");
+const campaign = JSON.parse(read("campaign.json")) as CampaignFile;
+const keys = [...campaign.scenes, campaign.talk!];
+const doc = (key: string) => JSON.parse(read(`scenes/${key}.kmscene`)) as SceneDocument;
 
-test("the hanged clerk loads with its words: 5 beats, 37 routes, 5 exits (6 with an ending of their own)", () => {
-  const scene = sceneOf(file, words);
-
-  assert.equal(scene.beats.length, 5);
-  assert.equal(routesOf(scene).length, 37);
-  assert.equal(scene.exits.length, 5);
-  assert.equal(effectiveScene(scene, []).exits.length, 6);
-  assert.ok(effectiveScene(scene, []).exits.some(e => e.id === IMPROVISED_EXIT_ID));
-  assert.match(scene.opening, /\S/);
-  assert.ok((scene.cast.find(c => c.id === "kell")?.knows.length ?? 0) > 0);
-  assert.deepEqual(validateScene({ ...scene, world: place }), []);
+test("each of the campaign's scenes and its talk template loads, holds together, and has its place", () => {
+  for (const key of keys) {
+    const scene = loadScene(read(`scenes/${key}.kmscene`), `${key}.kmscene`);
+    // (Its place as its world would say the Rat's page isn't its own: the story carries it in, with Cob.)
+    const place = doc(key).place ? (JSON.parse(read(`places/${doc(key).place}.json`)) as PlaceFile) : undefined;
+    assert.equal(scene.id, key);
+    assert.equal(place?.key, doc(key).place, key);
+    assert.deepEqual(validateScene(scene), [], key);
+    assert.ok(scene.exits.length > 0 && scene.beats.some(b => b.id === scene.start), key);
+    assert.deepEqual(scene.routes.map(r => r.id), doc(key).edges.map(e => e.id), `${key}: every route, in the file's order`);
+  }
 });
 
-test("its routes' facts resolve to the sentences the GM is told", () => {
-  const sentences = new Set(Object.values(file.facts));
-  const established = routesOf(sceneOf(file)).flatMap(t => [...(t.establishes ?? []), ...(t.check?.establishes?.success ?? []), ...(t.check?.establishes?.failure ?? [])]);
-
-  assert.equal(Object.keys(file.facts).length, 5);
-  assert.ok(established.length > 0);
-  assert.deepEqual(established.filter(s => !sentences.has(s)), []);
-});
-
-test("without its words the scene is the same structure, every Markdown field empty", () => {
-  const full = sceneOf(file, words);
-  const bare = sceneOf(file);
-
-  assert.deepEqual(routesOf(bare), routesOf(full));
-  assert.deepEqual(bare.exits.map(e => [e.id, e.kind, e.title, e.next, e.effects]), full.exits.map(e => [e.id, e.kind, e.title, e.next, e.effects]));
-  assert.deepEqual(bare.cast.map(c => [c.id, c.name, c.called, c.enters]), full.cast.map(c => [c.id, c.name, c.called, c.enters]));
-  assert.deepEqual([bare.setting, bare.premise, bare.hook, bare.opening, bare.limits], ["", "", "", "", []]);
-  assert.equal(bare.cast[0]!.look, "");
-});
-
-test("with words, a missing file or a card without a section it needs doesn't load", () => {
-  assert.throws(() => sceneOf(file, path => (path === "opening.md" ? undefined : words(path))), /hanged-clerk: no opening\.md/);
-  assert.throws(() => sceneOf(file, path => (path === "cast/kell.md" ? "## Look\n\nTall.\n" : words(path))), /cast\/kell\.md has no "## Voice"/);
+test("the arc's scenes as play has them: an ending of their own added; the story's leads carried", () => {
+  const essentials = Object.fromEntries(campaign.scenes.map(key => [key, (sceneOf(doc(key)).essentials ?? []).map(e => e.id)]));
+  assert.deepEqual(essentials, {
+    "hanged-clerk": ["motive", "hobb"], "caerwyn-afternoon": ["lead"], "drowned-rat": ["the-master", "the-heron", "prouts-page"],
+    "wharf-night": ["lead"], "heron-warehouse": [], "kings-morning": [],
+  });
+  const clerk = effectiveScene(sceneOf(doc("hanged-clerk")), []);
+  assert.ok(clerk.exits.some(e => e.id === IMPROVISED_EXIT_ID));
+  assert.equal(clerk.exits.find(e => e.id === IMPROVISED_EXIT_ID)!.next, "caerwyn-afternoon", "its ways on all go to the afternoon, and so does an ending of their own");
 });
 
 test("the story's fields come through: an interlude, what it takes for granted, the rest, the milestone, every ending's effects (story-design §4.2)", () => {
-  const story: SceneFile = {
-    ...file, interlude: true, assumes: ["The barge hasn't sailed."], overtaken: "kings-morning", rest: "long", milestone: true,
-    background: ["Sallow came at midnight."], onEnd: [{ op: "follow", who: "kell" }],
-  };
-  const scene = sceneOf(story);
-
-  assert.deepEqual([scene.interlude, scene.assumes, scene.overtaken, scene.rest, scene.milestone, scene.background, scene.onEnd],
-    [true, ["The barge hasn't sailed."], "kings-morning", "long", true, ["Sallow came at midnight."], [{ op: "follow", who: "kell" }]]);
-  const plain = sceneOf({ ...file, onEnd: undefined }); // the hanged clerk's own file has onEnd (Kell follows)
-  assert.ok(!["interlude", "assumes", "overtaken", "rest", "milestone", "background", "onEnd"].some(k => k in plain));
+  const afternoon = sceneOf(doc("caerwyn-afternoon")), wharf = sceneOf(doc("wharf-night")), king = sceneOf(doc("kings-morning"));
+  assert.deepEqual([afternoon.interlude, afternoon.rest, afternoon.time, afternoon.exits.map(e => e.next)], [true, "short", "afternoon", ["drowned-rat"]]);
+  assert.deepEqual([wharf.assumes?.length, wharf.overtaken], [1, "heron-warehouse"]);
+  assert.deepEqual([king.rest, king.milestone, king.time, king.exits.every(e => !e.next)], ["long", true, "next-morning", true]);
+  assert.deepEqual(sceneOf(doc("hanged-clerk")).onEnd, [{ op: "follow", who: "kell" }]);
+  const plain = sceneOf({ ...doc("hanged-clerk"), onEnd: undefined });
+  assert.ok(!["interlude", "assumes", "overtaken", "rest", "milestone", "background", "onEnd", "companion", "anytime"].some(k => k in plain));
 });

@@ -1,14 +1,16 @@
-// Copied from the prototype's src/runtime/engine.ts at 44c6d4a: chainScene's middle (1070-1091), rememberBetween (1094-1114), crossBoundary (1161-1242) and moveOn (1262-1286), with the usual edits (a TurnView for the session, the request's calls through respond and respondJson, the campaign's scenes for sceneById). chainScene starts at what's owed: the candidates are the simulation's (shared/scene/graph.ts candidatesOf, engine.ts:1060-1069), and what it pushed onto the session and handed on to the next scene's (the history entry, the scene's own state, what's owed and brought over) is returned, for the simulation to keep. The memory "docs" approach's records are written once for a boundary, so a rerun after a crash writes none twice: the ending's memory and the time between are skipped for whoever already has them, and the played scene when its doc is there. Presence (gm/presence.ts) is asked here, after the hand-off, rather than as the next scene opens. journalOf isn't copied: the notebook's lines are the simulation's rows.
+// Copied from the prototype's src/runtime/engine.ts at 44c6d4a: chainScene's middle (1070-1091), rememberBetween (1094-1114), crossBoundary (1161-1242) and moveOn (1262-1286), with the usual edits (a TurnView for the session, the request's calls through respond and respondJson, the campaign's scenes for sceneById). chainScene starts at what's owed: the candidates are the simulation's (shared/scene/graph.ts candidatesOf, engine.ts:1060-1069), and what it pushed onto the session and handed on to the next scene's (the history entry, the scene's own state, what's owed and brought over) is returned, for the simulation to keep. The memory "docs" approach's records are written once for a boundary, so a rerun after a crash writes none twice: the ending's and the time between's lines in the GM's notes on each person (rememberBetween's and broadcastEnding's, since the memories became those notes) are kept once, and the played scene is skipped when its doc is there. Presence (gm/presence.ts) is asked here, after the hand-off, rather than as the next scene opens. journalOf isn't copied: the notebook's lines are the simulation's rows.
 
-import { readDoc, errandsOf, memoryLines, saveMemory, savePlayedScene } from "../docs/docs.ts";
+import { characterEntry, errandsOf, readDoc, savePlayedScene, seedDoc, titleOf } from "../docs/docs.ts";
 import { frontsText, moveFronts, type FrontChanges } from "../docs/fronts.ts";
-import { broadcastEnding } from "../docs/reviews.ts";
+import { note, type NotePerson, type NoteSection } from "../docs/notes.ts";
 import type { Decider } from "../llm/decide.ts";
 import { respond, respondJson, type CallContext } from "../llm/openrouter.ts";
 import type { Chapter } from "../../shared/protocol/ai.ts";
 import type { ScenePatch } from "../../shared/gm/state.ts";
 import { nameTokens } from "../../shared/scene/names.ts";
+import type { Cond } from "../../shared/scene/files.ts";
 import type { Exit, Scene } from "../../shared/scene/types.ts";
+import type { SceneWorld } from "../../shared/world/scene-world.ts";
 import { sceneEntries, strangers } from "./brief.ts";
 import { bringOver, OWED_INSTRUCTION, owedAtEnd, owedKey, owedPrep, owedSchema, owedText, type Owed, type OwedVerdict } from "./owed.ts";
 import { settlePresence } from "./presence.ts";
@@ -44,8 +46,8 @@ export async function chainScene(scene: Scene, state: TurnView, exit: Exit, cand
   const owed = owedAtEnd(scene, state);
   const { handoff, sceneId, adjustments, skipped, opening, lead, fronts, owed: verdict } = await crossBoundary(scene, state, exit, combatResult, candidates, undefined, owed, how);
   const next = how.sceneById(sceneId);
-  // (The v2 approach's memory is "docs": the ending for everyone there, the time between, the played scene.)
-  broadcastOnce(scene, state, exit);
+  // (The v2 approach's memory is "docs": the GM's notes on each person, at the ending and for the time between, and the played scene.)
+  notesAtEnd(scene, next, state, exit);
   rememberBetween(scene, next, state, lead, adjustments);
   if (!readDoc(state.id, `story/scenes/${scene.id}.md`)) savePlayedScene(state.id, scene, exit.title, handoff);
   const lastMoments = sceneEntries(state).filter(e => e.kind !== "system").slice(-4)
@@ -63,40 +65,85 @@ export async function chainScene(scene: Scene, state: TurnView, exit: Exit, cand
   };
 }
 
-/** A memory titled so is in someone's index already (a boundary run again: its records are written once). */
-function remembers(game: string, id: string, title: string): boolean {
-  const linked = `- [${title.replace(/\s+/g, " ").replace(/[[\]()]/g, "")}](`;
-  return memoryLines(game, id).some(l => l.startsWith(linked));
+/** Someone the notes are about, by their cast id: as the scenes' cast names them, else as their lore entry does. */
+function personOf(id: string, cast: Map<string, NotePerson>): NotePerson {
+  const known = cast.get(id);
+  if (known) return known;
+  const entry = characterEntry(id);
+  const lore = entry ? seedDoc(entry) : undefined;
+  return { id, name: lore ? titleOf(lore) : id };
 }
 
-/** V1's milestone broadcast (docs/reviews.ts broadcastEnding): how it ended, for everyone there who hasn't that memory yet. */
-function broadcastOnce(scene: Scene, state: TurnView, exit: Exit): void {
-  const view = workingSet(scene, state);
-  const present = view.present.filter(c => !remembers(state.id, c.id, `${scene.title}: how it ended`));
-  if (present.length) broadcastEnding({ ...view, present }, exit);
+/** Whether an effect holds as the scene ends: its `if` facts all established, its `unless` facts none (the simulation's holdsIn, story/effects.ts). */
+function holdsAtEnd(scene: Scene, state: TurnView): (e: Cond) => boolean {
+  const known = new Set(state.established);
+  const isTrue = (id: string) => { const sentence = scene.facts?.[id]; return sentence !== undefined && known.has(sentence); };
+  const listOf = (facts: string | string[] | undefined) => (facts === undefined ? [] : typeof facts === "string" ? [facts] : facts);
+  return e => listOf(e.if?.established).every(isTrue) && !listOf(e.unless?.established).some(isTrue);
+}
+
+const firstName = (name: string) => name.split(" ")[0] ?? name;
+
+/**
+ * What the scene's end says of each person, in the GM's notes on them (docs/notes.ts), from its
+ * effects as play made them hold, the ending's and the scene's own: an attitude is their standing
+ * ("Friendly: The King's investigator made Prout's case properly."), a memory is a line of what they
+ * did, a promise is in the notes of each side; and everyone there with no memory of it from the
+ * ending has that they were there when it ended (V1's milestone broadcast, so the ending is never
+ * left to chance). A boundary run again adds nothing: a line the notes have already is kept as it is.
+ */
+function notesAtEnd(scene: Scene, next: Scene, state: TurnView, exit: Exit): void {
+  const cast = new Map([...next.cast, ...scene.cast].map(c => [c.id, { id: c.id, name: c.name }]));
+  const at = { scene: scene.id, turn: state.turn };
+  const player = firstName(state.player.name);
+  const nameOf = (id: string) => (id === "$player" ? player : personOf(id, cast).name);
+  const write = (id: string, section: NoteSection, line: string) => {
+    if (id === "$player") return;
+    try { note(state.id, personOf(id, cast), section, line, { origin: at }); } catch { /* best effort, as the boundary's other records are */ }
+  };
+  const holds = holdsAtEnd(scene, state);
+  const remembered = new Set<string>();
+  for (const e of [...(exit.effects ?? []), ...(scene.onEnd ?? [])].filter(holds)) {
+    if (e.op === "attitude") write(e.who, "standing", `${e.to.charAt(0).toUpperCase()}${e.to.slice(1)}: ${e.text}`);
+    else if (e.op === "remember") { write(e.who, "did", `${scene.title}, as it ended: ${e.text}`); remembered.add(e.who); }
+    else if (e.op === "promise") {
+      write(e.by, "promises", `Promised ${nameOf(e.to)}: ${e.text}`);
+      write(e.to, "promises", `${nameOf(e.by)} promised them: ${e.text}`);
+    }
+  }
+  for (const c of workingSet(scene, state).present) if (!remembered.has(c.id)) write(c.id, "did", `Was there when ${scene.title} ended: ${exit.title}.`);
 }
 
 /**
  * What the boundary says of someone in the time between (what the player heard of it, in the lead;
- * how things stand for them, in the adjustments) goes into their own memory, so the next scene's GM
- * and their talks know it as theirs. Kell's afternoon at the Purveyor's wagons was in the lead, and in
- * the talk that followed she flatly denied it: her memories held only the granary.
+ * how things stand for them, in the adjustments) goes into the GM's notes on them, so the next
+ * scene's GM and their talks know it as theirs. Kell's afternoon at the Purveyor's wagons was in the
+ * lead, and in the talk that followed she flatly denied it: her memories held only the granary. Only
+ * the people of the scene that ended lived the time between: someone the next scene brings on has
+ * no line of it (the lead's "followed the big man to the Rat" was never Hobb's doing, and what the
+ * adjustments say of him is that scene's prep already).
  */
 function rememberBetween(scene: Scene, next: Scene, state: TurnView, lead: string | undefined, adjustments: string[]): void {
-  const people = new Map([...scene.cast, ...next.cast].map(c => [c.id, c]));
-  for (const c of people.values()) {
+  const between = `Between ${scene.title} and ${next.title}`;
+  for (const c of scene.cast) {
     const names = (text: string) => nameTokens(c).some(t => new RegExp(`\\b${t}\\b`).test(text));
-    const lines = [...(lead && names(lead) ? [`As ${state.player.name} heard it in the time between: ${lead}`] : []), ...adjustments.filter(names)];
-    const title = `Between ${scene.title} and ${next.title}`;
-    if (!lines.length || remembers(state.id, c.id, title)) continue;
-    try {
-      saveMemory(state.id, { id: c.id, name: c.name }, {
-        title,
-        context: "What I did and said in the time between, and how things stand for me now.",
-        content: lines.map(l => `- ${l}`).join("\n"),
-      }, { scene: next.id, turn: state.turn });
-    } catch { /* best effort, as the boundary's other records are */ }
+    const lines = [...(lead && names(lead) ? [`${between}, as ${firstName(state.player.name)} heard it: ${lead}`] : []), ...adjustments.filter(names).map(a => `${between}: ${a}`)];
+    for (const line of lines) {
+      try { note(state.id, { id: c.id, name: c.name }, "did", line, { origin: { scene: next.id, turn: state.turn } }); } catch { /* best effort, as the boundary's other records are */ }
+    }
   }
+}
+
+/**
+ * What the player character holds as a scene ends, by its world, in a line (as the GM's world view
+ * lists it): the hand-off and the verdict say who holds what from it as well as from the transcript,
+ * which says nothing of what an ending gave, or of a scene ended for QA, whose things were taken
+ * without a word. Undefined with no world, or no player in it.
+ */
+function carriedOf(world: SceneWorld | undefined): string | undefined {
+  if (!world?.entities.player) return undefined;
+  const held = Object.values(world.entities).filter(e => e.parent === "player" && !e.states.includes("gone"));
+  return held.length ? held.map(e => `${(e.quantity ?? 1) > 1 ? `${e.quantity} ` : ""}${e.name}`).join(", ") : "nothing";
 }
 
 /**
@@ -109,9 +156,10 @@ function rememberBetween(scene: Scene, next: Scene, state: TurnView, lead: strin
 async function crossBoundary(scene: Scene, state: TurnView, exit: Exit, combatResult: string, candidates: Scene[], frontsDoc: string | undefined, owed: Owed[], how: BoundaryCall): Promise<{ handoff: string; sceneId: string; adjustments: string[]; skipped: Array<{ sceneId: string; why: string }>; opening?: string; lead?: string; fronts: string[]; owed?: OwedVerdict[] }> {
   const transcript = sceneEntries(state).map(e => e.kind === "player" ? `${state.player.name} (player): ${e.text}` : e.kind === "dialogue" ? `${scene.cast.find(c => c.id === e.speaker)?.name ?? e.speaker}: ${e.text}` : e.kind === "narration" ? `GM: ${e.text}` : `[${e.text}]`).join("\n\n");
   const ended = `${exit.title} (${scene.id}: ${exit.id}). ${exit.outcome}${exit.kind === "combat" ? ` The fight was then played out on the map: ${combatResult}.` : ""}`;
+  const carries = carriedOf(state.world);
   const story = [
     ...(state.history.length ? [`## The story before the last scene\n${state.history.map(h => h.summary).join("\n\n")}`] : []),
-    `## The last scene: ${scene.title}\nHow it ended: ${ended}\nThe player character: ${state.player.name}, ${state.player.concept} (the only player character).\n\n${transcript}`,
+    `## The last scene: ${scene.title}\nHow it ended: ${ended}\nThe player character: ${state.player.name}, ${state.player.concept} (the only player character).${carries === undefined ? "" : `\nWhat the player character carries as it ends, by the world's record (what play put in their hands, and what the ending gave them): ${carries}.`}\n\n${transcript}`,
   ].join("\n\n");
   const prep = (c: Scene) => [
     `### ${c.id}: ${c.title}`,

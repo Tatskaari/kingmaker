@@ -1,6 +1,8 @@
 # The golden calls
 
-The prototype's GM calls on the hanged clerk, recorded once, for the prompt parity test ([../parity.test.ts](../parity.test.ts)): the AI service's acceptance test (v0-design §10.2, v5-design §4.2, gm-port §16.1). For the same state, the AI service's GM must ask the models what the prototype's asks, and come to what it comes to.
+The prototype's calls on the hanged clerk, recorded once, for the prompt parity test ([../parity.test.ts](../parity.test.ts)): the suggester's acceptance test (v5-design §4.2). For the same state, the AI service must ask the models what the prototype's asks, and come to what it comes to.
+
+**What's left of them is the lines** (`<moment>.suggest.json`). The GM's steps (`00-open.json` to `09-t3-settle.json`: the opening, then each turn's decide, reply and settle, as the prototype's old pipeline asked them) and the second recording with a backstory (`hanged-clerk-backstory`) went with the old pipeline's scene steps after QA round qa1-1018 ([../../../docs/migration-log.md](../../../docs/migration-log.md), M2's "The old pipeline's salvage"): the game plays every scene on the two-part GM, which the prototype never recorded. They're in git history before that cleanup. What follows describes the recording as it was made, all of it.
 
 ## How they were recorded
 
@@ -12,6 +14,8 @@ node --no-warnings tools/record-golden.mts --proto <a worktree at another commit
 ```
 
 Re-record when the prototype's GM changes and the change is copied into [gm/](..), then run the parity test.
+
+**M2 edited them for the notes' going** (the user's call: the notes on marked words were taken out of the game), with a script rather than a recording, since the prototype that recorded them is retired: gm.md's markup paragraph and gm-markup.md as they are now in every recorded instruction and reminder, the marks taken out of the recorded replies and their markup (who says each line kept, its offsets moved with the words), and the `<moment>.notes.json` files deleted. The prototype's calls are otherwise as recorded: the parity test still holds the game's GM to them, byte for byte, with the notes left out on both sides. What follows describes the recording as it was made.
 
 Kell's lore in the recorded prompts carries #661's two edits (her `knowledge/Sallow.md` and `private.md`, in the campaign's lore since M1), put into these files by hand as a recording from the prototype at `53f45f3` would have them: nothing else in them changed.
 
@@ -31,7 +35,7 @@ It wraps the stand-in's fetch to keep every call's body with a copy of the sessi
 | File | What's in it |
 |---|---|
 | `00-open.json` to `09-t3-settle.json` | A step each: the opening, then each turn's decide (disclosure and `director.before`), reply (`gm.reply`) and settle (`world.stage` and `director.after`). The step's line, the stand-in's options (`fake`), the session at the step's first call, and every call the step made. The opening's and each reply's file also has who says each line (`speakers`): as the reply streams in a word at a time (each time the words shown grow, the prototype's `streamed`) and once it's whole (`readReply`, with the marks the GM drafted) |
-| `<moment>.notes.json` | The notes on the moment's reply, from the session frozen at the notes call: the reply (its place on the transcript, its words, who says each line, the GM's marks), the call's body, the marks placed and linked, and each link's card (`knowledgeCard`) |
+| `<moment>.notes.json` | (Deleted in M2.) The notes on the moment's reply, from the session frozen at the notes call: the reply (its place on the transcript, its words, who says each line, the GM's marks), the call's body, the marks placed and linked, and each link's card (`knowledgeCard`) |
 | `<moment>.suggest.json` | The lines after the moment's reply, from the session frozen at the suggest call: what was offered last, both calls' bodies (the suggester's and the judge's), every field of the vetting, the lines, and what was dropped and why |
 
 The notes and the lines are written again on the frozen copy by the prototype's own `writeNotes`, `knowledgeCard`, `propose` and `vetting`, under a fresh stand-in told the same, and checked against the game's own calls: the same body for the notes' writer and the suggester. So the judge is asked on the state the lines were asked on, as the AI service asks it; in the game it's asked after an await, while the turn moves on.
@@ -46,12 +50,11 @@ Each step's or moment's session becomes the request the simulation would send (t
 
 | Call, or what came of it | Compared |
 |---|---|
-| `gm.opening`, `gm.reply` | the whole request, byte for byte (instructions, every input message, model, effort, token cap): the history writes back who says each line, by the name the player knows them by, and the notes on the earlier replies |
+| `gm.opening`, `gm.reply` | the whole request, byte for byte (instructions, every input message, model, effort, token cap): the history writes back who says each line, by the name the player knows them by |
 | `world.stage` | the whole request, byte for byte (instructions, input, the schema of the world's ids) |
 | `memory.disclose.*` | the whole request, byte for byte (each scope's state, every candidate's question) |
 | `director.before`, `director.after` | the state byte for byte; every question the prototype asked is asked, each equal to the prototype's of that id |
-| who says each line | as the reply streams, a word at a time (the draft's posts), and once it's whole, with the GM's drafted marks; no mark of the GM's own on the reply |
-| `notes` | the whole request, byte for byte (instructions, input, the schema); the marks placed (offsets, kinds, notes, links by the game's keys) and each link's card |
+| who says each line | as the reply streams, a word at a time (the draft's posts), and once it's whole |
 | `scene.suggest` | the whole request, byte for byte (the player's spells in "who they are" too) |
 | `scene.suggest.judge` | the state byte for byte, and every question |
 | the vetting, the lines | every field of the vetting, equal; the lines, and what was dropped and why |
@@ -62,8 +65,8 @@ A reply's decision is the AI service's own, from its decide on the same turn; wh
 
 All of it pinned by the test.
 
-- **The director asks every question the prototype's does.** Since the full GM (full-gm-design §4.1) it asks considered rolls' `roll_call` and the means (`attempt_means`) in every beat, the co-GM's `off_graph`, and after the reply the rules' `left`; since the world bridge (world-bridge-design §3.1) the rules' `mechanic` before the reply, and their `threat` and `threat_severity` after it. The rules' questions are asked when the sheet has a build, as both recordings' have (the wizard's and the rogue's), so the test's `NOT_ASKED` is empty. Every question is the prototype's to the letter, the limit with its `pretending` option included. The act's details call (`director.mechanic`, `.jump`, `.feature`) and the reactions (`director.reactions`) aren't in the recordings: none of their turns casts, strikes or jumps.
+- **The director's questions went with the GM steps' recordings.** Until the old pipeline's salvage the test held the director to every question the prototype asked (`director.before`'s and `director.after`'s, the full GM's and the world bridge's among them), to the letter; they went with the old pipeline's decide and settle and their recordings ([../../../docs/migration-log.md](../../../docs/migration-log.md)), and what's left of them, parked for combat (the rules' mechanic question and the act's details call, the threat after a reply), was never in the recordings: none of their turns casts, strikes or jumps.
 - **The spells in the suggested lines' "who they are" are the sheet's.** The prototype tells the suggester and the judge the character's spells from the rules engine (`suggest.ts`'s `who`); the AI service from the sheet the request sends (`SheetRow.spells`, since the world bridge), the same list, so what they're sent is the same byte for byte.
 - **The dice.** The prototype rolls through its rules engine when there's a sheet; V0's simulation rolls its no-sheet `rollCheck` from the game's dice row, so the same seed rolls differently (v0-design §6.4). The prompts carry whatever was rolled.
 
-V0's difference on the GM's marks is gone: a reply's drafted marks go back with it (`drafted`), the notes are written on them, and the next reply's history has them, as the prototype's.
+The GM's marks went with the notes in M2: a mark a model writes anyway is taken out of the words, and nothing of it is kept.

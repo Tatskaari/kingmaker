@@ -35,7 +35,7 @@ export interface Ledger {
   spentToday(): Promise<number>;
 }
 
-/** An installed version's files, by their paths in it ("scenes/hanged-clerk/setting.md"). */
+/** An installed version's files, by their paths in it ("scenes/hanged-clerk.kmscene"). */
 export interface VersionFiles {
   /** A file's text, or undefined when the version has none at that path. */
   read(path: string): string | undefined;

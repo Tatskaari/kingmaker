@@ -18,7 +18,7 @@ Steps 1 and 2 are the game's. Steps 3 to 5 (cases cut from a flagged turn, the e
 
 ## Ground rules
 
-- **Plan before fan-out.** A round is games × two Claude agents each (a tester and a reviewer), and real models. Rounds of up to 8 games and 20 turns, on baseline plus at most one candidate, are pre-approved: state the plan in a line (the scenes and how many games each, the arms, the personas, the max turns, the agents) and launch. Anything bigger needs a yes first. For scale: on the prototype, 8 games of 20 turns took about 12 minutes, 1M agent tokens and $0.20 a game on OpenRouter. On the game (2026-10-17, real models), a start and two lines in the hanged clerk cost $0.020 in 40 calls: the character and the opening about $0.004, and a turn about $0.008 with its background memory reviews (6 to 10 s), so a 20-turn game is about $0.17. A later scene's game costs more, since every scene before it opens and crosses its boundary first: starting on the Drowned Rat cost $0.012 and took 30 s on real models, and the King's morning, three boundaries on, took 31 s on the fake.
+- **Plan before fan-out.** A round is games × two Claude agents each (a tester and a reviewer), and real models. Rounds of up to 8 games and 20 turns, on baseline plus at most one candidate, are pre-approved: state the plan in a line (the scenes and how many games each, the arms, the personas, the max turns, the agents) and launch. Anything bigger needs a yes first. For scale: on the prototype, 8 games of 20 turns took about 12 minutes, 1M agent tokens and $0.20 a game on OpenRouter. On the game's two-part GM (2026-10-18, real models), the character, the opening and five lines in the hanged clerk cost $0.024: the character and the opening about $0.0025, and a line about $0.004 with its co-GM and its background memory reviews, the first words in about 1 s and the turn done, the co-GM's settle in, in 8 to 12 s; so a 20-turn game is about $0.09. A later scene's game costs more, since every scene before it opens and crosses its boundary first: starting on the Heron, through the yard's and the Rat's boundaries, took 37 s and $0.015 on real models, and the King's morning, three boundaries on, 18 s on the fake.
 - **Triage every finding before you show it.** The blind reviewers are fallible. Read each finding against the reply, the rubric's check and the truth behind the screen (the pack has it), and write the round's `triage.json`: keep (why, in plain words; adjust the severity if needed) or discard (why). The report shows your why first. An untriaged report isn't finished.
 - **Verify by reading, not by score.** Open the calls of a flagged turn in the report (each call is its own full transcript, a part unchanged since the last call of its kind folded, a changed one diffed). Find the call where it goes wrong before you form a hypothesis.
 - **Blind means blind.** Testers and reviewers see neutral names (k1, g03) and nothing of the build. Never tell them the arms, the hypothesis or what you're hunting for, and never hand them anything from runs/ but their own brief and pack.
@@ -28,7 +28,7 @@ Steps 1 and 2 are the game's. Steps 3 to 5 (cases cut from a flagged turn, the e
 
 ```sh
 npm run loop -- help
-npm run loop -- stack up                 # real models; --fake for the fake model (plumbing only: it plays the yard's golden replies wherever a scene is)
+npm run loop -- stack up                 # real models; --fake for the fake model (plumbing only: the yard's golden replies wherever a scene is, its co-GM walking each scene to its first good ending)
 npm run loop -- stack status
 ```
 
@@ -48,7 +48,7 @@ npm run loop -- round r2-1018 --scene hanged-clerk --personas thief,tangent,inve
 npm run loop -- games r1-1018                      # the games, for the workflow (no arms shown)
 ```
 
-- **Scenes.** `--scenes` gives each scene its number of games; `--scene` alone plays every persona on every arm (`--repeat` times). The scenes are the story's (the interludes aren't played). A later scene's game is reached the way the story reaches it: each scene before it opens, is ended for QA on its first good or mixed ending (`end_scene`, the dev stack's owner's), and crosses its real boundary, and the lead is walked to. The tester is told what their notebook says happened.
+- **Scenes.** `--scenes` gives each scene its number of games; `--scene` alone plays every persona on every arm (`--repeat` times). The scenes are the story's (the interludes aren't played). A later scene's game is reached the way the story reaches it: each scene before it opens, is ended for QA on its first good or mixed ending (`end_scene`, the dev stack's owner's) with every discovery it can reach reached first and what each is in taken (`thorough`, as a thorough player's game would have them, so nothing it carries is owed on and the player carries its things on, with whatever the ending gives), and crosses its real boundary, and the lead is walked to. The tester is told what their notebook says happened.
 - **Arms** are stacks: `baseline` is the round's stack; a candidate is a stack of its own run from another checkout (`npm run loop -- stack up --root <its runs/loop-stack> --port 3340 --ai-port 8827` there), so any change, prompts or code, is an arm. Each arm gets a shuffled neutral name.
 - **Personas** are in qa/loop/personas.json (thief, wizard, barbarian, tangent, investigator, schemer, terse, absurd). Include `tangent` or `absurd`: the user cares most about how the GM improvises off the prep. `--goal "..."` makes a goal-directed round (docs/QA.txt).
 
@@ -60,7 +60,7 @@ Workflow({ name: "gm-qa-round", args: { round: "r1-1018", games: ["g01", "g02", 
 
 Each game is a pipeline:
 
-- **A tester agent** gets its brief (`loop brief`) and plays: `loop start` makes the character from the persona's sentence (or its ready-made build, if the sentence won't take), turns the suggested lines off, takes the story to the scene and prints the opening; `loop say` plays a line and prints what answered it, as the player saw it (each speaker's name before their words, the dice, no notes or markup), and stops at the scene's end or the turn limit. Its notes go to `notes/<game>.md`.
+- **A tester agent** gets its brief (`loop brief`) and plays: `loop start` makes the character from the persona's sentence (or its ready-made build, if the sentence won't take), turns the suggested lines off, takes the story to the scene and prints the opening; `loop say` plays a line and prints what answered it, as the player saw it (each speaker's name before their words; a check the GM calls as the narration that sets it up, the dice line with how far the roll made or missed the DC, then the outcome that came up; no markup), and stops at the scene's end or the turn limit. Its notes go to `notes/<game>.md`.
 - **A reviewer agent**, as soon as the game is played, builds its pack (`loop review-pack`: the reviewer's brief, the rubric, the truth behind the screen, which is the scene's truth sheet, its prep as the GM had it and what the story handed on to a later scene, then what the player was told and the scene turn by turn), writes `reviews/<game>.json`, and checks it with `loop review-check` (every quote must be in its turn's reply).
 
 ## 2. Triage and the round's report
@@ -87,7 +87,7 @@ On the prototype a flagged turn became a case (`loop case`, `loop fixture`: the 
 | the rubric (checks, severities, penalties 1/2/4/8/16) | qa/loop/rubric.md |
 | the tester's and the reviewer's briefs | qa/loop/brief/tester.md, reviewer.md |
 | personas | qa/loop/personas.json |
-| truth sheets (what the prep doesn't spell out) | qa/loop/truth/<scene>.md (the hanged clerk's) |
+| truth sheets (what the prep doesn't spell out) | qa/loop/truth/<scene>.md (one for each scene a round can play) |
 | rounds and their triage | runs/loop/<round>/ (KM_LOOP_DIR), archived to KM_LOOP_ARCHIVE |
 | the loop's stack | runs/loop-stack (its logs in logs/, its call logs in ai/games/<uid>/calls.jsonl) |
 | the saved workflow | .claude/workflows/gm-qa-round.js |
@@ -95,8 +95,12 @@ On the prototype a flagged turn became a case (`loop case`, `loop fixture`: the 
 
 ## Sharp edges
 
-- **A scene ended for QA is forced:** no closing reply, its ending's effects applied as if played. What the notebook says is what the story knows; the reviewer's pack says which scenes were ended so.
-- **The fake model** answers every scene with the yard's golden replies, so a fake round tests the loop's plumbing, never the GM.
-- **The suggested lines are off and the notes on marked words aren't shown:** the testers write their own lines, and the review is of the GM's replies.
+- **A scene ended for QA is forced:** no closing reply, its discoveries reached first (their facts settled and the carried ones landed, so the next scene's GM isn't told to bring them out), its ending's effects applied as if played. What the notebook says is what the story knows; the reviewer's pack says which scenes were ended so.
+- **The fake model** answers every scene with the yard's golden replies, so a fake round tests the loop's plumbing, never the GM. Its co-GM walks each scene to its first good ending, a route a line (required discoveries first), so a fake game longer than four lines in the yard ends there (the closing is the fifth reply). `KM_AI_FAKE='{"mouthpiece":{"check":{"skill":"medicine","dc":12}}}'` before `stack up --fake` makes every reply but an opening or a closing call a check, to see the dice in `say`.
+- **The suggested lines are off:** the testers write their own lines, and the review is of the GM's replies. (The notes on marked words went in M2.)
 - **A turn cut off** (an agent's command timed out) goes on on the stack: the next `say` waits for it first and prints what answered it with the new answer; `transcript` shows where things stand.
-- **Truth sheets matter:** the reviewers see the prep plus `qa/loop/truth/<scene>.md`. Keep a scene's sheet in step with its lore's public and private marking, and with M2's re-authored scenes (whose own `truth` the pack shows too), or reviewers will flag public facts as leaks.
+- **Truth sheets matter:** the reviewers see the prep (with each scene's own truth, cards and discoveries, which say what's held and by whom) plus `qa/loop/truth/<scene>.md`, which says what's public: what anyone can see and what the campaign's public lore lets anyone say, which the prep doesn't hold, and for a later scene what the scenes before may have given the player. Every scene a round can play has one; keep each in step with its scene and its lore's public and private marking (a test checks that each names its scene's discoveries; the rest is yours to check), and expect a reviewer to flag a public fact a sheet missed as a leak now and then (triage it).
+
+## Probing a fix on a round's own games
+
+A change to the co-GM can be tried on the calls of a round already played, before a new round: `KM_LOOP_DIR=<rounds> npm run -s loop -- probe <round> <game> <turn>[-<turn>] [--tries 3] [--want <node>] [--not <node>] [--log <file>]` asks the co-GM again on those turns with this checkout's code and scenes, its bookkeeping rebuilt from the round's moves and the round's own transcript, roles and story so far spliced in, on real models (about $0.003 a try). It prints each try's moves and the nodes they reached, and how many tries reached `--want` or kept off `--not`. It reads the round and writes nothing to it (qa/loop/probe.ts). For a turn the round's co-GM never saw open (the one a bad ending closed), `--reply` asks that turn's reply again first and the co-GM about it, `--drop <route>` leaves the round's move on that route out of the rebuilt bookkeeping, and `--reply-text <file>` tries the co-GM on a reply of your own; `--role <id>` shows the role each try gave that person.

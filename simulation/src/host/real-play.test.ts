@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Identity, ScheduleAt, Timestamp } from "spacetimedb";
-import type { DecideResponse } from "../../../shared/protocol/ai.ts";
+import type { ReplyResponse } from "../../../shared/protocol/ai.ts";
 import { requeueRunning } from "../jobs.ts";
 import { TABLES, type TableName } from "../tables.ts";
 import { keyOf, memoryHost, type AiPost, type ChangeSet, type MemoryHost, type Restore, type Row } from "./memory.ts";
@@ -96,8 +96,8 @@ test("a host rebuilt from what its commits told has every row as it was, and pla
   const wren = identity(1);
   host.as(wren).newGame({ campaign: "caerwyn", name: "Wren Ashdown", concept: "a hedge wizard from the fens", build: "ranger" });
   await host.drain();
-  const slow = held<DecideResponse>();
-  script.then("decide", () => slow.promise);
+  const slow = held<ReplyResponse>();
+  script.then("reply", () => slow.promise);
   host.as(wren).say({ text: "Who found him?" });
   const cutOff = host.drain();
   await tick();
@@ -109,16 +109,16 @@ test("a host rebuilt from what its commits told has every row as it was, and pla
   assert.deepEqual(told, [], "init found its owner and its reaper: nothing written");
 
   rebuilt.transact(requeueRunning);
-  assert.match(rebuilt.logs.join("\n"), /\[restart\] job \d+ .+:t1:decide dispatched again \(attempt 2\)/);
+  assert.match(rebuilt.logs.join("\n"), /\[restart\] job \d+ .+:t1:reply dispatched again \(attempt 2\)/);
   await rebuilt.drain();
 
   const scene = all(rebuilt.db.scene)[0]!;
   const lines = sceneNow(rebuilt, scene.id).lines.map(l => l.id);
   assert.deepEqual(sceneNow(rebuilt, scene.id).turns.map(t => t.phase), ["done", "done"]);
-  assert.deepEqual(again.to("decide").map(d => d.attempt), ["2"]);
+  assert.deepEqual(again.to("reply").map(d => d.attempt), ["2"]);
   assert.ok(lines.length > all(host.db.transcript).length && new Set(lines).size === lines.length, "the transcript's ids carried on");
 
-  slow.settle(DEFAULTS.decide);
+  slow.settle(DEFAULTS.reply);
   await cutOff;
 });
 
@@ -132,8 +132,8 @@ test("dispatchDue starts run_job for every dispatch due at once, as SpacetimeDB'
   host.as(bo).newGame({ campaign: "caerwyn", name: "Bo Fenn", concept: "a ferryman", build: "fighter" });
   await host.drain();
   const [wrens, bos] = all(host.db.scene);
-  const first = held<DecideResponse>(), second = held<DecideResponse>();
-  script.then("decide", () => first.promise, () => second.promise);
+  const first = held<ReplyResponse>(), second = held<ReplyResponse>();
+  script.then("reply", () => first.promise, () => second.promise);
   timeouts.splice(0);
 
   host.as(wren).say({ text: "Who found him?" });
@@ -141,15 +141,15 @@ test("dispatchDue starts run_job for every dispatch due at once, as SpacetimeDB'
   const runs = host.dispatchDue();
 
   assert.equal(runs.length, 2);
-  assert.deepEqual(script.to("decide").map(d => sceneOf(d.key)), [wrens!.id, bos!.id], "both POSTed before either answered, in the order they were dispatched");
-  assert.deepEqual(timeouts, [20_000, 20_000]);
+  assert.deepEqual(script.to("reply").map(d => sceneOf(d.key)), [wrens!.id, bos!.id], "both POSTed before either answered, in the order they were dispatched");
+  assert.deepEqual(timeouts, [60_000, 60_000]);
   assert.deepEqual(all(host.db.job).map(j => [j.sceneId, j.state, j.attempts]), [[wrens!.id, "running", 1], [bos!.id, "running", 1]]);
   assert.deepEqual(all(host.db.jobDispatch), []);
 
-  second.settle(DEFAULTS.decide);
+  second.settle(DEFAULTS.reply);
   await runs[1];
-  assert.deepEqual([phaseOf(host, wrens!.id), phaseOf(host, bos!.id)], ["deciding", "replying"], "Bo's answer committed while Wren's POST is in flight");
-  first.settle(DEFAULTS.decide);
+  assert.deepEqual([phaseOf(host, wrens!.id), phaseOf(host, bos!.id)], ["replying", "settling"], "Bo's answer committed while Wren's POST is in flight");
+  first.settle(DEFAULTS.reply);
   await Promise.all(runs);
   await host.drain();
   assert.deepEqual([phaseOf(host, wrens!.id), phaseOf(host, bos!.id)], ["done", "done"]);
@@ -161,7 +161,7 @@ test("a run that throws is logged, never rejected; so is a throw from the commit
 
   host.transact(tx => {
     const job = tx.db.job.insert({
-      id: 0n, key: "x:s1:t1:decide", gameId: undefined, sceneId: undefined, turnId: undefined, move: "nosuch", step: "decide", endpoint: "/v1/turns/decide", timeoutMs: 20_000,
+      id: 0n, key: "x:s1:t1:reply", gameId: undefined, sceneId: undefined, turnId: undefined, move: "nosuch", step: "reply", endpoint: "/v1/turns/reply", timeoutMs: 60_000,
       request: "{}", plan: "{}", state: "queued", attempts: 0, deadline: undefined, retryAt: undefined, failingSince: undefined, error: undefined, updatedAt: tx.now,
     });
     tx.db.jobDispatch.insert({ scheduledId: 0n, scheduledAt: ScheduleAt.time(tx.now.microsSinceUnixEpoch), jobId: job.id });

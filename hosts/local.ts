@@ -11,7 +11,7 @@ import { folderStores } from "../ai/service/folder-stores.ts";
 import { aiService, type AiService } from "../ai/service/server.ts";
 import type { StreamReplyArgs } from "../shared/protocol/ai.ts";
 import { memoryHost, type MemoryHost } from "../simulation/src/host/memory.ts";
-import { readCampaignFiles } from "./dev/campaign.ts";
+import { readCampaignFiles, type CampaignFiles } from "./dev/campaign.ts";
 import { install, streamArgsOf, streamInto } from "./in-process.ts";
 
 /**
@@ -35,6 +35,8 @@ export interface LocalOptions {
   gm?: "pipeline" | "canned";
   /** The campaign folder to install in both: campaigns/caerwyn. */
   campaign?: string;
+  /** A campaign's files in hand, installed in its folder's place (a test's own scene among them). */
+  files?: CampaignFiles;
 }
 
 export interface LocalHost {
@@ -66,7 +68,7 @@ export async function localHost(options: LocalOptions = {}): Promise<LocalHost> 
   });
   const ai = localAi(store, options, line => aiLogs.push(line), post => sim.streamReply(streamArgsOf(post), SERVICE));
 
-  await install(readCampaignFiles(options.campaign ?? CAERWYN), ai, sim, BEARER);
+  await install(options.files ?? readCampaignFiles(options.campaign ?? CAERWYN), ai, sim, BEARER);
 
   return { sim, ai, store, aiLogs, close: () => rmSync(store, { recursive: true, force: true }) };
 }

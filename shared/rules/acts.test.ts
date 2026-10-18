@@ -4,7 +4,8 @@ import { readFileSync } from "node:fs";
 import "./shim.ts";
 import * as E from "../../vendor/dnd-srd-engine/dnd-srd-engine.module.js";
 import { initialGm } from "../gm/state.ts";
-import type { BuildsFile, PlaceFile, SceneFile } from "../scene/files.ts";
+import type { SceneDocument } from "../scene/document.ts";
+import type { BuildsFile, PlaceFile } from "../scene/files.ts";
 import { presentCast } from "../scene/graph.ts";
 import { sceneOf } from "../scene/load.ts";
 import { buildWorld, joinWorld, tick } from "../world/scene-world.ts";
@@ -28,7 +29,7 @@ import type { Rules, SceneSession } from "./types.ts";
 const read = <T>(path: string) => JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8")) as T;
 const rules = rulesFrom(E, read("../../vendor/dnd-srd-engine/starter-pack.json"), read("../../vendor/srd-spells/spells.json"));
 const BUILDS = read<BuildsFile>("../../campaigns/caerwyn/builds.json");
-const scene = sceneOf(read<SceneFile>("../../campaigns/caerwyn/scenes/hanged-clerk/scene.json"));
+const scene = sceneOf(read<SceneDocument>("../../campaigns/caerwyn/scenes/hanged-clerk.kmscene"));
 /** The yard's place file, read afresh: a world built from it shares its arrays (a thing's states), and the acts change them in place. */
 const place = () => read<PlaceFile>("../../campaigns/caerwyn/places/granary-yard.json");
 const T = Date.UTC(2026, 9, 16, 9, 30);

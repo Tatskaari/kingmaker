@@ -1,10 +1,10 @@
-// Copied from the prototype's src/runtime/markup.test.ts at 44c6d4a, whole: the scenes come from the test story (fixtures.ts: the hanged clerk as campaigns/caerwyn has it, the Heron, the King's morning and the Rat as the prototype's tests had them), and a session is a TurnView.
+// Copied from the prototype's src/runtime/markup.test.ts at 44c6d4a, whole: the scenes come from the test story (fixtures.ts: the hanged clerk as campaigns/caerwyn has it, the Heron, the King's morning and the Rat as the prototype's tests had them), and a session is a TurnView. Since M2 a mark is only taken out of the words (the game keeps no notes), so markupOf writes back the speakers alone and its round trip keeps the words and who says them.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { sceneById, stateIn } from "./fixtures.ts";
 import { speakersOf } from "./knowledge.ts";
-import { markupOf, parseMarkup, speechIn, stripMarkup, withSpeakers, type Marked } from "./markup.ts";
-import { speaker, type Speaker } from "./speakers.ts";
+import { markupOf, parseMarkup, speechIn, stripMarkup, withSpeakers, type Marked, type Parsed } from "./markup.ts";
+import { distinct, speaker, type Speaker } from "./speakers.ts";
 import type { TurnView } from "./view.ts";
 
 const PEOPLE: Speaker[] = [
@@ -14,7 +14,7 @@ const PEOPLE: Speaker[] = [
 ];
 
 /** The marked phrases of a parse, as they read. */
-const phrases = (m: Marked) => m.marks.map(x => `${x.kind}:${m.text.slice(x.start, x.end)}`);
+const phrases = (m: Parsed) => m.marks.map(x => `${x.kind}:${m.text.slice(x.start, x.end)}`);
 const lines = (m: Marked) => m.speech.map(s => m.text.slice(s.start, s.end));
 
 test("plain prose is left as it is, its quotes taken as spoken lines", () => {
@@ -264,21 +264,20 @@ test("who says each line: the tag, a speech tag carrying on, or the prose", () =
   // A tag that's only what someone is ("[Porter]", "[A porter]") isn't someone the player knows by it.
   const porters = [...PEOPLE, speaker("hobb", "Big Hobb Mallory", "the big porter with the bandaged hand")];
   assert.deepEqual(withSpeakers(parseMarkup("A porter turns toward the grille. [Porter] “Who's there?” [the big porter] “Me.”"), porters).speech.map(s => s.speaker), [undefined, "hobb"]);
-  // Words quoted in narration aren't a line said, or are the player's own when they echo their turn.
-  const quoted = withSpeakers(parseMarkup("At “the Purveyor's office,” her pencil stills. Kell mouths the word “trout”."), PEOPLE, { player: "Who at the Purveyor's office signs for it?" });
-  assert.deepEqual(quoted.speech.map(s => [quoted.text.slice(s.start, s.end), s.speaker]), [["“the Purveyor's office,”", "you"]]);
+  // Words quoted in narration aren't a line said, even the player's own echoed (QA round qa2-1018: they read as the player speaking mid-sentence).
+  assert.deepEqual(withSpeakers(parseMarkup("At “the Purveyor's office,” her pencil stills. Kell mouths the word “trout”."), PEOPLE).speech, []);
   // Someone the player knows only by sight, told by what they're called ("the boy in the too-big boots" is the scene's boy).
   const yard = [...PEOPLE, speaker("cob", "Cob", "the boy in the too-big boots")];
   const o = withSpeakers(parseMarkup("A scrawny boy in enormous boots lobs a stone at the body. “Hold still!” [the boy] “Nearly got him.”"), yard);
   assert.deepEqual(o.speech.map(s => s.speaker), ["cob", "cob"]);
 });
 
-test("written back out, the markup reads the same", () => {
+test("written back out, the markup reads the same: the words, and who says each line (a note taken out stays out)", () => {
   for (const raw of SAMPLES.slice(0, 2)) {
     const m = withSpeakers(parseMarkup(raw), PEOPLE);
     const again = parseMarkup(markupOf(m, id => ({ crust: "Madam Crust", kell: "Kell", dab: "Dab" })[id]));
     assert.equal(again.text, m.text);
-    assert.deepEqual(again.marks.map(x => [x.start, x.end, x.kind, x.note]), m.marks.map(x => [x.start, x.end, x.kind, x.note]));
+    assert.deepEqual(again.marks, []);
     assert.deepEqual(again.speech.map(s => [s.start, s.end]), m.speech.map(s => [s.start, s.end]));
   }
 });
@@ -347,6 +346,44 @@ test("who says a line untagged, as the narration says: its own attribution befor
   assert.deepEqual(speakers("Kell turns to the landlady, leaving you to the boy. “I’m lent, not on duty.” Her pencil stays tucked in her notebook.\n\nThe boy stops at your silver crown. His eyes flick to the big man by the fire, then back to the coin. “A whole crown, eh? Cob could buy himself a horse.” He reaches for the silver. “Not out here. Not with the big cove looking.” His voice drops. “And what happens to Cob after?”", rat), ["kell", "cob", "cob", "cob"]);
   // Someone brought in that nobody can name isn't the last speaker carried over.
   assert.deepEqual(speakers("[Kell] “Out.” A porter shoves past with a sack. “Mind yourself.”", yard), ["kell", undefined]);
+  // The sentence leading in starts after the line before it: Hobb's whisper is his, not Hep's, whose call came just before (QA round qa1-1018, g05's T6).
+  assert.deepEqual(speakers("[Big Hobb Mallory] “Not yet, missus.” He glances toward the land door. “At the bell.” Across the floor Hep calls, [Hepzibah Grist] “Thirty-eight to the hatch! Keep those seams shut!” Hobb lowers his voice further. “When he comes, don’t let him see me looking at you.”", castOf("heron-warehouse")), ["hobb", "hobb", "hep", "hobb"]);
+});
+
+test("who says a line, on QA round qa2-1018's own replies: the big man by what he's called, a quote inside a sentence nobody's, and a tag naming a stranger theirs", () => {
+  const rat = castOf("drowned-rat");
+  // "The big man’s shoulders tighten." leads into his refusal (g04's T2, untagged as written; T6 the same).
+  assert.deepEqual(speakers("The landlady follows your glance to the fireside corner, where the biggest man keeps his face lowered over his pot. “Poorly’s a measure I don’t sell, my duck. He’s champion eleven years. Ask him.” The old bargewoman’s cards whisper over the table. The young lighterman by the door taps his elbow down and grins. “Third challenge, Hobb. You can’t duck me all night.” The big man’s shoulders tighten. “Not tonight, Arlo.”", rat), ["nan-quill", "arlo", "hobb"]);
+  assert.deepEqual(speakers("Before the old bargewoman can deal again, the young lighterman plants his elbow on Hobb’s table. [Arlo Quarry] “Come on, Hobb. Third time. House says the chair goes if you refuse.” The room quiets around the challenge. The big man stares into his pot. “Not tonight, Arlo.”", rat), ["arlo", "hobb"]);
+  // "…,” the big man says": his, not Arlo's, whom the sentence before was about (g07's T2).
+  assert.deepEqual(speakers("The landlady’s gaze settles on the coin. [the landlady] “Wagers paid at the bar, my duck. And the champion decides whether he plays.” The lighterman plants his elbow on the table, still looking toward the corner. “Not tonight, Arlo,” the big man says, quietly. The room waits to see whether you leave the wager standing.", rat), ["nan-quill", "hobb"]);
+  assert.deepEqual(speakers("[the big man] “Not tonight.”", rat), ["hobb"], "a tag that's what he's called, two words");
+  // Someone else's tag, whoever they are: not the lead-in's subject's, nor the last speaker's.
+  assert.deepEqual(speakers("[Arlo Quarry] “Third time.” The lighterman grins at the corner. “Not tonight, Arlo,” a porter says.", rat), ["arlo", undefined]);
+  assert.deepEqual(speakers("Hobb raises the brass heron token to the grille. From within, a voice asks, “Who’s the clerk?”", rat), [undefined]);
+  // At “granary rope,” his face drains: the player's words quoted in a sentence aren't a line, the player's or anyone's (g04's T7).
+  const t7 = withSpeakers(parseMarkup("His eyes rise to yours, then flick toward the closed door. At “granary rope,” his face drains of colour. [Big Hobb Mallory] “Sir.” His voice is low and careful. “I don’t want to hang.” He looks down at the table. “I only held him. I only held the rope.”"), rat);
+  assert.deepEqual(t7.speech.map(s => [t7.text.slice(s.start, s.end), s.speaker]), [["“Sir.”", "hobb"], ["“I don’t want to hang.”", "hobb"], ["“I only held him. I only held the rope.”", "hobb"]]);
+  // A name that's what someone is ("the silent Crake") isn't told by its describing words: the room falling silent isn't him (g08's Heron).
+  const crakes = distinct([speaker("crake-1", "the talking Crake", "the talking bruiser"), speaker("crake-2", "the silent Crake", "the silent bruiser")]);
+  assert.deepEqual(speakers("The room falls silent. “Out.”", crakes), [undefined]);
+  assert.deepEqual(speakers("[the talking bruiser] “A shilling extra for the uniform.” The talking bruiser grins at Kell. “Two to put a man down.”", crakes), ["crake-1", "crake-1"]);
+  // A sentence about the mastiff at his boots goes on about him: the watchman's line, not nobody's (g03's T1).
+  assert.deepEqual(speakers("Kell gives one short nod and stays by the door, whistle ready. The old watchman squints at the brass token, then turns his right ear toward you. At his boots, the mastiff opens one eye and sniffs. “Hobb sent you, you say?” He glances at the dog. “She says you smell of river and trouble.”", castOf("heron-warehouse")), ["saul", "saul"]);
+});
+
+test("who says a line, on QA round qa3-1018's own replies: a speech verb just before it names its speaker, and a lead-in about nobody goes back a sentence", () => {
+  // "…, and the forewoman with the sack-needle calls, “…”": hers, though "and the" before her name reads as a mention (g04's T6).
+  const heron = castOf("heron-warehouse");
+  assert.deepEqual(speakers("The grain dust makes the cloth whisper against your armour; the hoist creaks, and the forewoman with the sack-needle calls, “Twenty-four to the hatch! Mind the seams!” No one turns.", heron), ["hep"]);
+  assert.deepEqual(speakers("Kell turns to the forewoman and calls, “Hold the count.”", heron), ["kell"], "a verb with no subject of its own before it is the sentence's subject's");
+  assert.deepEqual(speakers("Kell watches the door; the hoist creaks, and a voice calls, “Mind the hatch!”", heron), [undefined], "someone the prose can't name, not the sentence's first named");
+  // "The room’s attention follows.": about nobody, so the sentence before it says who (g06's T3, the young lighterman's challenge).
+  const rat = castOf("drowned-rat");
+  assert.deepEqual(speakers("The landlady draws the four pennies across the bar with one square finger. “A pint about Hobb’s night work, my duck.”\n\nAcross the room, the young lighterman plants his elbow on Hobb’s table. The room’s attention follows. “Come on, champ. Third time. Elbow down.” Hobb keeps his face lowered over his pot. “Not tonight, Arlo.”", rat), ["nan-quill", "arlo", "hobb"]);
+  // Only when the sentence before is about one of them alone, and nobody the prose can't name (round 1's Heron, g01's T16 and T17: the talking brother's line, and Sallow's surrender after a sentence about Hobb and Scrope).
+  assert.deepEqual(speakers("Hobb still grips the hoist rope; Scrope clutches the stair rail. Nothing is burning, though the lanterns sway above the dust. “I surrender, Sergeant.”", heron), [undefined]);
+  assert.deepEqual(speakers("The forewoman puts herself between them and the door. The talking brother gives a small shrug. “We’re paid to carry, investigator.”", heron), [undefined]);
 });
 
 test("words written and read aren't anyone's line", () => {

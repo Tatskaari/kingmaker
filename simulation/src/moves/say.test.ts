@@ -1,93 +1,79 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { describeRoll } from "../../../shared/dice.ts";
-import type { DecideRequest, DecideResponse, ReplyRequest, SettleRequest, SettleResponse } from "../../../shared/protocol/ai.ts";
+import { BANDS, bandOf, diceLine, type Band } from "../../../shared/gm/two-part.ts";
+import type { Reply, ReplyRequest, ReplyResponse, SettleRequest, SettleResponse } from "../../../shared/protocol/ai.ts";
 import { keyParts } from "../../../shared/protocol/keys.ts";
 import type { WorldOp } from "../../../shared/world/scene-world.ts";
 import { all, nextCheck, openedGame, sceneNow } from "../host/testing.ts";
 
-/** A line in a scene (v0-design §4.2, §6.2): said, decided, rolled, replied, settled, on the memory host. */
+/** A line in a scene (v0-design §4.2, §6.2; docs/two-part-design.md): said, replied (its check rolled), settled, on the memory host. */
 
 const blank = { what: "", to: "", how: "", name: "", kind: "", text: "", add: [] as string[], remove: [] as string[] };
-const catchMoll: DecideResponse = {
-  decision: { route: { id: "catch-moll", phase: "attempt", check: { skill: "insight", dc: 13, reason: "to see through Moll's story about the jump" } }, earned: false, daft: false, outOfCharacter: false },
-  opened: [], usage: { calls: 2, costUsd: 0.0006, byOperation: {} },
-};
-const examineBody: DecideResponse = {
-  decision: { route: { id: "examine-body", phase: "attempt", check: { skill: "medicine", dc: 12, reason: "to tell how Prout really died" } }, earned: false, daft: false, outOfCharacter: false },
-  opened: [], usage: { calls: 2, costUsd: 0.0006, byOperation: {} },
-};
+const said = (text: string): Reply => ({ speaker: "gm", kind: "narration", text });
+const outcomes = Object.fromEntries(BANDS.map(b => [b, said(`Outcome: ${b}.`)])) as Record<Band, Reply>;
+/** The mouthpiece's reply calling a check: its five outcomes, the simulation rolls it. */
+const checked = (text: string, skill: "medicine" | "insight", dc: number, more: Partial<ReplyResponse> = {}): ReplyResponse => ({
+  entries: [said(text)], gm: {}, firstTextMs: 4, check: { skill, dc, outcomes }, usage: { calls: 1, costUsd: 0.001, byOperation: {} }, ...more,
+});
 
-test("a line: said at once, then decided (a route with a check, rolled by the rules engine from the game's dice), replied and settled", async () => {
+test("a line: said at once, then replied (its check rolled by the rules engine from the game's dice, its outcome written) and settled", async () => {
   const { host, script, wren, scene } = await openedGame();
   const dice = host.db.dice.gameId.find(scene.gameId)!;
   const roll = nextCheck(host, scene.controllerId, "medicine", 12);
   const phases: string[] = [];
   const phaseNow = () => phases.push(sceneNow(host, scene.id).turns[1]!.phase);
-  script.then("decide", () => { phaseNow(); return examineBody; });
-  script.then("reply", () => { phaseNow(); return { entries: [{ speaker: "gm", kind: "narration", text: "You kneel by the body. The rope burn is wrong." }], gm: { offered: "yard", repeated: null }, firstTextMs: 4, usage: { calls: 1, costUsd: 0.001, byOperation: {} } }; });
-  script.then("settle", () => { phaseNow(); return { ops: [], after: { landed: ["not-suicide"], hinted: [], unanswered: false, theirs: true, status: "on_track" }, usage: { calls: 2, costUsd: 0.0005, byOperation: {} } }; });
+  script.then("reply", () => { phaseNow(); return checked("You kneel by the body. The rope burn is wrong.", "medicine", 12, { gm: { offered: "yard" } }); });
+  script.then("settle", () => { phaseNow(); return { ops: [], coGm: { roles: {}, moves: [], log: [] }, usage: { calls: 2, costUsd: 0.0005, byOperation: {} } } satisfies SettleResponse; });
 
   assert.equal(host.as(wren).say({ text: "  *I kneel by the body and look at his neck.*  " }), undefined);
-  const said = sceneNow(host, scene.id);
-  assert.deepEqual(said.turns.map(t => [t.n, t.phase]), [[0, "done"], [1, "deciding"]]);
-  assert.equal(said.scene.turnId, said.turns[1]!.id);
-  assert.deepEqual(said.lines.map(l => [l.turn, l.speaker, l.kind, l.text]).at(-1), [1, `player:${scene.controllerId}`, "player", "*I kneel by the body and look at his neck.*"]);
+  const now0 = sceneNow(host, scene.id);
+  assert.deepEqual(now0.turns.map(t => [t.n, t.phase]), [[0, "done"], [1, "replying"]], "no decide: the reply first");
+  assert.equal(now0.scene.turnId, now0.turns[1]!.id);
+  assert.deepEqual(now0.lines.map(l => [l.turn, l.speaker, l.kind, l.text]).at(-1), [1, `player:${scene.controllerId}`, "player", "*I kneel by the body and look at his neck.*"]);
 
   await host.drain();
 
-  const line = describeRoll(roll, "to tell how Prout really died");
   const now = sceneNow(host, scene.id);
-  assert.deepEqual(phases, ["deciding", "replying", "settling"]);
+  assert.deepEqual(phases, ["replying", "settling"]);
   assert.deepEqual(now.lines.slice(1).map(l => [l.turn, l.speaker, l.kind, l.text]), [
     [1, `player:${scene.controllerId}`, "player", "*I kneel by the body and look at his neck.*"],
-    [1, "dice", "roll", line],
     [1, "gm", "narration", "You kneel by the body. The rope burn is wrong."],
+    [1, "dice", "roll", diceLine(roll)],
+    [1, "gm", "narration", `Outcome: ${bandOf(roll)}.`],
   ]);
   assert.equal(host.db.dice.gameId.find(scene.gameId)!.rolls, dice.rolls + 1);
   assert.equal(roll.modifier, JSON.parse(host.db.sheet.playerId.find(scene.controllerId)!.skills).medicine, "the sheet's own modifier");
-  assert.deepEqual(now.turns.map(t => [t.n, t.phase, t.calls]), [[0, "done", 2 + 2], [1, "done", 5 + 2]], "each turn's own calls, and its lines' (nothing to note: no markup)");
+  assert.deepEqual(now.turns.map(t => [t.n, t.phase, t.calls]), [[0, "done", 2 + 2], [1, "done", 3 + 2]], "each turn's own calls, and its lines'");
   assert.equal(now.scene.turnId, undefined);
   assert.equal(now.scene.turns, 1);
-  assert.deepEqual(all(host.db.job), []);
-
-  // The bookkeeping: the check moved the scene to doubt (or kept it in the yard on a failure), the read after the reply noted.
-  assert.equal(now.gm.beat, roll.success ? "doubt" : "yard");
-  assert.deepEqual(now.gm.path, [{ turn: 1, from: "yard", to: roll.success ? "doubt" : "yard", via: "examine-body", source: "pre", roll, known: 0 }]);
-  assert.equal(now.gm.turnsInBeat, roll.success ? 0 : 1);
-  assert.deepEqual(now.gm.landed, ["not-suicide"]);
-  assert.equal(now.gm.sceneStatus, "on_track");
+  assert.deepEqual(all(host.db.job).filter(j => j.move !== "remember"), [], "nothing left but the memory review");
   assert.deepEqual(now.gm.pressureOffered, ["yard"]);
+  assert.equal(now.gm.turnsInBeat, 1, "the co-GM moved nothing: an exchange at the stage");
 });
 
 test("each step's request carries what the commit before it did", async () => {
   const { host, script, wren, scene } = await openedGame();
-  script.then("decide", examineBody);
+  const roll = nextCheck(host, scene.controllerId, "medicine", 12);
+  script.then("reply", checked("You look at his neck.", "medicine", 12));
   host.as(wren).say({ text: "*I look at his neck.*" });
   await host.drain();
 
-  const decide = script.to("decide")[0]!.body as DecideRequest;
   const reply = script.to("reply")[0]!.body as ReplyRequest;
   const settle = script.to("settle")[0]!.body as SettleRequest;
   const game = all(host.db.game)[0]!;
   const turn = sceneNow(host, scene.id).turns[1]!;
 
-  assert.deepEqual([decide.key, reply.key, settle.key].map(k => keyParts(k)), ["decide", "reply", "settle"].map(step => ({ game: game.uid, scene: String(scene.id), turn: 1, step })));
-  assert.deepEqual(decide.turn.line, { speaker: `player:${scene.controllerId}`, text: "*I look at his neck.*" });
-  assert.equal(decide.turn.scene.turn, 1);
-  assert.deepEqual(decide.landed, []);
-  assert.deepEqual(decide.turn.present.map(p => p.key), ["kell", "cob", "moll"]);
-  assert.deepEqual(decide.turn.transcript.map(e => e.kind), ["narration", "player"]);
-
-  assert.deepEqual(reply.decision, examineBody.decision);
-  assert.equal(reply.outcome.move?.route, "examine-body");
-  assert.equal(reply.outcome.move?.from, "yard");
-  assert.deepEqual(reply.outcome.lines, [reply.turn.transcript.at(-1)!.text]);
+  assert.deepEqual([reply.key, settle.key].map(k => keyParts(k)), ["reply", "settle"].map(step => ({ game: game.uid, scene: String(scene.id), turn: 1, step })));
+  assert.deepEqual(reply.turn.line, { speaker: `player:${scene.controllerId}`, text: "*I look at his neck.*" });
+  assert.equal(reply.turn.scene.turn, 1);
+  assert.deepEqual(reply.turn.present.map(p => p.key), ["kell", "cob", "moll"]);
+  assert.deepEqual(reply.turn.transcript.map(e => e.kind), ["narration", "player"]);
+  assert.deepEqual(reply.outcome.lines, []);
   assert.equal(reply.stream.turn, String(turn.id));
-  assert.equal(reply.turn.gm.path.length, 1, "the reply sees the move applied");
 
-  assert.equal(settle.reply, "Kell taps her pencil on the notebook. \"Noted.\"");
-  assert.deepEqual(settle.lines, reply.outcome.lines);
+  assert.equal(settle.reply, `You look at his neck.\n\nOutcome: ${bandOf(roll)}.`, "the reply and the outcome that came up");
+  assert.deepEqual(settle.lines, [diceLine(roll)], "the check's dice line");
+  assert.deepEqual([settle.check?.skill, settle.check?.dc, settle.check?.total, settle.check?.band], ["medicine", 12, roll.total, bandOf(roll)]);
   assert.deepEqual(settle.settled, [], "nothing was settled before the turn");
 });
 
@@ -100,7 +86,7 @@ test("the stage manager's operations go through the gate: problems are logged, a
     { ...blank, op: "remove", what: `pc:${player.id}`, text: "out of the gate" },
     { ...blank, op: "create", name: "a scrap of rope", kind: "item", to: "kell" },
   ];
-  script.then("settle", { ops, after: { landed: [], hinted: [], unanswered: false, theirs: false }, usage: { calls: 1, costUsd: 0, byOperation: {} } } satisfies SettleResponse);
+  script.then("settle", { ops, coGm: { roles: {}, moves: [], log: [] }, usage: { calls: 1, costUsd: 0, byOperation: {} } } satisfies SettleResponse);
   host.as(wren).say({ text: "Sergeant, may I have that crown the girl is holding?" });
   await host.drain();
 
@@ -126,7 +112,7 @@ test("a line said while the last turn settles waits, and starts when that one is
   script.then("settle", () => {
     refusals.push(host.as(wren).say({ text: "And who found him?" }));
     refusals.push(host.as(wren).say({ text: "And when?" }));
-    return { ops: [], after: { landed: [], hinted: [], unanswered: false, theirs: false }, usage: { calls: 0, costUsd: 0, byOperation: {} } };
+    return { ops: [], coGm: { roles: {}, moves: [], log: [] }, usage: { calls: 0, costUsd: 0, byOperation: {} } };
   });
 
   host.as(wren).say({ text: "Morning, Sergeant." });
@@ -135,7 +121,7 @@ test("a line said while the last turn settles waits, and starts when that one is
   const now = sceneNow(host, scene.id);
   assert.deepEqual(refusals.map(r => (r as { code?: string } | undefined)?.code), [undefined, "turn_in_flight"]);
   assert.deepEqual(now.turns.map(t => [t.n, t.phase]), [[0, "done"], [1, "done"], [2, "done"]]);
-  assert.deepEqual(script.to("decide").map(s => (s.body as DecideRequest).turn.line.text), ["Morning, Sergeant.", "And who found him?"]);
+  assert.deepEqual(script.to("reply").map(s => (s.body as ReplyRequest).turn.line.text), ["Morning, Sergeant.", "And who found him?"]);
   assert.deepEqual(now.lines.map(l => [l.turn, l.kind]), [[0, "narration"], [1, "player"], [1, "narration"], [2, "player"], [2, "narration"]]);
 });
 
@@ -143,7 +129,7 @@ test("the same seed and the same lines roll the same dice", async () => {
   const play = async () => {
     const { host, script, wren, scene } = await openedGame(42);
     for (let i = 0; i < 3; i++) {
-      script.then("decide", catchMoll);
+      script.then("reply", checked("Moll's chin comes up.", "insight", 13));
       host.as(wren).say({ text: `You were never up that wall, were you? (${i})` });
       await host.drain();
     }

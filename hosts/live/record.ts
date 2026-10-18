@@ -1,11 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { Card, Mark, MarkLink, Markup, Speech } from "../../shared/markup.ts";
+import type { Markup, Speech } from "../../shared/markup.ts";
 import { idempotencyKey, turnKeyParts } from "../../shared/protocol/keys.ts";
-import type { SceneFile } from "../../shared/scene/files.ts";
-import { sceneOf } from "../../shared/scene/load.ts";
+import { loadScene } from "../../shared/scene/load.ts";
 import type { Scene } from "../../shared/scene/types.ts";
-import { readCampaignFiles } from "../dev/campaign.ts";
+import { readCampaignFiles, scenePath } from "../dev/campaign.ts";
 import { backgroundOf, statusOf, statusRows } from "../dev/gm-status.ts";
 import { sql } from "../dev/spacetime.ts";
 import type { StackFile } from "../dev/stack-file.ts";
@@ -13,8 +12,8 @@ import type { Offered, Played, Run, WalkedIn, WorldThing } from "./play.ts";
 import type { Script } from "./scripts.ts";
 
 /**
- * A live run's record (v5-design §4.6): each turn's moments, who said what, the notes and the lines
- * offered, and the model calls and their cost; from the game's rows (read as the owner), the AI
+ * A live run's record (v5-design §4.6): each turn's moments, who said what, the lines offered (the
+ * notes on marked words went in M2), and the model calls and their cost; from the game's rows (read as the owner), the AI
  * service's call log and kept answers, and the campaign's scene, for the names and for what's held
  * from the player.
  */
@@ -23,27 +22,23 @@ import type { Script } from "./scripts.ts";
 export interface Call { key: string; turn?: number; operation: string; model: string; costUsd: number; latencyMs: number }
 /** A spoken line: who says it as the cast card names them, the GM's tag when it wrote one, and the line. */
 export interface Spoken { who: string; tag?: string; text: string }
-/** A note: its kind, the phrase it's on, the note, what it links to and the card the popover shows. */
-export interface Noted { kind: string; phrase: string; note: string; link?: string; card?: Card }
-export interface EntryRecord { kind: string; speaker: string; text: string; spoken: Spoken[]; notes: Noted[] }
+export interface EntryRecord { kind: string; speaker: string; text: string; spoken: Spoken[] }
 
 export interface TurnRecord {
   n: number;
   /** The script's step, and the line said (for an act, the line it picked). */
   step?: string;
   said?: string;
-  /** How long the line waited for the background jobs (the memory review, the co-GM) before it was said. */
+  /** How long the line waited for the background jobs (the memory review) before it was said. */
   waited?: number;
   /** Server times in microseconds: the turn's start, its first words, its reply's entry, its end. */
   saidAt: number;
   firstAt?: number;
   finalAt?: number;
   doneAt?: number;
-  /** Milliseconds after the reply's entry reached this client: its notes' commit, its lines'. */
-  notesMs?: number;
+  /** Milliseconds after the reply's entry reached this client: its lines' commit. */
   linesMs?: number;
-  /** How its notes and lines stood at the end: the turn's columns. */
-  notes: string;
+  /** How its lines stood at the end: the turn's column. */
   suggest: string;
   calls: Call[];
   entries: EntryRecord[];
@@ -155,7 +150,7 @@ async function gmSideOf(stack: StackFile, game: NonNullable<Run["game"]>, scene:
   return statusOf(await statusRows(query, join(stack.root, "ai", "games", game.uid), { id: String(game.id), uid: game.uid }, scene));
 }
 
-/** The scene's background jobs in flight (the memory reviews, the co-GM), as "remember t3". */
+/** The scene's background jobs in flight (the memory reviews), as "remember t3". */
 export async function backgroundIn(stack: StackFile, sceneId: bigint): Promise<string[]> {
   return backgroundOf(await sql(stack.http, "SELECT * FROM job", stack.owner.token), String(sceneId));
 }
@@ -200,8 +195,8 @@ function turnRecord(t: Row, from: TurnSources): TurnRecord {
     ...(t.first_text_at !== null ? { firstAt: Number(t.first_text_at) } : {}),
     ...(reply ? { finalAt: Number(reply.at) } : {}),
     ...(t.ended_at !== null ? { doneAt: Number(t.ended_at) } : {}),
-    ...defined({ notesMs: after(seen.notes), linesMs: after(seen.lines) }),
-    notes: String(t.notes), suggest: String(t.suggest),
+    ...defined({ linesMs: after(seen.lines) }),
+    suggest: String(t.suggest),
     calls: from.calls.filter(c => c.turn === n),
     entries: entries.map(e => entryRecord(e, from.scene)),
     lines: from.run.sets.get(n) ?? [],
@@ -209,33 +204,19 @@ function turnRecord(t: Row, from: TurnSources): TurnRecord {
   };
 }
 
-/** An entry with its markup read: who says each line, and each note. */
+/** An entry with its markup read: who says each line. */
 function entryRecord(e: Row, scene: Scene): EntryRecord {
   const text = String(e.text);
-  const markup = (e.markup ? JSON.parse(String(e.markup)) : { speech: [], marks: [] }) as Markup;
-  return {
-    kind: String(e.kind), speaker: String(e.speaker), text,
-    spoken: markup.speech.map(s => spokenOf(s, text, scene)),
-    notes: markup.marks.map(m => notedOf(m, text, scene)),
-  };
+  const markup = (e.markup ? JSON.parse(String(e.markup)) : { speech: [] }) as Markup;
+  return { kind: String(e.kind), speaker: String(e.speaker), text, spoken: markup.speech.map(s => spokenOf(s, text, scene)) };
 }
 
 function spokenOf(s: Speech, text: string, scene: Scene): Spoken {
   return { who: s.speaker ? nameOf(s.speaker, scene) : "nobody can tell", ...(s.tag ? { tag: s.tag } : {}), text: text.slice(s.start, s.end) };
 }
 
-function notedOf(m: Mark, text: string, scene: Scene): Noted {
-  return { kind: m.kind, phrase: text.slice(m.start, m.end), note: m.note, ...(m.link ? { link: linkText(m.link, scene) } : {}), ...(m.card ? { card: m.card } : {}) };
-}
-
 /** Someone by the cast card's name ("kell" is Sergeant Agnes Kell; "you" the player); anyone else by their key. */
 const nameOf = (key: string, scene: Scene) => (key === "you" ? "you" : scene.cast.find(c => c.id === key)?.name ?? key);
-
-function linkText(link: MarkLink, scene: Scene): string {
-  if (link.kind === "person") return nameOf(link.id, scene);
-  if (link.kind === "lore") return link.path;
-  return `your turn ${link.turn}${link.scene === scene.id ? "" : ` in ${link.scene}`}`;
-}
 
 /** The scene's people's secrets, and the essentials the player hasn't come across (gm_state.landed has those they have). */
 function heldFrom(scene: Scene, landed: string[]): Held {
@@ -247,8 +228,7 @@ function heldFrom(scene: Scene, landed: string[]): Held {
 
 /** The campaign's scene, loaded with its words: what the record names people by and reads secrets from. */
 function installedScene(key: string): Scene {
-  const files = readCampaignFiles(CAMPAIGN);
-  return sceneOf(JSON.parse(files[`scenes/${key}/scene.json`]!) as SceneFile, path => files[`scenes/${key}/${path}`]);
+  return loadScene(readCampaignFiles(CAMPAIGN)[scenePath(key)]!, scenePath(key));
 }
 
 // ---------------------------------------------------------------------------------------------

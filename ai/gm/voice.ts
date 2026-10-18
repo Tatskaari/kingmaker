@@ -1,4 +1,4 @@
-// Copied from the prototype's src/runtime/voices.ts:1-156 at 44c6d4a (the GM's voice, not the narrator's or the actors'): it reads a TurnView, the v2 approach's settings are constants (VOICE), its calls go through the request's call context, and a reply is the protocol's Reply (replyOf, for entryOf: its people by the game's keys, with the marks the GM drafted).
+// Copied from the prototype's src/runtime/voices.ts:1-156 at 44c6d4a (the GM's voice, not the narrator's or the actors'): it reads a TurnView, the v2 approach's settings are constants (VOICE), its calls go through the request's call context, and a reply is the protocol's Reply (replyOf, for entryOf: its people by the game's keys). Since M2 there are no notes on marks (docs/two-part-design.md): a reply's markup is who says each line.
 
 import { memoryBrief } from "../docs/disclosure.ts";
 import { respond, type CallContext, type Message, type RespondResult } from "../llm/openrouter.ts";
@@ -8,7 +8,6 @@ import type { Scene } from "../../shared/scene/types.ts";
 import { nowNote, sceneBrief, sceneEntries, speakerName } from "./brief.ts";
 import { knowledgeBrief, nameAsKnown, speakersOf } from "./knowledge.ts";
 import { markupOf, parseMarkup, speechIn, withSpeakers, type Markup, type MarkupStats } from "./markup.ts";
-import type { Drafted } from "./notes.ts";
 import type { TurnView, ViewEntry } from "./view.ts";
 import { workingSet } from "./working-set.ts";
 
@@ -20,13 +19,8 @@ export interface Spoken {
   /** What the player reads: the reply with its markup taken out. */
   text: string;
   result: RespondResult;
-  /**
-   * The reply's markup as the screen has it: who says each line, and the notes on its marks, which
-   * come later (src/runtime/notes.ts: written from what the player knows, never the GM's own).
-   */
+  /** The reply's markup as the screen has it: who says each line. */
   marked?: Markup;
-  /** The marks the GM made as it wrote (where, and what kind), for the notes to be written on. */
-  drafted?: Drafted[];
   /** How well the reply kept to the markup. */
   stats?: MarkupStats;
 }
@@ -72,15 +66,10 @@ async function withoutRepeats(state: TurnView, draft: Spoken, regenerate: (note:
   return { ...second, result: { ...second.result, costUsd: second.result.costUsd + draft.result.costUsd } };
 }
 
-/**
- * What's said, as the protocol's reply (entryOf): the words the player reads, with the markup beside
- * them when there's any, its people by the game's keys (`byKey`), and the marks the GM made, for the
- * notes to be written on.
- */
+/** What's said, as the protocol's reply (entryOf): the words the player reads, with who says each line beside them when anyone does, by the game's keys (`byKey`). */
 export const replyOf = (s: Spoken, byKey: (markup: Markup) => Markup = m => m): Reply => ({
   speaker: "gm", kind: "narration", text: s.text,
-  ...(s.marked && (s.marked.speech.length || s.marked.marks.length || s.drafted?.length) ? { markup: byKey({ speech: s.marked.speech, marks: [...s.marked.marks] }) } : {}),
-  ...(s.drafted?.length ? { drafted: s.drafted } : {}),
+  ...(s.marked?.speech.length ? { markup: byKey({ speech: s.marked.speech }) } : {}),
 });
 
 /**
@@ -88,11 +77,11 @@ export const replyOf = (s: Spoken, byKey: (markup: Markup) => Markup = m => m): 
  * written, so a reply from before the markup (an older save) gets its spoken lines tagged too, by
  * whoever the prose says spoke them.
  */
-function asWritten(scene: Scene, state: TurnView, e: ViewEntry): string {
+export function asWritten(scene: Scene, state: TurnView, e: ViewEntry): string {
   const name = (id: string) => nameAsKnown(scene, state, id);
   if (e.marked) return markupOf({ text: e.text, ...e.marked }, name);
   if (e.kind !== "narration" || !/[“"]/.test(e.text)) return e.text;
-  return markupOf(withSpeakers({ text: e.text, speech: speechIn(e.text), marks: [] }, speakersOf(scene, state)), name);
+  return markupOf(withSpeakers({ text: e.text, speech: speechIn(e.text) }, speakersOf(scene, state)), name);
 }
 
 /** Multi-turn chat history for the single-GM voice: player turns as user, GM replies as assistant. */
@@ -111,35 +100,24 @@ function gmHistory(scene: Scene, state: TurnView): Message[] {
   return messages;
 }
 
-/** The player's latest turn, whose words a reply may quote back. */
-const lastSaid = (state: TurnView) => state.transcript.findLast(e => e.kind === "player")?.text;
-
-/**
- * A GM reply's markup read as it streams: `onText` hears the words shown so far (never the markup)
- * and who says each line in them, only when they've grown. The marks wait for their notes.
- */
-function streamed(scene: Scene, state: TurnView, onText: (text: string, markup?: Markup) => void): (raw: string) => void {
+/** A GM reply's markup read as it streams: `onText` hears the words shown so far (never the markup) and who says each line in them, only when they've grown. */
+export function streamed(scene: Scene, state: TurnView, onText: (text: string, markup?: Markup) => void): (raw: string) => void {
   const people = speakersOf(scene, state);
-  const player = lastSaid(state);
   let shown = "";
   return raw => {
     const parsed = parseMarkup(raw, { final: false });
     if (parsed.text === shown) return;
     shown = parsed.text;
-    const { text, speech } = withSpeakers(parsed, people, { player });
-    onText(text, { speech, marks: [] });
+    const { text, speech } = withSpeakers(parsed, people);
+    onText(text, { speech });
   };
 }
 
-/**
- * A GM reply's markup read once it's whole: the words, who says each line, and the marks the GM
- * made (where and what kind: its own notes on them are dropped here, and the player's are written
- * from what they know, src/runtime/notes.ts).
- */
-export function readReply(scene: Scene, state: TurnView, raw: string): { text: string; marked: Markup; drafted: Drafted[]; stats: MarkupStats } {
+/** A GM reply's markup read once it's whole: the words, and who says each line (a note on a mark a model writes anyway is taken out of the words, and dropped). */
+export function readReply(scene: Scene, state: TurnView, raw: string): { text: string; marked: Markup; stats: MarkupStats } {
   const parsed = parseMarkup(prose(raw));
-  const { text, speech, marks } = withSpeakers(parsed, speakersOf(scene, state), { player: lastSaid(state) });
-  return { text, marked: { speech, marks: [] }, drafted: marks.map(m => ({ start: m.start, end: m.end, kind: m.kind })), stats: parsed.stats };
+  const { text, speech } = withSpeakers(parsed, speakersOf(scene, state));
+  return { text, marked: { speech }, stats: parsed.stats };
 }
 
 /** The GM's reply: one call, the GM narrating and voicing everyone. A repeat it was warned of is the view's to clear, and one it makes the view's to keep (`state.repeated`). */
@@ -163,8 +141,8 @@ export async function gmReply(scene: Scene, state: TurnView, directive: string[]
   // The model behaves best with a user turn to answer; the opening has none yet.
   if (!input.some(m => m.role === "user")) input.push({ role: "user", content: "(The player is ready. Begin.)" });
   const result = await respond({ operation: how.operation, instructions: prompt("gm", { tone: prompt(`tone-${VOICE.tone}`) }), input, effort: VOICE.effort, maxOutputTokens: 700, calls: how.calls, ...(how.onText ? { onText: streamed(scene, state, how.onText) } : {}) });
-  const { text, marked, drafted, stats } = readReply(scene, state, result.text);
-  const draft: Spoken = { speaker: "gm", kind: "narration", text, result, marked, drafted, stats };
+  const { text, marked, stats } = readReply(scene, state, result.text);
+  const draft: Spoken = { speaker: "gm", kind: "narration", text, result, marked, stats };
   if (directive.some(d => d.startsWith("Your first draft repeated"))) return draft;
   return withoutRepeats(state, draft, note => gmReply(scene, state, [...directive, note], { ...how, operation: `${how.operation}.fresh` }), !!how.onText);
 }

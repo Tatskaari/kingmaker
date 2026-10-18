@@ -1,7 +1,8 @@
 // New: the granary yard as its place's rows would give the client (the world bridge's §3.5), for the screen check, the demo and the client's tests: the world the simulation's openPlace builds (simulation/src/world/place.ts: the place's file, the cast present placed as it says, the lead's character with the campaign's purse and their gear), through shared/world's worldToRows, as the tables the connection subscribes to.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { CampaignFile, PlaceFile, SceneFile } from "../../shared/scene/files.ts";
+import type { SceneDocument } from "../../shared/scene/document.ts";
+import type { CampaignFile, PlaceFile } from "../../shared/scene/files.ts";
 import { inventory } from "../../shared/world/inventory.ts";
 import { keysFor, pcKey, worldToRows, type Keys, type PlaceRows } from "../../shared/world/rows.ts";
 import { buildWorld, joinWorld, type SceneWorld } from "../../shared/world/scene-world.ts";
@@ -26,7 +27,7 @@ export const WIZARD_SPELLS = spellFacts as SpellFacts[];
  * ready-made wizard's quarterstaff and dagger, as openPlace hands out the build's gear.
  */
 export function yardWorld(name = "Pell Marrow"): SceneWorld {
-  const scene = read<SceneFile>(`scenes/${YARD_SCENE}/scene.json`);
+  const scene = read<SceneDocument>(`scenes/${YARD_SCENE}.kmscene`);
   const present = scene.cast.filter(c => !c.enters).map(c => ({ id: c.id, name: c.name }));
   const world = buildWorld(YARD_SCENE, read<PlaceFile>("places/granary-yard.json"), present, { name });
   joinWorld(world, present, 0);

@@ -78,16 +78,16 @@ test("decisionDelayMs holds every decision that long", async () => {
 });
 
 test("byNameDelayMs holds a structured call by its schema's name, and no other", async () => {
-  const fake = fakeFetch({ byName: { notes: { notes: [] } }, byNameDelayMs: { notes: 120 } });
+  const fake = fakeFetch({ byName: { looks: { looks: [] } }, byNameDelayMs: { looks: 120 } });
   const calls = { fetch: fake.fetch, apiKey: "k", cost: () => {} };
-  const ask = (name: string) => respondJson<{ notes: unknown[] }>({ operation: name, input: [{ role: "user", content: "?" }], json: { name, schema: { type: "object", properties: { notes: { type: "array" } }, required: ["notes"] } }, calls });
+  const ask = (name: string) => respondJson<{ looks: unknown[] }>({ operation: name, input: [{ role: "user", content: "?" }], json: { name, schema: { type: "object", properties: { looks: { type: "array" } }, required: ["looks"] } }, calls });
   const done: string[] = [];
   const started = performance.now();
 
-  const [notes] = await Promise.all([ask("notes").then(n => { done.push("notes"); return n; }), ask("world_ops").then(() => done.push("world_ops"))]);
+  const [looks] = await Promise.all([ask("looks").then(n => { done.push("looks"); return n; }), ask("world_ops").then(() => done.push("world_ops"))]);
 
-  assert.deepEqual(notes.notes, []);
-  assert.deepEqual(done, ["world_ops", "notes"]);
+  assert.deepEqual(looks.looks, []);
+  assert.deepEqual(done, ["world_ops", "looks"]);
   assert.ok(performance.now() - started >= 110);
 });
 
@@ -138,4 +138,37 @@ test("a tool loop with a context goes through its fetch, its log and its cost; w
   } finally {
     global.restore();
   }
+});
+
+test("a tool loop's round with no answer in its time is asked again, once; a second, or one past the loop's deadline, fails the loop in so many words", async () => {
+  const fake = fakeFetch({ toolCalls: { update_character_role: [] } });
+  let stalls = 0;
+  // A provider that stalls: the request hangs until its signal gives up on it.
+  const stalling: typeof fetch = (input, init) => stalls-- > 0
+    ? new Promise<Response>((_, reject) => init!.signal!.addEventListener("abort", () => reject(init!.signal!.reason), { once: true }))
+    : fake.fetch(input, init);
+  const { logged, calls } = keeping(stalling);
+  const tools = [{ name: "update_character_role", description: "Set a role.", parameters: { type: "object" } }];
+  const ask = (deadlineMs = 5_000) => runTools({ operation: "two-part.co-gm", instructions: "?", input: [{ role: "user", content: "?" }], tools, roundMs: 60, deadlineMs, calls }, async () => "ok");
+
+  stalls = 1;
+  const once = await ask();
+  assert.deepEqual(once.calls, [], "the second asking answered, and the loop finished");
+  assert.ok(logged.some(e => e.warning === "a round had no answer in 60 ms: asked again"), "the stall is in the call log");
+
+  stalls = 2;
+  await assert.rejects(ask(), /^Error: two-part\.co-gm: no answer in 60 ms$/);
+  stalls = 1;
+  await assert.rejects(ask(500), /no answer in/, "no room left before the deadline: no second asking");
+  assert.equal(stalls, 0, "it wasn't asked again");
+});
+
+test("a tool loop's round nearer its deadline than its own limit waits out what's left, a whole number of milliseconds", async () => {
+  const fake = fakeFetch({ toolCalls: { update_character_role: [] } });
+  const { calls } = keeping(fake.fetch);
+  const tools = [{ name: "update_character_role", description: "Set a role.", parameters: { type: "object" } }];
+  // The time left before the deadline is a fraction of a millisecond off a whole one, and AbortSignal.timeout refuses fractions:
+  // in QA round qa1-1018 every co-GM round that started under 20 s before its 45 s deadline failed the co-GM on it.
+  const done = await runTools({ operation: "two-part.co-gm", instructions: "?", input: [{ role: "user", content: "?" }], tools, roundMs: 20_000, deadlineMs: 2_000.5, calls }, async () => "ok");
+  assert.deepEqual(done.calls, [], "answered, and the loop finished");
 });

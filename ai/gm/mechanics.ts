@@ -1,4 +1,4 @@
-// Copied from the prototype at 44c6d4a: src/runtime/director.ts:433-623 (RulesOptions, the acts' words, alsoQuestion, meansQuestion, mechanicDetails, aimedPeople, aimedThing, namedThing), 1100-1131 (jumpDetails) and 1133-1190 (Witness, decideReactions, reactionDirective), and src/runtime/engine.ts:1329 (nameIn), 1360-1369 (witnessesOf) and 1391-1409 (aimable), with the usual edits: a TurnView for the SessionState, the scene passed in for sceneById (aimable), SpellRef and WeaponRef for SpellChoice and WeaponChoice, Mechanic, Jumping, ActFrom, Reaction and Act from v2/shared/rules/types.ts (A's copies), worldView from v2/shared/world; alsoQuestion, meansQuestion, mechanicDetails, RuledAct, RULED_ACTS, nameIn, witnessesOf and aimable exported, for the director's details call (director.ts withMechanic) and the reactions endpoint.
+// Copied from the prototype at 44c6d4a: src/runtime/director.ts:433-623 (RulesOptions, the acts' words, alsoQuestion, meansQuestion, mechanicDetails, aimedPeople, aimedThing, namedThing), 1100-1131 (jumpDetails) and 1133-1190 (Witness, decideReactions, reactionDirective), and src/runtime/engine.ts:1329 (nameIn), 1360-1369 (witnessesOf) and 1391-1409 (aimable), with the usual edits: a TurnView for the SessionState, the scene passed in for sceneById (aimable), SpellRef and WeaponRef for SpellChoice and WeaponChoice, Mechanic, Jumping, ActFrom, Reaction and Act from v2/shared/rules/types.ts (A's copies), worldView from v2/shared/world; alsoQuestion, meansQuestion, mechanicDetails, RuledAct, RULED_ACTS, nameIn, witnessesOf and aimable exported, for the director's details call (director.ts mechanicOf, withMechanic's) and the reactions endpoint; rulesOptions is the old decide endpoint's (engine.ts:559). All of it is parked for combat since the old pipeline's decide went (docs/migration-log.md, M2's "The old pipeline's salvage"): nothing in a scene asks the mechanic question, its details or the reactions now.
 
 import type { ChoiceQuestion, Decider, Decision } from "../llm/decide.ts";
 import { titleCase } from "../../shared/dice.ts";
@@ -55,8 +55,9 @@ export function alsoQuestion(t: Transition, act: RuledAct): ChoiceQuestion {
 }
 
 /**
- * Considered rolls, on a turn the rules resolve the player's act and a roll is wanted: is the act only
- * the means to something risky the rules don't settle? A Mage Hand pinching the page from a boy who's
+ * Parked for combat, as considered rolls asked it (they went with the old pipeline), on a turn the
+ * rules resolve the player's act and a roll is wanted: is the act only the means to something risky
+ * the rules don't settle? A Mage Hand pinching the page from a boy who's
  * watching (the spell is cast; whether he notices isn't the spell's), a lunge to catch the body the
  * axe brings down, a threat made with a fist in someone's collar. Then the GM rules on that, knowing
  * how the act went. A blow, a shot, a grab, or a spell doing what it does, stays the rules' alone.
@@ -305,6 +306,17 @@ export function witnessesOf(scene: Scene, state: TurnView, act: Act): Witness[] 
     .map(e => ({ id: e.id, name: e.name, about: `${e.stats?.statblock ?? (e.kind === "creature" ? "beast" : "commoner")}. ${e.description ?? ""}`.trim() })) : [];
   return [...cast, ...others].sort((a, b) => Number(act.victims.includes(b.id)) - Number(act.victims.includes(a.id))).slice(0, 10);
 }
+/**
+ * What the decider offers the rules' act (engine.ts:559), for a character with a build: their spells,
+ * weapons and features from the sheet, and from the world what's near enough to aim at, the people
+ * outside the cast, and where they might act from. None without a build. (The old pipeline's decide
+ * endpoint made it; parked for combat with the mechanic question: director.ts mechanicOf.)
+ */
+export function rulesOptions(scene: Scene, view: TurnView, line: string): RulesOptions | undefined {
+  if (!view.rules) return undefined;
+  return { spells: view.rules.spells ?? [], weapons: view.rules.weapons ?? [], features: view.rules.features ?? [], ...(view.world ? aimable(scene, view, line) : {}) };
+}
+
 /** What the player could aim a spell or a blow at in the world: things near them (the one their words name first), and people outside the cast. */
 export function aimable(scene: Scene, state: TurnView, said = ""): { things: Array<{ id: string; name: string }>; bystanders: Array<{ id: string; name: string }>; places: Array<{ id: string; name: string }>; landmarks: Array<{ id: string; name: string }> } {
   const world = state.world!;

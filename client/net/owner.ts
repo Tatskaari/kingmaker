@@ -40,14 +40,15 @@ export function ownerFor(owner: Owner | undefined, server: { url: string; db: st
 export const NOT_OWNER: Rejection = { code: "error", text: "(Only the dev stack's owner may end a scene for testing, and there's no dev stack's stack.json here to call as them: is npm run dev up?)" };
 
 /**
- * end_scene as the owner: the game's scene ends through `exit` now, with no closing reply. An
- * empty exit asks for the endings (the refusal lists them). Undefined when it was made; else the
- * simulation's refusal (an HTTP 530 whose body is the refusal), or what went wrong on the way.
+ * end_scene as the owner: the game's scene ends through `exit` now, with no closing reply (with
+ * `thorough`, its discoveries reached first). An empty exit asks for the endings (the refusal lists
+ * them). Undefined when it was made; else the simulation's refusal (an HTTP 530 whose body is the
+ * refusal), or what went wrong on the way.
  */
-export async function endSceneAs(owner: Owner | undefined, game: bigint, exit: string, fetchFn: typeof fetch = fetch): Promise<Rejection | undefined> {
+export async function endSceneAs(owner: Owner | undefined, args: { game: bigint; exit: string; thorough?: boolean | undefined }, fetchFn: typeof fetch = fetch): Promise<Rejection | undefined> {
   if (!owner) return NOT_OWNER;
-  // The game's id written as it is: a u64, which JSON.stringify can't take as a bigint.
-  const body = `{"game":${game},"exit":${JSON.stringify(exit)}}`;
+  // The game's id written as it is: a u64, which JSON.stringify can't take as a bigint; thorough as SpacetimeDB's option.
+  const body = `{"game":${args.game},"exit":${JSON.stringify(args.exit)},"thorough":${args.thorough ? '{"some":true}' : '{"none":[]}'}}`;
   try {
     const answer = await fetchFn(`${owner.http.replace(/\/+$/, "")}/v1/database/${encodeURIComponent(owner.db)}/call/end_scene`, {
       method: "POST", headers: { authorization: `Bearer ${owner.token}`, "content-type": "application/json" }, body, signal: AbortSignal.timeout(10_000),

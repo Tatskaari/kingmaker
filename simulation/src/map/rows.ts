@@ -7,7 +7,7 @@ import { idText } from "../../../shared/protocol/keys.ts";
 import type { TimeOfDay } from "../../../shared/scene/files.ts";
 import type { TxCtx } from "../context.ts";
 import type { GameRow, PlaceRow, RowOf, SceneRow } from "../rows.ts";
-import { gameCampaignId, sceneDefOf, sceneFileOf } from "../scenes.ts";
+import { gameCampaignId, sceneDefOf, documentOf } from "../scenes.ts";
 import { placeRows } from "../world/rows-io.ts";
 
 /**
@@ -116,7 +116,7 @@ function placeOnMap(tx: TxCtx, game: GameRow, place: PlaceRow, scenes: SceneRow[
 
 /** The time of day a scene is played at: its own, or the story's. */
 function timeOf(tx: TxCtx, game: GameRow, scene: SceneRow): TimeOfDay {
-  return sceneFileOf(sceneDefOf(tx, game, scene.sceneKey)).time ?? (game.time as TimeOfDay);
+  return documentOf(sceneDefOf(tx, game, scene.sceneKey)).time ?? (game.time as TimeOfDay);
 }
 
 /**

@@ -1,7 +1,6 @@
 import type { Backstory } from "../docs/types.ts";
-import type { RulingRecord } from "../../shared/gm/consider.ts";
-import type { GmState, GuardStage, OpenedNote, OwedRow, PathStep, ScenePatch, SceneStatus, TalkRecord } from "../../shared/gm/state.ts";
-import type { MarkLink, Markup } from "../../shared/markup.ts";
+import type { GmState, OwedRow, PathStep, ScenePatch, TalkRecord, TwoPartState } from "../../shared/gm/state.ts";
+import type { Markup } from "../../shared/markup.ts";
 import type { Chapter, Entry, OpenRequest, SceneContext, SheetRow, Story as Told } from "../../shared/protocol/ai.ts";
 import { isTurnKey, keyParts } from "../../shared/protocol/keys.ts";
 import type { SpellRef, WeaponRef } from "../../shared/rules/types.ts";
@@ -16,8 +15,7 @@ import type { Story } from "./story.ts";
  * The request as the GM code copied from the prototype reads it (gm-port §3): a TurnView has the
  * fields of the prototype's SessionState that code reads, under the same names, so the copies keep
  * their bodies and only their inputs change. It's built afresh from each request and thrown away
- * with it; where a copied body writes to it (the repeat guard, disclosure's notes), the endpoint
- * sends back what changed.
+ * with it; where a copied body writes to it (the repeat guard), the endpoint sends back what changed.
  *
  * People are named by the world's local ids in a view, as the copied code names them (the scene's
  * cast by their ids, the place's other people by theirs: "porter"), and by the game's keys in a
@@ -40,9 +38,9 @@ export interface TurnView {
   player: { name: string; concept: string; modifiers: Partial<Record<Skill, number>>; build?: string; backstory?: Backstory };
   /**
    * Present when the sheet is a ready-made build: then the table rules are D&D's (sceneBrief), the GM
-   * hears the character's state, and the decider is asked what the rules resolve, offered the spells
-   * ready, the weapons carried and the class features with uses (the sheet row's: world-bridge-design
-   * §3.1), which the suggested lines hear of too.
+   * hears the character's state, and the spells ready, the weapons carried and the class features
+   * with uses (the sheet row's: world-bridge-design §3.1) are what the suggested lines hear of, and
+   * what the rules' mechanic question offers (parked for combat: gm/mechanics.ts rulesOptions).
    */
   rules?: { status?: string; aliases?: Record<string, string>; spells?: SpellRef[]; weapons?: WeaponRef[]; features?: Array<{ id: string; name: string; target: "self" | "creature" }> };
   /** The story the scene belongs to: the scenes the copied code reads besides this one (gm/story.ts, in place of the prototype's SCENES and sceneById). */
@@ -50,27 +48,21 @@ export interface TurnView {
 
   // The GM's bookkeeping (GmState), as the simulation keeps it.
   beat: string;
+  /** The nodes the scene has reached, in order, its start first (shared/scene/beats.ts). */
+  reached: string[];
   turnsInBeat: number;
   path: PathStep[];
   established: string[];
   landed: string[];
   hinted: string[];
-  memory: { opened: OpenedNote[]; withheld?: string[] };
-  endingLead?: GmState["endingLead"];
-  pendingExit?: GmState["pendingExit"];
   closing?: GmState["closing"];
   ended?: GmState["ended"];
-  sceneStatus?: SceneStatus;
-  oocTurns: number[];
   pressureOffered: string[];
+  /** A sentence the last reply repeated word for word (voice.ts gmReply, the aftermath's: set and read within one call). */
   repeated?: string;
 
-  // The co-GM's steering and the GM's rulings (full-gm-design §4.2), as the simulation keeps them.
-  canon: string[];
-  notes: string | null;
-  whispers: GmState["whispers"];
+  /** The scene's prep as play has changed it (what the boundary brought on to it, a talk's card and discovery). */
   patches: ScenePatch[];
-  rulings: RulingRecord[];
 
   // What the boundary before the scene handed on, and the story so far (story-design §4.4).
   /** Cast who are away: from earlier scenes that what happened keeps away, and those who fled the player's violence (the world bridge's). */
@@ -90,13 +82,13 @@ export interface TurnView {
 
   // A later vertical's: always empty until then, read by the copied code.
   entered: string[];
-  // A talk's (town-design §3.6): its staged secrets, and what companions have told the player of themselves.
-  /** Staged secrets: how far each of the cast who keeps something back has come towards giving it up (a talk's; {} in a talk with none yet, as startTalk sets it). */
-  guard?: Record<string, { stage: GuardStage; turn: number }>;
+  // A talk's (town-design §3.6): what companions have told the player of themselves.
   /** What companions have told the player of themselves in talks between scenes, by their cast ids (the story's talk records). */
   talks?: Record<string, TalkRecord>;
   /** The lines offered last in this scene (only their words are read: none of them again). */
   suggestions?: { scene: string; turn: number; lines: Array<{ kind?: string; text: string }> };
+  /** The two-part GM's (docs/two-part-design.md): each person's role, the co-GM's notes by turn, the stage it moved to, a wind-down held once. */
+  twoPart: TwoPartState;
 
   /** The scene's entries as the prototype has them: the player's lines are "player"'s, the markup is `marked`. */
   transcript: ViewEntry[];
@@ -160,19 +152,17 @@ export function viewOf(source: ViewSource, scene: Scene, story?: Story, essentia
   const view: TurnView = {
     id: source.game, sceneId: source.scene.key, turn: source.scene.turn,
     player: playerOf(sheet),
-    beat: gm.beat, turnsInBeat: gm.turnsInBeat, path: gm.path, established: gm.established, landed: gm.landed, hinted: gm.hinted,
-    memory: { opened: gm.opened, ...(gm.withheld?.length ? { withheld: gm.withheld } : {}) },
-    ...(gm.endingLead ? { endingLead: gm.endingLead } : {}), ...(gm.pendingExit ? { pendingExit: gm.pendingExit } : {}),
-    ...(gm.closing ? { closing: gm.closing } : {}), ...(gm.ended ? { ended: gm.ended } : {}), ...(gm.sceneStatus ? { sceneStatus: gm.sceneStatus } : {}),
-    oocTurns: gm.oocTurns, pressureOffered: gm.pressureOffered, ...(gm.repeated !== undefined ? { repeated: gm.repeated } : {}),
-    canon: gm.canon, notes: gm.notes, whispers: gm.whispers, patches: gm.patches, entered: gm.entered,
-    // (A request a job stored before the rulings had a column has none, and one stored before the story unit none of what a boundary hands on.)
-    rulings: gm.rulings ?? [], absent: gm.absent ?? [], fought: gm.fought ?? [],
+    // (A request a job stored before M2 has no nodes reached nor a two-part GM: its beat stands for them.)
+    beat: gm.beat, reached: gm.reached?.length ? gm.reached : [gm.beat], twoPart: gm.twoPart ?? { roles: {}, notes: [] },
+    turnsInBeat: gm.turnsInBeat, path: gm.path, established: gm.established, landed: gm.landed, hinted: gm.hinted,
+    ...(gm.closing ? { closing: gm.closing } : {}), ...(gm.ended ? { ended: gm.ended } : {}),
+    pressureOffered: gm.pressureOffered, patches: gm.patches, entered: gm.entered,
+    // (A request a job stored before the story unit has none of what a boundary hands on.)
+    absent: gm.absent ?? [], fought: gm.fought ?? [],
     history: structuredClone(source.told?.history ?? []), adjustments: gm.adjustments ?? [],
     ...(gm.opening !== undefined ? { opening: gm.opening } : {}), ...(gm.lead !== undefined ? { lead: gm.lead } : {}),
     owed: owedOf(gm.owed ?? [], world, keys, essentialOf),
-    // A talk's staged secrets ({} as a talk opens, as startTalk sets it), and the story's talk records.
-    ...(gm.guard ? { guard: gm.guard } : scene.companion ? { guard: {} } : {}),
+    // The story's talk records.
     ...(source.told?.talks && Object.keys(source.told.talks).length ? { talks: structuredClone(source.told.talks) } : {}),
     transcript: [...(source.told?.earlier ?? []), ...source.transcript].map(e => entryOf(e, keys)),
     // A talk has no world (the prototype's has none): the rows it's sent are the town's own place's.
@@ -220,13 +210,10 @@ function owedOf(rows: OwedRow[], world: SceneWorld, keys: Keys, essentialOf: Ess
   });
 }
 
-/** Markup by the game's keys as the copied code reads it: speakers and the people marks link to by the world's ids. Cards are dropped: nothing in the copied code reads one. */
+/** Markup by the game's keys as the copied code reads it: the speakers by the world's ids. */
 export function localMarkup(markup: Markup, keys: Keys): Markup {
   const local = (key: string) => (key === "you" ? key : localKey(key, keys));
-  return {
-    speech: markup.speech.map(s => (s.speaker ? { ...s, speaker: local(s.speaker) } : s)),
-    marks: markup.marks.map(({ card: _, ...m }) => (m.link?.kind === "person" ? { ...m, link: { kind: "person" as const, id: local(m.link.id) } } : m)),
-  };
+  return { speech: markup.speech.map(s => (s.speaker ? { ...s, speaker: local(s.speaker) } : s)) };
 }
 
 /**
@@ -236,9 +223,5 @@ export function localMarkup(markup: Markup, keys: Keys): Markup {
  */
 export function gameMarkup(markup: Markup, scene: Scene, world: SceneWorld | undefined, keys: Keys): Markup {
   const game = (id: string) => (id === "you" || scene.cast.some(c => c.id === id) || !world?.entities[id] ? id : fullKey(id, world.entities[id], keys));
-  const link = (l: MarkLink): MarkLink => (l.kind === "person" ? { kind: "person", id: game(l.id) } : l);
-  return {
-    speech: markup.speech.map(s => (s.speaker ? { ...s, speaker: game(s.speaker) } : s)),
-    marks: markup.marks.map(m => (m.link ? { ...m, link: link(m.link) } : m)),
-  };
+  return { speech: markup.speech.map(s => (s.speaker ? { ...s, speaker: game(s.speaker) } : s)) };
 }

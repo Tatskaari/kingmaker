@@ -23,9 +23,9 @@ import { startStack, type Stack } from "./dev/stack.ts";
 
 const USAGE = `npm run dev [-- options]
   --fake                the fake model (no key, no cost): it plays hosts/dev/fake.json, the GM's golden
-                        replies with notes and suggested lines, each written over 2 s as a model's is;
+                        replies and suggested lines, each written over 2 s as a model's is;
                         KM_AI_FAKE (JSON) goes on top: '{"streamMs":0}' answers at once,
-                        '{"choices":{"attempt":"examine-body"}}' rolls the Medicine check
+                        '{"mouthpiece":{"check":{"skill":"medicine","dc":12}}}' rolls a Medicine check
   --container           the AI service in its podman image (built from ai/Containerfile)
   --fresh               no data: SpacetimeDB's, the AI service's store, runs/play (the keys stay)
   --mode host|namespace detected when absent: host when ${AI_ADDRESS} is on this machine
@@ -42,16 +42,11 @@ const V2 = resolve(import.meta.dirname, "..");
 const CAMPAIGN = join(V2, "campaigns", "caerwyn");
 /**
  * f's fault: the service exits (137) right after it stores its next reply, before it sends it (v0-design
- * §5.1). After s the kept reply lands at once. (Any answer would be a line's decide, which no one sees.)
+ * §5.1). After s the kept reply lands at once. (Of a line's thinks, the reply is the one the player sees.)
  */
 const FAULT = "exit-after-store:reply";
-/**
- * n's: the same, after the next notes on a reply (v5-design §1.2, step 11): a job beside a turn kept
- * and answered again. Pressed before a line, so the restart has nothing in flight to finish.
- */
-const NOTES_FAULT = "exit-after-store:notes";
 /** What each key's fault has the service store before it exits, for the line that says it has. */
-const STORED: Record<string, string> = { f: "a reply", n: "the notes on a reply" };
+const STORED: Record<string, string> = { f: "a reply" };
 
 const flags = flagsOf(process.argv.slice(2));
 /** The fake model's options, with --fake: fake.json's, KM_AI_FAKE's on top. */
@@ -70,7 +65,7 @@ let queue = Promise.resolve();
 let quitting = 0;
 /** Set while the dev host stops the AI service itself, so that exit isn't reported as a surprise. */
 let stopping = false;
-/** The key whose fault the AI service runs with (f or n), if any. */
+/** The key whose fault the AI service runs with (f), if any. */
 let faulted: string | undefined;
 
 /** The keys (§1.1), each an action on the stack. */
@@ -93,10 +88,6 @@ const ACTIONS: Record<string, () => Promise<void>> = {
   async f() {
     await restartWithFault("f", FAULT);
     note(`the AI service is restarted with KM_AI_FAULTS=${FAULT}: it exits right after it stores its next reply, before sending it`);
-  },
-  async n() {
-    await restartWithFault("n", NOTES_FAULT);
-    note(`the AI service is restarted with KM_AI_FAULTS=${NOTES_FAULT}: it exits right after it stores the next notes on a reply, before answering (say a line now)`);
   },
   async p() {
     const published = await stack.publish();
@@ -160,7 +151,7 @@ function screen(s: Stack, campaignLine: string, report: DoctorReport): string[] 
     `       npm run client -- --session <name> --new "Name: concept" [--build ${builds.join("|")}]${stackFlag}`,
     `       npm run client -- --session <name> --join <game>${stackFlag}`,
     ...(flags.keys
-      ? ["Keys:  k kill the AI service · s start it · r restart it · f kill it after its next stored reply", "       n kill it after the next notes it stores · p republish the module · d doctor · q quit"]
+      ? ["Keys:  k kill the AI service · s start it · r restart it · f kill it after its next stored reply", "       p republish the module · d doctor · q quit"]
       : ["Keys:  off (--no-keys): SIGTERM or Ctrl+C stops the stack"]),
     ...(s.mode === "namespace" ? [`Tip:   sudo ip addr add ${AI_ADDRESS}/32 dev lo  runs the stack without a namespace (host mode)`] : []),
     "",

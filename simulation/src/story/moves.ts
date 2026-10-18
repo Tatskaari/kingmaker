@@ -1,14 +1,16 @@
 import type { Identity } from "spacetimedb";
 import { andList, refusal } from "../../../shared/protocol/refusals.ts";
+import { reachDiscoveries } from "../../../shared/scene/beats.ts";
 import { isAdmin } from "../access.ts";
 import { actorOf, Refused, type Actor, type TxCtx } from "../context.ts";
-import { getGm } from "../gm/rows.ts";
+import { getGm, putGm } from "../gm/rows.ts";
 import { moveNamed } from "../moves/registry.ts";
 import { waitingScene } from "../moves/open-scene.ts";
 import { endScene } from "../moves/say-commits.ts";
 import { gameRow, playerRow, sceneRow, updateScene, updateTurn, type GameRow, type PlayerRow, type SceneRow } from "../rows.ts";
 import { sceneGraph } from "../scenes.ts";
 import { crossBoundary } from "./boundary.ts";
+import { takeFound } from "./effects.ts";
 import { candidatesFrom, queueBoundary } from "./end.ts";
 import { fightItOut } from "./fight.ts";
 import { fightOnMap } from "../map/fight.ts";
@@ -37,10 +39,13 @@ export function goOnReducer(tx: TxCtx, sender: Identity, args: { to?: { x: numbe
 /**
  * end_scene: the scene being played ends through an exit now, with no closing reply (the prototype's
  * forceEnding, engine.ts:1046-1053): the owner's, for testing (the QA console's end, the arc). A turn
- * whose reply is in (settling, or waiting on its notes) or that failed is finished first, its own
- * steps' job dropped; one the GM is still answering refuses it.
+ * whose reply is in (settling) or that failed is finished first, its own steps' job dropped; one the
+ * GM is still answering refuses it. `thorough` (the GM loop's, a scene skipped for QA): every
+ * discovery the scene can still reach is reached first, and what each is in taken, as a thorough
+ * player's game would have them by its end, so the chapter has their facts, the story owes none of
+ * them on, and the player carries their things on.
  */
-export function endSceneReducer(tx: TxCtx, sender: Identity, args: { game: bigint; exit: string }): void {
+export function endSceneReducer(tx: TxCtx, sender: Identity, args: { game: bigint; exit: string; thorough?: boolean | undefined }): void {
   if (!isAdmin(tx, sender)) throw new Refused(refusal("not_admin", { what: "end a scene for testing" }));
   const game = tx.db.game.id.find(args.game);
   if (!game) throw new Refused(refusal("unknown", { what: "game" }));
@@ -51,8 +56,23 @@ export function endSceneReducer(tx: TxCtx, sender: Identity, args: { game: bigin
   const exit = exits.find(e => e.id === args.exit);
   if (!exit) throw new Refused(refusal("no_exit", { exit: args.exit, exits: andList(exits.map(e => `${e.id} (${e.title})`)) }));
   letGo(tx, scene);
+  if (args.thorough) reachAll(tx, scene);
 
   endScene(tx, scene.id, exit, sceneRow(tx, scene.id).turns, "forced");
+}
+
+/**
+ * A thorough end's discoveries (beats.ts reachDiscoveries), each through its route as the co-GM would
+ * take it: their facts settled, the carried ones landed, the stage where it was; and what each is in
+ * taken into the player's hands (effects.ts takeFound), so they carry it on.
+ */
+function reachAll(tx: TxCtx, scene: SceneRow): void {
+  const gm = getGm(tx, scene.id);
+  const graph = sceneGraph(tx, scene, gm);
+  const done = reachDiscoveries(graph, gm, sceneRow(tx, scene.id).turns);
+  putGm(tx, scene.id, done.gm);
+  const taken = takeFound(tx, sceneRow(tx, scene.id), graph, done.reached);
+  tx.log(`[end ${scene.sceneKey}] thorough: reached ${done.reached.join(", ") || "nothing more"}${taken}`);
 }
 
 /** carry_on: a boundary that failed, queued again (its key the same, so an answer the AI service kept is served). The game's host's. */
@@ -106,9 +126,9 @@ function sceneInPlay(tx: TxCtx, game: GameRow): SceneRow | undefined {
 const IN_PLAY = new Set(["opening", "live", "closing", "ending", "fighting"]);
 
 /**
- * The turn holding the scene, let go of before a forced end: one whose reply is in (settling, or
- * waiting on its notes) or that failed is done, its own steps' job dropped (its notes, lines and the
- * reviews after it still come); one the GM is still deciding, considering or answering refuses it.
+ * The turn holding the scene, let go of before a forced end: one whose reply is in (settling) or
+ * that failed is done, its own steps' job dropped (its lines and the reviews after it still come);
+ * one the GM is still answering refuses it.
  */
 function letGo(tx: TxCtx, scene: SceneRow): void {
   const turn = scene.turnId === undefined ? undefined : tx.db.turn.id.find(scene.turnId);
@@ -118,7 +138,7 @@ function letGo(tx: TxCtx, scene: SceneRow): void {
   updateTurn(tx, turn.id, { phase: "done", endedAt: tx.now, note: undefined });
   updateScene(tx, scene.id, { turnId: undefined });
 }
-const LET_GO = new Set(["settling", "noting", "failed"]);
+const LET_GO = new Set(["settling", "failed"]);
 
 /** The chapter whose boundary failed: the latest with no hand-off, its scene ended. */
 function stuckChapter(tx: TxCtx, game: GameRow) {

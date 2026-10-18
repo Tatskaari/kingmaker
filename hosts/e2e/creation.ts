@@ -99,8 +99,8 @@ export async function aConceptToTheOpening(stack: Stack, root: string, a: Player
   const drafts = seen.slice(0, entry).filter(e => e.table === "reply_draft" && e.op !== "delete").length;
   check(`A saw the opening's draft grow (${drafts} posts) before its entry landed`, entry >= 0 && drafts >= 2);
   check("the creation is gone with begin", a.conn.home().creation === undefined);
-  const opening = callLog(root, uid).find(c => c.operation === "gm.opening" && c.request);
-  check("the gm.opening call's input has the backstory's summary", !!opening && JSON.stringify(opening.request).includes(SUMMARY));
+  const opening = callLog(root, uid).find(c => c.operation === "two-part.opening" && c.request);
+  check("the two-part.opening call's prep has the backstory's summary", !!opening && JSON.stringify(opening.request).includes(SUMMARY));
   await until(b, "B to see A's opening", 10_000, r => r.game.id === game && r.transcript.some(t => t.turn === 0));
   ok(`B watches game ${game}`);
   return { id: game, uid, scene: rows.scene.id };
@@ -143,8 +143,8 @@ interface Timings { made: string[]; begins: number[]; checks: Array<{ what: stri
  */
 export async function checksBesideAStream(stack: Stack, a: Player, fake: FakeOptions): Promise<void> {
   step("19. A character made and checks rolled beside another game's stream");
-  // Every line tries Moll (an Insight check), and a try again counts as a new one, so each line rolls.
-  await restartAi(stack, onTop(fake, { streamMs: 3_000, choices: { attempt: "catch-moll", same_again: "new" } }));
+  // The mouthpiece calls a check on every reply (Insight, as pressing Moll would), so each line rolls.
+  await restartAi(stack, onTop(fake, { streamMs: 3_000, mouthpiece: { check: { skill: "insight", dc: 12 } } }));
   const logged = (await moduleLog(stack)).length;
   const c = await player(stack, "C");
 
@@ -275,7 +275,7 @@ const TABLES: Array<[table: string, column: string, by: keyof Ids]> = [
   ...["chapter", "quest", "flag", "journal", "attitude", "follower"].map(t => [t, "game_id", "game"] as [string, string, keyof Ids]),
   ["seat", "player_id", "players"], ["heard", "player_id", "players"],
   ["gm_state", "scene_id", "scenes"], ["on_stage", "scene_id", "scenes"], ["reply_draft", "scene_id", "scenes"], ["turn", "scene_id", "scenes"], ["transcript", "scene_id", "scenes"],
-  ["scene_suggestion", "scene_id", "scenes"], ["co_gm_result", "scene_id", "scenes"],
+  ["scene_suggestion", "scene_id", "scenes"],
   ...["position", "area", "material", "health", "stack", "surface", "creature", "player_character", "gear", "narrative", "gm_note", "world_log", "look", "entity"]
     .map(t => [t, "place_id", "places"] as [string, string, keyof Ids]),
   ["job_dispatch", "job_id", "jobs"],

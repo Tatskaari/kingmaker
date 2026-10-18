@@ -16,9 +16,9 @@ import type { Loaded } from "./scenes.ts";
 /**
  * Blind play: a tester plays a round's game as its player, through the headless client's verbs, and
  * sees only what a player sees: the narration, who says each line ("Name: ", where the screen has
- * their colour), the dice lines and the game's own lines; not the notes on marked words, nor the
- * suggested lines (turned off: the testers write their own). The loop keeps what they saw, turn by
- * turn, in the game's record.
+ * their colour), the dice lines (a check the GM calls: the roll and how far it made or missed the DC,
+ * then the outcome that came up) and the game's own lines; not the suggested lines (turned off: the
+ * testers write their own). The loop keeps what they saw, turn by turn, in the game's record.
  */
 
 /** What the loop needs of the world: the stack to play on, its owner's rows, its campaign, its call log, the clock. The host makes them. */

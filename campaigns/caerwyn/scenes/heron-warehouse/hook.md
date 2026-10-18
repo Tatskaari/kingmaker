@@ -1,1 +1,0 @@
-Night, on the eve of the Assembly. The big man with the bandaged hand, Hobb Mallory, works nights for a gentleman at the Heron warehouse, at the downriver end of the wharves, and tonight a barge is loading there. If the King's 'lost' grain goes anywhere, it goes through those doors. Sergeant Kell is with you on the dark wharf.

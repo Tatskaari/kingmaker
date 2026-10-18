@@ -1,3 +1,0 @@
-- New leads, clues or people turning up: a word between scenes moves nothing in the story on; the story goes on at its next place.
-- Going somewhere together now (into a building, on to the next place): walking on ends the talk, and the map takes them there.
-- Things changing hands (a gift, a loan, money, gear): a word in passing isn't the place for it; offered, it's answered in character and stays with whoever had it.

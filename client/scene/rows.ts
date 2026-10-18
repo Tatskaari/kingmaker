@@ -1,4 +1,4 @@
-import type { Card, Mark, Markup, Speech } from "../../shared/markup.ts";
+import type { Markup, Speech } from "../../shared/markup.ts";
 import type { Game, Look, NameView, OnStage, Player, ReplyDraft, Scene, SceneSuggestion, Sheet, Transcript, Turn } from "../module_bindings/types.ts";
 import { colorOf } from "../theme.ts";
 import { TIME_WORDS } from "../creation/words.ts";
@@ -25,7 +25,7 @@ export interface SceneRows {
   sheets: Array<Pick<Sheet, "playerId" | "statusLine"> & LeadSheet>;
   transcript: Array<Pick<Transcript, "seq" | "turn" | "speaker" | "kind" | "text" | "markup">>;
   drafts: Array<Pick<ReplyDraft, "turnId" | "speaker" | "text" | "markup" | "attempt" | "seq">>;
-  turns: Array<Pick<Turn, "id" | "n" | "phase" | "note" | "error" | "notes" | "suggest">>;
+  turns: Array<Pick<Turn, "id" | "n" | "phase" | "note" | "error" | "suggest">>;
   onStage: Array<Pick<OnStage, "entityId" | "role">>;
   names: Array<Pick<NameView, "entityId" | "key" | "name">>;
   /** The place's looks: a cast member's colour, or a thing's invented look (town-design §3.7: its fg a colour's name, not the cast's). */
@@ -48,13 +48,13 @@ export interface SceneRows {
 
 type TurnRow = SceneRows["turns"][number];
 
-const PHASES: readonly Phase[] = ["queued", "deciding", "considering", "replying", "settling", "noting", "done", "failed"];
+const PHASES: readonly Phase[] = ["queued", "replying", "settling", "done", "failed"];
 const KINDS: readonly EntryKind[] = ["player", "narration", "dialogue", "roll", "system"];
 const SUGGESTION_KINDS: ReadonlyArray<Suggestion["kind"]> = ["say", "do", "try", "leave"];
-/** The phases the player may speak in: before the first line, and once the reply is final (the world settles, and the notes are written, behind it). */
-const OPEN: readonly Phase[] = ["idle", "settling", "noting", "done"];
+/** The phases the player may speak in: before the first line, and once the reply is final (the world settles behind it). */
+const OPEN: readonly Phase[] = ["idle", "settling", "done"];
 /** The phases of a turn whose reply hasn't come yet: lines will follow it. */
-const BEFORE_REPLY: readonly string[] = ["queued", "deciding", "considering", "replying"];
+const BEFORE_REPLY: readonly string[] = ["queued", "replying"];
 
 export function sceneViewOf(rows: SceneRows): SceneView {
   const { lease, newest } = turnsOf(rows);
@@ -92,7 +92,6 @@ export function sceneViewOf(rows: SceneRows): SceneView {
     ...noteOf(rows, lease, phase),
     ...(phase === "failed" ? { failed: lease?.error ?? "" } : {}),
     ...suggestionsOf(rows, lease),
-    notesComing: shown?.notes === "writing",
     ...(rows.story ? { story: storyViewOf(rows.story, rows.scene.controllerId, name) } : {}),
     ...placeOf(rows),
     ...(rows.onMap ? { onMap: true } : {}),
@@ -194,27 +193,13 @@ function nameOf(rows: SceneRows, speaker: string): string | undefined {
   return rows.names.find(n => n.key === speaker)?.name;
 }
 
-/**
- * A markup column (JSON), or nothing when it's missing or unreadable: the words are drawn plain.
- * A mark is kept only when it has a note (v0-design §7): one without would underline words that
- * open on nothing. Its card (what the player knows of what it's about, written with the note) is
- * kept when it reads as one, a title and lines of words: the popover draws it under the note.
- */
+/** A markup column (JSON): who says each line; nothing when it's missing or unreadable, and the words are drawn plain. (A row from before M2 may have notes on marks too: they're not the game's now, and not read.) */
 export function markupOf(json: string | undefined): Markup | undefined {
   const parsed = jsonObject(json);
   if (!parsed) return undefined;
   const speech = Array.isArray(parsed.speech) ? parsed.speech.filter(isSpan) as Speech[] : [];
-  const marks = Array.isArray(parsed.marks) ? (parsed.marks as Mark[]).filter(m => isSpan(m) && typeof m.note === "string" && m.note.trim() !== "").map(withCard) : [];
-  return { speech, marks };
+  return { speech };
 }
-
-/** A mark with its card only when the card can be drawn. */
-function withCard(mark: Mark): Mark {
-  const { card, ...rest } = mark;
-  return isCard(card) ? { ...rest, card } : rest;
-}
-
-const isCard = (c: unknown): c is Card => !!c && typeof (c as Card).title === "string" && Array.isArray((c as Card).lines) && (c as Card).lines.every(l => typeof l === "string");
 
 function jsonObject(json: string | undefined): Partial<Record<keyof Markup, unknown>> | undefined {
   if (!json) return undefined;
@@ -226,7 +211,7 @@ function jsonObject(json: string | undefined): Partial<Record<keyof Markup, unkn
   }
 }
 
-/** A span of the text with numbers for its edges (a speech or a mark). */
+/** A span of the text with numbers for its edges. */
 const isSpan = (s: unknown): boolean => !!s && typeof (s as Speech).start === "number" && typeof (s as Speech).end === "number";
 
 /** A time of day as the frame's title has it (the prototype's TIME_WORDS, to its first comma): "Morning"; "The morning of the Assembly". */

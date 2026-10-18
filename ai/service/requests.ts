@@ -6,7 +6,7 @@ import { Failure } from "./context.ts";
 /**
  * What each think's endpoint reads of its request (v0-design §5.2, v1-design §3.7, full-gm-design
  * §4.1, world-bridge-design §3.1, story-design §4.4, town-design §3.6-3.8: a talk's open and settle,
- * decide's forced, the looks' things), checked before any model is asked, whichever
+ * the looks' things), checked before any model is asked, whichever
  * GM answers, and before a kept answer or the day's ceiling is looked at. A request without it is
  * the sender's mistake: 400 bad_request, which the module doesn't retry, rather than the endpoint's
  * TypeError, a 500 the module would retry for ten minutes (or an answer made from undefined, kept by
@@ -49,7 +49,7 @@ export function backstoryOp(req: BackstoriesRequest): BackstoryOp {
 type Need = [what: string, has: (request: unknown) => boolean];
 
 /** The GM's bookkeeping as the view copies it (gm/view.ts): its beat, its count, and its lists. */
-const GM_LISTS = ["path", "established", "landed", "hinted", "opened", "oocTurns", "pressureOffered", "canon", "patches", "entered", "absent", "whispers"];
+const GM_LISTS = ["path", "established", "landed", "hinted", "pressureOffered", "patches", "entered", "absent"];
 /** The world's rows as rowsToWorld reads them: the place, and a list of each component. */
 const WORLD_LISTS = ["entity", "position", "area", "material", "health", "stack", "surface", "creature", "playerCharacter", "gear", "narrative", "gmNote", "worldLog"];
 
@@ -67,7 +67,7 @@ const TRANSCRIPT: Need = ["turn.transcript", r => isList(r, "turn.transcript")];
 /** Every think on a turn reads its context: the scene, the line, the transcript, and what the view is built from. */
 const TURN: Need[] = [SCENE_AT, ["turn.line { text }", r => isText(r, "turn.line.text")], TRANSCRIPT, ...viewNeeds("turn.")];
 
-/** A job beside a turn (its notes, its suggested lines) or after it (the memory reviews, the co-GM) reads the scene's context, which has no line (v5-design §3.6). */
+/** A job beside a turn (its suggested lines) or after it (the memory reviews, the co-GM) reads the scene's context, which has no line (v5-design §3.6). */
 const SCENE: Need[] = [SCENE_AT, TRANSCRIPT, ...viewNeeds("turn.")];
 
 const STREAM: Need = ["stream { turn } (the draft it streams to)", r => isText(r, "stream.turn")];
@@ -89,22 +89,18 @@ const TALK_OPEN: Need = [
 
 const NEEDS: Record<Step, Need[]> = {
   open: [["scene { key }", r => isText(r, "scene.key")], ...viewNeeds(""), STREAM, TALK_OPEN],
-  decide: [...TURN, ["forced { kind } (the menu's act, when it's sent)", r => at(r, "forced") === undefined || isText(r, "forced.kind")]],
   reactions: [...TURN, ["act { what, victims, property } (what the rules decided the player did)", r => isText(r, "act.what") && isList(r, "act.victims") && isList(r, "act.property")]],
-  consider: [
-    ...TURN,
-    ["read { probability, routes } (the decider's, when it's sent)", r => at(r, "read") === undefined || (isNumber(r, "read.probability") && isList(r, "read.routes"))],
-    ["pending { exitId } (the ending held, when it's sent)", r => at(r, "pending") === undefined || isText(r, "pending.exitId")],
+  reply: [
+    ...TURN, ["outcome { directives }", r => isList(r, "outcome.directives")], STREAM,
+    ["outcome.windDown { exit } (the wind-down's, when it's sent)", r => at(r, "outcome.windDown") === undefined || isText(r, "outcome.windDown.exit")],
   ],
-  reply: [...TURN, ["decision", r => isObject(r, "decision")], ["outcome { directives }", r => isList(r, "outcome.directives")], STREAM],
   settle: [
     ...TURN, ["reply (the reply's text)", r => isText(r, "reply")], ["lines (the turn's dice lines)", r => isList(r, "lines")], ["settled (what was settled before it)", r => isList(r, "settled")],
     ["talk { suggest } (a talk's, when it's sent)", r => at(r, "talk") === undefined || typeof at(r, "talk.suggest") === "boolean"],
+    ["check { skill, dc, total, success, band } (the turn's check, when it's sent)", r => at(r, "check") === undefined || (isText(r, "check.skill") && isNumber(r, "check.dc") && isNumber(r, "check.total") && typeof at(r, "check.success") === "boolean" && isText(r, "check.band"))],
   ],
-  notes: [...SCENE, ["reply { seq, text, speech, drafted }", r => isNumber(r, "reply.seq") && isText(r, "reply.text") && isList(r, "reply.speech") && isList(r, "reply.drafted")]],
   suggest: [...SCENE, ["offered (the scene's last set)", r => isList(r, "offered")]],
   remember: [...SCENE, REVIEWED],
-  repair: [...SCENE, REVIEWED],
   boundary: [...SCENE, ...BOUNDARY],
   look: [["things [{ key, name }] (what to invent a look for, at least one)", r => isList(r, "things") && (at(r, "things") as unknown[]).length > 0 && (at(r, "things") as Array<{ key?: unknown; name?: unknown }>).every(t => typeof t?.key === "string" && typeof t.name === "string")]],
 };
@@ -117,7 +113,6 @@ function at(value: unknown, path: string): unknown {
 const isText = (r: unknown, path: string) => typeof at(r, path) === "string";
 const isNumber = (r: unknown, path: string) => typeof at(r, path) === "number";
 const isList = (r: unknown, path: string) => Array.isArray(at(r, path));
-const isObject = (r: unknown, path: string) => { const v = at(r, path); return v !== null && typeof v === "object" && !Array.isArray(v); };
 
 /** A 400 naming what a request is missing, if anything. */
 function missing(gaps: Array<string | false>): void {

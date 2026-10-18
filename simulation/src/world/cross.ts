@@ -99,15 +99,15 @@ export type Moving = Map<string, bigint>;
 export interface Going { moving: Moving; renamed: Map<string, string>; names: string[] }
 
 /**
- * What the player carries, from the place they're in now, into the world of the place they're going
- * to (engine.ts:174): everything they hold and what those hold, but what's gone, each with its last
- * two notes, put in with its holder, or in their hands; a clash with the new place's own thing of
- * that id is the carried one's (the prototype's object overwrite: `replaced`, the place's own thing's
- * keys). Their entities move in with their ids.
+ * What the player carries, from the place their character is in now, into the world of the place
+ * they're going to (engine.ts:174): everything they hold and what those hold, but what's gone, each
+ * with its last two notes, put in with its holder, or in their hands; a clash with the new place's
+ * own thing of that id is the carried one's (the prototype's object overwrite: `replaced`, the place's
+ * own thing's keys). Their entities move in with their ids.
  */
-export function carriedFrom(tx: TxCtx, controller: { id: bigint; placeId?: bigint }, world: SceneWorld, keys: Keys): Going & { replaced: string[] } {
+export function carriedFrom(tx: TxCtx, controller: { id: bigint; placeId?: bigint; characterId?: bigint }, world: SceneWorld, keys: Keys): Going & { replaced: string[] } {
   const going: Going & { replaced: string[] } = { moving: new Map(), renamed: new Map(), names: [], replaced: [] };
-  const from = placeWorld(tx, controller.placeId, controller.id);
+  const from = placeWorld(tx, characterPlace(tx, controller), controller.id);
   if (!from?.world.entities.player || from.place === keys.placeKey) return going;
 
   const carried = carriedBy(from.world.entities, "player");
@@ -185,6 +185,17 @@ export function carriedBy(entities: Record<string, Entity>, holder: string): Ent
   const walk = (id: string) => { for (const e of Object.values(entities).filter(x => x.parent === id && !x.states.includes("gone") && !seen.has(x.id))) { seen.add(e.id); out.push({ ...e, notes: e.notes.slice(-2) }); walk(e.id); } };
   walk(holder);
   return out;
+}
+
+/**
+ * The place the player's character is in: their entity's. On a map that's the last scene's place,
+ * where the character stays until the next scene opens (V3, as the map's take and pockets have it),
+ * while their seat is on the map's own place, which has no world; their seat's when they have no
+ * character in the world yet.
+ */
+function characterPlace(tx: TxCtx, controller: { placeId?: bigint; characterId?: bigint }): bigint | undefined {
+  const me = controller.characterId === undefined ? undefined : tx.db.entity.id.find(controller.characterId);
+  return me?.placeId ?? controller.placeId;
 }
 
 /** An entity of the game by its key, wherever it is. */

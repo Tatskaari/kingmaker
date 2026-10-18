@@ -1,11 +1,12 @@
-// Copied from the prototype's src/runtime/threats.test.ts at 44c6d4a, its first four tests: on the hanged clerk's granary yard with builds.json's builds (the prototype's pregens, made by createCharacter), Sergeant Kell's club where the Heron's Sallow swung, each call synchronous on the host's Rules and pinned. Its last test plays a whole turn (the prototype's playerTurn), the simulation's decide commit here: a Shield the blow forestalled isn't cast again (S's takeAct).
+// Copied from the prototype's src/runtime/threats.test.ts at 44c6d4a, its first four tests: on the hanged clerk's granary yard with builds.json's builds (the prototype's pregens, made by createCharacter), Sergeant Kell's club where the Heron's Sallow swung, each call synchronous on the host's Rules and pinned. Its last test plays a whole turn (the prototype's playerTurn): in the game that's the simulation's (simulation/src/moves/world.test.ts, takeAct: a Shield the blow forestalled isn't cast again).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import "./shim.ts";
 import * as E from "../../vendor/dnd-srd-engine/dnd-srd-engine.module.js";
 import { initialGm } from "../gm/state.ts";
-import type { BuildsFile, PlaceFile, SceneFile } from "../scene/files.ts";
+import type { SceneDocument } from "../scene/document.ts";
+import type { BuildsFile, PlaceFile } from "../scene/files.ts";
 import { presentCast } from "../scene/graph.ts";
 import { sceneOf } from "../scene/load.ts";
 import { buildWorld, joinWorld } from "../world/scene-world.ts";
@@ -27,7 +28,7 @@ import type { SceneSession } from "./types.ts";
 const read = <T>(path: string) => JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8")) as T;
 const rules = rulesFrom(E, read("../../vendor/dnd-srd-engine/starter-pack.json"), read("../../vendor/srd-spells/spells.json"));
 const BUILDS = read<BuildsFile>("../../campaigns/caerwyn/builds.json");
-const yard = sceneOf(read<SceneFile>("../../campaigns/caerwyn/scenes/hanged-clerk/scene.json"));
+const yard = sceneOf(read<SceneDocument>("../../campaigns/caerwyn/scenes/hanged-clerk.kmscene"));
 const T = Date.UTC(2026, 9, 16, 9, 30);
 let pin = 1;
 const pinned = <X>(f: () => X): X => withEngine({ seed: pin++, nowMs: T }, f);

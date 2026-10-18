@@ -1,7 +1,7 @@
 import type { Backstory } from "../../../shared/creation/types.ts";
 import {
-  STEP_ENDPOINT, STEP_TIMEOUT_MS, type AiRequest, type BoundaryRequest, type Chapter, type ConsiderRequest, type DecideRequest, type Entry, type LooksRequest, type NotesRequest, type OpenRequest, type ReactionsRequest,
-  type RememberRequest, type RepairRequest, type ReplyRequest, type SceneContext, type SettleRequest, type SheetRow, type Story, type SuggestRequest, type TalkOpen, type TurnContext,
+  STEP_ENDPOINT, STEP_TIMEOUT_MS, type AiRequest, type BoundaryRequest, type Chapter, type Entry, type LooksRequest, type OpenRequest, type ReactionsRequest,
+  type RememberRequest, type ReplyRequest, type SceneContext, type SettleRequest, type SheetRow, type Story, type SuggestRequest, type TalkOpen, type TurnContext,
 } from "../../../shared/protocol/ai.ts";
 import type { GuardStage, TalkRecord } from "../../../shared/gm/state.ts";
 import { talkOf } from "../../../shared/scene/talk.ts";
@@ -11,11 +11,11 @@ import type { Skill } from "../../../shared/scene/types.ts";
 import { pcKey } from "../../../shared/world/rows.ts";
 import type { TxCtx } from "../context.ts";
 import type { AiCall } from "../moves/move.ts";
-import type { BoundaryPlan, LookPlan, NotesPlan, OpenPlan, RememberPlan, RepairPlan, SayPlan, SuggestPlan } from "../moves/plans.ts";
+import type { BoundaryPlan, LookPlan, OpenPlan, RememberPlan, SayPlan, SuggestPlan } from "../moves/plans.ts";
 import { gameRow, playerRow, sceneRow, sheetRow, turnRow, type GameRow, type PlayerRow, type RowOf, type SceneRow } from "../rows.ts";
 import { sceneGraph } from "../scenes.ts";
 import { FIGHT_NOT_PLAYED } from "../story/words.ts";
-import { entriesOf, entryAt, markupOf } from "../transcript.ts";
+import { entriesOf } from "../transcript.ts";
 import { placeRows } from "../world/rows-io.ts";
 import { getGm } from "./rows.ts";
 
@@ -58,28 +58,12 @@ export function boundaryCall(tx: TxCtx, plan: BoundaryPlan): AiCall {
   return { endpoint: STEP_ENDPOINT.boundary, key, timeoutMs: STEP_TIMEOUT_MS.boundary, request };
 }
 
-/** A say turn's call for its step: decide, reactions, consider, reply or settle, each with the turn's working set. */
+/** A say turn's call for its step: reply or settle (or the parked reactions), each with the turn's working set. */
 export function sayCall(tx: TxCtx, plan: SayPlan): AiCall {
   const at = whereOf(tx, plan.scene);
   const key = idempotencyKey(at.game.uid, at.scene.id, plan.n, plan.step);
   const base = { ...aiRequest(key, at), turn: turnContext(tx, plan, at) };
   return { endpoint: STEP_ENDPOINT[plan.step], key, timeoutMs: STEP_TIMEOUT_MS[plan.step], request: stepRequest(plan, base, at.controller.suggestions) };
-}
-
-/**
- * The notes' call: POST /v1/turns/notes, key <uid>:s<scene>:t<n>:notes. The reply as its transcript
- * row has it (its words, who says each line), the marks the GM drafted, and the scene up to it.
- */
-export function notesCall(tx: TxCtx, plan: NotesPlan): AiCall {
-  const at = whereOf(tx, plan.scene);
-  const key = idempotencyKey(at.game.uid, at.scene.id, plan.n, "notes");
-  const entry = entryAt(tx, at.scene.id, plan.seq);
-  const request: NotesRequest = {
-    ...aiRequest(key, at),
-    turn: sceneContext(tx, at, plan.n),
-    reply: { seq: entry.seq, text: entry.text, speech: markupOf(entry)?.speech ?? [], drafted: plan.drafted },
-  };
-  return { endpoint: STEP_ENDPOINT.notes, key, timeoutMs: STEP_TIMEOUT_MS.notes, request };
 }
 
 /**
@@ -102,14 +86,6 @@ export function rememberCall(tx: TxCtx, plan: RememberPlan): AiCall {
   const key = idempotencyKey(at.game.uid, at.scene.id, plan.n, "remember");
   const request: RememberRequest = { ...aiRequest(key, at), turn: reviewedContext(tx, at, plan.n), reviewed: plan.n };
   return { endpoint: STEP_ENDPOINT.remember, key, timeoutMs: STEP_TIMEOUT_MS.remember, request };
-}
-
-/** The co-GM's call: POST /v1/turns/repair, key <uid>:s<scene>:t<n>:repair. The scene as turn n left it, and the turn reviewed. */
-export function repairCall(tx: TxCtx, plan: RepairPlan): AiCall {
-  const at = whereOf(tx, plan.scene);
-  const key = idempotencyKey(at.game.uid, at.scene.id, plan.n, "repair");
-  const request: RepairRequest = { ...aiRequest(key, at), turn: reviewedContext(tx, at, plan.n), reviewed: plan.n };
-  return { endpoint: STEP_ENDPOINT.repair, key, timeoutMs: STEP_TIMEOUT_MS.repair, request };
 }
 
 /** A turn's working set: everything the GM may need, as this transaction sees it, with the player's line. */
@@ -156,17 +132,18 @@ function aiRequest(key: string, at: Where): AiRequest {
 }
 
 /**
- * reactions: what the decide commit's act did, which everyone who saw it reacts to (the turn's working
- * set is the world after it). consider: the decider's read that asked for the ruling, and the ending
- * held for the player's answer (the decide commit took it off the bookkeeping).
+ * reactions (parked for combat): what the rules' act did (takeAct), which everyone who saw it reacts
+ * to (the turn's working set is the world after it).
  */
-function stepRequest(plan: SayPlan, base: AiRequest & { turn: TurnContext }, suggest: boolean): DecideRequest | ReactionsRequest | ConsiderRequest | ReplyRequest | SettleRequest {
-  if (plan.step === "decide") return { ...base, landed: [], ...(plan.forced ? { forced: plan.forced } : {}) };
+function stepRequest(plan: SayPlan, base: AiRequest & { turn: TurnContext }, suggest: boolean): ReactionsRequest | ReplyRequest | SettleRequest {
   if (plan.step === "reactions") return { ...base, act: needs(plan.act, "act", "reactions") };
-  if (plan.step === "consider") return { ...base, ...(plan.decision?.considered ? { read: plan.decision.considered } : {}), ...(plan.pendingExit ? { pending: plan.pendingExit } : {}) };
-  if (plan.step === "reply") return { ...base, decision: needs(plan.decision, "decision", "reply"), outcome: needs(plan.outcome, "outcome", "reply"), stream: { turn: plan.turn } };
-  // A talk's settle asks for its next lines when its controller has them on (talk.suggest: town-design §3.6).
-  return { ...base, reply: plan.reply ?? "", lines: plan.lines, settled: plan.settledBefore, ...(base.turn.scene.kind === "talk" ? { talk: { suggest } } : {}) };
+  // The two-part GM's reply: the outcome's directives are the rules' and the map's act's (docs/two-part-design.md).
+  if (plan.step === "reply") return { ...base, outcome: needs(plan.outcome, "outcome", "reply"), stream: { turn: plan.turn } };
+  // A talk's settle asks for its next lines when its controller has them on (talk.suggest: town-design §3.6); the co-GM is told how the turn's check went.
+  return {
+    ...base, reply: plan.reply ?? "", lines: plan.lines, settled: plan.settledBefore, ...(base.turn.scene.kind === "talk" ? { talk: { suggest } } : {}),
+    ...(plan.check ? { check: plan.check } : {}),
+  };
 }
 
 /**

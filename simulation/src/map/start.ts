@@ -8,6 +8,7 @@ import { placeKeyOf } from "../moves/open-scene.ts";
 import { gameRow, placeRow, playerRow, type CampaignRow, type GameRow, type SceneRow } from "../rows.ts";
 import { campaignFile, graphOf, sceneDefOf } from "../scenes.ts";
 import { noteHeard } from "../transcript.ts";
+import { applyOnStart } from "../story/effects.ts";
 import { rekeyOwed } from "../world/cross.ts";
 import { waitingPlace } from "../world/place.ts";
 import { mapFilesOf, mapPlaceOf, originOf } from "./rows.ts";
@@ -50,8 +51,9 @@ export function startOnMap(tx: TxCtx, game: GameRow, campaign: CampaignRow): boo
  * still owes the player that they hold); the scene's row `waiting`, at its time of day, with its GM
  * bookkeeping as it starts and what was handed on (`handed`: the adjustments, the opening rewritten,
  * the lead, who's absent, what's owed; none for the game's first lead), in that place, filling its
- * region of its map when the game's campaign has that map. The names the hook has given are heard.
- * openLead opens it.
+ * region of its map when the game's campaign has that map. The names the hook has given are heard,
+ * and the scene comes into the story: its onStart (story/effects.ts applyOnStart: the game's first
+ * lead starts its quest as the game begins). openLead opens it.
  */
 export function buildLead(tx: TxCtx, game: GameRow, sceneKey: string, handed?: GmState): SceneRow {
   const def = sceneDefOf(tx, game, sceneKey);
@@ -74,6 +76,7 @@ export function buildLead(tx: TxCtx, game: GameRow, sceneKey: string, handed?: G
     mapKey: on?.map.id, region: on?.region.id, origin: on ? originOf(on.region) : undefined, active: !!on,
   });
   if (owed.length) tx.log(`[story] ${sceneKey} waits with what's owed: ${owed.join(", ")}`);
+  applyOnStart(tx, { scene, graph, gm });
   return scene;
 }
 
