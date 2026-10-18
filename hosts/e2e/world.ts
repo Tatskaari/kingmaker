@@ -14,7 +14,7 @@ import { bigints, check, doneTurn, mapUntil, modelCalls, moduleLog, nextTurn, no
  * world before the GM says a word, the people who saw it reacting; a spell said in words in the scene,
  * read by the act step and resolved the same way; a fire the stage manager starts that burns on at
  * the next line's start; and the spectator's world, row for row the lead's. On the fake model with
- * fake.json's quiet answers (Kell intervenes, Cob flees, Moll cowers), each step's recipe on top.
+ * fake.json's quiet answers (Kell intervenes, Cob and Moll cower), each step's recipe on top.
  * (Until M2, the decider read a spell out of the player's words in the turn's one decision (26), a
  * blow the reply left hanging landed first next turn (27), and the AI service kept the reactions as
  * it died (29). M2's two-part GM had no decide, reactions or read after the reply; since "After the
@@ -40,7 +40,8 @@ export interface WorldGame { game: Game; place: bigint; from: { a: number; b: nu
  * turn 1, resolved by the rules on the scene's world: its dice rows (the cast, the darts, the slots
  * left) reach both clients before the reply's first draft, the world rows have Kell hurt (her state,
  * as the rules set it), and the sheet's status has a 1st-level slot gone; and whoever saw it reacted
- * before the reply (Cob fled, gone from the place; Moll cowering), with no fight started.
+ * before the reply (Cob and Moll cowering, still here: they hold the yard's lead, so neither is
+ * offered running off), with no fight started.
  */
 export async function beforeTheGmSpeaks(stack: Stack, a: Player, b: Player, fake: FakeOptions): Promise<WorldGame> {
   step("26. A spell from the lane resolved by the rules before the GM speaks");
@@ -80,8 +81,8 @@ export async function beforeTheGmSpeaks(stack: Stack, a: Player, b: Player, fake
   check(`the sheet's status: ${status}`, /spell slots 1st 3\/4/.test(status));
   const gm = await gmOf(stack, game);
   const reacted = gm.path.find(p => p.turn === 1 && p.via.startsWith("reactions:"))?.via ?? "";
-  check(`the people who saw it reacted before the reply: ${reacted}; Cob ${worldOf(a).entities.cob?.states.join(", ")}, Moll ${worldOf(a).entities.moll?.states.join(", ")}`,
-    /cob=flee/.test(reacted) && /moll=cower/.test(reacted) && !!worldOf(a).entities.cob?.states.includes("gone") && !!worldOf(a).entities.moll?.states.includes("cowering"));
+  check(`the people who saw it reacted before the reply: ${reacted}; Cob ${worldOf(a).entities.cob?.states.join(", ")}, Moll ${worldOf(a).entities.moll?.states.join(", ")} (the lead's holders stay)`,
+    /cob=cower/.test(reacted) && /moll=cower/.test(reacted) && !worldOf(a).entities.cob?.states.includes("gone") && !!worldOf(a).entities.moll?.states.includes("cowering"));
   check("no fight started, and nothing hangs over the player", gm.brawl === undefined && gm.threat === undefined);
   await pause(500);
   return { game, place: a.conn.rows()!.place!.place.id, from: { a: a.events.length, b: b.events.length } };
