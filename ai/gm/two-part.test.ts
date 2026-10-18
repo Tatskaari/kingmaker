@@ -11,7 +11,7 @@ import type { Scene } from "../../shared/scene/types.ts";
 import { fakeFetch, readPrep, walkTo, type FakeOptions } from "../llm/fake-openrouter.ts";
 import type { CallContext } from "../llm/openrouter.ts";
 import { CAERWYN, viewAt } from "./fixtures.ts";
-import { closingDirective, coGm, coGmInput, coGmInstructions, companionsOf, deniesItself, firstSentence, mouthpieceInput, mouthpieceInstructions, movedDirective, movedText, narrationSoFar, prepOf, pressureOffered, routeLine, saidLast, speak, tellOf, twoPartNow } from "./two-part.ts";
+import { closingDirective, coGm, coGmInput, coGmInstructions, companionsOf, deniesItself, firstSentence, inReach, mouthpieceInput, mouthpieceInstructions, movedDirective, movedText, narrationSoFar, prepOf, pressureOffered, routeLine, saidLast, speak, tellOf, twoPartNow } from "./two-part.ts";
 import type { TurnView } from "./view.ts";
 
 /**
@@ -168,7 +168,13 @@ test("the instructions after the user's prompt: a check at a turning point, neve
   const mouthpiece = mouthpieceInstructions(clerk, yard());
   assert.match(mouthpiece, /Never for a remark, a compliment or a question/);
   assert.match(mouthpiece, /when they try to frighten, persuade, trick or press someone who could go either way/);
-  assert.match(mouthpiece, /Each one follows on from the narration as you wrote it and never undoes it: [^\n]*an offer made there is still on the table after a failure[^\n]* And each adds what's new: it never repeats what the narration has just said\./);
+  // QA round qa2-1018, H4: a roll on the promise Cob's card says opens him, whose failure sent him off with the lead.
+  assert.match(mouthpiece, /\n  What your prep says for certain wins over the dice\. Where a path or someone's card says what an approach gets \(no dice; what they do for a promise that answers their fear, or for someone they trust; what coin never buys\), and the player has made that approach, it gets exactly that, with no check\./);
+  assert.match(mouthpiece, /never for something you're still waiting for them to say or do, nor for what's already in plain view or already told/);
+  assert.match(mouthpiece, /A failure never puts what the player still needs out of reach: nobody who holds a required discovery leaves, bolts or goes silent for good on a roll \(the per-turn note says who holds one\), and the way stays open \(no, but\)\./);
+  // Setup and outcome: the setup stops at the attempt, and each outcome adds only what the roll decided.
+  assert.match(mouthpiece, /\n  The narration before a check stops at the attempt: [^\n]*Nothing the roll is for comes before the dice: /);
+  assert.match(mouthpiece, /Each one follows on from the narration as you wrote it and never undoes it: [^\n]*an offer made there is still on the table after a failure[^\n]* And each says only what the roll decided, once: never what the narration has already said\./);
   // Kell walks with the player from the granary on (its onEnd's follow), and here already.
   assert.deepEqual(companionsOf(clerk, yard()).map(c => c.id), ["kell"]);
   assert.match(mouthpiece, /\n\n## The companion\nSergeant Agnes Kell goes with the player, and it's the player's case, not hers: she never makes their case for them, examines or searches anything for them unasked, draws their conclusions, or chooses their next step or where they go, or hints at it\. She answers when asked, does what she's asked, and tests a case once, at its weakest point\.$/);
@@ -179,6 +185,37 @@ test("the instructions after the user's prompt: a check at a turning point, neve
   morning.history = [{ sceneId: "hanged-clerk" } as TurnView["history"][number]];
   morning.story = { scene: (id: string) => sceneFile(id) } as unknown as TurnView["story"];
   assert.deepEqual(companionsOf(king, morning).map(c => c.id), ["kell"]);
+});
+
+test("the per-turn note: who holds a required discovery the player hasn't reached, so no failure puts it out of reach", () => {
+  const holders = (view: TurnView) => { const note = twoPartNow(clerk, view, []); const at = note.indexOf("## Who holds what the player still needs"); return at < 0 ? undefined : note.slice(at).split("\n\n")[0]!; };
+  assert.equal(holders(yard()), "## Who holds what the player still needs\n- Hobb was spotted at the scene [hobb], which the scene can't end well without: Sergeant Agnes Kell, Cob, Moll\nNo check's outcome puts it out of reach: none of them leaves, bolts or goes silent for good on a roll. A failure costs something else (a higher price, a condition, a wrong impression, time), and the way to it stays open. That's so nothing closes it off, not a reason to hand it over: it still comes out only as it's earned.");
+  assert.equal(holders(yard({ reached: [clerk.start, "hobb"] })), undefined, "once reached, nobody holds it from the player");
+});
+
+test("a check's failures read against who holds what the player still needs: one that sends them out of the scene is the other failure, when that one keeps them (QA round qa2-1018, H4)", () => {
+  const view = yard({ turn: 18 });
+  // g06's turn 18, as the mouthpiece wrote it (the names as the player had them by then).
+  const outcomes = {
+    major_failure: "Cob recoils and bolts with the girl in the shawl through the gate. [Cob] “No! They’ll find me because of you!” The concrete lead goes with them; Kell’s expression hardens as the corporal turns back to the order.",
+    minor_failure: "Cob hesitates, then pulls his sleeve from the girl’s grasp. [Cob] “You say that now. How’m I meant to know?” He won’t take your hand, but he hasn’t left; the girl stays between you and the gate, waiting for something he can trust.",
+    barely_passed: "Cob spits into his own palm and gives you a quick, frightened shake.",
+    minor_success: "Cob takes your hand and seals the oath with a solemn shake.",
+    major_success: "Cob grips your palm, solemn as a magistrate and twice as worried.",
+  };
+  const kept = inReach(clerk, view, outcomes);
+  assert.equal(kept.major_failure, outcomes.minor_failure, "the bolt through the gate is gone");
+  assert.deepEqual({ ...kept, major_failure: outcomes.major_failure }, outcomes, "the rest as written");
+  // By what the player calls them, or as "he" just after: the boy runs off.
+  assert.equal(inReach(clerk, view, { ...outcomes, major_failure: "The boy goes white. He bolts for the gate." }).major_failure, outcomes.minor_failure);
+  // Moving about the scene isn't leaving it, nor is a departure said not to happen, nor a figure of speech (the probes' own failures); and both failures sending him off stand, the rules having said it.
+  for (const stays of ["Cob backs away from you, boots scraping the cobbles.", "Moll pulls him a step away, but neither leaves the yard.", "Cob’s eyes sweep the shadows; their words stop, but they do not bolt.", "Cob falls silent, and their confidence has vanished.", "The rest is lost; the girl’s voice drops too low to make out."]) {
+    assert.deepEqual(inReach(clerk, view, { ...outcomes, major_failure: stays }), { ...outcomes, major_failure: stays }, stays);
+  }
+  const both = { ...outcomes, minor_failure: "Cob is gone over the wall." };
+  assert.deepEqual(inReach(clerk, view, both), both);
+  // Once the lead is reached, nothing is held from the player.
+  assert.deepEqual(inReach(clerk, yard({ turn: 18, reached: [clerk.start, "hobb"] }), outcomes), outcomes);
 });
 
 test("the closing goes on from where the last reply ended: what was said there is listed, and not said again", () => {

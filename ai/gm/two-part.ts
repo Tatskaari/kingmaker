@@ -19,7 +19,7 @@ import { nameAsKnown } from "./knowledge.ts";
 import { speechIn } from "./markup.ts";
 import { pronounOf } from "./speakers.ts";
 import type { TurnView } from "./view.ts";
-import { asKnown, unheardOf, type Unheard } from "./unheard.ts";
+import { asKnown, shortOf, unheardOf, type Unheard } from "./unheard.ts";
 import { asWritten, readReply, streamed } from "./voice.ts";
 
 /**
@@ -43,13 +43,15 @@ const FORMAT = `## How to reply
 Reply as JSON with two fields.
 - \`narration\`: what you say to the player this turn, with a blank line between paragraphs as usual.
 - \`check\`: null on most turns. But when the player makes a clear, risky attempt at a turning point, whether it works is for the dice to say, not you: when they try to frighten, persuade, trick or press someone who could go either way (break or bolt, give in or dig in), or try something whose failure would matter (seeing through a lie, a climb, a lock, a close look at something that hides a clue), and the roll would move the scene towards a beat, call for a skill check instead of deciding it yourself. Never for a remark, a compliment or a question: answer those in the story. Where your prep's routes say the dice decide something the player is trying, use that route's skill and DC. Then \`narration\` sets up the attempt and stops before the result, and \`check\` gives the skill, a DC (10 easy, 13 moderate, 15 hard, 18 very hard) and five outcomes. The game rolls the dice with the player's own modifiers, and the player sees your narration, the roll, and the one outcome that came up.
-  Write each outcome as the next words of the reply, carrying straight on from the narration, in the same voice and length as any reply (the characters react, then stop for the player). Each one follows on from the narration as you wrote it and never undoes it: what it had someone say, do or offer stands, so an offer made there is still on the table after a failure, which goes wrong another way (a higher price, a condition, someone interrupting). And each adds what's new: it never repeats what the narration has just said.
-  - major_failure (missed by 5 or more): it goes wrong, with a cost: offence taken, a door shut for now, a wrong impression.
+  What your prep says for certain wins over the dice. Where a path or someone's card says what an approach gets (no dice; what they do for a promise that answers their fear, or for someone they trust; what coin never buys), and the player has made that approach, it gets exactly that, with no check. The dice are only for what your prep leaves open (it could go either way, or a check suits it) or doesn't cover. What it says never works doesn't, with a roll or without: coin offered for a look at Cob's boot gets haggling, never the look. And a check is for what the player has just tried in their turn, never for something you're still waiting for them to say or do, nor for what's already in plain view or already told: what's there to see, they see.
+  The narration before a check stops at the attempt: the player reaching, looking or speaking, and where everyone is as they do. Nothing the roll is for comes before the dice: not what they find, see or hear, not how someone takes it, and, where it's whether anyone notices, nobody looks up, stops or watches their hands before the dice.
+  Write each outcome as the next words of the reply, carrying straight on from the narration, in the same voice and length as any reply (the characters react, then stop for the player). Each one follows on from the narration as you wrote it and never undoes it: what it had someone say, do or offer stands, so an offer made there is still on the table after a failure, which goes wrong another way (a higher price, a condition, someone interrupting). And each says only what the roll decided, once: never what the narration has already said.
+  - major_failure (missed by 5 or more): it goes wrong, with a cost: offence taken, a higher price, a wrong impression, a door shut for now.
   - minor_failure (missed by 1 to 4): no progress, a small complication, and a hint of another way in.
   - barely_passed (made it, by 0 to 2): the next step, with a catch or only part of it.
   - minor_success (beat it by 3 to 6): the next step, cleanly.
   - major_success (beat it by 7 or more): the next step and a little more: the character warms, or a further hook opens.
-  Even a major success gives only what the attempt could earn now: the next step for that character, never the whole of a secret.
+  A failure never puts what the player still needs out of reach: nobody who holds a required discovery leaves, bolts or goes silent for good on a roll (the per-turn note says who holds one), and the way stays open (no, but). Even a major success gives only what the attempt could earn now: the next step for that character, never the whole of a secret.
 - Don't roll or report numbers yourself, and don't ask the player to roll: the check is how you ask.`;
 
 /**
@@ -319,7 +321,7 @@ export function twoPartNow(scene: Scene, view: TurnView, directive: string[]): s
     ...(view.canon.length || view.established.length ? [`## Details established in play (keep them true)\nWhat has happened and been found, in the order it happened.${view.world ? " Where people are and what they're doing now is the world's, below: a detail here about where someone was or what they were doing was true then, and where the world says otherwise, they've moved on (people who have left don't come back unless the story brings them)." : ""}\n${bullets([...view.established, ...view.canon])}`] : []),
     ...(playerNow(view) ? [playerNow(view)!] : []),
     ...(view.world ? [`## The world right now\nWhere everyone and everything is, and what state it's in (ids in brackets). Keep to it, since it's updated after every reply: people and things are where it says, and what's destroyed, burning or gone stays that way until the story changes it. Details it doesn't list are yours to invent, consistent with it. It's as things stood before the player's turn: what the player does in it (shutting a book and buttoning it into their coat, picking something up, crossing the room) has happened by your reply, and the world catches up after it. It's the truth behind the screen, not what the player has seen: of what people carry, the player sees what's out in the open (worn, in hand, held up), and of the rest (in a pocket, a fist, a lining, a box) they know only what they've seen or been told.\n${PHYSICS}\n\n${worldView(view.world)}`] : []),
-    ...[hiddenNote(scene, view), namesNote(unheardOf(scene, view)), asidesNote(view)].filter((n): n is string => !!n),
+    ...[hiddenNote(scene, view), holdersNote(scene, view), namesNote(unheardOf(scene, view)), asidesNote(view)].filter((n): n is string => !!n),
     ...(directive.length ? [`## For this reply\n${directive.join("\n\n")}`] : []),
   ];
   return parts.join("\n\n");
@@ -345,6 +347,54 @@ export function hiddenNote(scene: Scene, view: TurnView): string | undefined {
     ...(keeping.length ? [`Kept back by the people here, until it comes out in their own words, when it's earned (their cards have the whole of it):\n${keeping.map(c => `- ${c.name}: ${c.secrets!.filter(s => !isTell(s)).map(firstSentence).join(" ")}`).join("\n")}`] : []),
     ...(tells.length ? [`What shows of it is their tells, now and then when the moment suits (not every reply), never what a tell is about: a shut fist stays a shut fist, and a glance goes towards a place, not to the hidden thing there.\n${tells.join("\n")}`] : []),
   ].join("\n");
+}
+
+/**
+ * Who here holds a required discovery the player hasn't reached (a path of it via them), so a
+ * check's outcomes can be read against them (QA round qa2-1018, H4: a failed Persuasion roll had
+ * Cob bolt with the scene's required lead, and it ran out of turns without it). Not a reason to
+ * hand it over: it still comes out as it's earned.
+ */
+export function holdersNote(scene: Scene, view: TurnView): string | undefined {
+  const present = presentCast(scene, view);
+  const needed = targetsOf(scene, view).filter(b => b.required).map(b => ({ b, who: present.filter(c => b.paths?.some(p => p.via === c.id)) })).filter(n => n.who.length);
+  if (!needed.length) return undefined;
+  const names = (who: Character[]) => who.map(c => c.name).join(who.length === 2 ? " and " : ", ");
+  return `## Who holds what the player still needs\n${needed.map(n => `- ${n.b.title} [${n.b.id}], which the scene can't end well without: ${names(n.who)}`).join("\n")}\nNo check's outcome puts it out of reach: none of them leaves, bolts or goes silent for good on a roll. A failure costs something else (a higher price, a condition, a wrong impression, time), and the way to it stays open. That's so nothing closes it off, not a reason to hand it over: it still comes out only as it's earned.`;
+}
+
+/** Words that send someone out of the scene, not across it: bolting, fleeing, off through the gate. */
+const OFF = /\b(?:bolt(?:s|ed)?|flee(?:s)?|fled|scarper(?:s|ed)?|legs? it|(?:is|are) gone|(?:runs?|ran|dash(?:es|ed)?|darts?|darted|races?|raced|hurr(?:ies|ied)) (?:off|away|out)|(?:slips?|slipped|makes?|made|takes?|took) off|slip(?:s|ped)? away|(?:runs?|ran|dash(?:es|ed)?|darts?|races?|heads?|makes?) for the (?:gate|door|lane|stairs|street)|(?:through|out of) the (?:gate|door)|over the wall|leaves? (?:the (?:yard|room|house|tavern)|without))\b/gi;
+/** A departure said not to happen ("they do not bolt", "neither leaves the yard"). */
+const NOT_OFF = /\b(?:not|never|no|neither|nor|won't|don't|doesn't|didn't|isn't|aren't)\s+(?:\w+\s+)?$/i;
+const goesOff = (sentence: string) => [...sentence.matchAll(OFF)].some(m => !NOT_OFF.test(sentence.slice(0, m.index)));
+
+/**
+ * A check's outcomes read against who holds what the player still needs (QA round qa2-1018, H4:
+ * on a failed Persuasion roll Cob "recoils and bolts with Moll through the gate", and the scene ran
+ * out of turns without its required lead): a failure that sends one of them out of the scene, by
+ * name, by what the player calls them, or as "he" or "she" just after, is the other failure instead
+ * when that one keeps them. When both do, they stand: the format and the per-turn note have said it.
+ */
+export function inReach(scene: Scene, view: TurnView, outcomes: Record<Band, string>): Record<Band, string> {
+  const present = presentCast(scene, view);
+  const who = present.filter(c => targetsOf(scene, view).some(b => b.required && b.paths?.some(p => p.via === c.id)));
+  if (!who.length) return outcomes;
+  const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const words = who.flatMap(c => [...c.name.split(/\s+/).filter(w => w.length >= 3 && /^\p{Lu}/u.test(w) && !/^(?:Sergeant|Corporal|Master|Mister|Big|Old|Young|Little|Captain|Marshal|King|Queen)$/.test(w)), ...(c.aka ?? [])].map(w => new RegExp(`\\b${escape(w)}\\b`)).concat(c.called ? [c.called, shortOf(c.called)].map(w => new RegExp(`\\b${escape(w)}\\b`, "i")) : []));
+  const sendsAway = (text: string) => {
+    let named = false;
+    for (const sentence of text.replace(/[“"][^”"]*[”"]/g, "…").split(/(?<=[.!?…])\s+/)) {
+      const here = words.some(w => w.test(sentence));
+      if (goesOff(sentence) && (here || (named && /\b(?:he|she|they)\b/i.test(sentence)))) return true;
+      named = here;
+    }
+    return false;
+  };
+  const major = sendsAway(outcomes.major_failure), minor = sendsAway(outcomes.minor_failure);
+  if (major && !minor) return { ...outcomes, major_failure: outcomes.minor_failure };
+  if (minor && !major) return { ...outcomes, minor_failure: outcomes.major_failure };
+  return outcomes;
 }
 
 /** A card's secret that's what shows of the rest ("Shows: … Torn: … Opens: … First: …"). */
@@ -465,9 +515,10 @@ export async function speak(scene: Scene, view: TurnView, directive: string[], h
   const narration = asKnown(out.narration, unheard);
   // An outcome follows the narration: a name said aloud there has been heard.
   const after = unheard.filter(u => !narration.heard.includes(u.id));
-  const check = out.check && SKILLS.includes(out.check.skill) && Number.isInteger(out.check.dc) && BANDS.every(b => typeof out.check!.outcomes?.[b] === "string")
-    ? { skill: out.check.skill, dc: out.check.dc, outcomes: Object.fromEntries(BANDS.map(b => [b, said(asKnown(out.check!.outcomes[b], after).text)])) as Record<Band, Reply> }
-    : undefined;
+  const whole = out.check && SKILLS.includes(out.check.skill) && Number.isInteger(out.check.dc) && BANDS.every(b => typeof out.check!.outcomes?.[b] === "string");
+  // Each outcome's names as the player knows them, and its failures kept from sending away whoever holds what the player still needs.
+  const outcomes = whole ? inReach(scene, view, Object.fromEntries(BANDS.map(b => [b, asKnown(out.check!.outcomes[b], after).text])) as Record<Band, string>) : undefined;
+  const check = whole && outcomes ? { skill: out.check!.skill, dc: out.check!.dc, outcomes: Object.fromEntries(BANDS.map(b => [b, said(outcomes[b])])) as Record<Band, Reply> } : undefined;
   return { narration: said(narration.text), ...(check ? { check } : {}), closes: out.closes !== false, costUsd: result.costUsd, firstTextMs: result.firstTextMs };
 }
 
