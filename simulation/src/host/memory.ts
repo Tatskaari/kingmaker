@@ -8,6 +8,7 @@ import type { Rules } from "../../../shared/rules/types.ts";
 import { isService } from "../access.ts";
 import { NOT_CONFIGURED, outcomeOf, type AiOutcome, type Claim } from "../ai-call.ts";
 import { Refused, type Db, type Env, type Schema, type TxCtx } from "../context.ts";
+import { seedOf, setDiceSeedReducer } from "../dice-seed.ts";
 import * as creation from "../creation/moves.ts";
 import * as games from "../games/moves.ts";
 import { aiAsks, gameReportJson, reportRows, type AiGot } from "../games/report.ts";
@@ -37,7 +38,8 @@ import { myCreationView, myGamesView, myNamesView, mySeatView } from "../views.t
  * The simulation without SpacetimeDB (v0-design §4.5): the same moves, job functions and views
  * over tables kept in Maps, for tests and the local host. Each call is a transaction (a throw rolls
  * back every write it made); the clock moves only when told to; the game's seeds and uuids come
- * from a fixed sequence, so a run replays; the rules engine is the module's own, loaded once in the
+ * from a fixed sequence, so a run replays (the owner's set_dice_seed fixes the seeds as it does on
+ * SpacetimeDB: dice-seed.ts); the rules engine is the module's own, loaded once in the
  * process; and run_job is drain(): each due dispatch claimed, POSTed through the injected `ai`, and
  * committed, exactly as index.ts does it.
  *
@@ -166,6 +168,7 @@ export type Caller = { [M in keyof typeof MOVES]: Made<(typeof MOVES)[M]> } & {
   setSuggestions(args: Parameters<typeof setSuggestionsReducer>[2]): Refusal | undefined;
   installCampaign(args: InstallArgs): Refusal | undefined;
   dispatchWaiting(): Refusal | undefined;
+  setDiceSeed(args: Parameters<typeof setDiceSeedReducer>[2]): Refusal | undefined;
 };
 
 export interface MemoryHost {
@@ -234,7 +237,7 @@ export function memoryHost(options: MemoryHostOptions): MemoryHost {
   const rules = options.rules ?? loadRules;
   const txNow = (): TxCtx => {
     const began = performance.now();
-    return { db: store.db, now: now(), env, database: () => database, uuid, seed: random.seed, log, rules, engineCalls: 0, elapsedMs: () => performance.now() - began };
+    return { db: store.db, now: now(), env, database: () => database, uuid, seed: () => seedOf(store.db, random.seed), log, rules, engineCalls: 0, elapsedMs: () => performance.now() - began };
   };
   const transact = <T>(body: (tx: TxCtx) => T): T => inTransaction(store, () => body(txNow()));
   const call = (body: (tx: TxCtx) => void): Refusal | undefined => refusalOf(() => transact(body));
@@ -299,6 +302,7 @@ function callerAs(identity: Identity, call: (body: (tx: TxCtx) => void) => Refus
     setSuggestions: args => call(tx => setSuggestionsReducer(tx, identity, args)),
     installCampaign: args => call(tx => installCampaignReducer(tx, identity, args)),
     dispatchWaiting: () => call(tx => dispatchWaitingReducer(tx, identity)),
+    setDiceSeed: args => call(tx => setDiceSeedReducer(tx, identity, args)),
   };
 }
 

@@ -65,6 +65,8 @@ const fontSize = Number(params.get("font")) || 15;
 const zoo = params.has("zoo") ? params.get("zoo") ?? "" : undefined;
 // ?fake plays with the fake GM without asking for a key; ?fake=arc with the whole story's recipe (each scene ends in two lines).
 const fake = params.has("fake") ? (params.get("fake") === "arc" ? "arc" : "dev") : zoo !== undefined ? "dev" : undefined;
+// ?seed=7 fixes the dice, a test's way (the browser check's zoo ring): the page host's new games roll from it, the same every time. It's a single player's own game in their own browser; without it the page draws a seed of its own.
+const seed = /^\d+$/.test(params.get("seed") ?? "") ? Number(params.get("seed")) : undefined;
 
 const $ = id => document.getElementById(id);
 const stats = { bytesIn: 0, messagesIn: 0, bytesOut: 0 };
@@ -320,7 +322,7 @@ function connect() {
   };
   // ?glyphs=ascii draws letters, as the smoke test plays.
   transport = workerTransport(handlers, {
-    fake, glyphs: params.get("glyphs") ?? undefined, askForKey,
+    fake, glyphs: params.get("glyphs") ?? undefined, askForKey, seed,
     ...(zoo !== undefined ? { zoo, build: params.get("build") ?? undefined, foes: params.get("foes") ?? undefined } : {}),
     closeKeyForm: () => { keyForm(false); term.focus(); },
   });

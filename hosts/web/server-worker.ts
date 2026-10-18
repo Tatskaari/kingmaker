@@ -13,7 +13,7 @@ import { startHost, type PageHost } from "./page-host.ts";
  * to the page in the prototype's messages (src/web/static/worker.ts), split between the two workers
  * as understand-web §5.4 routes them:
  *
- *   page → worker   {type: "start", port, key?, fake?: "dev" | "arc"}, the port transferred (the
+ *   page → worker   {type: "start", port, key?, fake?: "dev" | "arc", seed?}, the port transferred (the
  *                   client worker has the channel's other end); then {type: "port", port} for a new
  *                   client worker's channel (Play again), {type: "key", key} for a new key,
  *                   {type: "flush"} as the page goes out of sight, {type: "quit"} when another tab
@@ -38,8 +38,8 @@ export interface WorkerScope {
   location: { href: string; search: string };
 }
 
-/** The page's start: its end of the channel to the client worker, the key it keeps, and the fake GM, if the player chose it. */
-interface Start { type: "start"; port: PortLike; key?: unknown; fake?: unknown }
+/** The page's start: its end of the channel to the client worker, the key it keeps, the fake GM, if the player chose it, and the dice's seed, if the address fixes it (?seed). */
+interface Start { type: "start"; port: PortLike; key?: unknown; fake?: unknown; seed?: unknown }
 
 export interface ServerConfig {
   /** The name of its database, its lock, and the channel another tab asks on. */
@@ -51,6 +51,8 @@ export interface ServerConfig {
   key: string | undefined;
   /** The fake GM (dev: hosts/dev/fake.json's; arc: the whole story's recipe on it), or none: OpenRouter with the key. */
   fake: "dev" | "arc" | undefined;
+  /** The dice's seed the address fixed (?seed, a test's: the browser check's), or none: the page host draws its own. */
+  seed: number | undefined;
 }
 
 /** What the server worker tells the page. */
@@ -71,7 +73,7 @@ export async function runServer(config: ServerConfig, page: Page): Promise<Runni
   const storage = await openStorage(await pageDatabase(config.deployment, page.storage), page.storage);
   const content = await loadContent(config.contentUrl);
   const model = modelFor(config, content, page);
-  const host = await startHost({ model, ownerMoves: true, log: line => console.log(model.redact(line)) }, storage, content);
+  const host = await startHost({ model, ownerMoves: true, log: line => console.log(model.redact(line)), ...(config.seed !== undefined ? { seed: config.seed } : {}) }, storage, content);
   host.serve(portDuplex(config.port));
   page.ready(config.deployment);
   return { model, storage, host, tab };
@@ -138,6 +140,7 @@ function configOf(message: Start): ServerConfig {
     port: message.port,
     key: typeof message.key === "string" && message.key ? message.key : undefined,
     fake: message.fake === "dev" || message.fake === "arc" ? message.fake : undefined,
+    seed: typeof message.seed === "number" && Number.isSafeInteger(message.seed) && message.seed >= 0 ? message.seed : undefined,
   };
 }
 
