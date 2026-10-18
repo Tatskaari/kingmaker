@@ -3,14 +3,13 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseDoc } from "../../ai/docs/docs.ts";
 import { isNotesPath } from "../../ai/docs/notes.ts";
-import type { RepairResult } from "../../shared/gm/repair.ts";
 import { gmFromRow, type GmRow, type GmState, type ScenePatch } from "../../shared/gm/state.ts";
 
 /**
  * The GM's side of a game, as `npm run status` prints it (full-gm-design §4.4): the prototype's
- * `scene status` fields from the scene's gm_state row (beat, path, notes, canon, patches, and
- * the world bridge's threat, hold, brawl and who left),
- * its co-GM reviews from co_gm_result (`repairs`), and what the prototype kept in files: the memory
+ * `scene status` fields from the scene's gm_state row (beat, path, patches, and the world bridge's
+ * threat, hold, brawl and who left; the old co-GM's notes, canon and reviews went with it), and what
+ * the prototype kept in files: the memory
  * reviews (the AI service's memory-reviews.jsonl) and the GM's notes on each person they keep
  * (`--notes`, as `scene memories` printed a doc). Pure: hosts/status.ts reads the rows and the files.
  */
@@ -24,7 +23,6 @@ export interface StatusRows {
   scene: Row;
   gm?: Row;
   turns: Row[];
-  repairs: Row[];
   jobs: Row[];
   /** memory-reviews.jsonl's lines, as JSON. */
   reviews: unknown[];
@@ -36,26 +34,25 @@ export interface StatusRows {
 export interface StoryRows { chapters: Row[]; quests: Row[]; flags: Row[]; followers: Row[]; attitudes: Row[] }
 
 /**
- * What statusOf reads for a game's scene: its gm_state, turns, co-GM reviews and jobs by owner SQL
+ * What statusOf reads for a game's scene: its gm_state, turns and jobs by owner SQL
  * (`query`), and the memory reviews' lines from the game's folder in the AI service's store.
  */
 export async function statusRows(query: (q: string) => Promise<Row[]>, store: string, game: Row, scene: Row): Promise<StatusRows> {
   const id = String(scene.id), byGame = `WHERE game_id = ${String(game.id)}`;
-  const [[gm], turns, repairs, jobs, chapters, quests, flags, followers, attitudes] = await Promise.all([
+  const [[gm], turns, jobs, chapters, quests, flags, followers, attitudes] = await Promise.all([
     query(`SELECT * FROM gm_state WHERE scene_id = ${id}`), query(`SELECT * FROM turn WHERE scene_id = ${id}`),
-    query(`SELECT * FROM co_gm_result WHERE scene_id = ${id}`),
     // A job's scene is an option column: the whole table, read for this scene's (statusOf).
     query("SELECT * FROM job"),
     ...["chapter", "quest", "flag", "follower", "attitude"].map(table => query(`SELECT * FROM ${table} ${byGame}`)),
   ]);
   return {
-    game, scene, ...(gm ? { gm } : {}), turns, repairs, jobs, reviews: reviewLines(join(store, "memory-reviews.jsonl")),
+    game, scene, ...(gm ? { gm } : {}), turns, jobs, reviews: reviewLines(join(store, "memory-reviews.jsonl")),
     story: { chapters: chapters!, quests: quests!, flags: flags!, followers: followers!, attitudes: attitudes! },
   };
 }
 
-/** The background moves (full-gm-design §4.2): a memory review and a co-GM review run after a turn, holding nothing. */
-const BACKGROUND = ["remember", "repair"];
+/** The background moves (full-gm-design §4.2): a memory review runs after a turn, holding nothing. */
+const BACKGROUND = ["remember"];
 
 /** The scene's background jobs in flight, as "remember t3" (by the turn they're for: its key's). */
 export function backgroundOf(jobs: Row[], sceneId: string): string[] {
@@ -69,13 +66,11 @@ interface ReviewLine { turn?: number; reviewed?: number; flags?: string[]; revie
 /** The GM's side of the game's scene, as JSON prints it: every field there, empty or not. */
 export function statusOf(rows: StatusRows): Record<string, unknown> {
   const gm = rows.gm ? gmFromRow(camel(rows.gm) as GmRow) : undefined;
-  const ended = String(rows.scene.status) === "ended";
   const players = rows.turns.filter(t => Number(t.n) > 0).sort((a, b) => Number(a.n) - Number(b.n));
   const firstText = players.flatMap(t => (t.first_text_at !== null && t.first_text_at !== undefined ? [(Number(t.first_text_at) - Number(t.started_at)) / 1000] : []));
   return {
     game: Number(rows.game.id), uid: String(rows.game.uid), scene: String(rows.scene.scene_key), status: String(rows.scene.status), turn: Number(rows.scene.turns),
     ...(gm ? gmFields(gm) : { gm: "(no gm_state row for this scene)" }),
-    repairs: [...rows.repairs].sort((a, b) => Number(a.turn) - Number(b.turn) || Number(a.id) - Number(b.id)).map(r => repairLine(r, ended)),
     memoryReviews: rows.reviews.map(r => reviewLine(r as ReviewLine)),
     jobs: rows.jobs.filter(j => String(j.scene_id) === String(rows.scene.id)).sort((a, b) => Number(a.id) - Number(b.id)).map(jobLine),
     latency: { avgFirstTextMs: average(firstText) },
@@ -109,18 +104,15 @@ function storyFields(game: Row, story: StoryRows): Record<string, unknown> {
   };
 }
 
-/** The bookkeeping's fields, the prototype's first and the co-GM's beside them, an empty one as null. */
+/** The bookkeeping's fields, the prototype's first, an empty one as null. */
 function gmFields(gm: GmState): Record<string, unknown> {
   return {
     beat: gm.beat, turnsInBeat: gm.turnsInBeat,
     path: gm.path.map(p => `${p.turn}: ${p.from} -> ${p.to} via ${p.via} (${p.source})${p.roll ? ` [${p.roll.skill} ${p.roll.total}/${p.roll.dc}]` : ""}`),
     ended: gm.ended?.exitId ?? null,
-    notes: gm.notes, notesTurn: gm.notesTurn,
-    whispers: gm.whispers.map(w => `${w.turn}: ${w.to}: ${w.note}`),
-    canon: gm.canon, established: gm.established,
+    established: gm.established,
     patches: gm.patches.map(patchLine),
     landed: gm.landed, hinted: gm.hinted,
-    offGraphTurn: gm.offGraphTurn ?? null, lastRepairTurn: gm.lastRepairTurn ?? null,
     opened: gm.opened.map(o => `${o.turn}: ${o.scope}: ${o.title} (${o.path})`),
     // The world bridge's (world-bridge-design §3.3): what the last reply left hanging, a hold on the player, a fight that broke out, and who's away.
     threat: gm.threat ? `${gm.threat.turn}: ${gm.threat.kind === "attack" ? `an attack by ${gm.threat.by}` : `${gm.threat.hazard}, ${gm.threat.severity}`}` : null,
@@ -147,15 +139,6 @@ function patchLine(p: ScenePatch): string {
     : p.fill ? `${p.fill.id} filled: ${p.fill.revelation} (${p.fill.paths.map(path => `${path.strength}: ${path.clue} What earns it: ${path.earn}`).join(" / ")})`
     : p.drop ? `${p.drop} dropped: ${p.why}`
     : `${p.cast?.id} keeps back: ${p.cast?.secrets.join(" ")}`;
-}
-
-/** A co-GM review: "<turn>: <status> — <assessment> [pending | merged at t<k>]", and why its move was refused, if it was. An ended scene's is never merged. */
-function repairLine(row: Row, ended: boolean): string {
-  let review: Partial<RepairResult> = {};
-  try { review = JSON.parse(String(row.review)) as RepairResult; } catch { /* an unreadable review shows as such */ }
-  const merged = row.merged_turn !== null && row.merged_turn !== undefined ? `merged at t${Number(row.merged_turn)}` : ended ? "never merged: the scene ended" : "pending";
-  const note = row.note !== null && row.note !== undefined ? ` (${String(row.note)})` : "";
-  return `${Number(row.turn)}: ${review.status ?? "?"} — ${review.assessment ?? "(unreadable review)"} [${merged}]${note}`;
 }
 
 /** A memory review: "<turn>: <flags> — <what the agents did>", and an agent's failure. */

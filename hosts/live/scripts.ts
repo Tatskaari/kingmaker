@@ -4,7 +4,7 @@
  * as the headless client's `act` picks one; map is the map's (map-design §4): the scene opened by
  * talking to Kell in the lane (as every script's is, now the campaign starts on its map), then V0's
  * first three lines, played beside the prototype's QA console on the same lines; gm is
- * full-gm-design §1.2's eight, two of them said once the memory review and the co-GM are done, as a
+ * full-gm-design §1.2's eight, two of them said once the memory review is done, as a
  * tester reading the reply would; world is world-bridge-design §1.2's spells and blows, with what
  * the world showed after each.
  */
@@ -14,7 +14,7 @@ export type Pick = { id: `say_${number}` } | { kind: "say" | "do" | "try" | "lea
 
 /**
  * A line of a script: words to say, or a suggested line to pick, the first of the picks that's there.
- * `wait: "background"`: said once the scene's background jobs (the memory review, the co-GM) are done.
+ * `wait: "background"`: said once the scene's background jobs (the memory review) are done.
  */
 export type Step = { say: string; wait?: "background" } | { act: Pick[] };
 
@@ -30,7 +30,7 @@ export interface Script {
   /** How many of its steps a run plays unless told (--lines). */
   lines: number;
   /**
-   * The GM's side is recorded (npm run status): each line's ruling, memory review and co-GM review,
+   * The GM's side is recorded (npm run status): each line's memory review,
    * with the background jobs waited for once the last line is done, so its review is in.
    */
   gmSide?: boolean;
@@ -43,7 +43,7 @@ export interface Script {
 
 const say = (text: string): Step => ({ say: text });
 const act = (...picks: Pick[]): Step => ({ act: picks });
-/** Words said once the memory review and the co-GM have done with the lines before. */
+/** Words said once the memory review has done with the lines before. */
 const later = (text: string): Step => ({ say: text, wait: "background" });
 
 export const SCRIPTS: Record<string, Script> = {
@@ -104,13 +104,14 @@ export const SCRIPTS: Record<string, Script> = {
   gm: {
     name: "gm",
     title: "The full GM live run",
-    about: "The full GM (full-gm-design §1.2): people remember what the player did, the co-GM steers a scene that drifts or leaves the graph, and walking out is an ending of the player's own",
+    about: "The full GM (full-gm-design §1.2), as the two-part GM plays it: people remember what the player did (the memory reviews), and the co-GM moves the scene on in the settle",
     who: "Wren Ashdown: a hedge wizard from the fens",
     build: "wizard",
     // full-gm-design §1.2, rows 2 to 8: a coin for Cob (someone remembers it), a question at once (the
-    // review doesn't hold the turn), a lift from his boot (the GM's check, since considered rolls went), what Kell
-    // remembers (once the reviews are in), a plan off the graph, two lines that drift (the co-GM), and
-    // walking out (left: an ending of their own), once the co-GM has had its say.
+    // review doesn't hold the turn), a lift from his boot (the GM's check, since considered rolls
+    // went), what Kell remembers (once the reviews are in), a plan off the graph, two lines that drift,
+    // and walking out, once the memory reviews are done. (The old co-GM's steering and the ending of
+    // the player's own went with the old pipeline.)
     steps: [
       say("(I crouch and press a silver crown into the boy's hand) Get yourself something hot, lad. No questions."),
       say("Sergeant, who found him?"),

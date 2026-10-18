@@ -59,15 +59,11 @@ export interface TurnView {
   memory: { opened: OpenedNote[]; withheld?: string[] };
   closing?: GmState["closing"];
   ended?: GmState["ended"];
-  oocTurns: number[];
   pressureOffered: string[];
   /** A sentence the last reply repeated word for word (voice.ts gmReply, the aftermath's: set and read within one call). */
   repeated?: string;
 
-  // The co-GM's steering (full-gm-design §4.2), as the simulation keeps it.
-  canon: string[];
-  notes: string | null;
-  whispers: GmState["whispers"];
+  /** The scene's prep as play has changed it (what the boundary brought on to it, a talk's card and discovery). */
   patches: ScenePatch[];
 
   // What the boundary before the scene handed on, and the story so far (story-design §4.4).
@@ -163,8 +159,7 @@ export function viewOf(source: ViewSource, scene: Scene, story?: Story, essentia
     turnsInBeat: gm.turnsInBeat, path: gm.path, established: gm.established, landed: gm.landed, hinted: gm.hinted,
     memory: { opened: gm.opened, ...(gm.withheld?.length ? { withheld: gm.withheld } : {}) },
     ...(gm.closing ? { closing: gm.closing } : {}), ...(gm.ended ? { ended: gm.ended } : {}),
-    oocTurns: gm.oocTurns, pressureOffered: gm.pressureOffered,
-    canon: gm.canon, notes: gm.notes, whispers: gm.whispers, patches: gm.patches, entered: gm.entered,
+    pressureOffered: gm.pressureOffered, patches: gm.patches, entered: gm.entered,
     // (A request a job stored before the story unit has none of what a boundary hands on.)
     absent: gm.absent ?? [], fought: gm.fought ?? [],
     history: structuredClone(source.told?.history ?? []), adjustments: gm.adjustments ?? [],

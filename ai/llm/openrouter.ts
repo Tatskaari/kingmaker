@@ -18,7 +18,7 @@ export interface RespondRequest {
   json?: { name: string; schema: Record<string, unknown> };
   /** Called with the accumulated visible text as it streams. */
   onText?: (text: string) => void;
-  /** Short label for logs, e.g. "gm.turn" or "repair". */
+  /** Short label for logs, e.g. "two-part.reply" or "memory.review.notes". */
   operation: string;
   signal?: AbortSignal;
   /** Internal: set on the single retry after a multi-phase reply. */

@@ -7,7 +7,7 @@ import { CATEGORIES, partsText } from "../../docs/reviews.ts";
 import { fakeFetch, type FakeOptions } from "../../llm/fake-openrouter.ts";
 import { prompt } from "../../prompts/index.ts";
 import { initialGm, type GmState } from "../../../shared/gm/state.ts";
-import type { Entry, RememberRequest, RepairRequest, SceneContext } from "../../../shared/protocol/ai.ts";
+import type { Entry, RememberRequest, SceneContext } from "../../../shared/protocol/ai.ts";
 import type { PlaceFile } from "../../../shared/scene/files.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import { keysFor, worldToRows } from "../../../shared/world/rows.ts";
@@ -18,12 +18,12 @@ import { withTestClerk } from "../../gm/fixtures.ts";
 import type { AiContext } from "../context.ts";
 import { folderStores } from "../folder-stores.ts";
 import { remember } from "./remember.ts";
-import { repair } from "./repair.ts";
 
 /**
  * The thinks after a turn (full-gm-design §4.1), on the stand-in: the memory reviews bring the GM's
  * notes on the people here up to date in the game's copy of the lore and write a line in
- * memory-reviews.jsonl, and the co-GM's answer is shaped as the prototype's toRepairResult shapes it.
+ * memory-reviews.jsonl. (The old co-GM's review, its answer shaped as the prototype's
+ * toRepairResult shaped it, went with the old pipeline.)
  */
 
 const CAERWYN = join(import.meta.dirname, "..", "..", "..", "campaigns", "caerwyn");
@@ -146,36 +146,4 @@ test("remember: nothing flagged is one call and no review, and the turn's line s
   assert.equal(existsSync(NOTES(store)), false, "no notes for anyone");
   const lines = readFileSync(join(store, "games", GAME, "memory-reviews.jsonl"), "utf8").trim().split("\n").map(l => JSON.parse(l));
   assert.deepEqual(lines.map(l => [l.turn, l.flags, l.reviews]), [[1, [], []]]);
-});
-
-test("repair: the co-GM's notes shaped as the prototype's are: a route to nowhere rejected, a DC clamped, a move to the beat it's at dropped; its turn the one reviewed", async () => {
-  const notes = {
-    assessment: "The player is charming the boy; the case idles.", status: "drifting", notes: "Let Kell grow impatient with the coin-giving.",
-    whispers: [{ to: "moll", note: "She wants a crown too, and says so." }], relocations: [], no_but: [],
-    canon: ["Cob spent the crown on a hot pie."], move_to: "yard", move_to_because: "Nothing has moved.", add_beat: null,
-    add_transitions: [
-      { beat: "yard", when: "The player asks Moll what the boots are worth to her.", on: "attempt", to: "doubt", check: { skill: "persuasion", dc: 40, reason: "to coax Moll into talking", success: "She talks.", failure: "She clams up.", on_failure: null }, why: "A way to the doubt through Moll." },
-      { beat: "yard", when: "The player flies to the moon.", on: "outcome", to: "the-moon", check: null, why: "Nowhere." },
-    ],
-  };
-  const { campaign, fake, contextFor } = await setUp({ byName: { co_gm_notes: notes } });
-  const key = `${GAME}:s1:t3:repair`;
-  const gm: GmState = { ...initialGm({ start: "yard" }), turnsInBeat: 3 };
-  const req: RepairRequest = { key, game, player, turn: sceneOf(campaign, 3, gm, [...GIFT, { turn: 2, speaker: "player:1", kind: "player", text: "What songs do you sing, girl?" }, { turn: 3, speaker: "player:1", kind: "player", text: "And the one about the miller's cat?" }]), reviewed: 3 };
-  const { review, usage } = await repair(req, contextFor(key));
-
-  assert.equal(review.turn, 3);
-  assert.equal(review.status, "drifting");
-  assert.equal(review.assessment, "The player is charming the boy; the case idles. [rejected: transition yard -> the-moon rejected]");
-  assert.deepEqual(review.patches, [{ turn: 3, why: "A way to the doubt through Moll.", transition: { beat: "yard", transition: {
-    id: "improv-3-0", when: "The player asks Moll what the boots are worth to her.", on: "attempt",
-    check: { skill: "persuasion", dc: 25, reason: "to coax Moll into talking", success: "She talks.", failure: "She clams up.", onSuccess: "doubt" },
-  } } }]);
-  assert.equal(review.moveTo, undefined, "the tracker is already there");
-  assert.deepEqual([review.notes, review.whispers, review.canon], ["Let Kell grow impatient with the coin-giving.", [{ to: "moll", note: "She wants a crown too, and says so." }], ["Cob spent the crown on a hot pie."]]);
-
-  const call = fake.sent[0]!;
-  assert.deepEqual([call.text?.format?.name, (call as { reasoning?: { effort?: string } }).reasoning?.effort, call.max_output_tokens, call.instructions], ["co_gm_notes", "medium", 8000, prompt("repair")]);
-  assert.match(call.input!.at(-1)!.content, /^## Tracker: the scene is at beat "yard" \(Stones at a hanged man\); 3 exchanges here, 3 since anything moved\./);
-  assert.equal(usage.byOperation.repair?.calls, 1);
 });

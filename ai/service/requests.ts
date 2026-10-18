@@ -49,7 +49,7 @@ export function backstoryOp(req: BackstoriesRequest): BackstoryOp {
 type Need = [what: string, has: (request: unknown) => boolean];
 
 /** The GM's bookkeeping as the view copies it (gm/view.ts): its beat, its count, and its lists. */
-const GM_LISTS = ["path", "established", "landed", "hinted", "opened", "oocTurns", "pressureOffered", "canon", "patches", "entered", "absent", "whispers"];
+const GM_LISTS = ["path", "established", "landed", "hinted", "opened", "pressureOffered", "patches", "entered", "absent"];
 /** The world's rows as rowsToWorld reads them: the place, and a list of each component. */
 const WORLD_LISTS = ["entity", "position", "area", "material", "health", "stack", "surface", "creature", "playerCharacter", "gear", "narrative", "gmNote", "worldLog"];
 
@@ -101,7 +101,6 @@ const NEEDS: Record<Step, Need[]> = {
   ],
   suggest: [...SCENE, ["offered (the scene's last set)", r => isList(r, "offered")]],
   remember: [...SCENE, REVIEWED],
-  repair: [...SCENE, REVIEWED],
   boundary: [...SCENE, ...BOUNDARY],
   look: [["things [{ key, name }] (what to invent a look for, at least one)", r => isList(r, "things") && (at(r, "things") as unknown[]).length > 0 && (at(r, "things") as Array<{ key?: unknown; name?: unknown }>).every(t => typeof t?.key === "string" && typeof t.name === "string")]],
 };

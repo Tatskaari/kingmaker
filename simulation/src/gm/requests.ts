@@ -1,7 +1,7 @@
 import type { Backstory } from "../../../shared/creation/types.ts";
 import {
   STEP_ENDPOINT, STEP_TIMEOUT_MS, type AiRequest, type BoundaryRequest, type Chapter, type Entry, type LooksRequest, type OpenRequest, type ReactionsRequest,
-  type RememberRequest, type RepairRequest, type ReplyRequest, type SceneContext, type SettleRequest, type SheetRow, type Story, type SuggestRequest, type TalkOpen, type TurnContext,
+  type RememberRequest, type ReplyRequest, type SceneContext, type SettleRequest, type SheetRow, type Story, type SuggestRequest, type TalkOpen, type TurnContext,
 } from "../../../shared/protocol/ai.ts";
 import type { GuardStage, TalkRecord } from "../../../shared/gm/state.ts";
 import { talkOf } from "../../../shared/scene/talk.ts";
@@ -11,7 +11,7 @@ import type { Skill } from "../../../shared/scene/types.ts";
 import { pcKey } from "../../../shared/world/rows.ts";
 import type { TxCtx } from "../context.ts";
 import type { AiCall } from "../moves/move.ts";
-import type { BoundaryPlan, LookPlan, OpenPlan, RememberPlan, RepairPlan, SayPlan, SuggestPlan } from "../moves/plans.ts";
+import type { BoundaryPlan, LookPlan, OpenPlan, RememberPlan, SayPlan, SuggestPlan } from "../moves/plans.ts";
 import { gameRow, playerRow, sceneRow, sheetRow, turnRow, type GameRow, type PlayerRow, type RowOf, type SceneRow } from "../rows.ts";
 import { sceneGraph } from "../scenes.ts";
 import { FIGHT_NOT_PLAYED } from "../story/words.ts";
@@ -87,14 +87,6 @@ export function rememberCall(tx: TxCtx, plan: RememberPlan): AiCall {
   const key = idempotencyKey(at.game.uid, at.scene.id, plan.n, "remember");
   const request: RememberRequest = { ...aiRequest(key, at), turn: reviewedContext(tx, at, plan.n), reviewed: plan.n };
   return { endpoint: STEP_ENDPOINT.remember, key, timeoutMs: STEP_TIMEOUT_MS.remember, request };
-}
-
-/** The co-GM's call: POST /v1/turns/repair, key <uid>:s<scene>:t<n>:repair. The scene as turn n left it, and the turn reviewed. */
-export function repairCall(tx: TxCtx, plan: RepairPlan): AiCall {
-  const at = whereOf(tx, plan.scene);
-  const key = idempotencyKey(at.game.uid, at.scene.id, plan.n, "repair");
-  const request: RepairRequest = { ...aiRequest(key, at), turn: reviewedContext(tx, at, plan.n), reviewed: plan.n };
-  return { endpoint: STEP_ENDPOINT.repair, key, timeoutMs: STEP_TIMEOUT_MS.repair, request };
 }
 
 /** A turn's working set: everything the GM may need, as this transaction sees it, with the player's line. */

@@ -181,8 +181,6 @@ const PathStep = t.object("PathStep", {
 });
 const OpenedNote = t.object("OpenedNote", { path: t.string(), title: t.string(), scope: t.string(), turn: t.u32() });
 const ExitAt = t.object("ExitAt", { exitId: t.string(), turn: t.u32() });
-/** The co-GM's steering for one of the cast, from the turn it reviewed. */
-const Whisper = t.object("Whisper", { to: t.string(), note: t.string(), turn: t.u32() });
 /** Something the story still owes the player (shared/gm/state.ts OwedRow): its things by entity key, outermost first, and who holds them. */
 const OwedRow = t.object("OwedRow", {
   from: t.string(), id: t.string(), hinted: t.bool(), things: t.array(t.string()), holders: t.array(t.string()), where: t.option(t.string()),
@@ -204,7 +202,7 @@ const TwoPart = t.object("TwoPart", { roles: t.array(TwoPartRole), notes: t.arra
 
 /**
  * The GM's bookkeeping for a scene, a column a field of shared/gm/state.ts's GmState (gmToRow and
- * gmFromRow map the two): V0's, then the co-GM's (full-gm-design §4.2), then what the
+ * gmFromRow map the two): V0's, then the scene's patches (full-gm-design §4.2), then what the
  * rules in a scene leave hanging and who's away (world-bridge-design §3.3), then what the boundary
  * handed on (story-design §4.1), then a talk's own (town-design §3.1), then the
  * nodes the scene has reached and the two-part GM's own (M2: docs/two-part-design.md), each with a
@@ -224,21 +222,9 @@ export const gmState = table({ name: "gm_state" }, {
   opened: t.array(OpenedNote),
   closing: t.option(ExitAt),
   ended: t.option(ExitAt),
-  oocTurns: t.array(t.u32()),
   pressureOffered: t.array(t.string()),
-  /** The co-GM's: details improvised in play that must stay true. */
-  canon: t.array(t.string()).default([]),
-  /** JSON: ScenePatch[], the scene's prep as play changed it (the co-GM's routes and bridging beats, a talk's discovery filled or dropped). */
+  /** JSON: ScenePatch[], the scene's prep as play changed it (what the boundary brought on to it, a talk's card and its discovery filled or dropped). */
   patches: t.string().default("[]"),
-  /** The co-GM's notes to the GM, and the turn it wrote them on: they lapse two turns on. */
-  notes: t.option(t.string()).default(undefined),
-  notesTurn: t.option(t.u32()).default(undefined),
-  /** For the next reply: they lapse a turn on. */
-  whispers: t.array(Whisper).default([]),
-  /** The turn the co-GM last reviewed (its result merged). */
-  lastRepairTurn: t.option(t.u32()).default(undefined),
-  /** The last turn off the graph with nothing ruled on it. */
-  offGraphTurn: t.option(t.u32()).default(undefined),
   /** A blow or a danger the last reply left hanging over the player: it lands as their next turn starts, which takes it off. */
   threat: t.option(Threat).default(undefined),
   /** The turn a hold caught the player: it stands with no more saving throws until they break free, or the reply lets them go. */
@@ -265,25 +251,6 @@ export const gmState = table({ name: "gm_state" }, {
   reached: t.array(t.string()).default([]),
   /** The two-part GM's: each person's role, the co-GM's notes by turn, the stage it moved to, a wind-down held once. None in a scene from before M2: nothing yet. */
   twoPart: t.option(TwoPart).default(undefined),
-});
-
-/**
- * The background co-GM's reviews (full-gm-design §4.2), one a turn reviewed: its answer waits here
- * until the next turn's start merges it into gm_state (mergedTurn), and stays as the record, as the
- * prototype's repair-NNN.json files did. An ended scene's is never merged.
- */
-export const coGmResult = table({ name: "co_gm_result" }, {
-  id: t.u64().primaryKey().autoInc(),
-  sceneId: t.u64().index("btree"),
-  /** The turn it reviewed. */
-  turn: t.u32(),
-  /** JSON: shared/gm/repair.ts's RepairResult. */
-  review: t.string(),
-  /** The turn whose start merged it; none while it waits. */
-  mergedTurn: t.option(t.u32()),
-  /** Why its move of the tracker was refused, when it was. */
-  note: t.option(t.string()),
-  at: t.timestamp(),
 });
 
 /** Who's on a scene's stage: no one and nothing is on two at once. */
@@ -654,9 +621,9 @@ export const job = table({ name: "job" }, {
   gameId: t.option(t.u64()),
   sceneId: t.option(t.u64()),
   turnId: t.option(t.u64()),
-  /** say, openScene, creation; beside a turn, suggest; after it, remember and repair (one row a turn and move); after a scene, crossBoundary (its scene's, with no turn). */
+  /** say, openScene, creation; beside a turn, suggest; after it, remember (one row a turn and move); after a scene, crossBoundary (its scene's, with no turn); inventLook. */
   move: t.string(),
-  /** open, decide, reactions, consider, reply, settle, suggest, remember, repair, boundary; a creation's offer, pick, own, draft, work, check, traits. */
+  /** open, reactions, reply, settle, suggest, remember, boundary, look; a creation's offer, pick, own, draft, work, check, traits. (decide, consider and repair until the old pipeline's salvage.) */
   step: t.string(),
   endpoint: t.string(),
   timeoutMs: t.u32(),
@@ -932,7 +899,7 @@ export const GameSummary = t.row("GameSummary", {
 const spacetimedb = schema(
   {
     game, player, seat, sheet, dice, admin,
-    scene, gmState, onStage, turn, transcript, replyDraft, sceneSuggestion, heard, coGmResult,
+    scene, gmState, onStage, turn, transcript, replyDraft, sceneSuggestion, heard,
     chapter, quest, flag, journal, attitude, follower,
     place, entity, position, area, material, health, stack, surface, creature, playerCharacter, gear, narrative, gmNote, worldLog, look,
     job, jobDispatch, reaper,

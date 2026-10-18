@@ -19,7 +19,7 @@ import { configureTerminal } from "./terminal.ts";
  * lines as they reached this client), who said what, the lines
  * offered and those screened out, the model calls and their cost (the AI service's call log), the
  * measures against the prototype's, what the scene holds back from the player, and for the full
- * GM's the GM's side (each line's memory review and co-GM review: npm run status), and for
+ * GM's the GM's side (each line's memory review: npm run status), and for
  * the world bridge's the world's (each line's dice, what the place showed after, who reacted). V1's,
  * with --creation: three concepts' builds and Tamsin Vell made from a sentence through the lore
  * check to her first line (live/creation.ts). The whole story's, --script story: one game from the
@@ -45,7 +45,7 @@ const USAGE = `npm run live [-- options]
   --creation         V1's run: three concepts' builds, then a character made through the lore check to a line
   --script v0|v5|gm|world|story
                      the lines to play (v0): V0's six, V5's twelve (two of them a suggested line picked),
-                     the full GM's eight (two said once the memory review and the co-GM are done), or the
+                     the full GM's eight (two said once the memory review is done), or the
                      world bridge's eight spells and blows, with what the world showed after each; story: no
                      lines, the whole story from the yard to The End, each scene ended as the owner
   --lines <n>        how many of the script's lines (v0: 4; v5: 12; gm: 8; world: 5)

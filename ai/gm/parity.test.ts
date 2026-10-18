@@ -44,10 +44,10 @@ const GAME = "6f0c1d2e-0000-4000-8000-00000000901d";
 
 /** The prototype's session, as far as the requests are made from it. */
 interface Session {
-  turn: number; beat: string; turnsInBeat: number; path: GmState["path"]; established: string[]; canon: string[]; notes: string | null;
+  turn: number; beat: string; turnsInBeat: number; path: GmState["path"]; established: string[];
   patches: GmState["patches"]; landed?: string[]; hinted?: string[]; memory?: { opened: GmState["opened"] };
-  closing?: GmState["closing"]; oocTurns?: number[]; pressureOffered?: string[];
-  entered?: string[]; absent?: string[]; whispers?: GmState["whispers"];
+  closing?: GmState["closing"]; pressureOffered?: string[];
+  entered?: string[]; absent?: string[];
   player: { name: string; concept: string; modifiers: SheetRow["skills"]; build?: string; backstory?: Backstory };
   rules?: { status?: string; spells?: SheetRow["spells"]; weapons?: SheetRow["weapons"]; features?: SheetRow["features"] };
   transcript: Array<{ turn: number; speaker: string; kind: Entry["kind"]; text: string; marked?: Markup }>;
@@ -197,9 +197,8 @@ function gmOf(s: Session): GmState {
     beat: s.beat, turnsInBeat: s.turnsInBeat, path: s.path, established: s.established, landed: s.landed ?? [], hinted: s.hinted ?? [],
     opened: s.memory?.opened ?? [],
     ...(s.closing ? { closing: s.closing } : {}),
-    oocTurns: s.oocTurns ?? [], pressureOffered: s.pressureOffered ?? [],
-    canon: s.canon, patches: s.patches, entered: s.entered ?? [], absent: s.absent ?? [], notes: s.notes, whispers: s.whispers ?? [],
-    notesTurn: null, adjustments: [], owed: [], fought: [],
+    pressureOffered: s.pressureOffered ?? [],
+    patches: s.patches, entered: s.entered ?? [], absent: s.absent ?? [], adjustments: [], owed: [], fought: [],
     // (The prototype's session has no nodes reached nor a two-part GM: its beat stands for them.)
     reached: [s.beat], twoPart: { roles: {}, notes: [] },
   };

@@ -213,10 +213,7 @@ function skillSummary(state: TurnView): string {
 }
 
 
-/** Does this reply close the scene? (Its directives say so, by their opening words.) */
-const closes = (directive: string[]) => directive.some(d => d.startsWith("This reply closes the scene") || d.startsWith("The scene is ending"));
-
-/** The per-turn note: where we are, what moves things on, co-GM notes and this reply's direction. */
+/** The per-turn note: where we are, what moves things on, and this reply's direction. (The old co-GM's notes went with it.) */
 export function nowNote(scene: Scene, state: TurnView, directive: string[], options: { castNotes?: boolean; remind?: string } = {}): string {
   const beat = currentBeat(scene, state);
   const present = new Set(presentCast(scene, state).map(c => c.id));
@@ -236,11 +233,7 @@ export function nowNote(scene: Scene, state: TurnView, directive: string[], opti
     ...(beat.pressure && state.turnsInBeat >= 2 && !state.pressureOffered?.includes(beat.id) ? [`The scene has been sitting here a while. If it's stalling or drifting, the world can push: ${beat.pressure}`] : []),
     `(The scene has been at this point for ${state.turnsInBeat} exchange${state.turnsInBeat === 1 ? "" : "s"}.)`,
     `## What moves the scene on from here\n${transitions.map(t => transitionLine(scene, t)).join("\n")}`,
-    // Co-GM notes steer the middle of a scene; a closing works from what happened, not stale steering.
-    // An ending held for the player's answer isn't a closing: the notes are for that answer (the
-    // Heron's note to stage Sallow initialling the page was kept from the GM while the barge was held).
-    ...(!state.closing && !closes(directive) && (state.notes || state.whispers?.length) ? [`## Notes from your co-GM (for you, written a moment ago: let them shape what people do, but nobody recites them; if the player has since chosen otherwise, the player's choice wins)\n${[state.notes ?? "", ...(state.whispers ?? []).map(w => `- On ${scene.cast.find(c => c.id === w.to)?.name ?? w.to}'s mind: ${w.note}`)].filter(Boolean).join("\n")}`] : []),
-    ...(state.canon.length || state.established.length ? [`## Details established in play (keep them true)\nWhat has happened and been found, in the order it happened.${state.world ? " Where people are and what they're doing now is the world's, below: a detail here about where someone was or what they were doing was true then, and where the world says otherwise, they've moved on (people who have left don't come back unless the story brings them)." : ""}\n${bullets([...state.established, ...state.canon])}`] : []),
+    ...(state.established.length ? [`## Details established in play (keep them true)\nWhat has happened and been found, in the order it happened.${state.world ? " Where people are and what they're doing now is the world's, below: a detail here about where someone was or what they were doing was true then, and where the world says otherwise, they've moved on (people who have left don't come back unless the story brings them)." : ""}\n${bullets(state.established)}`] : []),
     ...(playerNow(state) ? [playerNow(state)!] : []),
     ...(state.world ? [`## The world right now\nWhere everyone and everything is, and what state it's in (ids in brackets). Keep to it, since it's updated after every reply: people and things are where it says, and what's destroyed, burning or gone stays that way until the story changes it. Details it doesn't list are yours to invent, consistent with it. It's as things stood before the player's turn: what the player does in it (shutting a book and buttoning it into their coat, picking something up, crossing the room) has happened by your reply, and the world catches up after it. It's the truth behind the screen, not what the player has seen: of what people carry, the player sees what's out in the open (worn, in hand, held up), and of the rest (in a pocket, a fist, a lining, a box) they know only what they've seen or been told.${unseen.length ? ` Out of the player's sight, and nobody has shown or told them of it: ${unseen.map(e => `${e.name} [${e.id}]`).join("; ")}. Until they find it, the narration doesn't mention it or where it is.` : ""}\n${PHYSICS}\n\n${worldView(state.world)}`] : []),
     // Last before the reply's form and directions: those, the details above and the world all use the names.

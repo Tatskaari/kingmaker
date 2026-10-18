@@ -47,14 +47,13 @@ export const TABLES: { [T in TableName]: TableMeta<T> } = {
   admin: { primaryKey: "identity" },
 
   scene: { primaryKey: "id", autoInc: true, indexes: ["gameId"], public: true },
-  gmState: { primaryKey: "sceneId", defaults: { canon: [], patches: "[]", whispers: [], absent: [], adjustments: [], owed: [], fought: [], withheld: [], reached: [] } },
+  gmState: { primaryKey: "sceneId", defaults: { patches: "[]", absent: [], adjustments: [], owed: [], fought: [], withheld: [], reached: [] } },
   onStage: { primaryKey: "entityId", indexes: ["sceneId"], public: true },
   turn: { primaryKey: "id", autoInc: true, indexes: ["sceneId"], public: true, defaults: { notes: "none", suggest: "none", suggestAsks: 0 } },
   transcript: { primaryKey: "id", autoInc: true, indexes: ["sceneId"], public: true },
   replyDraft: { primaryKey: "turnId", indexes: ["sceneId"], public: true },
   sceneSuggestion: { primaryKey: "id", autoInc: true, indexes: ["sceneId"], public: true },
   heard: { primaryKey: "id", autoInc: true, indexes: ["playerId"] },
-  coGmResult: { primaryKey: "id", autoInc: true, indexes: ["sceneId"] },
 
   chapter: { primaryKey: "sceneId", indexes: ["gameId"], public: true },
   quest: { primaryKey: "id", autoInc: true, indexes: ["gameId"], public: true },

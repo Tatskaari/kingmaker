@@ -5,8 +5,8 @@ import type { Beat, Essential, Scene, Transition } from "../scene/types.ts";
 
 /**
  * The GM's bookkeeping for a scene: where it stands in its beats, what's been settled, the notes
- * open, the endings coming, the co-GM's steering, and what the story handed on to
- * it at the boundary before it (story-design §4.1), and a talk's own state (town-design §3.6). The simulation keeps it in
+ * open, the endings coming, what the story handed on to it at the boundary before it (story-design
+ * §4.1), a talk's own state (town-design §3.6), and the two-part GM's (its co-GM's roles and notes). The simulation keeps it in
  * the private `gm_state` table, a column a field, and sends it whole in every request to the AI
  * service. The field names are the prototype's (src/runtime/session.ts), so the code copied from it
  * reads this unchanged.
@@ -30,24 +30,10 @@ export interface GmState {
   closing?: { exitId: string; turn: number };
   /** The ending this turn's reply closes the scene on. */
   ended?: { exitId: string; turn: number };
-  /** The turns the player spoke out of character: not time passing in the scene. */
-  oocTurns: number[];
   /** Beats whose pressure has already been offered to the GM (it fires once). */
   pressureOffered: string[];
-  // The co-GM's (full-gm-design §4.2): merged from its reviews at a turn's start.
-  /** New details improvised in play that must stay true. */
-  canon: string[];
-  /** The scene's prep as play has changed it: the co-GM's routes and bridging beats, a talk's discovery filled or dropped. */
+  /** The scene's prep as play has changed it: what the boundary brought on to it, a talk's card and its discovery filled or dropped. */
   patches: ScenePatch[];
-  /** The co-GM's notes to the GM: for the two replies after the turn it reviewed (notesTurn), then they lapse. */
-  notes: string | null;
-  notesTurn: number | null;
-  /** What one of the cast wants or should try next (turn: the one reviewed): for the reply after it, then it lapses. */
-  whispers: Array<{ to: string; note: string; turn: number }>;
-  /** The turn the co-GM last reviewed (its result merged): the backstop runs every third turn from it. */
-  lastRepairTurn?: number;
-  /** The last turn the player went off the graph with nothing ruled on it: the co-GM reviews it. */
-  offGraphTurn?: number;
   // What the boundary before the scene handed on (story-design §4.1; the prototype's session.ts:
   // 278-331), written as the scene waits: each is the scene's own from then on.
   /** Where the scene's prep no longer matches the story: what's true instead (the boundary's verdict). */
@@ -140,7 +126,7 @@ export interface PathStep { turn: number; from: string; to: string; via: string;
 export interface OpenedNote { path: string; title: string; scope: string; turn: number; p?: number }
 
 
-/** Changes made to the scene's prep during play (the co-GM's, a talk's, the boundary's): src/runtime/session.ts:104-121. */
+/** Changes made to the scene's prep during play (a talk's, the boundary's; the old co-GM's until it went): src/runtime/session.ts:104-121. */
 export interface ScenePatch {
   turn: number;
   beat?: Beat;
@@ -163,8 +149,7 @@ export interface ScenePatch {
 export function initialGm(scene: Pick<Scene, "start">): GmState {
   return {
     beat: scene.start, reached: [scene.start], turnsInBeat: 0, path: [], established: [], landed: [], hinted: [], opened: [],
-    oocTurns: [], pressureOffered: [],
-    canon: [], patches: [], notes: null, notesTurn: null, whispers: [],
+    pressureOffered: [], patches: [],
     adjustments: [], owed: [], fought: [], absent: [], entered: [],
     twoPart: { roles: {}, notes: [] },
   };
@@ -187,16 +172,9 @@ export interface GmRow {
   opened: Array<{ path: string; title: string; scope: string; turn: number }>;
   closing: { exitId: string; turn: number } | undefined;
   ended: { exitId: string; turn: number } | undefined;
-  oocTurns: number[];
   pressureOffered: string[];
-  canon: string[];
   /** JSON: ScenePatch[]. */
   patches: string;
-  notes: string | undefined;
-  notesTurn: number | undefined;
-  whispers: Array<{ to: string; note: string; turn: number }>;
-  lastRepairTurn: number | undefined;
-  offGraphTurn: number | undefined;
   adjustments: string[];
   opening: string | undefined;
   lead: string | undefined;
@@ -239,14 +217,8 @@ export function gmToRow(sceneId: bigint, gm: GmState): GmRow {
     opened: gm.opened.map(({ path, title, scope, turn }) => ({ path, title, scope, turn })),
     closing: gm.closing ? { ...gm.closing } : undefined,
     ended: gm.ended ? { ...gm.ended } : undefined,
-    oocTurns: [...gm.oocTurns], pressureOffered: [...gm.pressureOffered],
-    canon: [...gm.canon],
+    pressureOffered: [...gm.pressureOffered],
     patches: JSON.stringify(gm.patches),
-    notes: gm.notes ?? undefined,
-    notesTurn: gm.notesTurn ?? undefined,
-    whispers: gm.whispers.map(({ to, note, turn }) => ({ to, note, turn })),
-    lastRepairTurn: gm.lastRepairTurn,
-    offGraphTurn: gm.offGraphTurn,
     adjustments: [...gm.adjustments],
     opening: gm.opening,
     lead: gm.lead,
@@ -278,14 +250,8 @@ export function gmFromRow(row: GmRow): GmState {
     opened: row.opened.map(n => ({ ...n })),
     ...(row.closing ? { closing: { ...row.closing } } : {}),
     ...(row.ended ? { ended: { ...row.ended } } : {}),
-    oocTurns: [...row.oocTurns], pressureOffered: [...row.pressureOffered],
-    canon: [...row.canon],
+    pressureOffered: [...row.pressureOffered],
     patches: row.patches ? JSON.parse(row.patches) as ScenePatch[] : [],
-    notes: row.notes ?? null,
-    notesTurn: row.notesTurn ?? null,
-    whispers: row.whispers.map(w => ({ ...w })),
-    ...(row.lastRepairTurn !== undefined ? { lastRepairTurn: row.lastRepairTurn } : {}),
-    ...(row.offGraphTurn !== undefined ? { offGraphTurn: row.offGraphTurn } : {}),
     adjustments: [...row.adjustments],
     ...(row.opening !== undefined ? { opening: row.opening } : {}),
     ...(row.lead !== undefined ? { lead: row.lead } : {}),

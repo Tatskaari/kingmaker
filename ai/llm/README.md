@@ -52,7 +52,7 @@ Each of the three logs every call to the caller's call log (a request's call con
 
 | Caller | Uses |
 |---|---|
-| [gm/](../gm/) | `respond` and `respondJson` (the GM's voices, the two-part GM's mouthpiece and co-GM, the hand-off, the boundary verdict and the fronts, the old co-GM, a talk's plan and lines, the stage manager, the suggested lines) |
+| [gm/](../gm/) | `respond` and `respondJson` (the GM's voices, the two-part GM's mouthpiece and co-GM, the hand-off, the boundary verdict and the fronts, a talk's plan and lines, the stage manager, the suggested lines) |
 | [service/endpoints/turn.ts](../service/endpoints/turn.ts) | `JevDecider`: the director (Luna's decision mode), disclosure (Jev) |
 | [the docs service](../docs/README.md) | `JevDecider` (the attention filter), `runTools` (the review agents), `respondJson` (the backstory, the lite reviews) |
 | [rules/](../rules/), [look/](../look/) | `respondJson` (the builds, the look inventions) |

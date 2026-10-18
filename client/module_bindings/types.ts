@@ -79,17 +79,6 @@ export const Chapter = __t.object("Chapter", {
 });
 export type Chapter = __Infer<typeof Chapter>;
 
-export const CoGmResult = __t.object("CoGmResult", {
-  id: __t.u64(),
-  sceneId: __t.u64(),
-  turn: __t.u32(),
-  review: __t.string(),
-  mergedTurn: __t.option(__t.u32()),
-  note: __t.option(__t.string()),
-  at: __t.timestamp(),
-});
-export type CoGmResult = __Infer<typeof CoGmResult>;
-
 export const Combatant = __t.object("Combatant", {
   id: __t.string(),
   name: __t.string(),
@@ -314,17 +303,8 @@ export const GmState = __t.object("GmState", {
   get ended() {
     return __t.option(ExitAt);
   },
-  oocTurns: __t.array(__t.u32()),
   pressureOffered: __t.array(__t.string()),
-  canon: __t.array(__t.string()),
   patches: __t.string(),
-  notes: __t.option(__t.string()),
-  notesTurn: __t.option(__t.u32()),
-  get whispers() {
-    return __t.array(Whisper);
-  },
-  lastRepairTurn: __t.option(__t.u32()),
-  offGraphTurn: __t.option(__t.u32()),
   get threat() {
     return __t.option(Threat);
   },
@@ -936,13 +916,6 @@ export const WeaponRef = __t.object("WeaponRef", {
   name: __t.string(),
 });
 export type WeaponRef = __Infer<typeof WeaponRef>;
-
-export const Whisper = __t.object("Whisper", {
-  to: __t.string(),
-  note: __t.string(),
-  turn: __t.u32(),
-});
-export type Whisper = __Infer<typeof Whisper>;
 
 export const WorldLog = __t.object("WorldLog", {
   id: __t.u64(),

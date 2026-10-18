@@ -1,7 +1,7 @@
 import type { CallContext } from "../llm/openrouter.ts";
 import type {
   AiErrorCode, BackstoriesRequest, BackstoriesResponse, BoundaryRequest, BoundaryResponse, CharactersRequest, CharactersResponse,
-  LooksRequest, LooksResponse, OpenRequest, OpenResponse, ReactionsRequest, ReactionsResponse, RememberRequest, RememberResponse, RepairRequest, RepairResponse,
+  LooksRequest, LooksResponse, OpenRequest, OpenResponse, ReactionsRequest, ReactionsResponse, RememberRequest, RememberResponse,
   ReplyRequest, ReplyResponse, SettleRequest, SettleResponse, SuggestRequest, SuggestResponse, Usage,
 } from "../../shared/protocol/ai.ts";
 import type { Campaign } from "./campaigns.ts";
@@ -34,7 +34,7 @@ export type Handler<Req, Res> = (req: Req, ctx: AiContext) => Promise<Res>;
  * The thinks: the opening, a turn's own (reply, settle; reactions, parked for combat, on a turn the
  * player's violence drew them: world-bridge-design §3.1),
  * the one beside a turn once its reply is in (the lines suggested after it: v5-design §3.6; the
- * notes on its marks went in M2), the two in the background once it's over (the memory reviews and the co-GM:
+ * notes on its marks went in M2), the one in the background once it's over (the memory reviews:
  * full-gm-design §4.1), the boundary once a scene is over (story-design §4.4), the looks of what a
  * turn made (town-design §3.7); and character
  * creation's two (v1-design §3.7), each serving several steps.
@@ -49,8 +49,6 @@ export interface Endpoints {
   suggest: Handler<SuggestRequest, SuggestResponse>;
   /** The memory reviews of a turn once it's over: notes written into the game's docs, a line in memory-reviews.jsonl. */
   remember: Handler<RememberRequest, RememberResponse>;
-  /** The background co-GM's review of a turn once it's over. */
-  repair: Handler<RepairRequest, RepairResponse>;
   /** The boundary after a scene ends: the hand-off, the verdict, the fronts, presence, what's owed; the game's docs written once. */
   boundary: Handler<BoundaryRequest, BoundaryResponse>;
   /** How things the story made look on the map (look.invent): one call for a batch. */

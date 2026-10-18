@@ -72,7 +72,6 @@ test("a line: replied at once, the GM's check rolled through the rules engine fr
   assert.deepEqual(now.gm.twoPart.notes.map(n => n.turn), [-1, 1]);
   assert.match(now.gm.twoPart.notes[1]!.text, /^Co-GM note, before turn 2[\s\S]*Character role for Cob:\nStatus: Behind the water butt\nMental state: Scared\nConversation role: Could show the loose board\./);
   assert.deepEqual(now.turns.map(t => [t.n, t.phase]), [[0, "done"], [1, "done"]]);
-  assert.deepEqual(script.to("repair"), [], "no co-GM review: the two-part co-GM ran in the settle");
   assert.equal(script.to("remember").length, 1, "the memory review, as before");
   assert.deepEqual(keyParts(reply.key)?.step, "reply");
 });

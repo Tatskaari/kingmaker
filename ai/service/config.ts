@@ -16,7 +16,7 @@ import { CREATION_STEPS, STEPS, type CreationStep, type Step } from "../../share
  * | KM_AI_GM | pipeline | canned: the thinks with no model at all |
  * | KM_AI_STREAM_MS | 200 | the stream's period |
  * | KM_AI_DAILY_USD | 5 | the daily ceiling on what the models cost, in dollars, from the ledger (0: none) |
- * | KM_AI_FAULTS | none | exit-after-store:<a step, or any> (tests only): open, reactions, reply, settle, suggest, remember, repair, or a creation's offer, pick, own, draft, work, check, traits |
+ * | KM_AI_FAULTS | none | exit-after-store:<a step, or any> (tests only): open, reactions, reply, settle, suggest, remember, boundary, look, or a creation's offer, pick, own, draft, work, check, traits |
  */
 export interface AiConfig {
   listen: Array<{ host: string; port: number }>;

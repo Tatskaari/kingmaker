@@ -5,8 +5,7 @@ import type { RollResult } from "../../../shared/dice.ts";
 import type { Backstory } from "../../../shared/creation/types.ts";
 import type {
   BackstoriesRequest, BackstoriesResponse, BoundaryRequest, BoundaryResponse, CharactersRequest, CharactersResponse, LooksResponse, OpenResponse, ReactionsResponse,
-  RememberResponse, RepairRequest,
-  RepairResponse, ReplyResponse, SettleResponse, SuggestResponse, Usage,
+  RememberResponse, ReplyResponse, SettleResponse, SuggestResponse, Usage,
 } from "../../../shared/protocol/ai.ts";
 import { CREATION_STEPS, type CreationStep } from "../../../shared/protocol/keys.ts";
 import { gmFromRow } from "../../../shared/gm/state.ts";
@@ -74,7 +73,7 @@ export const identity = (n: number) => new Identity(BigInt(0x1000 + n));
 // A scripted AI service.
 
 /** A turn's steps (its own, the lines beside it, and the jobs after it), a scene's boundary, and character creation's (named from the request: /v1/characters' ask, /v1/backstories' op). */
-export type Step = "open" | "reactions" | "reply" | "settle" | "suggest" | "remember" | "repair" | "boundary" | "look" | CreationStep;
+export type Step = "open" | "reactions" | "reply" | "settle" | "suggest" | "remember" | "boundary" | "look" | CreationStep;
 
 /** What an endpoint answers: the answer itself (200, as JSON), another HTTP reply, a thrown error (a refused connection), or a function of the request that gives one of those. */
 export type Scripted = unknown | { http: AiReply } | ((request: any, headers: Record<string, string>) => unknown);
@@ -87,15 +86,14 @@ const usage = (calls: number, costUsd: number): Usage => ({ calls, costUsd, byOp
  * The answers each endpoint gives when the script has nothing queued for it. The opening and the
  * reply carry no markup; the lines are four.
  * Nobody reacts to the player's violence (as the canned GM: no reactions, no directive, no cost).
- * The GM rules on nothing (as the canned GM: no ruling, and no check to roll instead); after a turn,
- * nobody remembers anything, and the co-GM finds the scene on track with nothing to add. Those two
- * cost nothing here, so a turn's calls are its own steps' and its lines'. A boundary goes
+ * After a turn nobody remembers anything, which costs nothing here, so a turn's calls are its own
+ * steps' and its lines'. A boundary goes
  * on to the first scene it could, with the fallback hand-off, nothing rewritten, nobody absent and
  * nothing owed (the canned GM's), for three calls.
  */
 export const DEFAULTS: {
   open: OpenResponse; reactions: ReactionsResponse; reply: ReplyResponse; settle: SettleResponse; suggest: SuggestResponse;
-  remember: RememberResponse; repair: (request: RepairRequest) => RepairResponse; boundary: (request: BoundaryRequest) => BoundaryResponse; look: LooksResponse;
+  remember: RememberResponse; boundary: (request: BoundaryRequest) => BoundaryResponse; look: LooksResponse;
 } = {
   open: { present: ["kell", "cob", "moll"], entries: [{ speaker: "gm", kind: "narration", text: "Sergeant Kell looks up from her notebook as you come through the gate. \"You'll be the King's investigator.\"" }], opened: [], usage: usage(2, 0.002) },
   reactions: { reactions: {}, usage: usage(0, 0) },
@@ -111,7 +109,6 @@ export const DEFAULTS: {
     dropped: [], usage: usage(2, 0.0008),
   },
   remember: { flags: [], reviews: [], usage: usage(0, 0) },
-  repair: request => ({ review: onTrack(request.reviewed), usage: usage(0, 0) }),
   boundary: request => crossedTo(request, request.candidates[0]!),
   // The canned GM invents no looks (town-design §3.7).
   look: { looks: {}, usage: usage(0, 0) },
@@ -128,14 +125,9 @@ export function crossedTo(request: BoundaryRequest, next: string, also: Partial<
   };
 }
 
-/** The co-GM's review of a turn that finds nothing to steer: on track, no notes, nothing added. */
-export const onTrack = (turn: number): RepairResponse["review"] => ({
-  turn, assessment: "Scripted: on track.", status: "on_track", notes: "", whispers: [], relocations: [], canon: [], patches: [], costUsd: 0, latencyMs: 0,
-});
-
 const STEPS: Record<string, Step> = {
   "/v1/scenes/open": "open", "/v1/turns/reactions": "reactions", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle", "/v1/turns/suggest": "suggest",
-  "/v1/turns/remember": "remember", "/v1/turns/repair": "repair", "/v1/scenes/boundary": "boundary", "/v1/looks": "look",
+  "/v1/turns/remember": "remember", "/v1/scenes/boundary": "boundary", "/v1/looks": "look",
 };
 
 /** A creation request's step: the builds asked for, or what's asked of the backstory. */
@@ -210,7 +202,7 @@ export const down = () => () => {
 
 export function scriptedAi() {
   const sent: Sent[] = [];
-  const queues: Record<Step, Scripted[]> = { open: [], reactions: [], reply: [], settle: [], suggest: [], remember: [], repair: [], boundary: [], look: [], offer: [], pick: [], own: [], draft: [], work: [], check: [], traits: [] };
+  const queues: Record<Step, Scripted[]> = { open: [], reactions: [], reply: [], settle: [], suggest: [], remember: [], boundary: [], look: [], offer: [], pick: [], own: [], draft: [], work: [], check: [], traits: [] };
 
   const ai: AiPost = async (endpoint, body, headers) => {
     const request = JSON.parse(body) as { key: string; ask?: { kind?: string }; op?: string };

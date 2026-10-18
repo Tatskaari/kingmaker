@@ -76,7 +76,7 @@ function personOf(id: string, cast: Map<string, NotePerson>): NotePerson {
 
 /** Whether an effect holds as the scene ends: its `if` facts all established, its `unless` facts none (the simulation's holdsIn, story/effects.ts). */
 function holdsAtEnd(scene: Scene, state: TurnView): (e: Cond) => boolean {
-  const known = new Set([...state.established, ...state.canon]);
+  const known = new Set(state.established);
   const isTrue = (id: string) => { const sentence = scene.facts?.[id]; return sentence !== undefined && known.has(sentence); };
   const listOf = (facts: string | string[] | undefined) => (facts === undefined ? [] : typeof facts === "string" ? [facts] : facts);
   return e => listOf(e.if?.established).every(isTrue) && !listOf(e.unless?.established).some(isTrue);

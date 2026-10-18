@@ -8,8 +8,8 @@ import { picked, stepName, type Script, type Step } from "./scripts.ts";
  * by talking to Kell, map-design §4), then each line said once the turn before it is done and its
  * lines are in (at most 15 s more, v5-design §4.6), or a suggested line picked as the
  * headless `act` picks one. A line that waits for the background (full-gm-design §1.2) is said once
- * the memory review and the co-GM are done too, and a script that records the GM's side waits for
- * them after its last line. It stops before a line the budget can't cover, when the scene ends, or
+ * the memory review is done too, and a script that records the GM's side waits for
+ * it after its last line. It stops before a line the budget can't cover, when the scene ends, or
  * when a turn fails, and says why.
  */
 
@@ -26,7 +26,7 @@ export interface PlayOptions {
   spent(uid: string): { total: number; dearest: number };
   /** The scene's suggested lines now (one set a scene). */
   offered(sceneId: bigint): Promise<Offered[]>;
-  /** The scene's background jobs in flight (the memory reviews, the co-GM), as "remember t1"; none when there are none. */
+  /** The scene's background jobs in flight (the memory reviews), as "remember t1"; none when there are none. */
   background?(sceneId: bigint): Promise<string[]>;
   /** Each turn as it's done. */
   log(line: string): void;
@@ -134,7 +134,7 @@ async function playStep(conn: Connection, step: Step, run: Run, options: PlayOpt
 }
 
 /**
- * The scene's background jobs done (the memory reviews, the co-GM), as a tester reading the reply
+ * The scene's background jobs done (the memory reviews), as a tester reading the reply
  * waits for them: how long it took. After BACKGROUND_MS it goes on without them, and says so.
  */
 async function backgroundDone(run: Run, options: PlayOptions, when: string): Promise<number> {

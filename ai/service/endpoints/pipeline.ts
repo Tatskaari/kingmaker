@@ -7,7 +7,6 @@ import { looks } from "./looks.ts";
 import { open } from "./open.ts";
 import { reactions } from "./reactions.ts";
 import { remember } from "./remember.ts";
-import { repair } from "./repair.ts";
 import { reply } from "./reply.ts";
 import { settle } from "./settle.ts";
 import { suggest } from "./suggest.ts";
@@ -19,7 +18,7 @@ import { suggest } from "./suggest.ts";
  * calls, each made through the request's own calls (its call log, its costs, its usage).
  */
 export const pipeline: Endpoints = {
-  open, reactions, reply, settle, suggest, remember, repair, boundary, looks,
+  open, reactions, reply, settle, suggest, remember, boundary, looks,
   characters: characters(modelAsk), backstories: backstories(modelAsk),
 };
 

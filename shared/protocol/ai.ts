@@ -1,5 +1,4 @@
 import type { Asked, Backstory, LoreIssue, Who } from "../creation/types.ts";
-import type { RepairResult } from "../gm/repair.ts";
 import type { Confide, GmState, OpenedNote, OwedRow, ScenePatch, TalkRecord, TwoPartRole } from "../gm/state.ts";
 import type { Band } from "../gm/two-part.ts";
 import type { Markup } from "../markup.ts";
@@ -13,8 +12,7 @@ import type { CreationStep, Step } from "./keys.ts";
 /**
  * The AI service's HTTP API: what the simulation POSTs for each step of a think, and what comes
  * back (v0-design §5.1-5.2, gm-port §13; the suggested lines, v5-design §3.6;
- * character creation's two, v1-design §3.7; the memory reviews and the co-GM after a turn,
- * full-gm-design §4.1; the rules' act in a turn and the reactions to it,
+ * character creation's two, v1-design §3.7; the memory reviews after a turn, full-gm-design §4.1; the rules' act in a turn and the reactions to it,
  * world-bridge-design §3.1; the boundary between scenes and a fight's aftermath, story-design §4.2;
  * a talk with a companion, the menu's act played as a turn, and the looks of what the story makes,
  * town-design §3.6-3.8).
@@ -24,23 +22,23 @@ import type { CreationStep, Step } from "./keys.ts";
 
 export type Endpoint =
   | "/v1/scenes/open" | "/v1/turns/reactions" | "/v1/turns/reply" | "/v1/turns/settle" | "/v1/turns/suggest"
-  | "/v1/turns/remember" | "/v1/turns/repair" | "/v1/scenes/boundary" | "/v1/looks"
+  | "/v1/turns/remember" | "/v1/scenes/boundary" | "/v1/looks"
   | "/v1/characters" | "/v1/backstories";
 
 /**
  * Each step's endpoint, and how long the simulation waits for it (under the procedures' 180 s cap).
- * The reactions are one decider call (about 0.3 s), waited for 20 s; a memory review's or the
- * co-GM's tool loops can take a minute and more; a boundary's three calls at once,
+ * The reactions are one decider call (about 0.3 s), waited for 20 s; a memory review's tool loop
+ * can take a minute and more; a boundary's three calls at once,
  * then presence, about 10 to 20 s on real models; the looks of what a turn made, one small call.
  */
 export const STEP_ENDPOINT: Record<Step | CreationStep, Endpoint> = {
   open: "/v1/scenes/open", reactions: "/v1/turns/reactions", reply: "/v1/turns/reply", settle: "/v1/turns/settle",
-  suggest: "/v1/turns/suggest", remember: "/v1/turns/remember", repair: "/v1/turns/repair", boundary: "/v1/scenes/boundary", look: "/v1/looks",
+  suggest: "/v1/turns/suggest", remember: "/v1/turns/remember", boundary: "/v1/scenes/boundary", look: "/v1/looks",
   offer: "/v1/characters", pick: "/v1/characters", own: "/v1/characters",
   draft: "/v1/backstories", work: "/v1/backstories", check: "/v1/backstories", traits: "/v1/backstories",
 };
 export const STEP_TIMEOUT_MS: Record<Step | CreationStep, number> = {
-  open: 60_000, reactions: 20_000, reply: 60_000, settle: 60_000, suggest: 30_000, remember: 170_000, repair: 170_000, boundary: 120_000, look: 30_000,
+  open: 60_000, reactions: 20_000, reply: 60_000, settle: 60_000, suggest: 30_000, remember: 170_000, boundary: 120_000, look: 30_000,
   offer: 60_000, pick: 60_000, own: 30_000, draft: 60_000, work: 60_000, check: 60_000, traits: 60_000,
 };
 
@@ -285,11 +283,6 @@ export interface RememberRequest extends AiRequest { turn: SceneContext; reviewe
 export interface RememberResponse { flags: string[]; reviews: ReviewRecord[]; usage: Usage }
 /** A memory review's record, as ai/docs/reviews.ts makes it (its shape written out here: shared imports nothing of the AI service's). */
 export interface ReviewRecord { kind: "notes" | "lore"; summary: string; changes: string[]; costUsd: number; latencyMs: number; error?: string }
-
-/** POST /v1/turns/repair (full-gm-design §4.1): the background co-GM's review of a turn once it's over. turn and reviewed as remember's. */
-export interface RepairRequest extends AiRequest { turn: SceneContext; reviewed: number }
-/** The review (its turn the one reviewed): it waits in a co_gm_result row until the next turn's start merges it. */
-export interface RepairResponse { review: RepairResult; usage: Usage }
 
 /** POST /v1/turns/suggest: the lines to offer after a reply. turn: the transcript up to and including the reply. */
 export interface SuggestRequest extends AiRequest {

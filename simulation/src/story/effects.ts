@@ -91,7 +91,7 @@ export function recordAll(at: Ending, effects: Effect[]): string[] {
 
 /** Whether an effect's facts hold: its `if` facts all established, its `unless` facts none. */
 function holdsIn(at: Ending): (e: Cond) => boolean {
-  const known = new Set([...at.gm.established, ...at.gm.canon]);
+  const known = new Set(at.gm.established);
   const isTrue = (id: string) => { const sentence = at.graph.facts?.[id]; return sentence !== undefined && known.has(sentence); };
   return e => listOf(e.if?.established).every(isTrue) && !listOf(e.unless?.established).some(isTrue);
 }

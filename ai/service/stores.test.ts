@@ -222,11 +222,9 @@ test("the config: the bearer required, the defaults, and the values checked", ()
   assert.throws(() => readConfig({ KM_AI_TOKEN: "t", KM_AI_LISTEN: "8787" }), /KM_AI_LISTEN/);
 });
 
-test("the config: the background steps are faults; a considered turn's step, gone with the old pipeline, isn't", () => {
-  assert.deepEqual(["remember", "repair"].map(step => readConfig({ KM_AI_TOKEN: "t", KM_AI_FAULTS: `exit-after-store:${step}` }).faults), [
-    { exitAfterStore: "remember" }, { exitAfterStore: "repair" },
-  ]);
-  assert.throws(() => readConfig({ KM_AI_TOKEN: "t", KM_AI_FAULTS: "exit-after-store:consider" }), /KM_AI_FAULTS/);
+test("the config: the background step is a fault; the old pipeline's steps, gone with it, aren't", () => {
+  assert.deepEqual(readConfig({ KM_AI_TOKEN: "t", KM_AI_FAULTS: "exit-after-store:remember" }).faults, { exitAfterStore: "remember" });
+  for (const old of ["decide", "consider", "repair"]) assert.throws(() => readConfig({ KM_AI_TOKEN: "t", KM_AI_FAULTS: `exit-after-store:${old}` }), /KM_AI_FAULTS/, old);
 });
 
 test("the config: the daily ceiling in dollars (0 for none), and a creation's steps as faults", () => {

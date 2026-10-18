@@ -63,12 +63,6 @@ export interface SuggestPlan { step: "suggest"; game: string; scene: string; tur
 export interface RememberPlan { step: "remember"; game: string; scene: string; turn: string; n: number }
 
 /**
- * The background co-GM's review of a turn once it's over (full-gm-design §4.2): one think, POST
- * /v1/turns/repair, its answer a co_gm_result row the next turn's start merges. `n` as remember's.
- */
-export interface RepairPlan { step: "repair"; game: string; scene: string; turn: string; n: number }
-
-/**
  * A scene's boundary once it has ended (story-design §4.3): one think, POST /v1/scenes/boundary,
  * keyed by the scene's last turn (`n`), its job the scene's and the game's with no turn. `exit`: the
  * exit it ended by; `candidates`: candidatesOf's scene keys, in order. Its commit leaves the scene

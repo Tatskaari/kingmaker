@@ -1,4 +1,3 @@
-import type { RepairResult } from "../../../shared/gm/repair.ts";
 import type { Speech } from "../../../shared/markup.ts";
 import type { BoundaryRequest, Reply, SceneContext, Suggestion } from "../../../shared/protocol/ai.ts";
 import { effectiveScene, presentCast } from "../../../shared/scene/graph.ts";
@@ -20,8 +19,8 @@ import { characters } from "./characters.ts";
  * makes no move, and its mouthpiece calls no check; its closing closes), and the rules resolve no act
  * (so nobody reacts: reactions asked for anyway come back with none).
  * The suggested lines are the same four every time, and a talk's the same two (town-design §3.6: a
- * talk's prep keeps nothing back and adds no facts). After a turn, nobody remembers anything, and the
- * co-GM finds the scene on track, with no notes, and nothing gets a look invented. After a scene, the boundary goes to the first scene
+ * talk's prep keeps nothing back and adds no facts). After a turn, nobody remembers anything, and
+ * nothing gets a look invented. After a scene, the boundary goes to the first scene
  * it could, with the prototype's fallback hand-off, nothing rewritten, nobody absent, nothing owed
  * and no docs written (story-design §4.4). Character creation gets the prototype's offline
  * answers (its endpoints with no model to ask): three builds from the class defaults, the player's
@@ -62,9 +61,6 @@ export const canned: Endpoints = {
   async remember() {
     return { flags: [], reviews: [], usage: noUsage() };
   },
-  async repair(req) {
-    return { review: onTrack(req.reviewed), usage: noUsage() };
-  },
   async boundary(req, ctx) {
     const scene = effectiveScene(ctx.campaign.scene(req.turn.scene.key), req.turn.gm.patches);
     const exit = scene.exits.find(e => e.id === req.exit);
@@ -84,11 +80,6 @@ export const canned: Endpoints = {
 
   backstories: backstories(() => null),
 };
-
-/** The co-GM's review of a turn, with no model: on track, nothing to steer, nothing to add. */
-const onTrack = (turn: number): RepairResult => ({
-  turn, assessment: "Canned: no model was asked.", status: "on_track", notes: "", whispers: [], relocations: [], canon: [], patches: [], costUsd: 0, latencyMs: 0,
-});
 
 /** The same four lines after every reply: two to say, a deed, a risky try. */
 const LINES: Suggestion[] = [
