@@ -235,9 +235,24 @@ export function addRoute(doc:SceneDocument,source:string,target:string):{doc:Sce
   const to=doc.nodes.find(node=>node.id===target);
   const kind=to?nodeKind(to):'event';
   const id=uniqueId(`${kind==='discovery'?'find':'to'}-${target}`,doc.edges.map(route=>route.id));
-  const title=to?.data.title||target;
-  const route:Route={id,source,target,type:'smoothstep',label:kind==='discovery'?`Find ${title}`:title,data:{condition:'',phase:kind==='event'?'cue':'outcome',skill:'',dc:12}};
+  const route:Route={id,source,target,type:'smoothstep',label:to?defaultLabelOf(to):target,data:{condition:'',phase:kind==='event'?'cue':'outcome',skill:'',dc:12}};
   return {doc:{...doc,edges:[...doc.edges,route]},id};
+}
+
+/** The label a new route into a node is given: "Find <its title>" into a discovery, its title otherwise. */
+export const defaultLabelOf=(node:SceneNode):string=>{const title=node.data.title||node.id;return nodeKind(node)==='discovery'?`Find ${title}`:title};
+
+/**
+ * A node's title changed, and the routes into it whose label is still the one they were given from its
+ * old title (a new scene's "Find Discovery") following it. A label the author wrote stays as it is.
+ */
+export function retitleNode(doc:SceneDocument,id:string,title:string):SceneDocument{
+  const node=doc.nodes.find(other=>other.id===id);
+  const next=setNodeField(doc,id,'title',title);
+  if(!node||next===doc)return next;
+  const before=defaultLabelOf(node),after=defaultLabelOf(next.nodes.find(other=>other.id===id)!);
+  if(before===after||!next.edges.some(route=>route.target===id&&route.label===before))return next;
+  return {...next,edges:next.edges.map(route=>route.target===id&&route.label===before?{...route,label:after}:route)};
 }
 
 /** A route like another (the same ends), added beside it with an id of its own. */

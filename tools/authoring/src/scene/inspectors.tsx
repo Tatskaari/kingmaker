@@ -9,7 +9,7 @@ import {AddPicker,Checkbox,Chips,ChoiceField,IdField,ItemCard,LoreLinks,NumberFi
 import type {Option} from './fields.tsx';
 import {EffectsEditor} from './effects.tsx';
 import {FactsField} from './facts.tsx';
-import {EXIT_KINDS,ORDER,SKILLS,addRoute,idProblem,isBeat,isDiscovery,isEnding,isStart,makeDiscovery,makeEvent,moveRoutes,nodeKind,optionalList,removeNodes,removeRoutes,renameNode,renameRoute,setArrival,setNodeField,setRouteField,titleOf,updateNode,updateRoute,withKey} from './model.ts';
+import {EXIT_KINDS,ORDER,SKILLS,addRoute,idProblem,isBeat,isDiscovery,isEnding,isStart,makeDiscovery,makeEvent,moveRoutes,nodeKind,optionalList,removeNodes,removeRoutes,renameNode,renameRoute,retitleNode,setArrival,setNodeField,setRouteField,titleOf,updateNode,updateRoute,withKey} from './model.ts';
 import type {BeatData,Connection,EndingData,NodeKind,Path,Route,SceneDocument,SceneNode,StartData} from './model.ts';
 
 export const KIND_LABELS:Record<NodeKind,string>={start:'Start',discovery:'Discovery',event:'Event',ending:'Ending'};
@@ -49,7 +49,6 @@ const RENAME_NODE='Its routes, what requires it and who arrives there follow. Ga
 export function NodeInspector({node}:{node:SceneNode}){
   const {edit,confirm,doc,connectFrom,renamed}=useScene();
   const kind=nodeKind(node);
-  const set=(key:string,value:unknown)=>edit(scene=>setNodeField(scene,node.id,key,value));
   const remove=()=>{
     const routes=doc.edges.filter(route=>route.source===node.id||route.target===node.id).length;
     confirm({title:'Delete node?',confirmLabel:'Delete node',description:`Delete “${node.data.title||node.id}”${routes?` and the ${routes} route${routes===1?'':'s'} to and from it`:''}? Routes that require it, or fail into it, forget it, and anyone who arrives there arrives from the start. You can undo this.`,onConfirm:()=>edit(scene=>removeNodes(scene,[node.id]))});
@@ -59,7 +58,7 @@ export function NodeInspector({node}:{node:SceneNode}){
       {isBeat(node)&&<BeatKind node={node}/>}
       <IdField id={node.id} problem={next=>idProblem(next,doc.nodes.map(other=>other.id),node.id)} onRename={next=>{edit(scene=>renameNode(scene,node.id,next));renamed('node',node.id,next)}} warning={RENAME_NODE}/>
     </header>
-    <TextField label="Title" field="title" value={node.data.title} onChange={value=>set('title',value)}/>
+    <TextField label="Title" field="title" value={node.data.title} onChange={value=>edit(scene=>retitleNode(scene,node.id,value))}/>
     {kind==='start'&&<StartFields node={node as SceneNode<StartData>}/>}
     {kind==='discovery'&&<DiscoveryFields node={node as SceneNode<BeatData>}/>}
     {kind==='event'&&<EventFields node={node as SceneNode<BeatData>}/>}

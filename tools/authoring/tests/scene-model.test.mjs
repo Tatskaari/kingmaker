@@ -13,7 +13,7 @@ const bundle=async entry=>{
 };
 const model=await bundle('../src/scene/model.ts');
 const {campaignRootOf,contextOf,readCampaign,sceneKeyOf}=await bundle('../src/scene/campaign.ts');
-const {openSceneFile,serializeScene,SceneOpenError,withKey,ORDER,setSceneField,setNodeField,setRouteField,setCastField,addNode,addRoute,addCast,removeNodes,removeCast,addFact,removeFact,renameFact,settlesOf,testsOf,idProblem,renameNode,renameRoute,renameCast,makeEvent,makeDiscovery,moveRoutes,skeletonScene,slugOf,uniqueId,problemsOf,shapeOf,setArrival,freePosition}=model;
+const {openSceneFile,serializeScene,SceneOpenError,withKey,ORDER,setSceneField,setNodeField,setRouteField,setCastField,addNode,addRoute,addCast,removeNodes,removeCast,addFact,removeFact,renameFact,settlesOf,testsOf,idProblem,renameNode,renameRoute,renameCast,makeEvent,makeDiscovery,moveRoutes,skeletonScene,slugOf,uniqueId,problemsOf,shapeOf,setArrival,freePosition,retitleNode}=model;
 
 const CAMPAIGN=new URL('../../../campaigns/caerwyn/',import.meta.url);
 const TESTDATA=new URL('../../../shared/scene/testdata/',import.meta.url);
@@ -113,6 +113,28 @@ test('a new card goes beside the node it comes from, below the cards already the
   assert.deepEqual(freePosition(two,{x:400,y:0}),{x:400,y:440});
   assert.deepEqual(freePosition(two,{x:1200,y:0}),{x:1200,y:0});
   assert.deepEqual(freePosition(two,{x:600.6,y:-30}),{x:601,y:440},'overlapping a card sideways counts too');
+});
+
+test('a node retitled takes the routes into it that still have the label they were given from its title; one the author wrote stays',()=>{
+  const skeleton=skeletonScene('The Short Weight');
+  assert.equal(skeleton.edges[0].label,'Find Discovery');
+  const retitled=retitleNode(skeleton,'discovery','The weights are true');
+  assert.equal(retitled.nodes[1].data.title,'The weights are true');
+  assert.equal(retitled.edges[0].label,'Find The weights are true');
+  assert.equal(retitled.edges[0].id,'find-discovery','its id stays: game state keys on it');
+  // Typed a letter at a time, it follows each.
+  assert.equal(['T','Th','The'].reduce((doc,title)=>retitleNode(doc,'discovery',title),skeleton).edges[0].label,'Find The');
+  // Into an event or an ending, the label is the title.
+  const event=addNode(skeleton,'event','The cart comes',{x:0,y:400},{from:'start'});
+  assert.equal(retitleNode(event.doc,event.id,'The cart comes early').edges.find(route=>route.id===event.route).label,'The cart comes early');
+  // A label the author wrote stays as it is; a title unchanged is the same scene.
+  const written=setRouteField(skeleton,'find-discovery','condition','x');
+  const labelled={...written,edges:written.edges.map(route=>({...route,label:'Check the weights'}))};
+  assert.equal(retitleNode(labelled,'discovery','The weights are true').edges[0].label,'Check the weights');
+  assert.equal(retitleNode(skeleton,'discovery','Discovery'),skeleton);
+  const murder=clerk().nodes.find(other=>other.id==='murder');
+  assert.equal(retitleNode(clerk(),'murder','Murder, plainly').edges.find(route=>route.target==='murder').label,clerk().edges.find(route=>route.target==='murder').label,'the clerk\'s labels are written, and stay');
+  assert.ok(murder);
 });
 
 test('taking something out takes what named it with it, so the game can still load the file',()=>{
