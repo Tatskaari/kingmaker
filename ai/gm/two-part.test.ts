@@ -253,7 +253,7 @@ test("an open route into an ending says how it went and what's true there, for t
   const signed = clerk.routes.find(r => r.id === "signed-murder")!;
   assert.equal(lines.find(l => l.startsWith("- [signed-murder]")), `${routeLine(clerk, signed)} It's a good ending. What's true there: ${clerk.exits.find(e => e.id === "murder-unknown")!.outcome}`);
   assert.match(lines.find(l => l.startsWith("- [signed-suicide]"))!, /\. It's a mixed ending\. What's true there: The player has the Hobb lead but couldn't show murder/);
-  assert.match(lines.find(l => l.startsWith("- [case-lost]"))!, /\. It's a bad ending\. What's true there: The player failed/);
+  assert.match(lines.find(l => l.startsWith("- [case-lost]"))!, /\.\)? It's a bad ending\. What's true there: The player failed/, "after the condition's own last sentence, a bracket's or not");
   assert.doesNotMatch(twoPartNow(clerk, view, []), /What's true there/);
   assert.doesNotMatch(prepOf(clerk, view, { coGm: true }), /It's a good ending/, "the prep has the endings under their own headings");
 });

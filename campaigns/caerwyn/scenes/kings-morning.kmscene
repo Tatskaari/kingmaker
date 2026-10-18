@@ -799,7 +799,7 @@
       "type": "smoothstep",
       "label": "After the Assembly",
       "data": {
-        "condition": "The King has put it off for good: the ninth bell has rung and he has gone down to the procession with it to be looked into after the Assembly, or the player has accepted that and let it rest. (The King reaching for 'after the Assembly', or saying it while the player is still pressing or still has something to put to him, isn't this: that's his dilemma, not his decision.)",
+        "condition": "The King has put it off for good: the ninth bell has rung and he has gone down to the procession with it to be looked into after the Assembly, or the player has accepted that and let it rest. (The King reaching for 'after the Assembly', or saying it while the player is still pressing or still has something to put to him, isn't this: that's his dilemma, not his decision.) Nor is it once the player has given him what moves him (something he can hold, and someone standing behind it in front of him): then he decides on the stairs to act, and that's [king-acts], bell or no bell.",
         "phase": "outcome",
         "skill": "",
         "dc": 12
@@ -812,7 +812,7 @@
       "type": "smoothstep",
       "label": "Last resort",
       "data": {
-        "condition": "Last resort only: the player has made a scene the King can't overlook (drawn steel or struck a blow in the dressing room, at Master Sallow or anyone; threatened the King; shouted it from the windows to the delegations or the crowd), or has walked out on the King before telling him what they found. Not for a hard question, a rude word or an accusation: those the King hears out.",
+        "condition": "Last resort only: the player has made a scene the King can't overlook (drawn steel or struck a blow in the dressing room, at Master Sallow or anyone; threatened the King; shouted it from the windows to the delegations or the crowd), or has walked out on the King before telling him what they found. Not for a hard question, a rude word or an accusation: those the King hears out. (Once the King has given his word to act, that's [king-acts]: what follows is its closing.)",
         "phase": "outcome",
         "skill": "",
         "dc": 12

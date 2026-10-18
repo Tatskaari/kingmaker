@@ -1526,7 +1526,7 @@
       "type": "smoothstep",
       "label": "Manners",
       "data": {
-        "condition": "Nan has put the player out of the Rat with Manners and barred them: a fight started indoors, a blade drawn, or a house rule broken again after her one warning. They know where Hobb works.",
+        "condition": "Nan has put the player out of the Rat with Manners and barred them: a fight started indoors, a blade drawn, or a house rule broken again after her one warning. They know where Hobb works. (Put out after Hobb has told them the heart of it himself, they leave with it: that's [let-him-go], or [their-man-inside] if he has agreed to let them in.)",
         "phase": "outcome",
         "requires": [
           "the-heron"

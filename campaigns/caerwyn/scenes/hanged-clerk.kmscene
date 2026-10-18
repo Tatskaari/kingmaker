@@ -631,7 +631,7 @@
       "type": "smoothstep",
       "label": "Suicide, under protest",
       "data": {
-        "condition": "The player has the Hobb lead but hasn't shown Kell it was murder, and the cart can't wait any longer: Prout goes on the cart as a suicide and Kell writes her objection.",
+        "condition": "The player has the Hobb lead but hasn't shown Kell it was murder, and the cart can't wait any longer: Prout goes on the cart as a suicide and Kell writes her objection. Not while the player is still making the case, or finding what would make it (while Tull waits, the body is there to look at); and once they've made Kell the case that it wasn't suicide, backed by something found here she can swear to, it's [signed-murder].",
         "phase": "outcome",
         "requires": [
           "hobb"
@@ -647,7 +647,7 @@
       "type": "smoothstep",
       "label": "Last resort",
       "data": {
-        "condition": "Last resort only: the player has walked away from the case, committed a crime that ends it (an innocent child arrested for the murder, a body cut down and carried off), or the cart has come and gone with nothing suspicious found and no lead at all.",
+        "condition": "Last resort only: the player has walked away from the case, committed a crime that ends it (an innocent child arrested for the murder, a body cut down and carried off), or the cart has come and gone with nothing suspicious found and no lead at all. (Going after the Hobb lead isn't walking away from the case: bring on the cart, and Kell signs Prout in on what they have, [signed-murder] or [signed-suicide].)",
         "phase": "outcome",
         "skill": "",
         "dc": 12

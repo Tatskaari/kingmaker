@@ -127,6 +127,30 @@ test("a cue into an ending gives way to what the player has under way, and names
   assert.match(node(heron, "barge-sails").closing, /^Close where the player is:/, "and it closes where they stand");
 });
 
+test("a route into a bad or mixed ending that could be true at the same moment as a good one's gives way to it, by name (QA round qa2-1018)", () => {
+  const KING = "scenes/kings-morning.kmscene";
+  // Each route into a bad or mixed ending, and the good routes whose moment, come first, it gives way to.
+  const giveWay: Record<string, Record<string, string[]>> = {
+    [SCENE]: { "signed-suicide": ["signed-murder"], "case-lost": ["signed-murder"] },
+    [RAT]: { "after-him": ["let-him-go"], "wait-for-him": ["let-him-go"], manners: ["let-him-go", "their-man-inside"] },
+    [HERON]: { "cast-off": ["in-the-act", "away-with-book"], "give-up": ["away-with-book"], overpowered: ["in-the-act"], attack: ["in-the-act"], ablaze: ["away-with-book", "in-the-act"], sunk: ["away-with-book", "in-the-act"] },
+    [KING]: { "put-off": ["king-acts"], "thrown-away": ["king-acts"] },
+  };
+  // And those that can't be true with a good one at once: Hobb bolted to his master, the trail lost without the Heron, the Master's sword drawn.
+  const apart: Record<string, string[]> = { [RAT]: ["got-away", "trail-goes-cold"], [HERON]: ["cornered"] };
+  const result = (s: any, id: string) => node(s, route(s, id).target).result;
+  for (const [path, s] of sceneFiles()) {
+    const worse = (s.edges as any[]).filter(e => node(s, e.target).kind === "exit" && node(s, e.target).result !== "good").map(e => e.id);
+    assert.deepEqual([...worse].sort(), [...Object.keys(giveWay[path] ?? {}), ...(apart[path] ?? [])].sort(), `${path}: every route into a bad or mixed ending is weighed`);
+    for (const [id, good] of Object.entries(giveWay[path] ?? {})) {
+      for (const g of good) {
+        assert.equal(result(s, g), "good", `${path}: ${g} goes to a good ending`);
+        assert.ok(route(s, id).data.condition.includes(`[${g}]`), `${path}: ${id} gives way to [${g}]`);
+      }
+    }
+  }
+});
+
 test("the Heron's bells are felt coming, and Hep's count falls each time she calls it (QA round qa2-1018: 'Forty to the hatch!' five times over, and no word of the tide all scene)", () => {
   const heron = JSON.parse(files[HERON]!);
   const hep = heron.cast.find((c: any) => c.id === "hep");

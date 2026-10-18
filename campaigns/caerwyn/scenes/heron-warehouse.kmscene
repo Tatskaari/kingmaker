@@ -1327,7 +1327,7 @@
       "type": "smoothstep",
       "label": "Caught",
       "data": {
-        "condition": "The player has been overpowered and thrown in the river, or shut up somewhere in the Heron, by the Crakes or the gang on the Master's word, and nobody has got them out.",
+        "condition": "The player has been overpowered and thrown in the river, or shut up somewhere in the Heron, by the Crakes or the gang on the Master's word, and nobody has got them out. (Once Kell has the Master held, his people stand down: that's [in-the-act], not this.)",
         "phase": "outcome",
         "requires": [
           "kings-grain"
@@ -1356,7 +1356,7 @@
       "type": "smoothstep",
       "label": "Attack",
       "data": {
-        "condition": "With the Master here, the player attacks him, the Crakes or anyone on the floor, meaning to hurt them now: a real fight, not a shove to get past someone.",
+        "condition": "With the Master here, the player attacks him, the Crakes or anyone on the floor, meaning to hurt them now: a real fight, not a shove to get past someone. (A blow that helps Kell hold the Master is part of the arrest: once he's held, it's [in-the-act].)",
         "phase": "outcome",
         "skill": "",
         "dc": 12
@@ -1388,7 +1388,7 @@
       "type": "smoothstep",
       "label": "Gave up",
       "data": {
-        "condition": "The player gives up and leaves the wharf without the proof, leaving the Heron to its night's work.",
+        "condition": "The player gives up and leaves the wharf without the proof, leaving the Heron to its night's work. (Leaving with the true book in hand is [away-with-book], however they go.)",
         "phase": "outcome",
         "skill": "",
         "dc": 12
@@ -1401,7 +1401,7 @@
       "type": "smoothstep",
       "label": "Fire",
       "data": {
-        "condition": "Fire has taken hold of the Heron: a naked light in the grain dust, a brazier knocked over, a diversion got out of hand.",
+        "condition": "Fire has taken hold of the Heron: a naked light in the grain dust, a brazier knocked over, a diversion got out of hand. (If the player was already away with the true book, or Kell already had the Master held, when it happened, that ending stands: [away-with-book] or [in-the-act].)",
         "phase": "outcome",
         "skill": "",
         "dc": 12,
@@ -1417,7 +1417,7 @@
       "type": "smoothstep",
       "label": "Sunk",
       "data": {
-        "condition": "The barge is going down with the King's grain in her: holed, swamped, or cut loose and swept onto the piers.",
+        "condition": "The barge is going down with the King's grain in her: holed, swamped, or cut loose and swept onto the piers. (If the player was already away with the true book, or Kell already had the Master held, when it happened, that ending stands: [away-with-book] or [in-the-act].)",
         "phase": "outcome",
         "skill": "",
         "dc": 12,
