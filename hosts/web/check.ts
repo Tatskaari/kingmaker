@@ -28,6 +28,11 @@ import { keyNeedles, readSite, siteProblems, textOf } from "./site.ts";
  *   worker, the server playing on), and a second tab told the game is open in this one (it takes it
  *   over); a browser that won't keep anything is told so.
  *
+ * Then the zoo (M6): ?zoo=ring starts on the fake GM with no key asked for, the client worker visits
+ * the combat ring as the page comes up, and its fight is on the fight's screen; the player's turn
+ * comes (the other side's moves skipped to it with f), e ends it and the other side's moves play
+ * until it's theirs again in round 2; n fights it again from the start, and o's list sets the dogs.
+ *
  * Throughout: no page error, and no request leaves the origin (anything else is refused and failed),
  * but the key's check with OpenRouter, faked here.
  *
@@ -72,6 +77,7 @@ async function main(argv: string[]): Promise<void> {
     await theFakeGm(browser, served.url);
     await aKeyFromTheForm(browser, served.url);
     await thePlay(browser, served.url);
+    await theZoo(browser, served.url);
   } catch (error) {
     fail((error as Error).message);
   } finally {
@@ -673,6 +679,62 @@ async function noStorage(browser: Browser, url: string): Promise<void> {
   } finally {
     await context.close();
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The zoo (M6)
+
+/**
+ * ?zoo=ring: no key asked for (the zoo plays on the fake GM), the combat ring's fight on the fight's
+ * screen as the page comes up; the player's turn (f skips the other side's moves to it), e ends it, the
+ * other side's moves play and it comes round again; n fights it again from its start; o lists the
+ * line-ups, and the third sets the dogs.
+ */
+async function theZoo(browser: Browser, url: string): Promise<void> {
+  const context = await browser.newContext({ viewport: VIEWPORT });
+  const origin = new URL(url).origin;
+  const seen = await watch(context, origin);
+  try {
+    const { page } = await open(context, url, `zoo=ring&size=${COLS}x${ROWS}`);
+    await bothStarted(page, seen, "?zoo=ring", { fake: "dev", key: false });
+    if (!(await page.isVisible("#gate"))) ok("?zoo=ring: no key asked for (the zoo plays on the fake GM)");
+    else fail("?zoo=ring: the page asked for a key");
+    await waitFor(page, "The combat ring · Round 1", "?zoo=ring: the combat ring's fight, on the fight's screen", 60000);
+    await waitFor(page, "Master Sallow|Josiah Sallow", "Sallow and the Crakes in the order across the top", 10000);
+    await toMyTurn(page, "the player's turn comes round (f skips the other side's moves to it)");
+    await shot(page, "zoo-ring");
+    await press(page, "e");
+    await waitFor(page, "One move at a time|Round 2 · ", "e ends the turn: the other side's moves play", 20000);
+    await toMyTurn(page, "and the player's turn comes round again, in round 2", 2);
+    await shot(page, "zoo-ring-round-2");
+    await press(page, "n");
+    await waitFor(page, "The combat ring · Round 1", "n fights it again: a new fight, from round 1", 30000);
+    await press(page, "o");
+    await waitFor(page, "Other foes.*A pack of dogs", "o lists the line-ups to fight instead", 10000);
+    await shot(page, "zoo-foes");
+    await press(page, "3");
+    await waitFor(page, "brindle|mastiff", "the third picked: the pack of dogs in the ring", 30000);
+    await shot(page, "zoo-dogs");
+    stayedHome(seen, origin, "the zoo");
+    noErrors(seen, "the zoo");
+  } finally {
+    await context.close();
+  }
+}
+
+/**
+ * The player's turn on the fight's screen (its side panel's "▶ YOUR TURN", in capitals: the keys' "skip
+ * to your turn" isn't it), skipping the other side's moves to it (f) while they play; `round`, the
+ * round it must be.
+ */
+async function toMyTurn(page: Page, what: string, round = 1): Promise<void> {
+  const mine = `▶ YOUR TURN.*Round ${round} · `;
+  const end = Date.now() + 60000;
+  while (!(await until(page, `new RegExp(${JSON.stringify(mine)}, "s").test(km.text())`, 1500))) {
+    if (Date.now() > end) { await shot(page, "failed"); throw new Error(`${what} (no /${mine}/ within 60s)`); }
+    await press(page, "f");
+  }
+  ok(what);
 }
 
 main(process.argv.slice(2)).catch((error: unknown) => {
