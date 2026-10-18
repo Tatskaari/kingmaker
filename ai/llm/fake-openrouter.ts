@@ -24,10 +24,10 @@ import type { ToolCall } from "./tools.ts";
  * - `streamMs` and `decisionDelayMs`: a GM's reply written a word at a time, and a slow decider.
  * - `byNameDelayMs` and `suggestDelayMs`: slow structured calls (by the schema's name: the notes on
  *   a reply's marks), and slow suggested lines.
- * - `toolCalls`: a tool loop's calls (runTools: the memory reviews), by the loop's first tool
- *   (`save_memory`: the memories agent; `search_lore`: the lore agent). Its first round answers with
- *   them; a round that sends their outputs back answers "Done.". A loop without any answers as a
- *   reply does.
+ * - `toolCalls`: a tool loop's calls (runTools: the memory reviews' world-facts agent), by the loop's
+ *   first tool (`search_lore`). Its first round answers with them; a round that sends their outputs
+ *   back answers "Done.". A loop without any answers as a reply does. (The notes review is a
+ *   structured call, answered by `byName.gm_notes`.)
  * - The two-part GM (docs/two-part-design.md): its mouthpiece (the structured call named `reply`)
  *   answers the next of `replies` as its narration, with no check, or with `mouthpiece.check`'s on
  *   every reply but an opening or a closing (five outcomes the fake writes); a closing closes, unless
