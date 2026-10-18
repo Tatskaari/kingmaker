@@ -37,7 +37,7 @@ export const PERFORM_ACTION: ToolDef = {
       feature: { type: "string", description: "feature: the feature's id, as the player's sheet has it." },
       skill: { type: "string", enum: [...SKILLS], description: "check: the skill." },
       dc: { type: "integer", description: "check: the DC (10 easy, 13 moderate, 15 hard, 18 very hard)." },
-      narration: { ...NARRATION, description: "What the table hears as they make the attempt, up to the moment the dice decide it: the swing, the aim, the words of the spell. Never whether it works. One or two sentences." },
+      narration: { ...NARRATION, description: "What the table hears as they make the attempt, up to the moment the dice decide it: the swing, the aim, the words of the spell ('you swing at his gut', never 'you punch him in the gut'). Never whether it works, and never the player's own words quoted back. One or two sentences." },
     },
   },
 };

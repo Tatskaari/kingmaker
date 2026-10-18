@@ -107,7 +107,7 @@ function featureIn(line: string, sheet: ActingSheet): string | undefined {
  * the hook"), and what's as often something else (hit, strike, smash, bash, kill; a slap or an
  * elbow at someone). Present tense only: the past is what happened.
  */
-const BLOW = /\b(?:attack(?:s|ing)?|stab(?:s|bing)?|punch(?:es|ing)?|kick(?:s|ing)?|shoot(?:s|ing)?|slash(?:es|ing)?|smite(?:s)?|smiting|headbutt(?:s|ing)?|bludgeon(?:s|ing)?|skewer(?:s|ing)?|impal(?:e|es|ing)|behead(?:s|ing)?|pummel(?:s|ling)?)\b/i;
+const BLOW = /\b(?:attack(?:s|ing)?|stab(?:s|bing)?|punch(?:es|ing)?|kick(?:s|ing)?|shoot(?:s|ing)?|slash(?:es|ing)?|smite(?:s)?|smiting|headbutt(?:s|ing)?|bludgeon(?:s|ing)?|skewer(?:s|ing)?|impal(?:e|es|ing)|behead(?:s|ing)?|pummel(?:s|ling)?|slug(?:s|ged|ging)?|wallop(?:s|ed|ing)?|clobber(?:s|ed|ing)?|thump(?:s|ed|ing)?)\b/i;
 const AT = /\b(?:swing(?:s|ing)?|swipe(?:s)?|swiping|lunge(?:s)?|lunging|thrust(?:s|ing)?|throw(?:s|ing)?|hurl(?:s|ing)?|fling(?:s|ing)?|lob(?:s|bing)?|toss(?:es|ing)?|fire(?:s)?|firing|loose(?:s)?|loosing|let\s+fly|aim(?:s|ing)?|launch(?:es|ing)?)\b[^.!?;:]{0,40}?\bat\b/i;
 const DEED = /\b(?:hit(?:s|ting)?|strike(?:s)?|striking|smash(?:es|ing)?|bash(?:es|ing)?|whack(?:s|ing)?|clout(?:s|ing)?|kill(?:s|ing)?|cut\s+(?:him|her|them)\s+down|run\s+(?:him|her|them)\s+through)\b/i;
 /** A slap, an elbow or a knee at someone: a pronoun, a person, or a name (a capital letter: "slap Cob", not "slap down a crown"). */

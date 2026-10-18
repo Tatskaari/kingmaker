@@ -153,7 +153,7 @@ const SCHEMA = {
   properties: {
     check: { anyOf: [{ type: "null" }, { type: "object", additionalProperties: false, required: ["skill", "dc"], properties: { skill: { type: "string", enum: [...SKILLS] }, dc: { type: "integer" } } }] },
     // docs/combat-gm.md: a fight breaking out at the end of this reply, decided before a word of it.
-    roll_for_initiative: { anyOf: [{ type: "null" }, { type: "object", additionalProperties: false, required: ["foes", "allies", "why"], properties: { foes: { type: "array", items: { type: "string" } }, allies: { type: "array", items: { type: "string" } }, why: { type: "string" } } }] },
+    roll_for_initiative: { anyOf: [{ type: "null" }, { type: "object", additionalProperties: false, required: ["foes", "allies", "why", "on"], properties: { foes: { type: "array", items: { type: "string" } }, allies: { type: "array", items: { type: "string" } }, why: { type: "string" }, on: { type: "array", items: { type: "string", enum: [...BANDS] } } } }] },
     narration: { type: "string" },
     outcomes: { anyOf: [{ type: "null" }, OUTCOMES] },
   },
@@ -446,8 +446,8 @@ function waitingEndings(scene: Scene, view: TurnView, who: Character[]): Array<{
  * scene from the conversation's turns to everyone's in initiative order, each narrated by the GM.
  */
 const FIGHT_START = `## When a fight breaks out
-- \`roll_for_initiative\` comes after \`check\`, before the narration: null unless a fight starts in this reply. A fight is when someone means to hurt someone and blows are about to be traded with nobody backing off: they attack and won't be talked down, or the player attacks someone who fights back. Then fill it in: \`foes\`, the ids (or names) of the people who'll fight the player; \`allies\`, those who'll fight beside them (whoever came with the player, unless their card says they wouldn't: standing between the two sides is fighting on the player's side); \`why\`, a few words on what it's about. The player is always in it. Leave \`check\` null then.
-- Your narration takes the fight up to its first blow and stops there, ending on "Roll for initiative!". From then on the game goes round everyone in initiative order, and you narrate each turn as it comes, with the dice deciding what lands.
+- \`roll_for_initiative\` comes after \`check\`, before the narration: null unless a fight starts in this reply. A fight is when someone means to hurt someone and blows are about to be traded with nobody backing off: they attack and won't be talked down, or the player attacks someone who fights back. Then fill it in: \`foes\`, the ids (or names) of the people who'll fight the player; \`allies\`, those who'll fight beside them (whoever came with the player, unless their card says they wouldn't: standing between the two sides is fighting on the player's side); \`why\`, a few words on what it's about; \`on\`, empty, unless you've called a check whose outcomes decide whether it comes to blows: then the outcomes that start the fight (a bluff that fails badly: ["major_failure"]), each of which ends on "Roll for initiative!" while the others don't. The player is always in it.
+- Your narration (or those outcomes) takes the fight up to its first blow and stops there, ending on "Roll for initiative!". From then on the game goes round everyone in initiative order, and you narrate each turn as it comes, with the dice deciding what lands. If the player's own blow starts it and no dice line has settled that blow, stop at the swing: whether it lands is the fight's to decide.
 - Not for a shove, a slap or a scuffle that's over as soon as it starts, nor a threat that can still be talked down: those are the conversation's, with a check if it could go either way.`;
 
 /** What's ours after the user's prompt: the reply format (a talk's has no dice), a fight breaking out (not in a talk), who says each line, what the player sees and hears (and the player character, and where the scene plays), and the companion. */
@@ -729,7 +729,9 @@ export async function speak(scene: Scene, view: TurnView, directive: string[], h
   const outcomes = whole ? inReach(scene, view, Object.fromEntries(BANDS.map(b => [b, asKnown(out.outcomes![b], after).text])) as Record<Band, string>) : undefined;
   const check = whole && outcomes ? { skill: out.check!.skill, dc: out.check!.dc, outcomes: Object.fromEntries(BANDS.map(b => [b, said(outcomes[b])])) as Record<Band, Reply> } : undefined;
   const initiative = dice ? fightOf(scene, view, out.roll_for_initiative) : undefined;
-  return { narration: said(narration.text), ...(check && !initiative ? { check } : {}), ...(initiative ? { initiative } : {}), closes: out.closes !== false, costUsd: result.costUsd, firstTextMs: result.firstTextMs };
+  // A fight only some of a check's outcomes start keeps the check (its `on`); one that starts whatever comes up has none.
+  const keepCheck = check && (!initiative || !!initiative.on?.length);
+  return { narration: said(narration.text), ...(keepCheck ? { check } : {}), ...(initiative ? { initiative: keepCheck ? initiative : { foes: initiative.foes, allies: initiative.allies, why: initiative.why } } : {}), closes: out.closes !== false, costUsd: result.costUsd, firstTextMs: result.firstTextMs };
 }
 
 /**
@@ -748,7 +750,8 @@ export function fightOf(scene: Scene, view: TurnView, asked: Initiative | null |
   const foes = ids(asked.foes);
   // The companion fights beside the player unless the GM sets them against them.
   const allies = [...new Set([...ids(asked.allies), ...companionsOf(scene, view).map(c => c.id)])].filter(id => !foes.includes(id));
-  return foes.length ? { foes, allies, why: String(asked.why ?? "").trim() } : undefined;
+  const on = (Array.isArray(asked.on) ? asked.on : []).filter((b): b is Band => BANDS.includes(b as Band));
+  return foes.length ? { foes, allies, why: String(asked.why ?? "").trim(), ...(on.length ? { on } : {}) } : undefined;
 }
 
 /**

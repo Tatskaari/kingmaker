@@ -193,7 +193,7 @@ function spoken(narration: string, schema: Schema, input: NonNullable<Request["i
   // A fight breaking out (docs/combat-gm.md) when the player's line has the recipe's cue in it.
   const line = input.filter(m => m.role === "user").at(-1)?.content.toLowerCase() ?? "";
   const fight = recipe.fight && !closing && !opening && !!schema.properties?.roll_for_initiative && line.includes(recipe.fight.on.toLowerCase())
-    ? { foes: recipe.fight.foes, allies: recipe.fight.allies ?? [], why: "a fight breaks out" } : null;
+    ? { foes: recipe.fight.foes, allies: recipe.fight.allies ?? [], why: "a fight breaks out", on: [] } : null;
   if (fight) return { check: null, roll_for_initiative: fight, narration: `${said} Roll for initiative!`, outcomes: null, ...(closing ? { closes: !recipe.holds } : {}) };
   return { check: dice ? { skill: dice.skill, dc: dice.dc } : null, ...(schema.properties?.roll_for_initiative ? { roll_for_initiative: null } : {}), narration: said, outcomes: dice ? outcomes : null, ...(closing ? { closes: !recipe.holds } : {}) };
 }

@@ -243,8 +243,10 @@ export interface ReplyResponse { entries: Reply[]; gm: { offered?: string }; fir
 /**
  * The mouthpiece's roll_for_initiative (docs/combat-gm.md): a fight breaks out at the end of this
  * reply, with these of the cast against the player and these beside them (the player is always in it).
+ * `on`: with a check, the outcomes that start it (toll1-1018: a Deception failed badly and its outcome
+ * ended on "Roll for initiative!", but nothing started); none, whatever comes up.
  */
-export interface Initiative { foes: string[]; allies: string[]; why: string }
+export interface Initiative { foes: string[]; allies: string[]; why: string; on?: Band[] }
 
 /** What someone does on their turn in a fight: perform_action's verb, at whom, what with (move_towards is a move, `away` backing off), and the narration up to the attempt. */
 export interface CombatAction { action: CombatVerb; target?: string; spell?: string; weapon?: string; feature?: string; skill?: Skill; dc?: number; away?: boolean; narration: string }

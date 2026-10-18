@@ -1,8 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { CombatMove, CombatRequest, CombatResponse, ReplyResponse, SettleRequest } from "../../../shared/protocol/ai.ts";
+import { bandOf, BANDS, type Band } from "../../../shared/gm/two-part.ts";
+import type { CombatMove, CombatRequest, CombatResponse, Reply, ReplyResponse, SettleRequest } from "../../../shared/protocol/ai.ts";
 import { keyParts } from "../../../shared/protocol/keys.ts";
-import { openedGame, sceneNow } from "../host/testing.ts";
+import { nextCheck, openedGame, sceneNow } from "../host/testing.ts";
 
 /**
  * A fight in the conversation (docs/combat-gm.md), on the memory host with the hanged clerk: the
@@ -97,4 +98,27 @@ test("a blow from out of reach is refused before anything's rolled, and the GM i
   assert.equal(done.refused, true);
   assert.match(done.result, /^Out of reach: Cob is \d+ ft away, and a melee blow reaches 5 ft\. move_towards first/);
   assert.deepEqual(done.lines, []);
+});
+
+test("a fight only some of a check's outcomes start (toll1-1018: a bluff failed badly, and its outcome called for initiative with nothing after it): it starts on those, and not on the others", async () => {
+  for (const starts of [true, false]) {
+    const { host, wren, scene, script } = await openedGame(7, "fighter", { asIs: true });
+    const band = bandOf(nextCheck(host, scene.controllerId, "deception", 15));
+    const outcomes = Object.fromEntries(BANDS.map(b => [b, { speaker: "gm", kind: "narration", text: `Outcome: ${b}.` }])) as Record<Band, Reply>;
+    const on = starts ? [band] : BANDS.filter(b => b !== band);
+    script.then("reply", { entries: [{ speaker: "gm", kind: "narration", text: "Cob squints at your story." }], gm: {}, firstTextMs: 3, check: { skill: "deception", dc: 15, outcomes }, initiative: { foes: ["cob"], allies: [], why: "a bluff called", on }, usage } satisfies ReplyResponse);
+    assert.equal(host.as(wren).say({ text: "Found it in the gutter, honest." }), undefined);
+    await host.drain();
+    const now = sceneNow(host, scene.id);
+    assert.equal(now.lines.some(l => l.kind === "system" && l.text.startsWith("Combat!")), starts, `the check came up ${band}: a fight ${starts ? "starts" : "doesn't"}`);
+    assert.equal(!!now.gm.combat, starts);
+  }
+});
+
+test("a fight that breaks out on the player's own blow (toll1-1018: a rapier run in at arm's length left the world's player 25 feet off) starts with them beside its target", async () => {
+  const { line, asked, script } = await fight(closeAndHit);
+  script.then("act", { mechanic: { kind: "attack", target: "cob" }, usage });
+  await line("I punch Cob in the ear.");
+  const first = asked[0]!;
+  assert.ok(first.combat.fighters.find(f => f.id === "player")!.feet.cob! <= 7, "beside Cob as the fight starts");
 });

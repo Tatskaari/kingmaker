@@ -138,7 +138,9 @@ export function afterTwoPartReply(tx: TxCtx, plan: SayPlan, answer: ReplyRespons
 
   if (plan.outcome?.windDown) return windDown(tx, at, plan, answer.closes !== false || !!at.gm.twoPart.held);
   // The reply rolled for initiative (docs/combat-gm.md): the fight takes the scene's turns from here.
-  if (answer.initiative) return startCombat(tx, at, { ...plan, lines: [...plan.lines, ...spoken.lines] }, answer.initiative);
+  const fights = answer.initiative && (!answer.initiative.on?.length || (!!spoken.check && answer.initiative.on.includes(spoken.check.band)));
+  if (answer.initiative && fights) return startCombat(tx, at, { ...plan, lines: [...plan.lines, ...spoken.lines] }, answer.initiative);
+  if (answer.initiative) tx.log(`[scene ${at.scene.id} turn ${plan.n}] no fight: the check came up ${spoken.check?.band}, not ${answer.initiative.on?.join(" or ")}`);
 
   // A talk's lines to choose come with its settle (talk.suggest: town-design §3.6), not the suggest job.
   if (at.scene.kind !== "talk") suggestAfter(tx, at.scene, turnId);

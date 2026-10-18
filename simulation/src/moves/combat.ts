@@ -42,6 +42,7 @@ export function startCombat(tx: TxCtx, at: At, plan: SayPlan, initiative: Initia
   const cast = presentCast(at.graph, at.gm);
   const foes = cast.filter(c => initiative.foes.includes(c.id));
   const allies = cast.filter(c => initiative.allies.includes(c.id) && !initiative.foes.includes(c.id));
+  closeIn(tx, at, plan, [...foes, ...allies].map(c => c.id));
   const rolled = withRules(tx, at, plan.n, (rules, session) => rollInitiative(rules, session, ["player", ...allies, ...foes]));
   for (const line of rolled.lines) addEntry(tx, at.scene, { turn: plan.n, speaker: "dice", kind: "roll", text: line });
   const side = (id: string) => (foes.some(f => f.id === id) ? "foes" : "party") as Fighter["side"];
@@ -50,6 +51,21 @@ export function startCombat(tx: TxCtx, at: At, plan: SayPlan, initiative: Initia
   addEntry(tx, at.scene, { turn: plan.n, speaker: "system", kind: "system", text: `Combat! In initiative order: ${state.order.map(f => nameOf(tx, at, f.id)).join(", ")}.` });
   tx.log(`[scene ${at.scene.id} turn ${plan.n}] combat: ${state.order.map(f => `${f.id} ${f.initiative}`).join(", ")} (${initiative.why})`);
   return turnUp(tx, at, plan, 0, true);
+}
+
+/**
+ * A fight that breaks out on the player's own blow or grab this turn starts with them beside its
+ * target (toll1-1018: a rapier run into the man with the cup at arm's length, outside the fight,
+ * left the world's player 25 feet off, and the first turn of the fight went on crossing the sand).
+ */
+function closeIn(tx: TxCtx, at: At, plan: SayPlan, fighters: string[]): void {
+  const m = plan.forced ?? plan.read;
+  const target = m && (m.kind === "attack" || m.kind === "wrestle") && fighters.includes(m.target) ? m.target : undefined;
+  if (!target || (m!.kind === "attack" && !reachFor(tx, at, plan.n, "player", m!.weapon).melee)) return;
+  const played = inPlay(tx, at.scene, at.graph, at.gm, plan.n);
+  const blank = { name: "", kind: "", text: "", add: [], remove: [] };
+  applyOps(played.place.world, [{ ...blank, op: "place", what: "player", to: target, how: "toward", feet: 999 }], plan.n, "rules");
+  playedOut(tx, at.scene, at.graph, at.gm, played);
 }
 
 /**
