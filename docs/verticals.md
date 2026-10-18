@@ -411,7 +411,7 @@ v2 can replace the prototype for the demo arc, in a terminal, when:
 
 **Still only the prototype's at that point:**
 - the browser builds and the PR previews (V14: built early, so v2 has them now, beside the prototype's);
-- the zoo, and places from a description (`src/game/map/generate`) (V19);
+- the zoo, and places from a description (`src/game/map/generate`) (V19: the zoo's combat ring is built, M6);
 - problem reports (V16);
 - the eval suites not yet moved, and the nine scenes off the arc that some of them use (`blocked-entrance`, the four `crossroads` scenes, `garrows-toll`, `green-standoff`, `holed`, `warren-hostage`): they convert with the campaign tool when their suites move;
 - the prototype's other approaches and the scribe, which aren't ported.
@@ -426,6 +426,7 @@ The order after parity is the user's call. A suggestion:
 - **V17 · Hosted.** The AI service on Cloud Run or Lambda, at an HTTPS URL with its bearer token and the key in a secret store; its stores in Cloud Storage and Firestore behind V0's interfaces (the docs service's store becomes asynchronous, a change to code the prototype shares); SpacetimeDB standalone on a VM; backups of both. From here, schema changes are additive or migrated: a publish that conflicts wipes data.
 - **V18 · One world.** Components for the words in `narrative`; one registry of interaction rules, in TypeScript, in place of the scenes' `systems.ts` and the fights' own coding (the eight disagreements in `src/game/README.md`); `applyOps` as a check plus a handler per operation; walls that stop areas; fights on the same world; typed `world_event`s for everything the look director plays. Guarded by the zoo's world expectations and the stage manager's F1 of 0.82.
 - **V19 · Campaigns as packs, and the zoo.** Install from a folder or a git tag, by version, running the campaign's exhibits at install; rules, moves, components and prefabs as data (`rule_def`, `move_def`, `component_def`, `prefab`), with `PHYSICS` and `WORLD_LANGUAGE` generated from them; the skep of bees as the acceptance test; the zoo (10 maps, 146 exhibits) as a second campaign, with its tour in CI.
+  - **Built in part (M6, [campaigns/zoo/README.md](../campaigns/zoo/README.md)):** the zoo as a second campaign, installed in the simulation beside Caerwyn (no GM plays it), with its first exhibit as data: the combat ring (the scenario's `exhibits`; the ring's map, place and scene), its fight set out from those files through `startFight`, opened from the title (`z`), `npm run zoo`, the page's `?zoo` and headless play (`play new --zoo ring`), fought again or with other foes in one key. Still to come: the packs by version, rules as data, the other exhibits (world effects, interactions, scenes, the arena's other rings), the zoo as a place to walk and its tour.
 
 ---
 

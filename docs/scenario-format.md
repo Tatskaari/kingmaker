@@ -58,6 +58,11 @@ interface ScenarioDocument {
 
 The diagram shows scenes and maps as nodes, laid out by `layout`.
 
+**Two keys the game reads that the plugin keeps as they are** (M6, the zoo):
+
+- `gm`: who plays the campaign's scenes. The two-part GM unless it says (`"two-part"`), the old pipeline (`"pipeline"`, the tests'), or no GM (`"none"`): the zoo's, whose exhibits the simulation sets out itself. A campaign with no GM is installed in the simulation alone, since the AI service serves one campaign at a time (the story's).
+- `exhibits`: the zoo's ([campaigns/zoo/README.md](../campaigns/zoo/README.md)), what a visit can open, each `{ id, title, description, scene, fight? }`. An exhibit is set out from the campaign's own files: its scene's cast (with their statblocks and weapons), the scene's place (where everyone starts, its lit things to knock over) and the map whose region lays it. A fight exhibit's `fight` is `{ allies?, foes }`: who fights beside the player, and the line-ups of foes to pick from (`{ id, title, description?, fighters }`, the first the one it starts with), each fighter by cast id with how the fight's AI plays them (`ally`, `bruiser`, `villain`, `coward`, `brawler`, `archer`, `bystander`). The campaign check and the install hold an exhibit to its files ([shared/zoo/exhibits.ts](../shared/zoo/exhibits.ts)): its scene the scenario's, laid on a map; every fighter in its cast with a statblock, started by its place, playing a role the AI knows; each line-up with fighters, none an ally too; everyone in each line-up's fight on a tile of their own a person can stand on.
+
 ## A map (`maps/<id>.kmmap`)
 
 These are the game's map fields (shared/map/tiles.ts `MapFile`), under the envelope. The grid is rows of legend characters, north at the top. Each map defines its own legend:

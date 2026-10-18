@@ -1,6 +1,6 @@
 # Campaigns
 
-A campaign is a folder of data that the game installs in both of its services: the simulation gets the structure and the scenes, the AI service everything, the lore too. Caerwyn ([caerwyn/](caerwyn/)) is the only one so far.
+A campaign is a folder of data that the game installs in both of its services: the simulation gets the structure and the scenes, the AI service everything, the lore too. Caerwyn ([caerwyn/](caerwyn/)) is the story. The zoo ([zoo/](zoo/README.md), M6) is the game's features laid out as exhibits to see and try, the combat ring first, in the same format (its scenario lists the exhibits, `exhibits`); no GM plays it (its scenario's `gm` is `none`), so it goes to the simulation alone, beside Caerwyn.
 
 | Path | What it is |
 |---|---|
