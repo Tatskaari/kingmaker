@@ -43,12 +43,11 @@ import { asWritten, readReply, streamed } from "./voice.ts";
 const tone = () => prompt("tone-comic");
 
 const FORMAT = `## How to reply
-Reply as JSON with two fields.
-- \`narration\`: what you say to the player this turn, with a blank line between paragraphs as usual.
-- \`check\`: null on most turns. But when the player makes a clear, risky attempt at a turning point, whether it works is for the dice to say, not you: when they try to frighten, persuade, trick or press someone who could go either way (break or bolt, give in or dig in), or try something whose failure would matter (seeing through a lie, a climb, a lock, a close look at something that hides a clue), and the roll would move the scene towards a beat, call for a skill check instead of deciding it yourself. Never for a remark, a compliment or a question: answer those in the story. Where your prep's routes say the dice decide something the player is trying, use that route's skill and DC. Then \`narration\` sets up the attempt and stops before the result, and \`check\` gives the skill, a DC (10 easy, 13 moderate, 15 hard, 18 very hard) and five outcomes. The game rolls the dice with the player's own modifiers, and the player sees your narration, the roll, and the one outcome that came up.
-  What your prep says for certain wins over the dice. Where a path or someone's card says what an approach gets (no dice; what they do for a promise that answers their fear, or for someone they trust; what coin never buys), and the player has made that approach, it gets exactly that, with no check. The dice are only for what your prep leaves open (it could go either way, or a check suits it) or doesn't cover. What it says never works doesn't, with a roll or without: coin offered for a look at Cob's boot gets haggling, never the look. And a check is for what the player has just tried in their turn, never for something you're still waiting for them to say or do, nor for what's already in plain view or already told: what's there to see, they see.
-  The narration before a check stops at the attempt: the player reaching, looking or speaking, and where everyone is as they do. Nothing the roll is for comes before the dice: not what they find, see or hear, not how someone takes it, and, where it's whether anyone notices, nobody looks up, stops or watches their hands before the dice.
-  Write each outcome as the next words of the reply, carrying straight on from the narration, in the same voice and length as any reply (the characters react, then stop for the player). Each one follows on from the narration as you wrote it and never undoes it: what it had someone say, do or offer stands, so an offer made there is still on the table after a failure, which goes wrong another way (a higher price, a condition, someone interrupting). And each says only what the roll decided, once: never what the narration has already said.
+Reply as JSON with three fields, in this order: \`check\`, \`narration\`, \`outcomes\`.
+- \`check\` comes first: decide it before you write a word of the narration. It's null on most turns. What your prep says for certain wins over the dice: where a path, someone's card or the per-turn note says what an approach gets (no dice; what they do for a promise that answers their fear, or for someone they trust; what coin never buys), and the player has made that approach, it gets exactly that, with no check. What it says never works doesn't, with a roll or without: coin offered for a look at Cob's boot gets haggling, never the look. And a check is for what the player has just tried in their turn, never for something you're still waiting for them to say or do, nor for what's already in plain view or already told: what's there to see, they see.
+  The dice are for what your prep leaves open (it could go either way, or a check suits it) or doesn't cover. When the player makes a clear, risky attempt at a turning point, whether it works is for the dice to say, not you: when they try to frighten, persuade, trick or press someone who could go either way (break or bolt, give in or dig in), or try something whose failure would matter (seeing through a lie, a climb, a lock, a close look at something that hides a clue), and the roll would move the scene towards a beat, give the skill and a DC (10 easy, 13 moderate, 15 hard, 18 very hard) instead of deciding it yourself. Never for a remark, a compliment or a question: answer those in the story. Where your prep's routes say the dice decide something the player is trying, use that route's skill and DC. The game rolls the dice with the player's own modifiers, and the player sees your narration, the roll, and the one outcome that came up.
+- \`narration\`: what you say to the player this turn, with a blank line between paragraphs as usual. With a check, it's the setup alone, a few sentences written as if you don't yet know how the roll goes, and it stops at the attempt: the player reaching, looking, pushing or speaking, and where everyone is as they do. Nothing the roll is for comes before the dice: not whether it works (a lock holding or giving, a gap squeezed through, a mark made out), not what they find, see or hear, not how someone takes it, and, where it's whether anyone notices, nobody looks up, stops or watches their hands.
+- \`outcomes\`: null without a check. With one, its five outcomes, and everything the roll decides is in them. Write each as the next words of the reply, carrying straight on from the setup, in the same voice and length as any reply (the characters react, then stop for the player). Each one follows on from the setup as you wrote it and never undoes it: what it had someone say, do or offer stands, so an offer made there is still on the table after a failure, which goes wrong another way (a higher price, a condition, someone interrupting). And each says only what the roll decided, once: never what the setup has already said.
   - major_failure (missed by 5 or more): it goes wrong, with a cost: offence taken, a higher price, a wrong impression, a door shut for now.
   - minor_failure (missed by 1 to 4): no progress, a small complication, and a hint of another way in.
   - barely_passed (made it, by 0 to 2): the next step, with a catch or only part of it.
@@ -95,22 +94,28 @@ Their body and mind are the player's. Never give them a wound, an ache, tirednes
 ## Where the scene plays
 This scene plays in its place, as your prep's "The place" has it. When the player sets off somewhere else, follow them as far as its edge (out of the door, to the top of the stairs) and stop there: what's at the other end is another scene's, which the story opens when this one ends. Never narrate the way there, arriving, or anything that happens there.`;
 
+/** A check's five outcomes, each the next words of the reply. */
+const OUTCOMES = { type: "object", additionalProperties: false, required: [...BANDS], properties: Object.fromEntries(BANDS.map(b => [b, { type: "string" }])) };
+
+/**
+ * The reply (FORMAT): the check decided first, its skill and DC, then the narration (with a check,
+ * its setup alone), then the outcomes. QA round qa3-1018: with the narration first and the check
+ * after it, the model narrated the attempt through to its result and called the check as an
+ * afterthought ("the lock holds… The door remains shut", then a success; the cord mark shown and
+ * recorded, then a failure), whatever the format's words said; deciding the check before a word is
+ * written makes the narration the setup. The narration still streams, a few tokens in.
+ */
 const SCHEMA = {
-  type: "object", additionalProperties: false, required: ["narration", "check"],
+  type: "object", additionalProperties: false, required: ["check", "narration", "outcomes"],
   properties: {
+    check: { anyOf: [{ type: "null" }, { type: "object", additionalProperties: false, required: ["skill", "dc"], properties: { skill: { type: "string", enum: [...SKILLS] }, dc: { type: "integer" } } }] },
     narration: { type: "string" },
-    check: { anyOf: [{ type: "null" }, {
-      type: "object", additionalProperties: false, required: ["skill", "dc", "outcomes"],
-      properties: {
-        skill: { type: "string", enum: [...SKILLS] }, dc: { type: "integer" },
-        outcomes: { type: "object", additionalProperties: false, required: [...BANDS], properties: Object.fromEntries(BANDS.map(b => [b, { type: "string" }])) },
-      },
-    }] },
+    outcomes: { anyOf: [{ type: "null" }, OUTCOMES] },
   },
 };
 
-/** A talk's: no check (TALK_FORMAT). */
-const NO_DICE = { ...SCHEMA, properties: { ...SCHEMA.properties, check: { type: "null" } } };
+/** A talk's: its narration and no check (TALK_FORMAT). */
+const NO_DICE = { type: "object", additionalProperties: false, required: ["narration", "check"], properties: { narration: { type: "string" }, check: { type: "null" } } };
 
 /** The reply's schema: a closing that may wait once says whether it closed, { closes } beside the reply; a talk's (`dice` false) has no check. */
 export const replySchema = (mayHold: boolean, dice = true): Record<string, unknown> => {
@@ -606,7 +611,7 @@ export async function speak(scene: Scene, view: TurnView, directive: string[], h
     json: { name: "reply", schema }, calls: how.calls,
     ...(show ? { onText: (raw: string) => { const said = narrationOf(raw); if (said) show(asKnown(said.text, unheard, { partial: !said.done }).text); } } : {}),
   });
-  const out = JSON.parse(result.text) as { narration: string; check: { skill: Skill; dc: number; outcomes: Record<Band, string> } | null; closes?: boolean };
+  const out = JSON.parse(result.text) as { check: { skill: Skill; dc: number } | null; narration: string; outcomes?: Record<Band, string> | null; closes?: boolean };
   const said = (text: string): Reply => {
     const { text: words, marked } = readReply(scene, view, text.trim());
     return { speaker: "gm", kind: "narration", text: words, ...(marked.speech.length ? { markup: how.byKey({ speech: marked.speech }) } : {}) };
@@ -614,9 +619,9 @@ export async function speak(scene: Scene, view: TurnView, directive: string[], h
   const narration = asKnown(out.narration, unheard);
   // An outcome follows the narration: a name said aloud there has been heard.
   const after = unheard.filter(u => !narration.heard.includes(u.id));
-  const whole = dice && out.check && SKILLS.includes(out.check.skill) && Number.isInteger(out.check.dc) && BANDS.every(b => typeof out.check!.outcomes?.[b] === "string");
+  const whole = dice && out.check && SKILLS.includes(out.check.skill) && Number.isInteger(out.check.dc) && BANDS.every(b => typeof out.outcomes?.[b] === "string");
   // Each outcome's names as the player knows them, and its failures kept from sending away whoever holds what the player still needs.
-  const outcomes = whole ? inReach(scene, view, Object.fromEntries(BANDS.map(b => [b, asKnown(out.check!.outcomes[b], after).text])) as Record<Band, string>) : undefined;
+  const outcomes = whole ? inReach(scene, view, Object.fromEntries(BANDS.map(b => [b, asKnown(out.outcomes![b], after).text])) as Record<Band, string>) : undefined;
   const check = whole && outcomes ? { skill: out.check!.skill, dc: out.check!.dc, outcomes: Object.fromEntries(BANDS.map(b => [b, said(outcomes[b])])) as Record<Band, Reply> } : undefined;
   return { narration: said(narration.text), ...(check ? { check } : {}), closes: out.closes !== false, costUsd: result.costUsd, firstTextMs: result.firstTextMs };
 }

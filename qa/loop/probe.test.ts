@@ -5,10 +5,10 @@ import { join } from "node:path";
 import { effectiveScene } from "../../shared/scene/graph.ts";
 import { loadScene } from "../../shared/scene/load.ts";
 import { CAMPAIGNS } from "./paths.ts";
-import { mouthpieceRules, twoPartNow } from "../../ai/gm/two-part.ts";
+import { mouthpieceRules, replySchema, twoPartNow } from "../../ai/gm/two-part.ts";
 import type { TurnView } from "../../ai/gm/view.ts";
 import { initialGm } from "../../shared/gm/state.ts";
-import { afterReply, asOpen, checkOf, mouthpieceRequest, mouthpieceView, movedAgain, partsOf, probeTurn, rolesAfter, splicedNote, stateBefore, swapped, transcriptOf, wasTaken, type LoggedCall } from "./probe.ts";
+import { afterReply, asOpen, checkOf, mouthpieceRequest, mouthpieceView, movedAgain, partsOf, probeTurn, replyOf, rolesAfter, roundSchema, splicedNote, stateBefore, swapped, transcriptOf, wasTaken, type LoggedCall } from "./probe.ts";
 
 /** The co-GM's probe (qa/loop/probe.ts) on a round's call log, here a made-up one of the campaign's clerk. */
 
@@ -92,7 +92,7 @@ test("a reply asked again: the per-turn note's routes as the rebuilt bookkeeping
   assert.equal(tried.error, undefined);
   assert.equal(tried.replied?.narration, "“Big Hobb Mallory,” Kell says.", "the speakers' tags out, as the transcript keeps it");
   const [asked, coGmAsked] = sent;
-  assert.deepEqual(asked!.text?.format?.schema?.required, ["narration", "check"], "a reply, not a closing that may wait");
+  assert.deepEqual(asked!.text?.format?.schema?.required, ["check", "narration", "outcomes"], "a reply in this checkout's format, which its instructions ask for, and not a closing that may wait");
   assert.doesNotMatch(String(asked!.input.at(-2)?.content), /## For this reply/);
   assert.match(String(asked!.input.at(-2)?.content), /- \[find-motive\]/);
   const said = String(coGmAsked!.input[0]!.content);
@@ -146,6 +146,18 @@ test("the mouthpiece's request on a round's turn: as the round sent it, and with
 });
 
 // --- QA round qa3-1018's fixes
+
+test("a round's request asked in the schema its instructions were written for: the one before QA round qa3-1018's fixes for its format with two fields, this checkout's otherwise; and its reply read in either", () => {
+  const round = "Prompt and prep.\n\n## How to reply\nReply as JSON with two fields.\n- `narration`: what you say.";
+  assert.deepEqual(Object.keys((roundSchema(round, false) as { properties: object }).properties), ["narration", "check"]);
+  assert.deepEqual((roundSchema(round, true) as { required: string[] }).required, ["narration", "check", "closes"]);
+  assert.deepEqual(roundSchema("Prompt.\n\n## How to reply\nReply as JSON with two fields.\n- `narration`: what you say.\n- `check`: always null. Nothing in a talk is decided by dice.", false), replySchema(false, false), "a talk's, then and now");
+  assert.deepEqual(roundSchema(`Prompt.\n\n${mouthpieceRules(clerk, mouthpieceView(clerk, () => undefined, [], "7", 1, { player: { name: "Nim", concept: "a halfling cutpurse" }, entries: [] }, ""))}`, false), replySchema(false));
+  const outcomes = { major_failure: "a", minor_failure: "b", barely_passed: "c", minor_success: "d", major_success: "e" };
+  assert.deepEqual(replyOf(JSON.stringify({ narration: "You push.", check: { skill: "athletics", dc: 13, outcomes } })), { narration: "You push.", check: { skill: "athletics", dc: 13, outcomes } });
+  assert.deepEqual(replyOf(JSON.stringify({ check: { skill: "athletics", dc: 13 }, narration: "You push.", outcomes, closes: false })), { narration: "You push.", check: { skill: "athletics", dc: 13, outcomes }, closes: false });
+  assert.deepEqual(replyOf(JSON.stringify({ check: null, narration: "Kell nods.", outcomes: null })), { narration: "Kell nods." });
+});
 
 test("the mouthpiece probe's after: a move to show as this checkout writes it, in place of the round's", () => {
   const cart = { ...mouthpieceView(clerk, () => undefined, [], "7", 9, { player: { name: "Nim", concept: "a halfling cutpurse" }, entries: [] }, ""), reached: ["start", "cart-arrives"], beat: "cart-arrives" } as TurnView;

@@ -9,7 +9,7 @@ import { BANDS, BAND_NAME, bandOf, type Band } from "../../shared/gm/two-part.ts
 import type { CoGmAnswer, TurnCheck } from "../../shared/protocol/ai.ts";
 import { openRoutes, reachedOf, stageOf, takeRoute, type RouteOutcome } from "../../shared/scene/beats.ts";
 import { presentCast } from "../../shared/scene/graph.ts";
-import type { Scene, SceneRoute } from "../../shared/scene/types.ts";
+import { SKILLS, type Scene, type SceneRoute } from "../../shared/scene/types.ts";
 import { buildWorld, joinWorld } from "../../shared/world/scene-world.ts";
 
 /**
@@ -170,6 +170,32 @@ export function storyOf(id: string, scenes: Scene[]): Story {
 /** A reply asked again: its narration as the transcript keeps it (no speakers' tags), and a check it called, as rolled, with the outcome that came up. */
 export interface Replied { narration: string; check?: TurnCheck; dice?: string; outcome?: string; costUsd: number }
 
+/**
+ * The reply's schema before QA round qa3-1018's fixes, which a round before them asked in, its
+ * format "with two fields": the narration first, then the check with its outcomes inside it.
+ */
+const TWO_FIELDS = {
+  type: "object", additionalProperties: false, required: ["narration", "check"],
+  properties: {
+    narration: { type: "string" },
+    check: { anyOf: [{ type: "null" }, { type: "object", additionalProperties: false, required: ["skill", "dc", "outcomes"], properties: { skill: { type: "string", enum: [...SKILLS] }, dc: { type: "integer" }, outcomes: { type: "object", additionalProperties: false, required: [...BANDS], properties: Object.fromEntries(BANDS.map(b => [b, { type: "string" }])) } } }] },
+  },
+};
+
+/** The schema a request's instructions ask for: a talk's, with its check always null; the one before QA round qa3-1018's fixes where they say "with two fields" otherwise (a round's own); this checkout's otherwise. */
+export function roundSchema(instructions: string, mayHold: boolean): Record<string, unknown> {
+  if (/\n- `check`: always null\./.test(instructions)) return replySchema(mayHold, false);
+  if (!/\n## How to reply\nReply as JSON with two fields\./.test(instructions)) return replySchema(mayHold);
+  return mayHold ? { ...TWO_FIELDS, required: [...TWO_FIELDS.required, "closes"], properties: { ...TWO_FIELDS.properties, closes: { type: "boolean" } } } : TWO_FIELDS;
+}
+
+/** A reply in either schema, as one shape: its narration, and a check with its five outcomes. */
+export function replyOf(text: string): { narration: string; check?: { skill: string; dc: number; outcomes: Record<string, string> }; closes?: boolean } {
+  const out = JSON.parse(text) as { narration: string; check: { skill: string; dc: number; outcomes?: Record<string, string> } | null; outcomes?: Record<string, string> | null; closes?: boolean };
+  const outcomes = out.check?.outcomes ?? out.outcomes ?? undefined;
+  return { narration: out.narration, ...(out.check && outcomes ? { check: { skill: out.check.skill, dc: out.check.dc, outcomes } } : {}), ...(out.closes !== undefined ? { closes: out.closes } : {}) };
+}
+
 /** The per-turn note's routes, as twoPartNow words them: the routes open now, and a dice route's check to call as it says. */
 const routesPart = (scene: Scene, open: SceneRoute[]) => `## What moves the scene on from here\n${open.length ? open.map(r => routeLine(scene, r)).join("\n") : "- (nothing: the scene is closing)"}${open.some(r => r.skill) ? "\nWhen the player attempts what a route the dice decide describes, call that route's check: its skill and DC." : ""}`;
 
@@ -189,8 +215,8 @@ export async function replyAgain(scene: Scene, logged: LoggedCall, gm: GmState, 
   const input = (logged.request?.input ?? []).map(m => ({ ...m })) as Message[];
   const at = input.findLastIndex(m => m.role === "system");
   if (at >= 0) input[at] = { ...input[at]!, content: asOpen(scene, String(input[at]!.content), gm, logged.operation === "two-part.closing") };
-  const result = await respond({ operation: "probe.reply", instructions: logged.request?.instructions ?? "", input, effort: "none", maxOutputTokens: 2500, json: { name: "reply", schema: replySchema(false) }, calls: context });
-  const out = JSON.parse(result.text) as { narration: string; check: { skill: string; dc: number; outcomes: Record<Band, string> } | null };
+  const result = await respond({ operation: "probe.reply", instructions: logged.request?.instructions ?? "", input, effort: "none", maxOutputTokens: 2500, json: { name: "reply", schema: roundSchema(logged.request?.instructions ?? "", false) }, calls: context });
+  const out = replyOf(result.text);
   const untagged = (s: string) => s.replace(/\[[^\]\n]+\]\s*(?=[“"])/g, "").trim();
   if (!out.check) return { narration: untagged(out.narration), costUsd: result.costUsd };
   const d20 = 1 + Math.floor(Math.random() * 20);
@@ -366,9 +392,8 @@ export async function probeMouthpiece(scene: Scene, story: (id: string) => Scene
   const started = performance.now();
   try {
     const request = mouthpieceRequest(scene, story, calls, sceneRow, turn, game, arm);
-    const result = await respond({ operation: `probe.mouthpiece.${arm}`, instructions: request.instructions, input: request.input, effort: "none", maxOutputTokens: 2500, json: { name: "reply", schema: replySchema(request.mayHold) }, calls: context });
-    const out = JSON.parse(result.text) as { narration: string; check: MouthpieceTry["check"] | null; closes?: boolean };
-    return { arm, narration: out.narration, ...(out.check ? { check: out.check } : {}), ...(out.closes !== undefined ? { closes: out.closes } : {}), costUsd: result.costUsd, ms: performance.now() - started, firstTextMs: result.firstTextMs };
+    const result = await respond({ operation: `probe.mouthpiece.${arm}`, instructions: request.instructions, input: request.input, effort: "none", maxOutputTokens: 2500, json: { name: "reply", schema: roundSchema(request.instructions, request.mayHold) }, calls: context });
+    return { arm, ...replyOf(result.text), costUsd: result.costUsd, ms: performance.now() - started, firstTextMs: result.firstTextMs };
   } catch (error) {
     return { arm, narration: "", costUsd: 0, ms: performance.now() - started, firstTextMs: null, error: (error as Error).message };
   }

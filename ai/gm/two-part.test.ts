@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { configureDocs } from "../docs/config.ts";
 import { note } from "../docs/notes.ts";
-import { rolesNote } from "../../shared/gm/two-part.ts";
+import { BANDS, rolesNote } from "../../shared/gm/two-part.ts";
 import type { GmState } from "../../shared/gm/state.ts";
 import { openRoutes, takeRoute } from "../../shared/scene/beats.ts";
 import { effectiveScene } from "../../shared/scene/graph.ts";
@@ -18,7 +18,7 @@ import { fakeFetch, readPrep, walkTo, type FakeOptions } from "../llm/fake-openr
 import type { CallContext } from "../llm/openrouter.ts";
 import { CAERWYN, viewAt } from "./fixtures.ts";
 import { playerNow } from "./brief.ts";
-import { clockNote, closingDirective, coGm, coGmInput, coGmInstructions, companionsOf, deniesItself, firstSentence, inReach, intoBad, intoBetter, mouthpieceInput, mouthpieceInstructions, movedDirective, movedText, narrationSoFar, prepOf, pressureOffered, routeLine, saidLast, setUpEarlier, speak, tellOf, twoPartNow, unsaidIn } from "./two-part.ts";
+import { clockNote, closingDirective, coGm, coGmInput, coGmInstructions, companionsOf, deniesItself, firstSentence, inReach, intoBad, intoBetter, mouthpieceInput, mouthpieceInstructions, movedDirective, movedText, narrationSoFar, prepOf, pressureOffered, replySchema, routeLine, saidLast, setUpEarlier, speak, tellOf, twoPartNow, unsaidIn } from "./two-part.ts";
 import type { Story } from "./story.ts";
 import type { TurnView } from "./view.ts";
 
@@ -132,7 +132,7 @@ test("the prep in the design's order: the scene (its truth and clock, what local
 test("the people: each card with why they're here and what never works on them; the co-GM's with their role palette and the clues that are theirs", () => {
   const mouthpiece = mouthpieceInstructions(clerk, yard());
   assert.match(mouthpiece, /### Cob\n- Look: [\s\S]*?- Why they're here, now: /);
-  assert.match(mouthpiece, /\n\n## How to reply\nReply as JSON with two fields\.[\s\S]*\n\n## Who says each line\nPut the speaker in square brackets before every spoken line, each time they speak: \[Kell\] “Out\.” She turns to the boy\./);
+  assert.match(mouthpiece, /\n\n## How to reply\nReply as JSON with three fields, in this order: `check`, `narration`, `outcomes`\.[\s\S]*\n\n## Who says each line\nPut the speaker in square brackets before every spoken line, each time they speak: \[Kell\] “Out\.” She turns to the boy\./);
   assert.ok(mouthpiece.startsWith("You are the Game Master of a fantasy roleplaying game, running a live scene for one player."), "the user's prompt first, as written");
   const co = coGmInstructions(clerk, yard());
   assert.match(co, /### Cob\n[\s\S]*?- The clues that are theirs to give:\n  - Towards The victim was murdered \[murder\]: Cob sleeps in the loft\./);
@@ -203,17 +203,20 @@ test("the instructions after the user's prompt: written words read untagged, and
   assert.match(mouthpiece, /\n\n## What the player sees and hears\n[\s\S]*- Names: [\s\S]*- What's hidden: [\s\S]*A fist that stays shut is a shut fist\.[\s\S]*- The player's words: [\s\S]*- Your notes stay behind the screen\./);
 });
 
-test("the instructions after the user's prompt: a check at a turning point, never on a remark, whose outcomes follow their setup; and the companion, whose case it isn't", () => {
+test("the instructions after the user's prompt: a check at a turning point, never on a remark, decided before a word is written, whose setup stops at the attempt and whose outcomes carry what the roll decides; and the companion, whose case it isn't", () => {
   const mouthpiece = mouthpieceInstructions(clerk, yard());
   assert.match(mouthpiece, /Never for a remark, a compliment or a question/);
   assert.match(mouthpiece, /when they try to frighten, persuade, trick or press someone who could go either way/);
-  // QA round qa2-1018, H4: a roll on the promise Cob's card says opens him, whose failure sent him off with the lead.
-  assert.match(mouthpiece, /\n  What your prep says for certain wins over the dice\. Where a path or someone's card says what an approach gets \(no dice; what they do for a promise that answers their fear, or for someone they trust; what coin never buys\), and the player has made that approach, it gets exactly that, with no check\./);
+  // QA round qa2-1018, H4: a roll on the promise Cob's card says opens him, whose failure sent him off with the lead; since qa3-1018, read first, as the check is decided first.
+  assert.match(mouthpiece, /\n- `check` comes first: decide it before you write a word of the narration\. It's null on most turns\. What your prep says for certain wins over the dice: where a path, someone's card or the per-turn note says what an approach gets \(no dice; what they do for a promise that answers their fear, or for someone they trust; what coin never buys\), and the player has made that approach, it gets exactly that, with no check\./);
   assert.match(mouthpiece, /never for something you're still waiting for them to say or do, nor for what's already in plain view or already told/);
   assert.match(mouthpiece, /A failure never puts what the player still needs out of reach: nobody who holds a required discovery leaves, bolts or goes silent for good on a roll \(the per-turn note says who holds one\), and the way stays open \(no, but\)\./);
-  // Setup and outcome: the setup stops at the attempt, and each outcome adds only what the roll decided.
-  assert.match(mouthpiece, /\n  The narration before a check stops at the attempt: [^\n]*Nothing the roll is for comes before the dice: /);
-  assert.match(mouthpiece, /Each one follows on from the narration as you wrote it and never undoes it: [^\n]*an offer made there is still on the table after a failure[^\n]* And each says only what the roll decided, once: never what the narration has already said\./);
+  // Setup and outcome (QA round qa3-1018: the lock held and the door stayed shut before a roll that tore it free): the narration is the setup alone, and the outcomes carry what the roll decides.
+  assert.match(mouthpiece, /\n- `narration`: [^\n]*With a check, it's the setup alone, a few sentences written as if you don't yet know how the roll goes, and it stops at the attempt: [^\n]*Nothing the roll is for comes before the dice: not whether it works \(a lock holding or giving, a gap squeezed through, a mark made out\)/);
+  assert.match(mouthpiece, /\n- `outcomes`: null without a check\. With one, its five outcomes, and everything the roll decides is in them\.[^\n]*Each one follows on from the setup as you wrote it and never undoes it: [^\n]*an offer made there is still on the table after a failure[^\n]* And each says only what the roll decided, once: never what the setup has already said\./);
+  // The check decided first, then the narration, then the outcomes, as the reply is written (a closing that may wait says whether it closed, last).
+  assert.deepEqual(Object.keys((replySchema(false) as { properties: object }).properties), ["check", "narration", "outcomes"]);
+  assert.deepEqual((replySchema(true) as { required: string[] }).required, ["check", "narration", "outcomes", "closes"]);
   // Nobody recites their own terms; the player character's body is the player's; the scene stays in its place.
   assert.match(mouthpiece, /- What would win someone over [^\n]*Nobody states their own terms or price unasked, or says their card's words for what would open them/);
   assert.match(mouthpiece, /\n\n## The player character\nTheir body and mind are the player's\. Never give them a wound, an ache, tiredness, fear or any other condition that play [^\n]* or the rules [^\n]* haven't given them/);
@@ -303,8 +306,9 @@ test("the mouthpiece's narration and each outcome keep names the player hasn't h
   const view = yard({ turn: 1 });
   view.transcript.push({ turn: 1, scene: "hanged-clerk", speaker: "player", kind: "player", text: "Hello up there." });
   const reply = {
+    check: { skill: "persuasion", dc: 13 },
     narration: "Moll snorts from the wall. [Cob] “Cob don’t talk to pigeons.” Cob stamps. Moll’s fist stays shut.",
-    check: { skill: "persuasion", dc: 13, outcomes: { major_failure: "Moll spits.", minor_failure: "Cob shrugs. Moll looks away.", barely_passed: "Moll nods.", minor_success: "[Cob] “Moll says yes.” Moll nods.", major_success: "Moll grins." } },
+    outcomes: { major_failure: "Moll spits.", minor_failure: "Cob shrugs. Moll looks away.", barely_passed: "Moll nods.", minor_success: "[Cob] “Moll says yes.” Moll nods.", major_success: "Moll grins." },
   };
   const spoke = await speak(clerk, view, [], { operation: "two-part.reply", calls: fake({ byName: { reply }, streamMs: 5 }), byKey: m => m, onText: text => shown.push(text) });
   assert.equal(spoke.narration.text, "The girl in the shawl snorts from the wall. “Cob don’t talk to pigeons.” Cob stamps. The girl’s fist stays shut.");
@@ -694,16 +698,18 @@ test("a talk on the two-part GM: no dice in its reply (a check written anyway is
 
   const instructions = mouthpieceInstructions(talk, view);
   assert.match(instructions, /`check`: always null\. Nothing in a talk is decided by dice/);
-  assert.doesNotMatch(instructions, /call for a skill check instead of deciding it yourself/);
+  assert.doesNotMatch(instructions, /give the skill and a DC/);
   assert.match(instructions, /### Sergeant Agnes Kell: who they are, in their own lore\nTheir lore is theirs/);
   assert.match(instructions, /### Told \[told\]\nThe revelation: Nan Quill put her out through the Rat's door\.[^]*- Via Sergeant Agnes Kell \[kell\] \(hook\): A pause at the Rat's name\. What earns it: Free\./);
-  assert.match(mouthpieceInstructions(clerk, yard()), /call for a skill check instead of deciding it yourself/, "a scene of the story keeps its dice");
+  assert.match(mouthpieceInstructions(clerk, yard()), /give the skill and a DC \(10 easy, 13 moderate, 15 hard, 18 very hard\) instead of deciding it yourself/, "a scene of the story keeps its dice");
   assert.match(twoPartNow(talk, view, []), /## The GM's notes on Sergeant Agnes Kell from play \(what's happened with them\)\n[^#]*Seen the player do:\n- Watched the investigator look at the body first\./);
   assert.doesNotMatch(twoPartNow(clerk, yard(), []), /The GM's notes on/, "a scene of the story's note has none (its co-GM reads them)");
   assert.match(coGmInput(talk, view, undefined)[0]!.content, /# Notes on the people here \(what's happened with them in play\)\n[\s\S]*## Sergeant Agnes Kell \[kell\]\nSeen the player do:\n- Watched the investigator look at the body first\./, "among the notes on the people here, as a scene's co-GM has them");
   assert.match(coGmInstructions(talk, view), /### Sergeant Agnes Kell: who they are, in their own lore/);
 
-  const spoke = await speak(talk, view, [], { operation: "two-part.reply", calls: fake({ replies: ["Kell's pencil stops."], mouthpiece: { check: { skill: "insight", dc: 12 } } }), byKey: m => m });
+  assert.deepEqual(Object.keys((replySchema(false, false) as { properties: object }).properties), ["narration", "check"], "a talk's reply: its narration, and a check that's always null");
+  const written = { narration: "Kell's pencil stops.", check: { skill: "insight", dc: 12 }, outcomes: Object.fromEntries(BANDS.map(b => [b, "Kell says more."])) };
+  const spoke = await speak(talk, view, [], { operation: "two-part.reply", calls: fake({ byName: { reply: written } }), byKey: m => m });
   assert.deepEqual([spoke.narration.text, spoke.check], ["Kell's pencil stops.", undefined], "a talk has no dice: a check written anyway is dropped");
 
   const gm = { ...view } as unknown as GmState;
