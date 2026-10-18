@@ -53,6 +53,14 @@ export function startCombat(tx: TxCtx, at: At, plan: SayPlan, initiative: Initia
   const foeIds = new Set([...initiative.foes, ...(beat?.fight?.foes ?? [])]);
   const fleeIds = new Set((initiative.flee ?? []).filter(id => !foeIds.has(id)));
   const allyIds = new Set([...initiative.allies, ...(beat?.fight?.allies ?? []), ...companionsHere(tx, at).filter(id => !fleeIds.has(id))]);
+  // Whoever the reply put on no side who reacted to the player's violence this turn keeps the side their reaction took: going for the player, taking their side, running.
+  const reacted = plan.acted?.reactions ?? {};
+  for (const [id, how] of Object.entries(reacted)) {
+    if (foeIds.has(id) || allyIds.has(id) || fleeIds.has(id)) continue;
+    if (how === "fight") foeIds.add(id);
+    else if (how === "join_player") allyIds.add(id);
+    else if (how === "flee" || how === "raise_alarm") fleeIds.add(id);
+  }
   const foes = pool.filter(c => foeIds.has(c.id));
   const allies = pool.filter(c => allyIds.has(c.id) && !foeIds.has(c.id) && !fleeIds.has(c.id));
   const running = pool.filter(c => fleeIds.has(c.id) && !allies.includes(c) && able(tx, at, plan.n, c.id));

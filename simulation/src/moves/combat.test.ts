@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { bandOf, BANDS, type Band } from "../../../shared/gm/two-part.ts";
 import type { SidePick } from "../../../shared/gm/combat.ts";
-import type { CombatMove, CombatRequest, CombatResponse, Initiative, Reply, ReplyResponse, SettleRequest, SettleResponse } from "../../../shared/protocol/ai.ts";
+import type { CombatMove, CombatRequest, CombatResponse, Initiative, ReactionsResponse, Reply, ReplyResponse, SettleRequest, SettleResponse } from "../../../shared/protocol/ai.ts";
 import { keyParts, turnKeyParts } from "../../../shared/protocol/keys.ts";
 import type { SceneDocument } from "../../../shared/scene/document.ts";
 import { nextCheck, openedGame, sceneNow, type PackOptions } from "../host/testing.ts";
@@ -82,6 +82,15 @@ test("everyone here picks a side or runs (the user's design): one the reply left
   assert.equal(now.lines.filter(l => l.kind === "roll" && l.text.startsWith("Initiative: ")).length, 4, "Moll rolled as she picked her side");
   assert.ok(now.lines.some(l => l.kind === "system" && l.text === "Joining the fight: the girl in the shawl (against you)."), "as the player knows her");
   assert.ok(asked.slice(1).every(r => !r.combat.pending), "picked once");
+});
+
+test("whoever the reply left unplaced who reacted to the player's violence this turn keeps the side their reaction took: Moll, who went for the player, is against them; Kell, who stepped in, is the GM's to place", async () => {
+  const { line, asked, script } = await fight(closeAndHit, { initiative: { foes: ["cob"], allies: [], why: "Cob won't be taken" }, sides: { kell: "with_player" } });
+  script.then("act", { mechanic: { kind: "attack", target: "cob" }, usage });
+  script.then("reactions", { reactions: { moll: "fight", kell: "intervene" }, usage } satisfies ReactionsResponse);
+  const now = await line("I punch Cob in the ear.");
+  assert.deepEqual(asked[0]!.combat.pending?.map(p => p.id), ["kell"], "only Kell, who stepped in, is left to pick");
+  assert.deepEqual(Object.fromEntries(now.gm.combat!.order.map(f => [f.id, f.side])), { player: "party", cob: "foes", moll: "foes", kell: "party" });
 });
 
 test("whoever the reply has run from the fight is gone from the scene as it breaks out, with no pick to make; one the GM picks to run goes the same way", async () => {
