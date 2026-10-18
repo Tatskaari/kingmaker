@@ -1,4 +1,4 @@
-// New (the fixes from QA round qa1-1018): the two-part GM's co-GM replayed on a round's own games, with the code as it is now. QA round qa2-1018's fixes added a turn's reply asked again first (--reply), moves left out of the rebuilt bookkeeping (--drop) and the roles each try set; and its mouthpiece, as the round sent it and as this checkout would (--mouthpiece).
+// New (the fixes from QA round qa1-1018): the two-part GM's co-GM replayed on a round's own games, with the code as it is now. QA round qa2-1018's fixes added a turn's reply asked again first (--reply), moves left out of the rebuilt bookkeeping (--drop) and the roles each try set; and its mouthpiece, as the round sent it and as this checkout would (--mouthpiece). QA round qa3-1018's fixes ask a round in its own schema (roundSchema, replyOf), make a move to show again (movedAgain) and put the player where the round's world had them.
 import { titleCase } from "../../shared/dice.ts";
 import { closingDirective, coGm, mouthpieceRules, movedDirective, replySchema, routeLine, twoPartNow } from "../../ai/gm/two-part.ts";
 import type { Story } from "../../ai/gm/story.ts";
