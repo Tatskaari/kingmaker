@@ -5,16 +5,17 @@ import * as verbs from "../client/headless.ts";
 import type { SceneRows } from "../client/scene/rows.ts";
 import type { Markup } from "../shared/markup.ts";
 import { idempotencyKey, type Step } from "../shared/protocol/keys.ts";
+import { refusalIn } from "../shared/protocol/refusals.ts";
 import { reportLines } from "./dev/doctor.ts";
 import { devFake, onTop } from "./dev/fake.ts";
 import type { Mode } from "./dev/mode.ts";
-import { startStack, type Stack } from "./dev/stack.ts";
+import { CallError, startStack, type Stack } from "./dev/stack.ts";
 import { aConceptToTheOpening, checksBesideAStream, continueAndDelete, creationFake, restartedMidBuilds, theCeiling, type Game } from "./e2e/creation.ts";
 import { aMemory, aRiskyCheck, gmOf, theCoGmSteers } from "./e2e/gm.ts";
 import { theWholeStory } from "./e2e/story.ts";
 import { beforeTheGmSpeaks, fireBurnsOn, rowForRow } from "./e2e/world.ts";
 import {
-  aiLog as aiLogIn, callLog as callLogOf, check, doneTurn, elapsed, escaped, Failed, millis, modelCalls as modelCallsOf, moduleLog, nextTurn, ok, pause,
+  aiLog as aiLogIn, callLog as callLogOf, check, doneTurn, elapsed, escaped, Failed, fixDice, millis, modelCalls as modelCallsOf, moduleLog, nextTurn, ok, pause,
   player, restartAi, seconds, step, turnOf, until, type Player,
 } from "./e2e/kit.ts";
 import { backToTheMap, inTheLane, mapTimes } from "./e2e/map.ts";
@@ -65,6 +66,10 @@ import { configureTerminal } from "./terminal.ts";
  * reply) and the reactions kept by the AI service as it died (29). Their numbers are kept, so the
  * docs' references to the others still hold.
  *
+ * The dice are never SpacetimeDB's randomness: step 1 fixes them as the owner (set_dice_seed), and a
+ * step that checks what its own dice gave (the town's Fire Bolt, the risky act's check) fixes them
+ * again just before it makes its game, so each run rolls the same, and asserts what they give.
+ *
  *   npm run e2e [-- --port 3310] [--ai-port 8797] [--root runs/e2e] [--mode host|namespace]
  *
  * Exits 0 when every step passed. At the first that doesn't, it says what it saw, stops the stack and
@@ -86,6 +91,8 @@ const USAGE = `npm run e2e [-- options]
  */
 const FAKE: FakeOptions = onTop(devFake(), { coGm: { still: true } });
 const NEW_GAME = { campaign: "caerwyn", name: "Wren Ashdown", concept: "a quick-witted investigator lent to the case by the King", build: "ranger" };
+/** The run's dice, fixed in step 1 (any seed would do): every game's rolls are the same each run, never SpacetimeDB's randomness. */
+const DICE = 1018;
 const NOTE = "The GM has lost the thread for a moment: trying again.";
 /** The phases of a turn whose reply is in: the box is open again. */
 const REPLIED = ["settling", "done"];
@@ -161,13 +168,21 @@ process.exit(passed ? 0 : 1);
 // ---------------------------------------------------------------------------------------------
 // The steps (v0-design §10.4, v5-design §4.4); V1's, 15 to 21, are e2e/creation.ts's, the GM's, 22 to 24, e2e/gm.ts's, the world's, 26, 28 and 30, e2e/world.ts's, the whole story's, 31 to 34, e2e/story.ts's, the town's, 36 to 39, e2e/town.ts's, and the fight's, 40, e2e/fight.ts's.
 
-/** 1. The stack is up (--fresh); the campaign goes into both, and the zoo (M6) into the module beside it, as the dev stack installs them; the doctor finds all well. */
+/**
+ * 1. The stack is up (--fresh); the campaign goes into both, and the zoo (M6) into the module beside it,
+ * as the dev stack installs them; the dice are fixed for the run, as only the owner may; the doctor
+ * finds all well.
+ */
 async function installedAndWell(stack: Stack): Promise<void> {
-  step(`1. Up in ${stack.mode} mode, the campaign installed (and the zoo), the doctor`);
+  step(`1. Up in ${stack.mode} mode, the campaign installed (and the zoo), the dice fixed, the doctor`);
   const installed = await stack.install(join(import.meta.dirname, "..", "campaigns", "caerwyn"));
   ok(`${installed.id} installed in both`);
   const zoo = await stack.install(join(import.meta.dirname, "..", "campaigns", "zoo"));
   check(`${zoo.id} installed in the module alone (no GM plays it: the AI service is never given it)`, zoo.structure.ok && zoo.words.ok && "skipped" in zoo.words);
+  await fixDice(stack, DICE);
+  ok(`the dice fixed as the owner (set_dice_seed ${DICE}): each game's seed from it, so every run rolls the same`);
+  const refused = await stack.call("set_dice_seed", { seed: { none: [] } }, "ai").then(() => undefined, (e: unknown) => (e instanceof CallError ? refusalIn(e.body) : undefined));
+  check(`and only the owner may: the AI service's set_dice_seed is refused (${refused?.code}: "${refused?.text}")`, refused?.code === "not_admin");
   const report = await stack.doctor({ campaign: installed.id });
   if (!report.ok) console.log(reportLines(report).join("\n"));
   check(`the doctor finds all well: ${report.summary}`, report.ok);

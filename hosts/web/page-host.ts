@@ -36,6 +36,8 @@ export interface HostConfig {
   ownerMoves: boolean;
   /** Where the simulation's and the AI service's lines go. */
   log(line: string): void;
+  /** The dice: where the new games' seeds start (the memory host's sequence). A test gives a fixed one; the page leaves it out and draws one from crypto each start. */
+  seed?: number;
 }
 
 export interface PageHost {
@@ -105,14 +107,15 @@ function commitsTo(store: (commit: ChangeSet) => void, log: (line: string) => vo
 }
 
 /**
- * The memory host for real play: a real clock, a dice seed and uuids of its own, the database's own
- * identity, what was kept restored, each commit told, its log the host's, and each think POSTed to
- * the AI service in this worker, given up on once the claim's time is up.
+ * The memory host for real play: a real clock, a dice seed (the config's, else one of its own) and
+ * uuids of its own, the database's own identity, what was kept restored, each commit told, its log
+ * the host's, and each think POSTed to the AI service in this worker, given up on once the claim's
+ * time is up.
  */
 function newSimulation(kept: SimStore, onCommit: (commit: ChangeSet) => void, config: HostConfig, answer: (request: AiHttpRequest) => Promise<AiHttpResponse>): MemoryHost {
   return memoryHost({
     ai: (endpoint, body, headers, options) => withinTime(answer({ method: "POST", path: endpoint, headers, body }), options?.timeoutMs),
-    seed: randomSeed(), uuid: randomUuid, clock: realClock, database: kept.database,
+    seed: config.seed ?? randomSeed(), uuid: randomUuid, clock: realClock, database: kept.database,
     env: { AI_URL: "in-process", AI_TOKEN: BEARER, AI_IDENTITY: SERVICE.toHexString() }, service: SERVICE,
     onCommit, log: config.log,
     ...(kept.restore ? { restore: kept.restore } : {}),

@@ -66,6 +66,7 @@ import RewriteIssueReducer from "./rewrite_issue_reducer";
 import SayReducer from "./say_reducer";
 import ServicePingReducer from "./service_ping_reducer";
 import SetBackstoryReducer from "./set_backstory_reducer";
+import SetDiceSeedReducer from "./set_dice_seed_reducer";
 import SetSuggestionsReducer from "./set_suggestions_reducer";
 import SkipBackstoryReducer from "./skip_backstory_reducer";
 import StartCreationReducer from "./start_creation_reducer";
@@ -675,6 +676,7 @@ const reducersSchema = __reducers(
   __reducerSchema("say", SayReducer),
   __reducerSchema("service_ping", ServicePingReducer),
   __reducerSchema("set_backstory", SetBackstoryReducer),
+  __reducerSchema("set_dice_seed", SetDiceSeedReducer),
   __reducerSchema("set_suggestions", SetSuggestionsReducer),
   __reducerSchema("skip_backstory", SkipBackstoryReducer),
   __reducerSchema("start_creation", StartCreationReducer),

@@ -5,6 +5,7 @@ import { refusal } from "../../shared/protocol/refusals.ts";
 import { isAdmin, servicePing as servicePingBody } from "./access.ts";
 import { NOT_CONFIGURED, outcomeOf, type AiOutcome, type AiResponse, type Claim } from "./ai-call.ts";
 import { Refused, type Schema, type TxCtx } from "./context.ts";
+import { seedOf, setDiceSeedReducer } from "./dice-seed.ts";
 import { installCampaignReducer } from "./install.ts";
 import {
   acceptFixReducer, chooseAgainReducer, chooseBuildReducer, creationBackReducer, draftBackstoryReducer, finishBackstoryReducer, leaveProposalReducer,
@@ -108,13 +109,14 @@ export const streamReply = spacetimedb.reducer(
 );
 export const servicePing = spacetimedb.reducer(ctx => asReducer(ctx, tx => servicePingBody(tx, ctx.sender)));
 
-// The owner's: a campaign's structure, whether the module reaches the AI service, and the waiting thinks sent now that it's back.
+// The owner's: a campaign's structure, whether the module reaches the AI service, the waiting thinks sent now that it's back, and the dice fixed for a test.
 export const installCampaign = spacetimedb.reducer(
   { id: t.string(), campaign: t.string(), scenes: t.string(), places: t.string(), builds: t.string(), looks: t.string(), maps: t.string() },
   (ctx, args) => asReducer(ctx, tx => installCampaignReducer(tx, ctx.sender, args)),
 );
 export const pingAi = spacetimedb.procedure(t.string(), ctx => pingAiBody(ctx));
 export const dispatchWaiting = spacetimedb.reducer(ctx => asReducer(ctx, tx => dispatchWaitingReducer(tx, ctx.sender)));
+export const setDiceSeed = spacetimedb.reducer({ seed: t.option(t.u32()) }, (ctx, args) => asReducer(ctx, tx => setDiceSeedReducer(tx, ctx.sender, args)));
 
 // The job loop (§3.5): one think per dispatch (claim, POST with nothing locked, commit), and the reaper.
 export const runJob = spacetimedb.procedure({ onSchedule: jobDispatch }, { arg: jobDispatch.rowType }, t.unit(), (ctx, { arg }) => {
@@ -157,7 +159,7 @@ function txOf(ctx: ReducerCtx<Schema>): TxCtx {
     env: ctx.env,
     database: () => ctx.databaseIdentity.toHexString(),
     uuid: () => ctx.newUuidV4().toString(),
-    seed: () => ctx.random.integerInRange(0, 999_999_999),
+    seed: () => seedOf(ctx.db, () => ctx.random.integerInRange(0, 999_999_999)),
     log: line => console.info(line),
     rules: loadRules,
     engineCalls: 0,
