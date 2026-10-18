@@ -151,6 +151,18 @@ test("a route into a bad or mixed ending that could be true at the same moment a
   }
 });
 
+test("every story scene's clock moves a step at a time and is felt before it strikes (QA round qa2-1018: the corporal's stock beat and the clock standing still)", () => {
+  const clerk = JSON.parse(files[SCENE]!), rat = JSON.parse(files[RAT]!), king = JSON.parse(files["scenes/kings-morning.kmscene"]!);
+  for (const [path, s] of sceneFiles()) if (s.clock && !s.interlude) assert.match(s.clock, /felt|fewer each time/, `${path}'s clock says how it moves`);
+  assert.match(clerk.clock, /the morning is felt moving on, a step nearer noon every few exchanges and never the same sign twice/);
+  assert.match(node(clerk, "cart-arrives").pressure, /^Tull's constables [^]*His patience runs down a step every exchange, never the same step twice/);
+  assert.match(node(clerk, "cart-arrives").cast.tull, /^Helmet off to the dead[^]*each exchange he waits he does one more thing towards going/, "a newcomer's default role is the stage's note, and the e2e reads its start");
+  assert.match(rat.clock, /it's felt coming, a step nearer every few exchanges and never the same sign twice/);
+  assert.match(route(rat, "bell-rings").data.condition, /Before it rings, it's felt coming[^]*it rings then, whatever is happening\. Not needed once Hobb has fled\.$/);
+  assert.match(king.clock, /about two fewer an exchange \(twenty-eight at the start, fifteen about eight exchanges in, five about twelve\): a number he has called is never called again/);
+  assert.deepEqual([route(king, "send-for-sallow").data.limit[0].exchanges, route(king, "time-presses").data.limit[0].exchanges], [8, 12], "fifteen minutes and five, as the cues count them");
+});
+
 test("the Heron's bells are felt coming, and Hep's count falls each time she calls it (QA round qa2-1018: 'Forty to the hatch!' five times over, and no word of the tide all scene)", () => {
   const heron = JSON.parse(files[HERON]!);
   const hep = heron.cast.find((c: any) => c.id === "hep");
