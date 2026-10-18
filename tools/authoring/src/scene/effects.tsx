@@ -48,7 +48,7 @@ export const OPS:Record<string,OpSpec>={
   chill:{label:'Chill',group:'The world',detail:'Something is chilled or frozen.',fields:[what()]},
   bleed:{label:'Bleed',group:'The world',detail:'Someone bleeds.',fields:[what('Who'),{key:'how',label:'How badly',kind:'bleed',optional:true}]},
   spill:{label:'Spill',group:'The world',detail:'A liquid spills (water, oil, spirits, ale, blood or grease).',fields:[what('What\'s spilled','What spills, in words with the liquid in them (“a jug of oil”).'),{key:'to',label:'Where',kind:'target',optional:true},{key:'feet',label:'Feet',kind:'number',optional:true,hint:'How far it spreads.'}]},
-  startFight:{label:'Start a fight',group:'A fight',detail:'A combat ending\'s set-up: who fights the player, their allies and where. Recorded for when fights are built.',fields:[{key:'enemies',label:'Enemies',kind:'enemies'},{key:'allies',label:'Allies',kind:'people'},{key:'at',label:'Where',kind:'target'}]},
+  startFight:{label:'Start a fight',group:'A fight',detail:'A combat ending\'s set-up: who fights the player, their allies and where. Recorded for when fights are built.',fields:[{key:'enemies',label:'Enemies',kind:'enemies'},{key:'allies',label:'Allies',kind:'people',optional:true},{key:'at',label:'Where',kind:'target',optional:true,hint:'A part or a thing of the place, by its id: where it breaks out.'}]},
 };
 const WORLD_OPS=Object.keys(OPS).filter(op=>OPS[op].group==='The world');
 const QUEST_STEPS=['start','advance','complete','fail'];
@@ -69,7 +69,7 @@ function newEffect(op:string,choices:Choices):EffectData{
   if(op==='journal')return {op,text:''};
   if(op==='follow')return {op,who:first};
   if(op==='promise')return {op,by:'$player',to:first,text:''};
-  if(op==='startFight')return {op,enemies:[],allies:[],at:''};
+  if(op==='startFight')return {op,enemies:[]};
   if(op==='create')return {op,name:'',kind:'object'};
   if(op==='give')return {op,what:'',to:'$player'};
   if(op==='note')return {op,what:'',text:''};
@@ -228,7 +228,7 @@ function EffectField({spec,effect,choices,onChange}:{spec:FieldSpec;effect:Effec
       const people=Array.isArray(effect[key])?(effect[key] as unknown[]).map(String):[];
       return <div className="field" data-field={key}>
         <span className="field-label">{label}</span>
-        <Chips label={label} items={people.map(id=>({value:id,label:choices.cast.find(option=>option.value===id)?.label??id}))} empty="Nobody." onRemove={id=>set(people.filter(other=>other!==id))}/>
+        <Chips label={label} items={people.map(id=>({value:id,label:choices.cast.find(option=>option.value===id)?.label??id}))} empty="Nobody." onRemove={id=>{const rest=people.filter(other=>other!==id);set(spec.optional?optionalList(rest):rest)}}/>
         <AddPicker label="Add person" title={`Add to ${label.toLowerCase()}`} options={choices.cast.filter(option=>!people.includes(option.value))} empty="Everyone of the cast is here already." onPick={id=>set([...people,id])}/>
       </div>;
     }

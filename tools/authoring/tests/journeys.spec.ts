@@ -535,6 +535,18 @@ test('an effect\'s conditions are picked from the facts, or a new fact made ther
   const give=effects.getByRole('article',{name:`Effects ${before+2}`});
   await give.getByLabel('What',{exact:true}).fill('boots');
   await expect.poll(async()=>node(await saved(page),'failed').data.effects.at(-1)).toEqual({op:'give',what:'boots',to:'$player'});
+  // A fight's set-up: its enemies, and its allies and where only once they're given.
+  await pick(effects,'Add effect',/^Start a fight/);
+  const fight=effects.getByRole('article',{name:`Effects ${before+3}`});
+  await expect.poll(async()=>node(await saved(page),'failed').data.effects.at(-1)).toEqual({op:'startFight',enemies:[]});
+  await fight.getByRole('button',{name:'Add enemies'}).click();
+  await pick(fight,'Add person',/^Sergeant Agnes Kell/);
+  await fight.getByLabel('Where',{exact:true}).fill('yard');
+  await expect.poll(async()=>node(await saved(page),'failed').data.effects.at(-1)).toEqual({op:'startFight',enemies:[{asset:'bandit',count:1}],allies:['kell'],at:'yard'});
+  await fight.getByRole('button',{name:'Remove Sergeant Agnes Kell (kell)'}).click();
+  await fight.getByLabel('Where',{exact:true}).fill('');
+  await expect.poll(async()=>node(await saved(page),'failed').data.effects.at(-1)).toEqual({op:'startFight',enemies:[{asset:'bandit',count:1}]});
+  await fight.getByRole('button',{name:`Remove effect ${before+3}`}).click();
   await pick(effects,'Add effect',/^Another op, as JSON/);
   const raw=effects.getByRole('article',{name:'New effects'}).getByLabel('JSON',{exact:true});
   await raw.fill('{"op": "chant", "what": ');

@@ -39,11 +39,11 @@ export function SceneView(){
     <Group title="When and where" anchor="scene-when" field="when">
       <div className="field-row">
         <SelectField label="Time" field="time" value={doc.time??''} options={[{value:'',label:'Not set'},...TIMES.map(time=>({value:time,label:time}))]} onChange={value=>set('time',optionalText(value))}/>
-        <SelectField label="Rest" field="rest" hint="A rest before it." value={doc.rest??''} options={[{value:'',label:'None'},{value:'short',label:'Short'},{value:'long',label:'Long'}]} onChange={value=>set('rest',optionalText(value))}/>
+        <SelectField label="Rest" field="rest" hint="Time passes before it opens: a short rest (an hour) or a long one (a night)." value={doc.rest??''} options={[{value:'',label:'None'},{value:'short',label:'Short'},{value:'long',label:'Long'}]} onChange={value=>set('rest',optionalText(value))}/>
       </div>
       <SelectField label="Place" field="place" hint="The place's world (places/<key>.json): its areas, its things and who stands where." value={doc.place??''} options={[{value:'',label:'None'},...places]} onChange={value=>set('place',optionalText(value))}/>
       <Checkbox label="Interlude" field="interlude" hint="Downtime between scenes, standing in for the map: the story skips it, going on from one of its endings." checked={!!doc.interlude} onChange={checked=>set('interlude',checked?true:undefined)}/>
-      <Checkbox label="Milestone" field="milestone" hint="A milestone of the story." checked={!!doc.milestone} onChange={checked=>set('milestone',checked?true:undefined)}/>
+      <Checkbox label="Milestone" field="milestone" hint="Reaching it is a milestone: the player's character goes up a level as it opens." checked={!!doc.milestone} onChange={checked=>set('milestone',checked?true:undefined)}/>
     </Group>
     <Group title="The world" anchor="scene-world" field="world">
       <ListField label="Limits" field="limits" addLabel="Add a limit" rows={2} hint="Tempting things that don't exist or can't work here, so the GM can say “no, but” honestly." items={list('limits')} onChange={items=>set('limits',optionalList(items))}/>
