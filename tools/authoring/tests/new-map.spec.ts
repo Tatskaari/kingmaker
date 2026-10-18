@@ -4,7 +4,8 @@ import path from 'node:path';
 
 // A new map, its place and the scene laid there, written from nothing in the browser test harness as an
 // author would, every value through a control and none by editing a file, in panes as wide as an
-// Obsidian pane is (1000px for the map and the scenario, 700px for the place and the scene): the map made
+// Obsidian pane is (twice: the map and the scenario at 1000px and the place and the scene at 700px, then the
+// other way round, so each document is written at each width): the map made
 // from the scenario's Files view, cropped from its Map view, painted with a new legend entry, a region
 // that plays a new scene made where it's picked and lays the scene's new place, a way to the town and
 // one back, and two people by the hour; the place's two areas, three things and a start; the scene, a
@@ -51,10 +52,15 @@ const selectNode=async(page:Page,id:string)=>{
   await expect(page.locator(`.node-inspector[data-node="${id}"]`)).toBeVisible();
 };
 
-test('a new map, its place and its scene written from nothing in 1000px and 700px panes, and the scenario wired to them: no problems anywhere',async({page})=>{
+// Each document is written in a pane of each width, by one test or the other.
+for(const [wide,narrow] of [[1000,700],[700,1000]] as const)test(`a new map, its place and its scene written from nothing (the map and the scenario at ${wide}px, the place and the scene at ${narrow}px), and the scenario wired to them: no problems anywhere`,async({page})=>{
+  await author(page,wide,narrow);
+});
+
+async function author(page:Page,wide:number,narrow:number){
   test.setTimeout(240_000);
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
-  await page.setViewportSize({width:1000,height:820});
+  await page.setViewportSize({width:wide,height:820});
   await page.goto('/');
   await expect(page.locator('.file-path')).toHaveText('scenes/hanged-clerk.kmscene');
   const scenario=await original('caerwyn.kmscenario'),townBefore=await original('maps/caerwyn.kmmap');
@@ -136,7 +142,7 @@ test('a new map, its place and its scene written from nothing in 1000px and 700p
   await write(regionInspector,'Description','Maud Tallis\'s shop: candles hanging in bunches, the vat in the back.');
   map=await saved(page,'maps/chandler-row.kmmap');
   expect(map.regions).toEqual([{id:'the-chandlers-shop',name:'the chandler\'s shop',rect:{x:4,y:3,w:6,h:5},sceneId:'the-tallow-thief',worldOrigin:{x:4,y:3},trigger:'enter',label:'Step into the chandler\'s',description:'Maud Tallis\'s shop: candles hanging in bunches, the vat in the back.'}]);
-  await page.screenshot({path:'dist/screenshots/new-map-region.png'});
+  await page.screenshot({path:`dist/screenshots/new-map-region-${wide}.png`});
 
   // A way back to the town, from the Exits view: it lands where a way into the town lands by default (nearest its middle).
   await tab(page,'Views of the map','Exits').click();
@@ -187,7 +193,7 @@ test('a new map, its place and its scene written from nothing in 1000px and 700p
   expect({...town,exits:townBefore.exits}).toEqual(townBefore);
 
   // ---- The place, in a 700px pane: two areas, three things ----
-  await page.setViewportSize({width:700,height:860});
+  await page.setViewportSize({width:narrow,height:860});
   await open(page,'places/the-chandlers-shop.kmplace');
   await tab(page,'Views of the place','Place').click();
   const placeView=page.locator('.place-view');
@@ -238,7 +244,7 @@ test('a new map, its place and its scene written from nothing in 1000px and 700p
   ]);
   await tab(page,'Views of the place','Plan').click();
   await expect(page.locator('.place-name')).toHaveText(['the tallow vat','the chandler\'s ledger','a broken shutter']);
-  await page.screenshot({path:'dist/screenshots/new-place.png'});
+  await page.screenshot({path:`dist/screenshots/new-place-${narrow}.png`});
 
   // ---- The scene laid there, in a 700px pane: its fields, its cast, a discovery whose path's via is a thing of the place, an ending ----
   await open(page,'scenes/the-tallow-thief.kmscene');
@@ -336,8 +342,8 @@ test('a new map, its place and its scene written from nothing in 1000px and 700p
   await expect(page.locator('.list-view .doc-card [data-field="namedBy"]')).toContainText('The Tallow Thief: The vat was skimmed: path 2');
   await expect(tab(page,'Views of the place','Problems')).toHaveAttribute('aria-label','Problems (0)');
 
-  // ---- The scenario wired, at 1000px: the ending's next; the start moved onto the row and back ----
-  await page.setViewportSize({width:1000,height:820});
+  // ---- The scenario wired: the ending's next; the start moved onto the row and back ----
+  await page.setViewportSize({width:wide,height:820});
   await open(page,'caerwyn.kmscenario');
   await tab(page,'Views of the scenario','Diagram').click();
   const thief=page.locator('.scenario-card[data-card="scene:the-tallow-thief"]');
@@ -370,15 +376,15 @@ test('a new map, its place and its scene written from nothing in 1000px and 700p
     await expect(tab(page,'Views of the map','Problems')).toHaveAttribute('aria-label','Problems (0)');
   }
   await tab(page,'Views of the map','Problems').click();
-  await page.screenshot({path:'dist/screenshots/new-map-problems.png'});
+  await page.screenshot({path:`dist/screenshots/new-map-problems-${wide}.png`});
   expect(errors).toEqual([]);
 
   // The files as written, for the campaign check and the game's loaders (KINGMAKER_AUTHORED).
   const out=process.env.KINGMAKER_AUTHORED;
-  if(out){
+  if(out&&wide===1000){
     for(const file of ['caerwyn.kmscenario','maps/caerwyn.kmmap','maps/chandler-row.kmmap','places/the-chandlers-shop.kmplace','scenes/the-tallow-thief.kmscene']){
       await mkdir(path.dirname(path.join(out,file)),{recursive:true});
       await writeFile(path.join(out,file),(await savedText(page,file))!);
     }
   }
-});
+}
