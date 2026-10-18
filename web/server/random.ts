@@ -7,7 +7,7 @@ import { Identity } from "spacetimedb";
  * after a reload), and the identities the host mints: its database's own, and each session's.
  */
 
-/** A dice seed for the simulation's run: a u32. */
+/** A dice seed for the simulation's run: a u32 (a test gives the page host a fixed one instead: HostConfig.seed). */
 export function randomSeed(): number {
   return crypto.getRandomValues(new Uint32Array(1))[0]!;
 }

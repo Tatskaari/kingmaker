@@ -26,12 +26,12 @@ test("the wire's public tables are tables.ts's, each by its SQL name with the sa
   assert.deepEqual(wire.sort(), kept.sort());
 });
 
-test("each move on the wire is a Caller's, and installCampaign, dispatchWaiting and streamReply aren't on it", () => {
+test("each move on the wire is a Caller's, and installCampaign, dispatchWaiting, setDiceSeed and streamReply aren't on it", () => {
   const host = memoryHost({ ai: async () => { throw new Error("no POST in this test"); } });
   const caller = host.as(identity(1));
 
   assert.deepEqual(WIRE_MOVES.filter(name => typeof caller[name] !== "function"), []);
-  assert.deepEqual(["installCampaign", "dispatchWaiting", "streamReply"].filter(name => (WIRE_MOVES as readonly string[]).includes(name)), []);
+  assert.deepEqual(["installCampaign", "dispatchWaiting", "setDiceSeed", "streamReply"].filter(name => (WIRE_MOVES as readonly string[]).includes(name)), []);
 });
 
 test("each view's key on the wire is a column of the rows view(identity) makes: the seat, the names on stage, the games and the character being made", async () => {

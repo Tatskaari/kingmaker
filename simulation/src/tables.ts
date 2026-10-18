@@ -45,6 +45,7 @@ export const TABLES: { [T in TableName]: TableMeta<T> } = {
   },
   dice: { primaryKey: "gameId" },
   admin: { primaryKey: "identity" },
+  diceSeed: { primaryKey: "id" },
 
   scene: { primaryKey: "id", autoInc: true, indexes: ["gameId"], public: true },
   gmState: { primaryKey: "sceneId", defaults: { canon: [], patches: "[]", whispers: [], rulings: [], absent: [], adjustments: [], owed: [], fought: [], guard: [], withheld: [] } },

@@ -160,6 +160,13 @@ export const Dice = __t.object("Dice", {
 });
 export type Dice = __Infer<typeof Dice>;
 
+export const DiceSeed = __t.object("DiceSeed", {
+  id: __t.u32(),
+  seed: __t.u32(),
+  given: __t.u32(),
+});
+export type DiceSeed = __Infer<typeof DiceSeed>;
+
 export const EndingLead = __t.object("EndingLead", {
   exitId: __t.string(),
   count: __t.u32(),

@@ -25,6 +25,8 @@ import { portDuplex } from "./transport.ts";
 
 const V2 = join(import.meta.dirname, "..", "..");
 const LINE = "Sergeant, who found him?";
+/** The page host's dice, fixed: a test never rolls the page's own randomness. */
+const DICE = 7;
 const NEXT = "And the Purveyor's office: who keeps it?";
 
 /** What the build's content.json holds, made from the repo: the campaign's files, the prompts by name, the dev fake (answering at once). */
@@ -42,7 +44,7 @@ function repoContent(): Content {
 async function pageHost(database: Database, content: Content): Promise<{ host: PageHost; storage: Storage; logs: string[] }> {
   const logs: string[] = [];
   const storage = await openStorage(database, () => {});
-  const host = await startHost({ model: fakeModel(content.fake), ownerMoves: true, log: line => logs.push(line) }, storage, content);
+  const host = await startHost({ model: fakeModel(content.fake), ownerMoves: true, log: line => logs.push(line), seed: DICE }, storage, content);
   return { host, storage, logs };
 }
 

@@ -8,7 +8,7 @@ import { onTop } from "../dev/fake.ts";
 import { camel, reviewLines } from "../dev/gm-status.ts";
 import type { Stack } from "../dev/stack.ts";
 import type { Game } from "./creation.ts";
-import { callLog, check, doneTurn, Failed, mapUntil, nextTurn, note, ok, restartAi, seconds, step, turnOf, until, type Player } from "./kit.ts";
+import { callLog, check, doneTurn, Failed, fixDice, mapUntil, nextTurn, note, ok, restartAi, seconds, step, turnOf, until, type Player } from "./kit.ts";
 
 /**
  * The e2e's steps for the full GM (full-gm-design §4.4), after V1's: a memory kept and brought back,
@@ -22,6 +22,8 @@ import { callLog, check, doneTurn, Failed, mapUntil, nextTurn, note, ok, restart
 /** Step 20 left $10 in today's ledger, so the AI service keeps its ceiling raised from here on. */
 export const RAISED = { KM_AI_DAILY_USD: "100" };
 const WREN = { campaign: "caerwyn", name: "Wren Ashdown", concept: "a hedge wizard from the fens", build: "wizard" };
+/** Step 24's game's dice, fixed just before it's made, whatever the steps before made: its ruling's check is a natural 1 every run. */
+const RISKY_DICE = 24;
 
 /**
  * The co-GM's answer for step 23: on track (so it runs only every third turn), with a note for the
@@ -126,6 +128,7 @@ export async function aConsideredAct(stack: Stack, root: string, a: Player, b: P
   // Every line wants a roll no route covers, and none is the same push again (a ruling that failed is a try the decider could match).
   const considered = onTop(fake, { choices: { roll_call: "new", same_again: "new" } });
   await restartAi(stack, considered, RAISED);
+  await fixDice(stack, RISKY_DICE);
   const game = await aNewGame(stack, a);
   check("B's join_game is made", (await b.conn.joinGame(game.id)) === undefined);
   await until(b, "B to see the scene", 10_000, r => r.game.id === game.id && r.scene.status === "live");
@@ -140,7 +143,7 @@ export async function aConsideredAct(stack: Stack, root: string, a: Player, b: P
     check(`${p.name} saw turn ${n} go ${phases.join(", ")}`, phases.slice(0, 3).join() === "deciding,considering,replying");
   }
   const lines = linesOf(rows, n);
-  check(`the dice line came before the reply: "${lines.find(l => l.kind === "roll")?.text}"`, lines.map(l => l.kind).join() === "player,roll,narration" && /^Sleight Of Hand check .* vs DC 12: (success|failure)/.test(lines[1]!.text));
+  check(`the dice line came before the reply, the fixed dice's natural 1: "${lines.find(l => l.kind === "roll")?.text}"`, lines.map(l => l.kind).join() === "player,roll,narration" && /^Sleight Of Hand check .* vs DC 12: failure \(natural 1!\)$/.test(lines[1]!.text));
   const ruled = await gmOf(stack, game);
   const ruling = ruled.rulings[0];
   check(`gm_state.rulings has it: ${ruling ? `${ruling.turn}: ${ruling.act} -> ${ruling.skill} DC ${ruling.dc}, ${ruling.went}` : "none"}`, ruled.rulings.length === 1 && ruling!.turn === n && ruling!.kind === "roll" && ruling!.dc === 12);
