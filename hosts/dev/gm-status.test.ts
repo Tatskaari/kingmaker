@@ -57,6 +57,20 @@ test("the two-part GM's side: what's reached, a closing on its way, each person'
   assert.deepEqual([status.reached, status.closing, status.roles, status.coGmNote, status.moved, status.heldOnce], [["start", "hobb", "cart-arrives"], "murder-unknown (turn 4)", ["kell: At the gate | Writes down only what is said."], "turn 4", "cart-arrives", null]);
 });
 
+test("a talk's: the discovery its prep filled (the revelation and the ways it can come out), or dropped with nothing to confide, beside what the companion keeps back", () => {
+  const paths = [{ via: "kell", clue: "A pause at the Rat's name.", earn: "Free, when the talk comes near it.", strength: "hook" }, { via: "kell", clue: "Nan Quill put her out.", earn: "Asked about it, they tell it.", strength: "strong" }];
+  const filled = statusOf(rows({ patches: JSON.stringify([
+    { turn: 0, why: "What Kell might open up about.", cast: { id: "kell", secrets: ["Shows: a pause at the Rat's name.", "Nan Quill put her out."] } },
+    { turn: 0, why: "The door at the Rat.", fill: { id: "told", revelation: "Nan Quill put her out through the Rat's door.", paths } },
+  ]) }));
+  assert.deepEqual(filled.patches, [
+    "kell keeps back: Shows: a pause at the Rat's name. Nan Quill put her out.",
+    "told filled: Nan Quill put her out through the Rat's door. (hook: A pause at the Rat's name. What earns it: Free, when the talk comes near it. / strong: Nan Quill put her out. What earns it: Asked about it, they tell it.)",
+  ]);
+  const none = statusOf(rows({ patches: JSON.stringify([{ turn: 0, why: "Nothing of their own story to confide in this talk.", drop: "told" }]) }));
+  assert.deepEqual(none.patches, ["told dropped: Nothing of their own story to confide in this talk."]);
+});
+
 test("the story between scenes: what was handed on to the scene waiting, the lead, the chapters, quests, flags and followers", () => {
   const status = statusOf(rows({
     adjustments: ["Kell walks with the investigator now."], opening: "Open on the Rat's door.", lead: "The Drowned Rat, then.", absent: ["cob"],

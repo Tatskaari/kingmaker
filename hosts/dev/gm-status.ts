@@ -146,7 +146,11 @@ function gmFields(gm: GmState): Record<string, unknown> {
 /** A patch as the prototype's status summarises it. */
 function patchLine(p: ScenePatch): string {
   return p.beat ? `beat ${p.beat.id}` : p.transition ? `${p.transition.beat} + ${p.transition.transition.when}` : p.close ? `${p.close.beat} - ${p.close.id}`
-    : p.essential ? `essential ${p.essential.id}, brought over (${p.essential.missed}): ${p.essential.placedWith.join("; ")}` : `${p.cast?.id} keeps back: ${p.cast?.secrets.join(" ")}`;
+    : p.essential ? `essential ${p.essential.id}, brought over (${p.essential.missed}): ${p.essential.placedWith.join("; ")}`
+    // A talk's discovery, filled for it or not its (the talk's prep).
+    : p.fill ? `${p.fill.id} filled: ${p.fill.revelation} (${p.fill.paths.map(path => `${path.strength}: ${path.clue} What earns it: ${path.earn}`).join(" / ")})`
+    : p.drop ? `${p.drop} dropped: ${p.why}`
+    : `${p.cast?.id} keeps back: ${p.cast?.secrets.join(" ")}`;
 }
 
 /** A co-GM review: "<turn>: <status> — <assessment> [pending | merged at t<k>]", and why its move was refused, if it was. An ended scene's is never merged. */
