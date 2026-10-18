@@ -125,7 +125,7 @@ function gmFields(gm: GmState): Record<string, unknown> {
     patches: gm.patches.map(patchLine),
     rulings: gm.rulings.map(r => `${r.turn}: ${r.act} -> ${r.kind === "roll" ? `${r.skill} DC ${r.dc}${r.roll ? ` (${r.roll.total})` : ""}` : `${r.kind}, no roll`} [${r.why}]: ${r.went}: ${r.changed}`),
     landed: gm.landed, hinted: gm.hinted,
-    sceneStatus: gm.sceneStatus ?? null, offGraphTurn: gm.offGraphTurn ?? null, lastRepairTurn: gm.lastRepairTurn ?? null,
+    offGraphTurn: gm.offGraphTurn ?? null, lastRepairTurn: gm.lastRepairTurn ?? null,
     opened: gm.opened.map(o => `${o.turn}: ${o.scope}: ${o.title} (${o.path})`),
     // The world bridge's (world-bridge-design §3.3): what the last reply left hanging, a hold on the player, a fight that broke out, and who's away.
     threat: gm.threat ? `${gm.threat.turn}: ${gm.threat.kind === "attack" ? `an attack by ${gm.threat.by}` : `${gm.threat.hazard}, ${gm.threat.severity}`}` : null,

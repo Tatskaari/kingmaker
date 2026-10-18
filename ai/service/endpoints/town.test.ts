@@ -229,7 +229,7 @@ function talkSettle(n: number, gm: GmState, line: string, reply: string, suggest
   return {
     key: `${GAME}:s11:t${n}:settle`, game, player,
     turn: { scene: { id: "11", key: talkSceneId("kell", 1), kind: "talk", turn: n }, pc: "pc:1", gm: { ...gm, turnsInBeat: n }, transcript, line: { speaker: "player:1", text: line }, world: TOWN, party: [WIZARD], present: [], story: STORY },
-    reply, lines: [], settled: [], talk: { suggest }, twoPart: true,
+    reply, lines: [], settled: [], talk: { suggest },
   };
 }
 

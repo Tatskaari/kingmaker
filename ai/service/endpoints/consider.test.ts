@@ -3,12 +3,10 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
-import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE } from "../../gm/directives.ts";
-import { fakeFetch, type FakeOptions, type Request } from "../../llm/fake-openrouter.ts";
+import { fakeFetch, type FakeOptions } from "../../llm/fake-openrouter.ts";
 import { prompt } from "../../prompts/index.ts";
-import type { RollResult } from "../../../shared/dice.ts";
 import { initialGm, type GmState } from "../../../shared/gm/state.ts";
-import type { ConsiderRequest, ConsiderResponse, Decision, DecideRequest, Entry, Outcome, ReplyRequest, SettleRequest, SheetRow } from "../../../shared/protocol/ai.ts";
+import type { ConsiderRequest, ConsiderResponse, Decision, DecideRequest, Entry, SheetRow } from "../../../shared/protocol/ai.ts";
 import type { PlaceFile } from "../../../shared/scene/files.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import { keysFor, worldToRows, type PlaceRows } from "../../../shared/world/rows.ts";
@@ -24,9 +22,9 @@ import { pipeline } from "./pipeline.ts";
 /**
  * A turn's thinks with the full GM (full-gm-design §4.1, package A1), on the stand-in for
  * OpenRouter: the decision read for a roll to rule on and a plan off the graph; the GM's ruling, its
- * verdict and its route; a review past its deadline, and the plain check to roll instead; the reply
- * told what the ruling decided (and, without one, what the plain check did); and the player gone
- * from the place, read after the reply.
+ * verdict and its route; and a review past its deadline, and the plain check to roll instead. (The
+ * reply told what the ruling decided, and the player gone from the place read after the reply, went
+ * with the old pipeline's reply and settle.)
  */
 
 const CAERWYN = join(import.meta.dirname, "..", "..", "..", "campaigns", "caerwyn");
@@ -75,10 +73,6 @@ function turnOf(n: number, gm: GmState, rows: PlaceRows, transcript: Entry[], pa
   const line = transcript.findLast(e => e.kind === "player")!.text;
   return { scene: { id: "1", key: "hanged-clerk", kind: "scene" as const, turn: n }, pc: "pc:1", gm, transcript, line: { speaker: "player:1", text: line }, world: rows, party, present: [], story: { time: "morning", day: 1, flags: {} } };
 }
-
-/** The GM's note for this reply: the reply call's last developer message. */
-const noteOf = (body: Request) => body.input?.filter(m => m.role === "developer").at(-1)?.content ?? "";
-const forThisReply = (note: string) => note.slice(note.indexOf("## For this reply"));
 
 /** The review's answer for Cob's boot (the prototype's consider.test.ts LINING): a Persuasion roll at DC 12, the page out on a success, Cob bolting on a failure. */
 const outcome = (o: Record<string, unknown>) => ({ happens: "", gets: "some", to: "stay", counts_as: "none", establishes: [], reveals: [], closes: [], ...o });
@@ -161,76 +155,4 @@ test("consider: a review past its deadline is cut off, and the plain check to ro
   const { read: _, ...offGraph } = req;
   const none = await pipeline.consider(offGraph, contextFor(offGraph.key, 300));
   assert.equal(none.fallback, undefined);
-});
-
-/** The yard after the consider commit played the ruling: rolled, and how it went. */
-function ruledOutcome(answer: ConsiderResponse, roll: RollResult, to: string): NonNullable<Outcome["ruled"]> {
-  return { ruling: answer.ruling!, verdict: answer.verdict!, route: answer.route!, went: roll.success ? "success" : "failure", roll, from: "yard", to, chosen: roll.success };
-}
-
-test("reply: a ruled turn is told what the ruling decided, with the dice, where it went and the way it shut (named, though the reply's prep no longer offers it); no bill or payoff on top", async () => {
-  const { contextFor, rows } = await setUp({ byName: { ruling: LINING }, replies: ["Cob scowls, then hauls the boot off and picks at the lining."] });
-  const yard = initialGm({ start: "yard" });
-  const considered = await pipeline.consider(considerRequest(2, yard, rows(yard)), contextFor(`${GAME}:s1:t2:consider`));
-  const decision: Decision = { earned: true, daft: true, outOfCharacter: false, considered: READ };
-  const replyFor = (gm: GmState, ruled: NonNullable<Outcome["ruled"]>, line: string): ReplyRequest => ({
-    key: `${GAME}:s1:t2:reply`, game, player, turn: turnOf(2, gm, rows(gm), [opening, said(2), { turn: 2, speaker: "dice", kind: "roll", text: line }]),
-    decision, outcome: { lines: [line], directives: [], wasStuck: true, ruled }, stream: { turn: "9" },
-  });
-
-  // Won: the page out, the scene on to what Prout found.
-  const won: RollResult = { skill: "persuasion", dc: 12, die: 15, modifier: 1, total: 16, success: true, critical: null };
-  const page: GmState = { ...yard, beat: "motive", turnsInBeat: 0, path: [{ turn: 2, from: "yard", to: "motive", via: "considered-2", source: "pre", roll: won, known: 0 }] };
-  const winning = await setUp({ replies: ["Cob scowls, then hauls the boot off."] });
-  await pipeline.reply(replyFor(page, ruledOutcome(considered, won, "motive"), "Persuasion check to get Cob to open the boot's lining: 15 + 1 = 16 vs DC 12: success"), winning.contextFor(`${GAME}:s1:t2:reply`));
-  const told = forThisReply(noteOf(winning.fake.sent.find(b => b.stream)!));
-  assert.match(told, /^## For this reply\nThe player's attempt called for a Persuasion check to get Cob to open the boot's lining\. Persuasion check: 15 \+ 1 = 16 vs DC 12: success\. Decided, and it stands \(people react to it, but nothing in this reply undoes, reverses or spoils it\): Cob drags the left boot off/);
-  assert.match(told, /The scene has moved on to "What Prout found"/);
-  for (const line of [CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, "The scene has been going in circles"]) assert.ok(!told.includes(line), `not over a ruling: ${line.slice(0, 40)}…`);
-
-  // Lost: Cob bolts, and winning him round is shut, named as the way it was, while the prep's routes have it gone.
-  const lost: RollResult = { skill: "persuasion", dc: 12, die: 4, modifier: 1, total: 5, success: false, critical: null };
-  const shut: GmState = { ...yard, path: [{ turn: 2, from: "yard", to: "yard", via: "considered-2", source: "pre", roll: lost, known: 0 }], established: ["Cob has bolted into the granary through the gap behind the water butt."], patches: [{ turn: 2, close: { beat: "yard", id: "win-cob" }, why: `Closed by the ruling on: ${LINING.act}` }] };
-  const losing = await setUp({ replies: ["Cob jeers and is gone."] });
-  await pipeline.reply(replyFor(shut, ruledOutcome(considered, lost, "yard"), "Persuasion check to get Cob to open the boot's lining: 4 + 1 = 5 vs DC 12: failure"), losing.contextFor(`${GAME}:s1:t2:reply`));
-  const note = noteOf(losing.fake.sent.find(b => b.stream)!);
-  assert.match(forThisReply(note), /Persuasion check: 4 \+ 1 = 5 vs DC 12: failure\. Decided, and it stands [^:]*: Cob jeers and bolts/);
-  assert.match(forThisReply(note), /From here on this way of trying is shut, for the rest of the scene: The player pushes past Cob's hostility/);
-  const routes = note.slice(note.indexOf("## What moves the scene on from here"), note.indexOf("## For this reply"));
-  assert.ok(routes.includes("promise that truly answers") && !routes.includes("pushes past Cob's hostility"), "the reply's prep offers the yard's routes but the one shut");
-});
-
-test("reply: with no ruling, the plain check's dice are narrated; the bill still comes, as the prototype's does", async () => {
-  const { fake, contextFor, rows } = await setUp({ replies: ["Cob shrugs you off."] });
-  const gm = initialGm({ start: "yard" });
-  const roll: RollResult = { skill: "persuasion", dc: 13, die: 9, modifier: 1, total: 10, success: false, critical: null };
-  const line = "Persuasion check to win Cob over: 9 + 1 = 10 vs DC 13: failure";
-  const req: ReplyRequest = {
-    key: `${GAME}:s1:t2:reply`, game, player, turn: turnOf(2, gm, rows(gm), [opening, said(2), { turn: 2, speaker: "dice", kind: "roll", text: line }]),
-    decision: { earned: false, daft: true, outOfCharacter: false, considered: READ }, outcome: { lines: [line], directives: [], wasStuck: false, freeform: { skill: "persuasion", dc: 13, roll, reason: "to win Cob over" } }, stream: { turn: "9" },
-  };
-  await pipeline.reply(req, contextFor(req.key));
-  const told = forThisReply(noteOf(fake.sent.find(b => b.stream)!));
-  assert.match(told, /^## For this reply\nThe player's attempt called for a Persuasion check\. Persuasion check: 9 \+ 1 = 10 vs DC 13: failure\. Narrate the result: /);
-  assert.ok(told.includes(CONSEQUENCE_DIRECTIVE));
-});
-
-test("settle: the player gone from the place, read at 0.7 when their character is the rules engine's; not asked of a sheet without a build", async () => {
-  const settleFor = (rows: PlaceRows, party: SheetRow[] = [WIZARD]): SettleRequest => {
-    const gm = initialGm({ start: "yard" });
-    return { key: `${GAME}:s1:t3:settle`, game, player, turn: turnOf(3, gm, rows, [opening, said(3, "(I nod to the sergeant and walk out of the yard, back towards the palace)")], party), reply: "Kell watches you go.", lines: [], settled: [] };
-  };
-  const gone = await setUp({ choices: { left: "gone" } });
-  const answer = await pipeline.settle(settleFor(gone.rows(initialGm({ start: "yard" }))), gone.contextFor(`${GAME}:s1:t3:settle`));
-  assert.equal(answer.after?.left, true);
-  const asked = gone.fake.sent.find(b => b.questions)!.questions!.left!;
-  assert.equal((asked as { instructions?: string }).instructions, "Where is the player character at the end of the latest GM reply? This scene is set in The Hanged Clerk (The yard behind the King's Granary).");
-
-  const unsure = await setUp({ choices: { left: "gone" }, odds: { left: 0.6 } });
-  assert.equal((await pipeline.settle(settleFor(unsure.rows(initialGm({ start: "yard" }))), unsure.contextFor(`${GAME}:s1:t3:settle`))).after?.left, undefined);
-
-  const plain = await setUp({ choices: { left: "gone" } });
-  const { build: _, ...sheet } = WIZARD;
-  await pipeline.settle(settleFor(plain.rows(initialGm({ start: "yard" })), [sheet]), plain.contextFor(`${GAME}:s1:t3:settle`));
-  assert.equal(plain.fake.sent.find(b => b.questions)!.questions!.left, undefined);
 });

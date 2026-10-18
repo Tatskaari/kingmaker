@@ -191,7 +191,7 @@ test("hurting a palace guard brings the guards on: the fight is recorded on the 
 });
 
 /** A two-part reply, and a talk's settle: the co-GM's moves and roles, and the next lines. */
-const replied = (text: string): ReplyResponse => ({ entries: [{ speaker: "gm", kind: "narration", text }], gm: { repeated: null }, firstTextMs: 3, usage: none });
+const replied = (text: string): ReplyResponse => ({ entries: [{ speaker: "gm", kind: "narration", text }], gm: {}, firstTextMs: 3, usage: none });
 const settled = (moves: CoGmAnswer["moves"], roles: CoGmAnswer["roles"] = {}, lines: string[] = []): SettleResponse => ({ ops: [], coGm: { roles, moves, log: [] }, talk: { suggestions: lines }, usage: none });
 const ROLE = { status: "Walking beside the investigator, notebook away.", mental_state: "At ease; wary of the Rat's name.", conversation_role: "Could let slip she knows the Rat's door; holds back how." };
 
@@ -262,9 +262,9 @@ test("after the yard, a word with Kell on the two-part GM: a talk opens with her
   await say("How long have you been with the watch?");
   assert.deepEqual(script.to("decide"), [], "no decide: a talk plays on the two-part GM");
   const reply = script.to("reply").at(-1)!.body as ReplyRequest;
-  assert.deepEqual([reply.twoPart, reply.decision, reply.outcome.windDown], [true, undefined, undefined]);
+  assert.equal(reply.outcome.windDown, undefined);
   const settle = script.to("settle").at(-1)!.body as SettleRequest;
-  assert.deepEqual([settle.twoPart, settle.talk?.suggest], [true, true]);
+  assert.equal(settle.talk?.suggest, true);
   gm = sceneNow(host, talk.id).gm;
   assert.deepEqual([gm.twoPart.roles.kell!.status, gm.twoPart.notes.map(n => n.turn), gm.turnsInBeat], [ROLE.status, [-1, 1], 1]);
   assert.deepEqual([...host.db.sceneSuggestion.sceneId.filter(talk.id)].map(s => [s.turn, s.text]), [[1, "Who was the thief?"], [1, "Do you regret it?"]]);
@@ -344,7 +344,7 @@ test("Ray of Frost at Kell walking with you opens a talk with the act its first 
   assert.deepEqual(script.to("decide"), [], "no decide: the rules resolve the act as the turn starts");
   assert.ok(now.lines.some(l => l.turn === 1 && l.kind === "roll" && /^Ray of Frost/.test(l.text)), "its dice lines, the talk's rules'");
   const reply = script.to("reply").at(-1)!.body as ReplyRequest;
-  assert.deepEqual([reply.twoPart, reply.outcome.acts?.length, reply.turn.line.text], [true, 1, "(I cast Ray of Frost at Sergeant Kell)"]);
+  assert.deepEqual([reply.outcome.acts?.length, reply.turn.line.text], [1, "(I cast Ray of Frost at Sergeant Kell)"]);
 });
 
 test("a thing the stage manager makes gets a look of its own: asked for once by its name, and the next of that name has it at once", async () => {

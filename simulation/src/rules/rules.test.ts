@@ -59,7 +59,7 @@ test("the first check of a game rolls the prototype's dice for its seed: coming 
   host.transact(tx => tx.db.dice.gameId.update({ ...tx.db.dice.gameId.find(scene.gameId)!, seed: 4242 }));
   const said = (text: string): Reply => ({ speaker: "gm", kind: "narration", text });
   const examine: ReplyResponse = {
-    entries: [said("You crouch by the body.")], gm: { repeated: null }, firstTextMs: 3,
+    entries: [said("You crouch by the body.")], gm: {}, firstTextMs: 3,
     check: { skill: "medicine", dc: 12, outcomes: Object.fromEntries(BANDS.map(b => [b, said(b)])) as Record<Band, Reply> }, usage: { calls: 1, costUsd: 0, byOperation: {} },
   };
   script.then("reply", examine);

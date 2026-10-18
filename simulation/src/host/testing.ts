@@ -101,8 +101,8 @@ export const DEFAULTS: {
   decide: { decision: { earned: false, daft: false, outOfCharacter: false }, opened: [], usage: usage(1, 0.0005) },
   reactions: { reactions: {}, usage: usage(0, 0) },
   consider: { error: "scripted: no ruling", ms: 0, usage: usage(0, 0) },
-  reply: { entries: [{ speaker: "gm", kind: "narration", text: "Kell taps her pencil on the notebook. \"Noted.\"" }], gm: { repeated: null }, firstTextMs: 3, usage: usage(1, 0.001) },
-  settle: { ops: [], after: { landed: [], hinted: [], unanswered: false, theirs: false }, usage: usage(2, 0.0007) },
+  reply: { entries: [{ speaker: "gm", kind: "narration", text: "Kell taps her pencil on the notebook. \"Noted.\"" }], gm: {}, firstTextMs: 3, usage: usage(1, 0.001) },
+  settle: { ops: [], coGm: { roles: {}, moves: [], log: [] }, usage: usage(2, 0.0007) },
   suggest: {
     lines: [
       { kind: "say", text: "Who found him, Sergeant?" },

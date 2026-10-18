@@ -1,6 +1,8 @@
 # The golden calls
 
-The prototype's GM calls on the hanged clerk, recorded once, for the prompt parity test ([../parity.test.ts](../parity.test.ts)): the AI service's acceptance test (v0-design §10.2, v5-design §4.2, gm-port §16.1). For the same state, the AI service's GM must ask the models what the prototype's asks, and come to what it comes to.
+The prototype's calls on the hanged clerk, recorded once, for the prompt parity test ([../parity.test.ts](../parity.test.ts)): the suggester's acceptance test (v5-design §4.2). For the same state, the AI service must ask the models what the prototype's asks, and come to what it comes to.
+
+**What's left of them is the lines** (`<moment>.suggest.json`). The GM's steps (`00-open.json` to `09-t3-settle.json`: the opening, then each turn's decide, reply and settle, as the prototype's old pipeline asked them) and the second recording with a backstory (`hanged-clerk-backstory`) went with the old pipeline's scene steps after QA round qa1-1018 ([../../../docs/migration-log.md](../../../docs/migration-log.md), M2's "The old pipeline's salvage"): the game plays every scene on the two-part GM, which the prototype never recorded. They're in git history before that cleanup. What follows describes the recording as it was made, all of it.
 
 ## How they were recorded
 

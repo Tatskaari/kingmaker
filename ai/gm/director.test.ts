@@ -1,4 +1,4 @@
-// Copied from the prototype's src/runtime/director.test.ts at 44c6d4a: its cases V0 keeps (the hanged clerk's: a route's act, two routes for one check, the same push again, cues, the bill, an ending on the brink, the after-reply read), against beforeQuestions, readBefore and readAfter, with what the decision picks in place of what resolve rolled; and with the world bridge the rules' cases (:40-75, the rules' own act from :194-204, :423-440), against withMechanic too, the freeform roll's and the map menu's (forced) left out, and the threat's reading after the reply (new). Considered rolls' and the other scenes' cases stay the prototype's.
+// Copied from the prototype's src/runtime/director.test.ts at 44c6d4a: its cases V0 keeps (the hanged clerk's: a route's act, two routes for one check, the same push again, cues, the bill, an ending on the brink), against beforeQuestions and readBefore, with what the decision picks in place of what resolve rolled; and with the world bridge the rules' cases (:40-75, the rules' own act from :194-204, :423-440), against withMechanic too, the freeform roll's and the map menu's (forced) left out, and the threat's reading after a reply (new, parked for combat since the old pipeline's settle went with its read after the reply). Considered rolls' and the other scenes' cases stay the prototype's.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ChoiceQuestion, Decider } from "../llm/decide.ts";
@@ -6,7 +6,7 @@ import { JevDecider } from "../llm/decide.ts";
 import { effectiveScene } from "../../shared/scene/graph.ts";
 import type { Exit, Scene } from "../../shared/scene/types.ts";
 import { sameAgainDirective } from "./directives.ts";
-import { afterQuestions, beforeQuestions, CUE_CONFIDENCE, CUE_EARLY_CONFIDENCE, cueCount, DAFT_CONFIDENCE, decisionState, readAfter, readBefore, withMechanic } from "./director.ts";
+import { beforeQuestions, CUE_CONFIDENCE, CUE_EARLY_CONFIDENCE, cueCount, DAFT_CONFIDENCE, decisionState, readBefore, readThreat, threatQuestions, withMechanic } from "./director.ts";
 import { hangedClerk, viewAt } from "./fixtures.ts";
 import { namedThing, type RulesOptions } from "./mechanics.ts";
 import type { TurnView } from "./view.ts";
@@ -192,30 +192,6 @@ test("with an ending held, the decision asks whether the player is answering it;
   assert.equal(none.asked[0]!.brink, undefined);
 });
 
-test("after the reply: whether the player left something unanswered, and whether an ending would be their own doing", async () => {
-  const after = async (picks: Parameters<typeof scripted>[0]) => {
-    const asked = afterQuestions(scene, yard());
-    return readAfter(scene, await scripted(picks).decide(decisionState(scene, yard(), "Shall we go? And who found him?", "Kell closes her notebook."), asked.questions, "director.after"), asked);
-  };
-  const left = await after({ ask: ["unanswered", 0.55, { none: 0.45 }], own_exit: ["theirs", 0.9] });
-  assert.deepEqual([left.unanswered, left.theirs], [true, true]);
-  const unsure = await after({ own_exit: ["theirs", 0.55, { no: 0.45 }] });
-  assert.deepEqual([unsure.unanswered, unsure.theirs], [false, false], "only a clear read is the player's own exit");
-});
-
-test("after the reply: an outcome route with its check for the simulation, and the improvised ending giving way to an authored one", async () => {
-  const asked = afterQuestions(scene, yard());
-  const read = async (picks: Parameters<typeof scripted>[0]) => readAfter(scene, await scripted(picks).decide({}, asked.questions, "director.after"), asked);
-  assert.deepEqual((await read({ outcome: ["kind-to-cob", 0.8] })).outcome, { route: "kind-to-cob" });
-  // An ending on an outcome needs 0.6.
-  assert.equal((await read({ outcome: ["make-case", 0.5] })).outcome, undefined);
-  assert.deepEqual((await read({ outcome: ["make-case", 0.7] })).outcome, { route: "make-case" });
-  // The improvised ending defers to an authored one the ending read finds plausible, even one no route leads to.
-  const instead = await read({ outcome: ["improvised-ending", 0.8], ending: ["own-ending", 0.5, { "walked-away": 0.3 }] });
-  assert.deepEqual(instead.outcome, { route: "improvised-ending", exit: "walked-away" });
-  assert.deepEqual(instead.ending, { exitId: "walked-away", probability: 0.8 });
-});
-
 // ---------------------------------------------------------------------------------------------
 // The rules (world-bridge-design §2.2): what they resolve is the turn's act, with its details asked
 // in a second small call (withMechanic), as the decide endpoint makes them.
@@ -296,13 +272,13 @@ test("a spell's aim on a weak read is what the player named, a doubtful second t
   assert.deepEqual(await cast("*Magic Missile straight into the boy*", { spell: ["magic-missile", 0.9], aim_cob: ["yes", 0.99], aim_kell: ["yes", 0.56] }), { kind: "cast", spell: "magic-missile", targets: ["cob"] });
 });
 
-test("after the reply, for a character with a build: a blow or a danger left hanging over the player, on a clear read", async () => {
-  const state = { ...yard(), rules: { aliases: {} } };
-  const asked = afterQuestions(scene, state);
-  assert.deepEqual(Object.keys(asked.questions.threat!.criteria).filter(k => k.startsWith("attack:")), ["attack:kell", "attack:cob", "attack:moll"], "whoever's here");
-  assert.ok(asked.questions.threat!.criteria["hazard:grab_or_shove"]);
-  assert.ok(asked.questions.threat_severity);
-  const read = async (picks: Parameters<typeof scripted>[0]) => readAfter(scene, await scripted(picks).decide({}, asked.questions, "director.after"), asked);
+test("parked for combat: a blow or a danger a reply left hanging over the player, on a clear read, with the question's raw choice", async () => {
+  const present = scene.cast.filter(c => ["kell", "cob", "moll"].includes(c.id));
+  const questions = threatQuestions(present);
+  assert.deepEqual(Object.keys(questions.threat!.criteria).filter(k => k.startsWith("attack:")), ["attack:kell", "attack:cob", "attack:moll"], "whoever's here");
+  assert.ok(questions.threat!.criteria["hazard:grab_or_shove"]);
+  assert.ok(questions.threat_severity);
+  const read = async (picks: Parameters<typeof scripted>[0]) => readThreat(await scripted(picks).decide({}, questions, "director.after"), present);
   const blow = await read({ threat: ["attack:kell", 0.8] });
   assert.deepEqual([blow.threat, blow.threatRead], [{ kind: "attack", by: "kell" }, "attack:kell"]);
   const fire = await read({ threat: ["hazard:fire", 0.7], threat_severity: ["serious", 0.9] });
@@ -311,6 +287,6 @@ test("after the reply, for a character with a build: a blow or a danger left han
   const unsure = await read({ threat: ["hazard:grab_or_shove", 0.5] });
   assert.deepEqual([unsure.threat, unsure.threatRead], [undefined, "hazard:grab_or_shove"]);
   assert.equal((await read({})).threatRead, "none");
-  // No build, no rules: not asked.
-  assert.equal(afterQuestions(scene, yard()).questions.threat, undefined);
+  // Someone not here can't be the one striking.
+  assert.equal((await read({ threat: ["attack:tull", 0.9] })).threat, undefined);
 });

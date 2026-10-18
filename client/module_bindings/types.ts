@@ -159,13 +159,6 @@ export const Dice = __t.object("Dice", {
 });
 export type Dice = __Infer<typeof Dice>;
 
-export const EndingLead = __t.object("EndingLead", {
-  exitId: __t.string(),
-  count: __t.u32(),
-  probability: __t.f64(),
-});
-export type EndingLead = __Infer<typeof EndingLead>;
-
 export const Entity = __t.object("Entity", {
   id: __t.u64(),
   gameId: __t.u64(),
@@ -315,9 +308,6 @@ export const GmState = __t.object("GmState", {
   get opened() {
     return __t.array(OpenedNote);
   },
-  get endingLead() {
-    return __t.option(EndingLead);
-  },
   get pendingExit() {
     return __t.option(PendingExit);
   },
@@ -327,10 +317,8 @@ export const GmState = __t.object("GmState", {
   get ended() {
     return __t.option(ExitAt);
   },
-  sceneStatus: __t.option(__t.string()),
   oocTurns: __t.array(__t.u32()),
   pressureOffered: __t.array(__t.string()),
-  repeated: __t.option(__t.string()),
   canon: __t.array(__t.string()),
   patches: __t.string(),
   notes: __t.option(__t.string()),

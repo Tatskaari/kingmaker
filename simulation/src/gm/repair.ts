@@ -56,6 +56,5 @@ function moveTracker(scene: Scene, state: GmState, to: string, because: string |
 export function shouldRepair(state: GmState, n: number, every = 3): boolean {
   if (state.ended || state.closing) return false;
   if (state.offGraphTurn === n) return true;
-  if (state.sceneStatus && state.sceneStatus !== "on_track") return true;
   return n - (state.lastRepairTurn ?? 0) >= every;
 }

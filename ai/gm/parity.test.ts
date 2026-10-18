@@ -15,7 +15,7 @@ import type { StreamSink } from "../service/stream.ts";
 import type { Backstory } from "../../shared/creation/types.ts";
 import type { GmState } from "../../shared/gm/state.ts";
 import type { Markup, Speech } from "../../shared/markup.ts";
-import type { AiRequest, Decision, DecideRequest, Entry, OpenRequest, OpenResponse, Outcome, ReplyRequest, ReplyResponse, SceneContext, SettleRequest, SheetRow, Suggestion, SuggestRequest, SuggestResponse, TurnContext } from "../../shared/protocol/ai.ts";
+import type { AiRequest, Entry, SceneContext, SheetRow, Suggestion, SuggestRequest, SuggestResponse } from "../../shared/protocol/ai.ts";
 import { keysFor, worldToRows } from "../../shared/world/rows.ts";
 import type { SceneWorld } from "../../shared/world/scene-world.ts";
 import { testScene, testStory } from "./fixtures.ts";
@@ -23,30 +23,19 @@ import { vetting, type Vetting } from "./suggest.ts";
 import { gameMarkup, turnSource } from "./view.ts";
 
 /**
- * Prompt parity (v0-design §10.2, v5-design §4.2, v1-design §4.2), the AI service's acceptance test:
- * its GM asks the models what the prototype's asks, for the same state. golden/hanged-clerk holds the
- * prototype's calls on the hanged clerk at 44c6d4a, with marked-up replies, the notes on them and the
- * lines suggested after each (recorded by the repo's tools/record-golden.mts; golden/README.md): for
- * each step, the session as it stood and every call it made; for each moment's notes and lines, the
- * session frozen at the call and what came of it. golden/hanged-clerk-backstory holds the GM's steps
- * for a player with a backstory from character creation (tools/v2/record-v1-golden.mts), whose
- * opening writes it into the player's doc and whose brief says who they are from it. Each session
- * becomes the request the simulation would send, the AI service's endpoint runs on the same
- * stand-in, and what it asks and answers are compared:
+ * Prompt parity for the suggested lines (v5-design §4.2), the suggester's acceptance test: the AI
+ * service asks the models what the prototype's asks, for the same state. golden/hanged-clerk holds
+ * the prototype's lines suggested after the opening and each of three replies on the hanged clerk at
+ * 44c6d4a (recorded by the repo's tools/record-golden.mts; golden/README.md): for each moment, the
+ * session frozen at the call and what came of it. Each session becomes the request the simulation
+ * would send, the AI service's endpoint runs on the same stand-in, and what it asks and answers are
+ * compared: byte for byte, the suggester's request (instructions, input, token cap: the spells in
+ * "who they are" too) and the judge's state; question by question, the judge's; equal, every field
+ * of the vetting, the lines and what was dropped, with why.
  *
- * - byte for byte: the GM's (gm.opening, gm.reply: the speakers' names and the notes in its
- *   history), the stage manager's, disclosure's, the notes' writer's (instructions, input, schema)
- *   and the suggester's (instructions, input, token cap: the spells in "who they are" too); the
- *   director's and the judge's state;
- * - question by question: the director's (every one the prototype's v2 approach asks, the rules'
- *   mechanic, threat and threat_severity included) and the judge's;
- * - equal: who says each line as each reply streams in a word at a time and once it's whole; the
- *   notes placed (offsets, kinds, notes, links by the game's keys) and their cards; every field of
- *   the vetting; the lines and what was dropped, with why.
- *
- * The steps run in order on one store, as a game would: the opening writes the player's doc, which
- * every later prompt reads. A reply's decision is the AI service's own, from its decide on the same
- * turn; what the decide commit did (the roll, the move) is read off the prototype's session.
+ * (The GM's steps' parity, the opening and each turn's decide, reply and settle as the prototype's
+ * old pipeline asked them, went with the old pipeline's scene steps: docs/migration-log.md, M2's
+ * "The old pipeline's salvage". The two-part GM is held to PR #666's instead, by ai/gm/two-part.test.ts.)
  */
 
 const GOLDEN = join(import.meta.dirname, "golden");
@@ -56,139 +45,35 @@ const GAME = "6f0c1d2e-0000-4000-8000-00000000901d";
 /** The prototype's session, as far as the requests are made from it. */
 interface Session {
   turn: number; beat: string; turnsInBeat: number; path: GmState["path"]; established: string[]; canon: string[]; notes: string | null;
-  patches: GmState["patches"]; landed?: string[]; hinted?: string[]; memory?: { opened: GmState["opened"] }; endingLead?: GmState["endingLead"];
-  pendingExit?: GmState["pendingExit"]; closing?: GmState["closing"]; sceneStatus?: GmState["sceneStatus"]; oocTurns?: number[]; pressureOffered?: string[];
-  repeated?: string; entered?: string[]; absent?: string[]; whispers?: GmState["whispers"]; rulings?: unknown[];
+  patches: GmState["patches"]; landed?: string[]; hinted?: string[]; memory?: { opened: GmState["opened"] };
+  pendingExit?: GmState["pendingExit"]; closing?: GmState["closing"]; oocTurns?: number[]; pressureOffered?: string[];
+  entered?: string[]; absent?: string[]; whispers?: GmState["whispers"];
   player: { name: string; concept: string; modifiers: SheetRow["skills"]; build?: string; backstory?: Backstory };
   rules?: { status?: string; spells?: SheetRow["spells"]; weapons?: SheetRow["weapons"]; features?: SheetRow["features"] };
   transcript: Array<{ turn: number; speaker: string; kind: Entry["kind"]; text: string; marked?: Markup }>;
   world: SceneWorld;
 }
-/** Who says each line of a reply as it streams (each time its words grow) and once it's whole (the marks it drafted are the recording's, which the game no longer keeps). */
-interface Speakers { streamed: Array<{ text: string; speech: Speech[] }>; whole: { text: string; speech: Speech[] } }
-/**
- * A step of the GM's. The stand-in it ran on is `fake` (tools/record-golden.mts), or, in V1's
- * recording with a backstory (tools/v2/record-v1-golden.mts), its replies and the decider's choices.
- */
-interface Step { step: string; line?: string; fake?: FakeOptions; replies?: string[]; choices?: Record<string, string>; session: Session; calls: Array<{ operation: string; body: Request }>; speakers?: Speakers }
 interface SuggestMoment { moment: string; fake: FakeOptions; session: Session; offered: string[]; bodies: { suggest: Request; judge?: Request & { state?: Record<string, string> } }; vetting: Vetting; lines: Suggestion[]; dropped: Array<{ text: string; why: string }> }
-
-/**
- * What the AI service doesn't ask the director that the prototype's v2 approach does: nothing. The
- * rules' mechanic before the reply, and their threat and threat_severity after it, are asked since
- * the world bridge (world-bridge-design §3.1), as considered rolls' roll_call and the means in every
- * beat, the co-GM's off_graph and the rules' left are since the full GM (full-gm-design §4.1): each
- * the prototype's to the letter (the recordings' wizard and rogue have builds, so their sessions are
- * rules sessions). gm-port §6, §9.
- */
-const NOT_ASKED: { before: string[]; after: string[] } = { before: [], after: [] };
-
-/** Questions asked in both whose words differ, and why. None: each it asks is the prototype's to the letter. */
-const WORDED_OTHERWISE: string[] = [];
 
 /** The player's spells, which the suggester and the judge are told of (suggest.ts's who()): from the sheet's spells, in both since the world bridge. */
 const SPELLS = / Spells: [^.]*\./;
 
-const read = <T>(file: string, recording = "hanged-clerk") => JSON.parse(readFileSync(join(GOLDEN, recording, file), "utf8")) as T;
-const filesIn = (recording: string) => readdirSync(join(GOLDEN, recording)).filter(f => f.endsWith(".json")).sort();
-const stepsOf = (recording: string) => filesIn(recording).filter(f => /^\d\d-/.test(f)).map(f => read<Step>(f, recording));
-const files = filesIn("hanged-clerk");
-const steps = stepsOf("hanged-clerk");
-const withBackstory = stepsOf("hanged-clerk-backstory");
-const linesOf = (moment: string) => read<SuggestMoment>(`${moment}.suggest.json`);
-/** The stand-in a step ran on. */
-const fakeOf = (g: Step): FakeOptions => g.fake ?? { replies: g.replies ?? [], ...(g.choices ? { choices: g.choices } : {}) };
+const MOMENTS = ["open", "t1", "t2", "t3"];
+const linesOf = (moment: string) => JSON.parse(readFileSync(join(GOLDEN, "hanged-clerk", `${moment}.suggest.json`), "utf8")) as SuggestMoment;
 
-test("the golden recording is there: the opening and three turns, each step's calls, and each moment's lines", () => {
-  assert.deepEqual(steps.map(s => s.step), ["open", "t1-decide", "t1-reply", "t1-settle", "t2-decide", "t2-reply", "t2-settle", "t3-decide", "t3-reply", "t3-settle"]);
-  assert.deepEqual(steps.filter(s => s.step.endsWith("-reply")).map(s => s.calls.map(c => c.operation)), [["gm.reply"], ["gm.reply"], ["gm.reply"]]);
-  assert.deepEqual(files.filter(f => !/^\d\d-/.test(f)), ["open.suggest.json", "t1.suggest.json", "t2.suggest.json", "t3.suggest.json"], "the notes' moments went with the notes (M2)");
-  // Between them: lines judged and dropped.
-  const why = ["open", "t1", "t2", "t3"].flatMap(m => linesOf(m).dropped.map(d => d.why.replace(/:.*/, "")));
+test("the golden recording is there: each moment's lines, and what was dropped between them", () => {
+  assert.deepEqual(readdirSync(join(GOLDEN, "hanged-clerk")).filter(f => f.endsWith(".json")).sort(), MOMENTS.map(m => `${m}.suggest.json`), "the GM's steps went with the old pipeline's");
+  const why = MOMENTS.flatMap(m => linesOf(m).dropped.map(d => d.why.replace(/:.*/, "")));
   for (const reason of ["a name not heard", "no way out yet", "the GM's markup", "the judge", "offered last time"]) assert.ok(why.includes(reason), reason);
-  // A rules session (the wizard's build): the director's rules questions are in the recording, for the AI service to ask too.
-  const asked = (step: string, operation: string) => Object.keys(steps.find(s => s.step === step)!.calls.find(c => c.operation === operation)!.body.questions ?? {});
-  for (const step of ["t1-decide", "t2-decide", "t3-decide"]) assert.ok(asked(step, "director.before").includes("mechanic"), `${step}: the mechanic`);
-  for (const step of ["t1-settle", "t2-settle", "t3-settle"]) assert.ok(["left", "threat", "threat_severity"].every(id => asked(step, "director.after").includes(id)), `${step}: left, the threat and its severity`);
 });
 
-test("the AI service asks what the prototype's asks, step by step through the opening and three turns, with the lines after each reply", async () => {
-  await playedAlong(steps, { lines: true });
-});
-
-test("the recording with a backstory is there: the opening and a turn, the GM told who they are from it", () => {
-  assert.deepEqual(withBackstory.map(s => s.step), ["open", "t1-decide", "t1-reply", "t1-settle"]);
-  assert.ok(withBackstory.every(s => s.session.player.backstory?.text.trim()), "a backstory on the player throughout");
-  const gm = withBackstory.flatMap(s => s.calls).filter(c => c.operation === "gm.opening" || c.operation === "gm.reply");
-  assert.equal(gm.length, 2);
-  for (const call of gm) assert.match(call.body.input![0]!.content, /Who they are, from their own backstory: /);
-});
-
-test("with a backstory from character creation, the GM asks what the prototype's asks: the player's doc written before disclosure, the brief's who they are", async () => {
-  await playedAlong(withBackstory, { lines: false });
-});
-
-/**
- * A recording's steps in order on one game, each compared with the prototype's calls; and, where
- * the recording has them (the hanged clerk's, not the one with a backstory), each reply's lines
- * after it.
- */
-async function playedAlong(recording: Step[], { lines }: { lines: boolean }): Promise<void> {
+test("the AI service suggests what the prototype's does, moment by moment: the opening and three replies", async () => {
   const play = await game();
-  const decisions = new Map<string, Decision>();
-  const before = new Map<string, Session>();
-
-  for (const golden of recording) {
-    const turn = golden.step.split("-")[0]!;
-    const asked = await play.run(fakeOf(golden), request => {
-      if (golden.step === "open") return pipeline.open(openRequest(golden), request);
-      if (golden.step.endsWith("-decide")) return pipeline.decide(decideRequest(golden), request);
-      if (golden.step.endsWith("-reply")) return pipeline.reply(replyRequest(golden, decisions.get(turn)!, before.get(turn)!), request);
-      return pipeline.settle(settleRequest(golden, before.get(turn)!), request);
-    });
-    if (golden.step.endsWith("-decide")) { decisions.set(turn, (asked.answer as { decision: Decision }).decision); before.set(turn, golden.session); }
-
-    compare(golden.step, golden.calls, asked.calls);
-    if (golden.speakers) sameSpeakers(golden.step, golden.speakers, asked.shown, (asked.answer as OpenResponse | ReplyResponse).entries[0]!);
-    if (lines && (golden.step === "open" || golden.step.endsWith("-reply"))) await sameLines(play, linesOf(turn));
-  }
-}
+  for (const moment of MOMENTS) await sameLines(play, linesOf(moment));
+});
 
 // ---------------------------------------------------------------------------------------------
 // What's compared.
-
-/** Each of the prototype's calls against the AI service's of the same operation (in turn, for an operation made more than once). */
-function compare(step: string, theirs: Array<{ operation: string; body: Request }>, ours: Array<{ operation: string; body: Request }>): void {
-  assert.deepEqual(ours.map(c => c.operation).sort(), theirs.map(c => c.operation).sort(), `${step}: the same calls`);
-  const taken = new Set<number>();
-  for (const call of theirs) {
-    const at = ours.findIndex((c, i) => !taken.has(i) && c.operation === call.operation && (!call.operation.startsWith("memory.disclose.") || JSON.stringify(c.body) === JSON.stringify(call.body)));
-    assert.ok(at >= 0, `${step} ${call.operation}: the AI service made no call like the prototype's${call.operation.startsWith("memory.disclose.") ? `:\n${firstDifference(call.body, ours.filter(c => c.operation === call.operation).map(c => c.body))}` : ""}`);
-    taken.add(at);
-    const mine = ours[at]!.body;
-    if (call.operation.startsWith("director.")) sameDecision(step, call.operation, mine, call.body);
-    else assert.equal(JSON.stringify(mine), JSON.stringify(call.body), `${step} ${call.operation}:\n${firstDifference(call.body, [mine])}`);
-  }
-}
-
-/** The director's call: the state byte for byte, each question asked the prototype's, and only the ones left out missing. */
-function sameDecision(step: string, operation: string, mine: Request & { state?: unknown }, theirs: Request & { state?: unknown }): void {
-  assert.equal(JSON.stringify(mine.state), JSON.stringify(theirs.state), `${step} ${operation}: the state`);
-  const left = operation === "director.after" ? NOT_ASKED.after : NOT_ASKED.before;
-  for (const [id, q] of Object.entries(mine.questions ?? {})) {
-    assert.ok(theirs.questions?.[id], `${step} ${operation}: the AI service asks ${id}, which the prototype doesn't`);
-    if (!WORDED_OTHERWISE.includes(id)) assert.equal(JSON.stringify(q), JSON.stringify(theirs.questions![id]), `${step} ${operation}: the question ${id}`);
-  }
-  const missing = Object.keys(theirs.questions ?? {}).filter(id => !mine.questions?.[id]);
-  assert.deepEqual(missing.filter(id => !left.includes(id)), [], `${step} ${operation}: questions the AI service should ask and doesn't`);
-}
-
-/** Who says each line as the reply streams (the draft's posts, a word at a time) and once it's whole, by the game's keys: the cast's are their ids either way; a note the GM wrote, never shown or kept. */
-function sameSpeakers(step: string, theirs: Speakers, shown: Array<{ text: string; speech: Speech[] }>, entry: OpenResponse["entries"][number]): void {
-  assert.deepEqual(shown, theirs.streamed, `${step}: who says each line as it streams`);
-  assert.deepEqual({ text: entry.text, speech: entry.markup?.speech ?? [] }, { text: theirs.whole.text, speech: theirs.whole.speech }, `${step}: who says each line once it's whole`);
-  assert.deepEqual(Object.keys(entry.markup ?? { speech: [] }), ["speech"], `${step}: who says each line, and nothing else`);
-}
 
 /**
  * A moment's lines: the suggester and the judge told what the prototype's were, byte for byte, the
@@ -297,34 +182,9 @@ const KEYS = keysFor("granary-yard", "hanged-clerk", "pc:1");
 const base = (step: string, n: number, s: Session): AiRequest => ({ key: `${GAME}:s1:t${n}:${step}`, game: { id: GAME, campaign: "caerwyn", version: "0.1.0" }, player: { id: "1", name: s.player.name } });
 const story = { time: "morning", day: 1, flags: {} };
 
-function openRequest(g: Step): OpenRequest {
-  return { ...base("open", 0, g.session), scene: { id: "1", key: "hanged-clerk", kind: "scene" }, pc: "pc:1", gm: gmOf(g.session), world: rowsOf(g.session), party: partyOf(g.session), story, stream: { turn: "1" } };
-}
-
-function decideRequest(g: Step): DecideRequest {
-  return { ...base("decide", g.session.turn, g.session), turn: turnOf(g.session), landed: [] };
-}
-
-function replyRequest(g: Step, decision: Decision, before: Session): ReplyRequest {
-  return { ...base("reply", g.session.turn, g.session), turn: turnOf(g.session), decision, outcome: outcomeOf(before, g.session, decision), stream: { turn: String(g.session.turn + 1) } };
-}
-
-function settleRequest(g: Step, before: Session): SettleRequest {
-  const s = g.session;
-  const reply = s.transcript.filter(e => e.turn === s.turn && e.kind === "narration").at(-1)!.text;
-  const lines = s.transcript.filter(e => e.turn === s.turn && e.kind === "roll").map(e => e.text);
-  // What was settled before the turn (settledFacts: the facts, and the rulings, none here), the last 16.
-  return { ...base("settle", s.turn, s), turn: turnOf(s), reply, lines, settled: before.established.slice(-16) };
-}
-
 /** The lines after a moment's reply: none of the scene's last set again. */
 function suggestRequest(m: SuggestMoment): SuggestRequest {
   return { ...base("suggest", m.session.turn, m.session), turn: sceneOf(m.session), offered: m.offered };
-}
-
-function turnOf(s: Session): TurnContext {
-  const line = s.transcript.filter(e => e.kind === "player").at(-1)!.text;
-  return { ...sceneOf(s), line: { speaker: "player:1", text: line } };
 }
 
 function sceneOf(s: Session): SceneContext {
@@ -336,8 +196,8 @@ function gmOf(s: Session): GmState {
   return {
     beat: s.beat, turnsInBeat: s.turnsInBeat, path: s.path, established: s.established, landed: s.landed ?? [], hinted: s.hinted ?? [],
     opened: s.memory?.opened ?? [],
-    ...(s.endingLead ? { endingLead: s.endingLead } : {}), ...(s.pendingExit ? { pendingExit: s.pendingExit } : {}), ...(s.closing ? { closing: s.closing } : {}),
-    ...(s.sceneStatus ? { sceneStatus: s.sceneStatus } : {}), oocTurns: s.oocTurns ?? [], pressureOffered: s.pressureOffered ?? [], ...(s.repeated ? { repeated: s.repeated } : {}),
+    ...(s.pendingExit ? { pendingExit: s.pendingExit } : {}), ...(s.closing ? { closing: s.closing } : {}),
+    oocTurns: s.oocTurns ?? [], pressureOffered: s.pressureOffered ?? [],
     canon: s.canon, patches: s.patches, entered: s.entered ?? [], absent: s.absent ?? [], notes: s.notes, whispers: s.whispers ?? [],
     notesTurn: null, rulings: [], adjustments: [], owed: [], fought: [],
     // (The prototype's session has no nodes reached nor a two-part GM: its beat stands for them.)
@@ -345,7 +205,6 @@ function gmOf(s: Session): GmState {
   };
 }
 
-const worldOf = (s: Session) => s.world;
 const rowsOf = (s: Session) => worldToRows(s.world, KEYS);
 /**
  * The sheet as the simulation sends it: the player's, the rules' status line, the backstory they
@@ -361,18 +220,4 @@ const partyOf = (s: Session): SheetRow[] => [{
 function entryOf(e: Session["transcript"][number], s: Session): Entry {
   const scene = { cast: [{ id: "kell" }, { id: "cob" }, { id: "moll" }, { id: "tull" }] } as Parameters<typeof gameMarkup>[1];
   return { turn: e.turn, speaker: e.speaker === "player" ? "player:1" : e.speaker, kind: e.kind, text: e.text, ...(e.marked ? { markup: gameMarkup(e.marked, scene, s.world, KEYS) } : {}) };
-}
-
-/**
- * What the decide commit did, read off the session at the reply as the prototype left it: the
- * turn's dice lines, the route's move (from the beat it left, its roll as the path has it), and
- * whether the scene was stuck. The golden turns reach no ending, so there's nothing taken or held.
- */
-function outcomeOf(before: Session, at: Session, d: Decision): Outcome {
-  const lines = at.transcript.filter(e => e.turn === at.turn && e.kind === "roll").map(e => e.text);
-  const wasStuck = before.sceneStatus === "stuck";
-  if (before.closing) return { lines, directives: [], wasStuck, windDown: { exit: before.closing.exitId } };
-  const step = at.path.find(p => p.turn === at.turn && p.source === "pre" && p.via === d.route?.id);
-  const move = d.route && { route: d.route.id, phase: d.route.phase, from: before.beat, to: step?.to ?? before.beat, ...(step?.roll ? { roll: step.roll } : {}), chosen: !!d.route.theirs || (d.route.phase === "attempt" && (!step?.roll || step.roll.success)) };
-  return { lines, directives: [], wasStuck, ...(move ? { move } : {}) };
 }

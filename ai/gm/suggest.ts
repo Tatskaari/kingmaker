@@ -244,12 +244,12 @@ export function limitHead(limit: string): string {
 }
 
 /**
- * A way out fits now: the story is at one of the scene's endings (closing, held for a last word, or
- * leaning towards one), or the player has been here a while.
+ * A way out fits now: the story is at one of the scene's endings (closing, or held for a last word),
+ * or the player has been here a while.
  */
 export function leaveFits(state: TurnView): boolean {
   const turns = sceneEntries(state).filter(e => e.kind === "player").length;
-  return !!(state.closing || state.pendingExit || state.endingLead) || turns >= 4;
+  return !!(state.closing || state.pendingExit) || turns >= 4;
 }
 
 /** Someone the world has seen leave, or go down, or die. */

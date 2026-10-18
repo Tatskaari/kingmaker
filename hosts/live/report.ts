@@ -166,7 +166,7 @@ function gmSide(r: LiveRecord): string[] {
     "|---|---|---|---|---|",
     ...r.turns.map(t => `| ${t.n} | ${t.n === 0 ? "(the opening)" : `${cell(lineOf(t))}${waited(t)}`} | ${ruled(t.n) || "no"} | ${remembered(t.n)} | ${reviewed(t.n)} |`),
     "",
-    `Where it was left: beat ${value("beat")}; the scene ${value("sceneStatus")}; the co-GM's notes: ${r.gm.notes === null || r.gm.notes === undefined ? "none" : `${cell(String(r.gm.notes))} (from turn ${value("notesTurn")})`}; the last turn off the graph with nothing ruled on it: ${value("offGraphTurn")}; the turn the co-GM last reviewed (merged): ${value("lastRepairTurn")}.`,
+    `Where it was left: beat ${value("beat")}; the co-GM's notes: ${r.gm.notes === null || r.gm.notes === undefined ? "none" : `${cell(String(r.gm.notes))} (from turn ${value("notesTurn")})`}; the last turn off the graph with nothing ruled on it: ${value("offGraphTurn")}; the turn the co-GM last reviewed (merged): ${value("lastRepairTurn")}.`,
     "",
     ...[["Whispers", "whispers"], ["Canon", "canon"], ["Patches", "patches"], ["Established", "established"]].flatMap(([title, field]) => {
       const items = list(field!);

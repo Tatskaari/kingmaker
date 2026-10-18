@@ -14,7 +14,7 @@ import { newTurn, queuedTurnOf } from "../turns.ts";
 import type { Move } from "./move.ts";
 import { seenOf } from "./open-scene.ts";
 import type { SayPlan } from "./plans.ts";
-import { afterConsider, afterDecide, afterReactions, afterReply, afterSettle } from "./say-commits.ts";
+import { afterConsider, afterDecide, afterReactions } from "./say-commits.ts";
 import { afterTwoPartReply, afterTwoPartSettle, twoPartStart } from "./two-part.ts";
 
 /**
@@ -53,13 +53,11 @@ export const say: Move<{ text: string }, SayPlan> = {
   think: (tx, plan) => sayCall(tx, plan),
 
   commit(tx, plan, answer) {
-    if (plan.twoPart && plan.step === "reply") return afterTwoPartReply(tx, plan, answer as ReplyResponse);
-    if (plan.twoPart && plan.step === "settle") return afterTwoPartSettle(tx, plan, answer as SettleResponse);
+    if (plan.step === "reply") return afterTwoPartReply(tx, plan, answer as ReplyResponse);
+    if (plan.step === "settle") return afterTwoPartSettle(tx, plan, answer as SettleResponse);
     if (plan.step === "decide") return afterDecide(tx, plan, answer as DecideResponse);
     if (plan.step === "reactions") return afterReactions(tx, plan, answer as ReactionsResponse);
-    if (plan.step === "consider") return afterConsider(tx, plan, answer as ConsiderResponse);
-    if (plan.step === "reply") return afterReply(tx, plan, answer as ReplyResponse);
-    return afterSettle(tx, plan, answer as SettleResponse);
+    return afterConsider(tx, plan, answer as ConsiderResponse);
   },
 };
 

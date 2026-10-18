@@ -46,7 +46,7 @@ test("say: not in a game; while the scene opens; a spectator's line; nothing sai
 test("say: a turn replying, or settling with a line waiting already; a failed turn; a scene that's over", async () => {
   const { host, script, wren, scene } = await openedGame();
   let whileReplying: unknown, waits: unknown, whileWaiting: unknown;
-  script.then("reply", () => { whileReplying = host.as(wren).say({ text: "And?" }); return { entries: [{ speaker: "gm", kind: "narration", text: "Kell shrugs." }], gm: { repeated: null }, firstTextMs: 3, usage: { calls: 0, costUsd: 0, byOperation: {} } }; });
+  script.then("reply", () => { whileReplying = host.as(wren).say({ text: "And?" }); return { entries: [{ speaker: "gm", kind: "narration", text: "Kell shrugs." }], gm: {}, firstTextMs: 3, usage: { calls: 0, costUsd: 0, byOperation: {} } }; });
   script.then("settle", () => { waits = host.as(wren).say({ text: "And when?" }); whileWaiting = host.as(wren).say({ text: "And?" }); return http(400); });
 
   host.as(wren).say({ text: "Who found him?" });

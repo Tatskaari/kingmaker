@@ -7,7 +7,7 @@ import { fakeFetch, type FakeOptions, type Request } from "../../llm/fake-openro
 import { prompt } from "../../prompts/index.ts";
 import { initialGm, type GmState } from "../../../shared/gm/state.ts";
 import type { Markup } from "../../../shared/markup.ts";
-import type { DecideRequest, Entry, OpenRequest, Outcome, ReplyRequest, SettleRequest, StreamReplyArgs, SuggestRequest } from "../../../shared/protocol/ai.ts";
+import type { DecideRequest, Entry, OpenRequest, ReplyRequest, SettleRequest, StreamReplyArgs, SuggestRequest } from "../../../shared/protocol/ai.ts";
 import type { PlaceFile } from "../../../shared/scene/files.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import { keysFor, worldToRows, type PlaceRows } from "../../../shared/world/rows.ts";
@@ -127,10 +127,11 @@ test("a turn's view has the player's backstory from their sheet: the reply's pre
   const gm = initialGm({ start: "yard" });
   const backstory = { text: "I was a fishwife's daughter before the College took me.", summary: "Wren Ashdown is a fishwife's daughter turned College wizard; she took the case to pay her mother's debts.", personality: [], ideals: [], bonds: [], flaws: [] };
   const turn = { ...turnOf(1, gm, openingRows(gm, campaign), [opening, said(1)]), party: [{ ...party[0]!, backstory }] };
-  const req: ReplyRequest = { key: `${GAME}:s1:t1:reply`, game, player: { id: "1", name: "Wren Ashdown" }, turn, decision: { earned: false, daft: false, outOfCharacter: false }, outcome: { lines: [], directives: [], wasStuck: false }, stream: { turn: "9" } };
+  const req: ReplyRequest = { key: `${GAME}:s1:t1:reply`, game, player: { id: "1", name: "Wren Ashdown" }, turn, outcome: { lines: [], directives: [] }, stream: { turn: "9" } };
   await pipeline.reply(req, contextFor(req.key));
 
-  const prep = fake.sent[0]!.input![0]!.content;
+  // The two-part GM's prep is the mouthpiece's instructions.
+  const prep = fake.sent[0]!.instructions!;
   assert.match(prep, /Who they are, from their own backstory: Wren Ashdown is a fishwife's daughter turned College wizard/);
   assert.match(prep, /She's a woman: people speak of her as she and her/, "her backstory's summary says so");
 });
@@ -172,45 +173,12 @@ test("decide on the wind-down asks only whether the player is out of character",
   assert.deepEqual(answer.opened, []);
 });
 
-test("reply: the directives rebuilt from what the decide commit did, a repeat warned of and cleared, streamed", async () => {
-  const { campaign, fake, posts, contextFor } = await setUp({ replies: ["Moll's grin slips. “Fine. I didn't see him jump.”"] });
-  const gm: GmState = { ...initialGm({ start: "yard" }), beat: "doubt", path: [{ turn: 1, from: "yard", to: "doubt", via: "catch-moll", source: "pre", known: 0, roll: { skill: "insight", dc: 13, die: 15, modifier: 3, total: 18, success: true, critical: null } }], repeated: "The boy lobs another stone at the hanged man's boots." };
-  const roll = gm.path[0]!.roll!;
-  const outcome: Outcome = { lines: ["Insight check to see through Moll's story about the jump: 15 + 3 = 18 vs DC 13: success"], directives: [], wasStuck: false, move: { route: "catch-moll", phase: "attempt", from: "yard", to: "doubt", roll, chosen: true } };
-  const req: ReplyRequest = { key: `${GAME}:s1:t1:reply`, game, player: { id: "1", name: "Wren Ashdown" }, turn: turnOf(1, gm, openingRows(gm, campaign), [opening, said(1, "Moll, you never saw him jump."), { turn: 1, speaker: "dice", kind: "roll", text: outcome.lines[0]! }]), decision: { route: { id: "catch-moll", phase: "attempt", check: { skill: "insight", dc: 13 } }, earned: false, daft: false, outOfCharacter: false }, outcome, stream: { turn: "9" } };
-  const answer = await pipeline.reply(req, contextFor(req.key));
-
-  const note = noteOf(fake.sent[0]!);
-  assert.match(note, /## For this reply\nThe player's attempt called for a Insight check \(The player presses on the holes in Moll's 'I saw him jump' story[^\n]*\)\. Insight check: 15 \+ 3 = 18 vs DC 13: success\. It comes off: Not by his own hand\. /);
-  assert.match(note, /The scene has moved on to "Not by his own hand"/);
-  assert.match(note, /Your last reply repeated something already said, word for word \("The boy lobs another stone at the hanged man's boots\."\)/);
-  assert.ok(fake.sent[0]!.input!.some(m => m.role === "developer" && m.content === `[${outcome.lines[0]}]`), "the dice line is in the GM's history");
-  assert.equal(answer.gm.repeated, null);
-  assert.equal(answer.entries[0]!.text, "Moll's grin slips. “Fine. I didn't see him jump.”");
-  assert.equal(posts.at(-1)!.done, true);
-});
-
-test("reply on the wind-down closes the scene with gm.closing, unless the player spoke out of character", async () => {
-  const { campaign, fake, contextFor, store } = await setUp();
-  const gm: GmState = { ...initialGm({ start: "yard" }), closing: { exitId: "walked-away", turn: 3 } };
-  const base = { game, player: { id: "1", name: "Wren Ashdown" }, stream: { turn: "11" } };
-  const closing: ReplyRequest = { ...base, key: `${GAME}:s1:t4:reply`, turn: turnOf(4, gm, openingRows(gm, campaign), [opening, said(4, "I tip my hat and go.")]), decision: { earned: false, daft: false, outOfCharacter: false }, outcome: { lines: [], directives: [], wasStuck: false, windDown: { exit: "walked-away" } } };
-  const ooc: ReplyRequest = { ...closing, key: `${GAME}:s1:t5:reply`, decision: { earned: false, daft: false, outOfCharacter: true } };
-  await pipeline.reply(closing, contextFor(closing.key));
-  await pipeline.reply(ooc, contextFor(ooc.key));
-
-  const logged = readFileSync(join(store, "games", GAME, "calls.jsonl"), "utf8").trim().split("\n").map(l => JSON.parse(l));
-  assert.deepEqual(logged.filter(e => !e.started).map(e => e.operation), ["gm.closing", "gm.reply"]);
-  assert.match(noteOf(fake.sent[0]!), /## For this reply\nThe scene is ending: /);
-  assert.match(noteOf(fake.sent[1]!), /Nothing in the story moves on while you answer: the scene has come to Walked away/);
-});
-
-test("settle: the stage manager's operations by game key, beside the after-reply reading", async () => {
+test("settle: the stage manager's operations by game key, beside the co-GM", async () => {
   const ops = [
     { op: "move", what: "player", to: "loft", how: "", feet: 0, name: "", kind: "", text: "", add: [], remove: [], quantity: 0 },
     { op: "move", what: "kell", to: "player", how: "", feet: 0, name: "", kind: "", text: "", add: [], remove: [], quantity: 0 },
   ];
-  const { campaign, fake, contextFor } = await setUp({ byName: { world_ops: { ops } }, choices: { status: "drifting", ask: "unanswered" } });
+  const { campaign, fake, contextFor } = await setUp({ byName: { world_ops: { ops } }, coGm: { still: true } });
   const gm = initialGm({ start: "yard" });
   const req: SettleRequest = { key: `${GAME}:s1:t1:settle`, game, player: { id: "1", name: "Wren Ashdown" }, turn: turnOf(1, gm, openingRows(gm, campaign), [opening, said(1), { turn: 1, speaker: "gm", kind: "narration", text: "Kell points at the boy." }]), reply: "Kell points at the boy.", lines: [], settled: [] };
   const answer = await pipeline.settle(req, contextFor(req.key));
@@ -218,26 +186,16 @@ test("settle: the stage manager's operations by game key, beside the after-reply
   const stage = fake.sent.find(b => b.text?.format?.name === "world_ops")!;
   assert.deepEqual(answer.ops.map(o => [o.op, o.what, o.to]), [["move", "pc:1", "granary-yard/loft"], ["move", "kell", "pc:1"]]);
   assert.match(stage.input![0]!.content, /## The latest exchange\nPlayer: Sergeant, who found him\?\n\nGM: Kell points at the boy\./);
-  // (The wizard's sheet has a build: the threat and its severity are asked too, and on the quiet answer nothing hangs over them.)
-  assert.deepEqual(answer.after, { status: "drifting", landed: [], hinted: [], unanswered: true, theirs: false, threatRead: "none" });
-  assert.deepEqual(questionsOf(fake.sent.find(b => b.questions)!), ["status", "ending", "landed_not-suicide", "landed_page", "landed_silvertop", "left", "threat", "threat_severity", "outcome", "ask", "own_exit"]);
-});
-
-test("settle when the reply closed the scene: the world kept in step, no reading", async () => {
-  const { campaign, fake, contextFor } = await setUp();
-  const gm: GmState = { ...initialGm({ start: "yard" }), ended: { exitId: "case-made", turn: 2 } };
-  const req: SettleRequest = { key: `${GAME}:s1:t2:settle`, game, player: { id: "1", name: "Wren Ashdown" }, turn: turnOf(2, gm, openingRows(gm, campaign), [opening, said(2)]), reply: "Kell writes it down.", lines: [], settled: [] };
-  const answer = await pipeline.settle(req, contextFor(req.key));
-
-  assert.equal(answer.after, undefined);
-  assert.deepEqual(fake.asked, ["/api/v1/responses"]);
+  assert.deepEqual([answer.coGm?.moves, answer.coGm?.error], [[], undefined], "the co-GM beside it (kept still here)");
+  assert.ok(fake.sent.some(b => b.tools?.some(t => t.name === "move_scene")), "the co-GM was asked");
+  assert.equal(fake.sent.filter(b => b.questions).length, 0, "no read after the reply");
 });
 
 test("who says each line goes by the game's keys, as the reply streams and once it's whole: the place's own people under the place", async () => {
   const { campaign, posts, contextFor } = await setUp({ replies: ["[the porter] “Mind your feet.” He shoulders a sack. [Kell] “Out.” (The rope)[why: it's frayed] creaks."], streamMs: 40 });
   const gm = initialGm({ start: "yard" });
   const rows = openingRows(gm, campaign, { porter: "the porter" });
-  const req: ReplyRequest = { key: `${GAME}:s1:t1:reply`, game, player: { id: "1", name: "Wren Ashdown" }, turn: turnOf(1, gm, rows, [opening, said(1)]), decision: { earned: false, daft: false, outOfCharacter: false }, outcome: { lines: [], directives: [], wasStuck: false }, stream: { turn: "9" } };
+  const req: ReplyRequest = { key: `${GAME}:s1:t1:reply`, game, player: { id: "1", name: "Wren Ashdown" }, turn: turnOf(1, gm, rows, [opening, said(1)]), outcome: { lines: [], directives: [] }, stream: { turn: "9" } };
   const answer = await pipeline.reply(req, contextFor(req.key));
   const entry = answer.entries[0]!;
   const speakersOf = (markup: Markup | undefined) => markup?.speech.map(s => s.speaker);
@@ -257,7 +215,7 @@ test("a request's markup by game key is the world's again in the GM's history: t
   const text = "“Mind your feet.” He glares.";
   const markup: Markup = { speech: [{ start: 0, end: text.indexOf(" He"), speaker: "granary-yard/porter" }] };
   const entries: Entry[] = [{ turn: 0, speaker: "gm", kind: "narration", text, markup }, said(1)];
-  const req: ReplyRequest = { key: `${GAME}:s1:t1:reply`, game, player: { id: "1", name: "Wren Ashdown" }, turn: turnOf(1, gm, openingRows(gm, campaign, { porter: "the porter" }), entries), decision: { earned: false, daft: false, outOfCharacter: false }, outcome: { lines: [], directives: [], wasStuck: false }, stream: { turn: "9" } };
+  const req: ReplyRequest = { key: `${GAME}:s1:t1:reply`, game, player: { id: "1", name: "Wren Ashdown" }, turn: turnOf(1, gm, openingRows(gm, campaign, { porter: "the porter" }), entries), outcome: { lines: [], directives: [] }, stream: { turn: "9" } };
   await pipeline.reply(req, contextFor(req.key));
 
   assert.deepEqual(fake.sent[0]!.input!.filter(m => m.role === "assistant").map(m => m.content), ["[the porter] “Mind your feet.” He glares."]);
@@ -334,10 +292,10 @@ test("the story is read by the lines alone: with a vocabulary.json that doesn't 
   const { campaign, contextFor, store } = await setUp({ choices: {} });
   writeFileSync(join(store, "campaigns", "caerwyn", "0.1.0", "vocabulary.json"), "{}");
   const gm = initialGm({ start: "yard" });
-  const decide: DecideRequest = { key: `${GAME}:s1:t1:decide`, game, player: { id: "1", name: "Wren Ashdown" }, turn: turnOf(1, gm, openingRows(gm, campaign), [opening, said(1)]), landed: [] };
+  const reply: ReplyRequest = { key: `${GAME}:s1:t1:reply`, game, player: { id: "1", name: "Wren Ashdown" }, turn: turnOf(1, gm, openingRows(gm, campaign), [opening, said(1)]), outcome: { lines: [], directives: [] }, stream: { turn: "9" } };
   const lines = suggestRequest(campaign, []);
 
-  assert.ok((await pipeline.decide(decide, contextFor(decide.key))).decision);
+  assert.ok((await pipeline.reply(reply, contextFor(reply.key))).entries.length);
   await assert.rejects(pipeline.suggest(lines, contextFor(lines.key)), /the installed vocabulary\.json doesn't read: vocabulary\.json: isn't \{ source, scenes: \[\.\.\.\] \}/);
 });
 
@@ -346,7 +304,7 @@ test("a GM entry's markup is written back into the history with the name the pla
   const gm = initialGm({ start: "yard" });
   const markup: Markup = { speech: [{ start: 0, end: 7, speaker: "cob", tag: "Cob" }] };
   const entries: Entry[] = [{ turn: 0, speaker: "gm", kind: "narration", text: "“Oi!” A stone flies.", markup }, said(1)];
-  const req: ReplyRequest = { key: `${GAME}:s1:t1:reply`, game, player: { id: "1", name: "Wren Ashdown" }, turn: turnOf(1, gm, openingRows(gm, campaign), entries), decision: { earned: false, daft: false, outOfCharacter: false }, outcome: { lines: [], directives: [], wasStuck: false }, stream: { turn: "9" } };
+  const req: ReplyRequest = { key: `${GAME}:s1:t1:reply`, game, player: { id: "1", name: "Wren Ashdown" }, turn: turnOf(1, gm, openingRows(gm, campaign), entries), outcome: { lines: [], directives: [] }, stream: { turn: "9" } };
   await pipeline.reply(req, contextFor(req.key));
 
   assert.ok(fake.sent[0]!.input!.some(m => m.role === "assistant" && m.content === "[the boy in the too-big boots] “Oi!” A stone flies."));

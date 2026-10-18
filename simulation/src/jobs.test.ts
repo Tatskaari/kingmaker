@@ -16,7 +16,7 @@ import { suggest } from "./moves/suggest.ts";
  */
 
 /** The two-part GM's reply, the turn's first step (docs/two-part-design.md): its words, and its calls. */
-const said = (text: string): ReplyResponse => ({ entries: [{ speaker: "gm", kind: "narration", text }], gm: { repeated: null }, firstTextMs: 3, usage: { calls: 1, costUsd: 0.001, byOperation: {} } });
+const said = (text: string): ReplyResponse => ({ entries: [{ speaker: "gm", kind: "narration", text }], gm: {}, firstTextMs: 3, usage: { calls: 1, costUsd: 0.001, byOperation: {} } });
 const reply = said("Kell taps her pencil. “Cob found him.”");
 
 test("a POST that fails is tried again by the reaper, at 1 s then 2 s, the same key each time; the turn says so meanwhile", async () => {
@@ -200,7 +200,7 @@ test("over the AI service's daily budget, the turn fails at once in its words; r
 const TEXT = "Kell looks up. “Cob found him.”";
 const kellSays: ReplyResponse = {
   entries: [{ speaker: "gm", kind: "narration", text: TEXT, markup: { speech: [{ start: 15, end: TEXT.length, speaker: "kell" }] } }],
-  gm: { repeated: null }, firstTextMs: 3, usage: { calls: 1, costUsd: 0.001, byOperation: {} },
+  gm: {}, firstTextMs: 3, usage: { calls: 1, costUsd: 0.001, byOperation: {} },
 };
 
 test("a job in the background says nothing on the turn as it tries again while the turn has its own steps; the turn's own step's note stays when its answer lands, and its usage counts", async () => {

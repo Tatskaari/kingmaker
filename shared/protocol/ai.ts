@@ -2,10 +2,10 @@ import type { Asked, Backstory, LoreIssue, Who } from "../creation/types.ts";
 import type { RollResult } from "../dice.ts";
 import type { Ruling, RulingOutcome, Verdict } from "../gm/consider.ts";
 import type { RepairResult } from "../gm/repair.ts";
-import type { Confide, GmState, OpenedNote, OwedRow, ScenePatch, SceneStatus, TalkRecord, TwoPartRole } from "../gm/state.ts";
+import type { Confide, GmState, OpenedNote, OwedRow, ScenePatch, TalkRecord, TwoPartRole } from "../gm/state.ts";
 import type { Band } from "../gm/two-part.ts";
 import type { Markup } from "../markup.ts";
-import type { Act, BuildOption, FeatureRef, Mechanic, Offer, OwnPicks, Reaction, SpellRef, SrdLists, ThreatRead, WeaponRef } from "../rules/types.ts";
+import type { Act, BuildOption, FeatureRef, Mechanic, Offer, OwnPicks, Reaction, SpellRef, SrdLists, WeaponRef } from "../rules/types.ts";
 import type { RouteOutcome } from "../scene/beats.ts";
 import type { Skill, Transition } from "../scene/types.ts";
 import type { PlaceRows } from "../world/rows.ts";
@@ -247,7 +247,6 @@ export interface Outcome {
   taken?: { ended?: string; closing?: string; pendingExit?: string };
   held?: "ooc" | "brink" | "closes";
   pending?: { exit: string };
-  wasStuck: boolean;
   closes?: string;
   windDown?: { exit: string };
   /**
@@ -268,19 +267,18 @@ export interface Outcome {
   brawl?: boolean;
 }
 /**
- * decision: the decider's, for a talk (the old pipeline's). twoPart: a scene of the story, played by
- * the two-part GM (docs/two-part-design.md): no decision, the outcome's directives (the rules' from
- * before the player acted, and the map's act's) leading the mouthpiece's, and on the wind-down
+ * The two-part GM's reply (docs/two-part-design.md): the outcome's directives (the rules' from before
+ * the player acted, and the map's act's) leading the mouthpiece's, and on the wind-down
  * (outcome.windDown) its closing, which may wait once (the bookkeeping's twoPart.held not yet set).
  */
-export interface ReplyRequest extends AiRequest { turn: TurnContext; decision?: Decision; outcome: Outcome; stream: { turn: string }; twoPart?: boolean }
+export interface ReplyRequest extends AiRequest { turn: TurnContext; outcome: Outcome; stream: { turn: string } }
 /**
  * offered: the stage whose pressure this reply was offered. A two-part reply's check: the one its
  * mouthpiece called, with each of its five outcomes as the screen would have it (the simulation rolls
  * it and writes the dice line and the one that came up); closes: a closing that may wait once says
  * whether it closed (false: it waits).
  */
-export interface ReplyResponse { entries: Reply[]; gm: { offered?: string; repeated: string | null }; firstTextMs: number | null; check?: SpokenCheck; closes?: boolean; usage: Usage }
+export interface ReplyResponse { entries: Reply[]; gm: { offered?: string }; firstTextMs: number | null; check?: SpokenCheck; closes?: boolean; usage: Usage }
 
 /** A check the two-part GM's mouthpiece called: its skill and DC, and its five outcomes (shared/gm/two-part.ts BANDS), each the next words of the reply. */
 export interface SpokenCheck { skill: Skill; dc: number; outcomes: Record<Band, Reply> }
@@ -304,41 +302,16 @@ export interface CoGmAnswer {
 
 /**
  * reply: plain text. talk: a talk's turn, and whether its next lines are asked for (the controller's
- * setting). twoPart: a scene of the story, played by the two-part GM: the stage manager and its co-GM
- * side by side, the co-GM told how this turn's check went (`check`, when the mouthpiece called one).
+ * setting). The stage manager and the two-part GM's co-GM side by side, the co-GM told how this
+ * turn's check went (`check`, when the mouthpiece called one).
  */
-export interface SettleRequest extends AiRequest { turn: TurnContext; reply: string; lines: string[]; settled: string[]; talk?: { suggest: boolean }; twoPart?: boolean; check?: TurnCheck }
-export interface After {
-  /**
-   * An outcome route the reply achieved, with its check for the simulation to roll. `exit`: the
-   * authored ending an improvised outcome gives way to, read at 0.2 or more (the prototype's
-   * director.ts:1330-1333).
-   */
-  outcome?: { route: string; check?: Check; exit?: string };
-  ending?: { exitId: string; probability: number };
-  status?: SceneStatus;
-  landed: string[]; hinted: string[]; unanswered: boolean; theirs: boolean;
-  /**
-   * The player has left the scene's place altogether: an ending of their own. Asked when the
-   * character is the rules engine's, read at 0.7 (director.ts:1280-1283, :1350).
-   */
-  left?: boolean;
-  /**
-   * What the reply left hanging over the player, read at 0.6 when the character is the rules
-   * engine's (director.ts:1284-1295, :1343-1349): someone's blow, or a danger with its severity. The
-   * settle commit keeps it in gm_state, and it lands as the next turn starts.
-   */
-  threat?: ThreatRead;
-  /** The threat question's raw choice ("attack:kell", "hazard:grab_or_shove", "none"): a hold the reply no longer has them in lets them go (threats.ts holdAfterReply). */
-  threatRead?: string;
-}
+export interface SettleRequest extends AiRequest { turn: TurnContext; reply: string; lines: string[]; settled: string[]; talk?: { suggest: boolean }; check?: TurnCheck }
 /**
- * ops: at most 16, by game key; after absent when the reply closed the scene (and in a two-part
- * scene, which has no read after the reply). talk: a talk's next lines (talk.suggest, beside the
- * after-reply decision), none when they weren't asked for or the talk ended. coGm: a two-part
- * scene's co-GM: its roles and moves.
+ * ops: at most 16, by game key (none in a talk, which has no world). talk: a talk's next lines
+ * (talk.suggest, beside the co-GM), none when they weren't asked for or the talk ended. coGm: the
+ * co-GM's roles and moves.
  */
-export interface SettleResponse { ops: WorldOp[]; after?: After; talk?: { suggestions: string[] }; coGm?: CoGmAnswer; usage: Usage }
+export interface SettleResponse { ops: WorldOp[]; talk?: { suggestions: string[] }; coGm?: CoGmAnswer; usage: Usage }
 
 /**
  * POST /v1/turns/consider (full-gm-design §4.1): the GM's ruling on an act the decider flagged

@@ -39,7 +39,7 @@ test("the draft grows post by post; a stale post is dropped; a new attempt start
       assert.equal(host.streamReply(p), undefined, "a stale post isn't refused: it's dropped");
       if (check) draft(turnId);
     }
-    return { entries: [{ speaker: "gm", kind: "narration", text: "Sergeant Kell nods." }], gm: { repeated: null }, firstTextMs: 2, usage: { calls: 1, costUsd: 0, byOperation: {} } };
+    return { entries: [{ speaker: "gm", kind: "narration", text: "Sergeant Kell nods." }], gm: {}, firstTextMs: 2, usage: { calls: 1, costUsd: 0, byOperation: {} } };
   });
   host.as(wren).say({ text: "Who found him?" });
   await host.drain();

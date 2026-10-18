@@ -12,7 +12,7 @@ function rows(gm: Row = {}, more: Partial<StatusRows> = {}): StatusRows {
     scene: { id: 7, scene_key: "hanged-clerk", status: "live", turns: 2 },
     gm: {
       scene_id: 7, beat: "yard", turns_in_beat: 2, path: [], established: [], landed: [], hinted: [], opened: [],
-      ending_lead: null, pending_exit: null, closing: null, ended: null, scene_status: null, ooc_turns: [], pressure_offered: [], repeated: null,
+      pending_exit: null, closing: null, ended: null, ooc_turns: [], pressure_offered: [],
       // The full GM's columns as a V1 database has them once migrated: their defaults.
       canon: [], patches: "[]", notes: null, notes_turn: null, whispers: [], last_repair_turn: null, off_graph_turn: null, rulings: [],
       // The world bridge's, then the story's (story-design §4.1), as a full-GM database has them once migrated: their defaults.
@@ -37,7 +37,7 @@ test("a V1 game: the prototype's fields, and the full GM's there and empty", () 
     game: 1, uid: "g1-abc", scene: "hanged-clerk", status: "live", turn: 2,
     beat: "yard", turnsInBeat: 2, path: [], ended: null,
     notes: null, notesTurn: null, whispers: [], canon: [], established: [], patches: [], rulings: [], landed: [], hinted: [],
-    sceneStatus: null, offGraphTurn: null, lastRepairTurn: null, opened: [],
+    offGraphTurn: null, lastRepairTurn: null, opened: [],
     threat: null, held: null, brawl: null, absent: [],
     adjustments: [], opening: null, lead: null, owed: [], fought: [],
     reached: ["yard"], closing: null, roles: [], coGmNote: null, moved: null, heldOnce: null,
@@ -103,7 +103,7 @@ test("the co-GM's steering, the rulings and the reviews, summarised as the proto
   const patches = [{ turn: 5, transition: { beat: "yard", transition: { id: "improv-5-0", when: "The player waits in the loft to see who comes back for the boots.", on: "attempt", to: "doubt" } }, why: "A plan the co-GM can see working" }];
   const status = statusOf(rows({
     path: [{ turn: 3, from: "yard", to: "yard", via: "ruling", roll, source: "pre", known: 2 }],
-    notes: "Keep Kell writing down only what is said.", notes_turn: 3, scene_status: "drifting",
+    notes: "Keep Kell writing down only what is said.", notes_turn: 3,
     whispers: [{ to: "moll", note: "She wants to be asked about the songs.", turn: 3 }],
     canon: ["Cob sleeps in the loft."], patches: JSON.stringify(patches), last_repair_turn: 3, off_graph_turn: 5,
     rulings: [{ turn: 3, act: "lift the folded paper from the boy's boot", target: "cob", skill: "sleight_of_hand", kind: "roll", dc: 12, why: "guarded to lose, plausible cover, wary: they could notice", roll, went: "success", changed: "The investigator has the paper.", cost_usd: 0.002, latency_ms: 4200 }],
@@ -126,7 +126,7 @@ test("the co-GM's steering, the rulings and the reviews, summarised as the proto
   }));
 
   assert.deepEqual(status.path, ["3: yard -> yard via ruling (pre) [sleight_of_hand 19/12]"]);
-  assert.deepEqual([status.notes, status.notesTurn, status.sceneStatus, status.offGraphTurn, status.lastRepairTurn], ["Keep Kell writing down only what is said.", 3, "drifting", 5, 3]);
+  assert.deepEqual([status.notes, status.notesTurn, status.offGraphTurn, status.lastRepairTurn], ["Keep Kell writing down only what is said.", 3, 5, 3]);
   assert.deepEqual(status.whispers, ["3: moll: She wants to be asked about the songs."]);
   assert.deepEqual(status.patches, ["yard + The player waits in the loft to see who comes back for the boots."]);
   assert.deepEqual(status.rulings, ["3: lift the folded paper from the boy's boot -> sleight_of_hand DC 12 (19) [guarded to lose, plausible cover, wary: they could notice]: success: The investigator has the paper."]);

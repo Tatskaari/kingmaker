@@ -17,12 +17,10 @@ const busy: GmState = {
   ],
   established: ["Prout didn't hang himself."], landed: ["not-suicide"], hinted: ["page"],
   opened: [{ path: "Cast/Cob/knowledge/silvertop.md", title: "Silvertop", scope: "character:cob", turn: 2 }],
-  endingLead: { exitId: "open-case", count: 1, probability: 0.7 },
   pendingExit: { exitId: "closed-suicide", turn: 3, via: "cart-comes", extended: false, waits: "the player's answer" },
   closing: { exitId: "open-case", turn: 3 },
   ended: { exitId: "open-case", turn: 4 },
-  sceneStatus: "drifting",
-  oocTurns: [2], pressureOffered: ["yard"], repeated: "Prout turns slowly round.",
+  oocTurns: [2], pressureOffered: ["yard"],
   canon: ["The loft key hangs on a nail by the gate."],
   patches: [
     { turn: 3, beat: { id: "yard-improv-3", title: "Up the ladder", direction: "Kell holds the ladder.", pressure: "The cart is coming.", transitions: [{ id: "yard-improv-3-to-doubt-0", when: "They look at the rope.", to: "doubt" }] }, why: "Bridging beat: Up the ladder" },
@@ -75,7 +73,7 @@ test("a hazard hanging over the player goes to the row and back too, the attack'
 test("the row keeps empty options as undefined, as SpacetimeDB's rows do", () => {
   const row = gmToRow(1n, initialGm({ start: "yard" }));
 
-  assert.deepEqual([row.endingLead, row.pendingExit, row.closing, row.ended, row.sceneStatus, row.repeated], [undefined, undefined, undefined, undefined, undefined, undefined]);
+  assert.deepEqual([row.pendingExit, row.closing, row.ended], [undefined, undefined, undefined]);
   assert.deepEqual([row.notes, row.notesTurn, row.lastRepairTurn, row.offGraphTurn], [undefined, undefined, undefined, undefined]);
   assert.deepEqual([row.opening, row.lead, row.adjustments, row.owed, row.fought, row.absent], [undefined, undefined, [], [], [], []]);
   assert.equal(gmToRow(1n, busy).owed[1]!.where, undefined);

@@ -68,12 +68,7 @@ export interface SayPlan {
   seen: Seen;
   /** What the rules resolve this turn, chosen already (town-design §3.4: turn.mechanic, the map's act): the decide request's `forced`. */
   forced?: Mechanic;
-  /**
-   * A scene of the story played by the two-part GM (docs/two-part-design.md): reply, then settle,
-   * with no decide (the rules' from before the player acted, and the map's act, resolved as the turn
-   * started, lead the reply). `check`: the one its mouthpiece called, as rolled, for the co-GM.
-   */
-  twoPart?: boolean;
+  /** The check the two-part GM's mouthpiece called this turn, as rolled, for the co-GM. */
   check?: TurnCheck;
 }
 

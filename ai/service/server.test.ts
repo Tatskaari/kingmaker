@@ -86,7 +86,7 @@ function openRequest(): OpenRequest {
 
 function replyRequest(n = 1): ReplyRequest {
   const { game, player, turn } = decideRequest(n);
-  return { key: `${GAME}:s1:t${n}:reply`, game, player, turn, decision: { earned: false, daft: false, outOfCharacter: false }, outcome: { lines: [], directives: [], wasStuck: false }, stream: { turn: "2" } };
+  return { key: `${GAME}:s1:t${n}:reply`, game, player, turn, outcome: { lines: [], directives: [] }, stream: { turn: "2" } };
 }
 
 /** The reactions to what the rules decided the player did (world-bridge-design §3.1). */
@@ -503,7 +503,7 @@ test("canned: someone of the cast says a line in each reply, and the same four l
   const { ai } = service();
   await ai.answer(put());
   const { line: _, ...scene } = decideRequest(1).turn;
-  const reply: ReplyRequest = { ...decideRequest(1), key: `${GAME}:s1:t1:reply`, decision: { earned: false, daft: false, outOfCharacter: false }, outcome: { lines: [], directives: [], wasStuck: false }, stream: { turn: "4" } };
+  const reply: ReplyRequest = { ...decideRequest(1), key: `${GAME}:s1:t1:reply`, outcome: { lines: [], directives: [] }, stream: { turn: "4" } };
   const said = (JSON.parse((await ai.answer(post("/v1/turns/reply", reply))).body) as ReplyResponse).entries[0]!;
   const suggest: SuggestRequest = { key: `${GAME}:s1:t1:suggest`, game: reply.game, player: reply.player, turn: { ...scene, transcript: [...scene.transcript, { turn: 1, ...said }] }, offered: [] };
   const suggested = JSON.parse((await ai.answer(post("/v1/turns/suggest", suggest))).body) as SuggestResponse;
@@ -557,7 +557,6 @@ test("a think missing what its endpoint reads is a 400 before any model is asked
     ["/v1/turns/decide", without(decideRequest(), "turn.world"), /turn\.world \(the place's rows\)$/],
     ["/v1/turns/decide", without(decideRequest(), "turn.gm.path"), /turn\.gm \(the scene's bookkeeping\)$/],
     ["/v1/turns/reply", without(replyRequest(), "outcome"), /outcome/],
-    ["/v1/turns/reply", without(replyRequest(), "decision"), /decision/],
     ["/v1/turns/settle", without(settleRequest(), "reply"), /reply \(the reply's text\)$/],
     ["/v1/turns/settle", without(settleRequest(), "settled"), /settled/],
     ["/v1/turns/settle", without(settleRequest(), "turn.world"), /turn\.world \(the place's rows\)$/],

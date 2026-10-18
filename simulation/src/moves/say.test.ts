@@ -13,7 +13,7 @@ const said = (text: string): Reply => ({ speaker: "gm", kind: "narration", text 
 const outcomes = Object.fromEntries(BANDS.map(b => [b, said(`Outcome: ${b}.`)])) as Record<Band, Reply>;
 /** The mouthpiece's reply calling a check: its five outcomes, the simulation rolls it. */
 const checked = (text: string, skill: "medicine" | "insight", dc: number, more: Partial<ReplyResponse> = {}): ReplyResponse => ({
-  entries: [said(text)], gm: { repeated: null }, firstTextMs: 4, check: { skill, dc, outcomes }, usage: { calls: 1, costUsd: 0.001, byOperation: {} }, ...more,
+  entries: [said(text)], gm: {}, firstTextMs: 4, check: { skill, dc, outcomes }, usage: { calls: 1, costUsd: 0.001, byOperation: {} }, ...more,
 });
 
 test("a line: said at once, then replied (its check rolled by the rules engine from the game's dice, its outcome written) and settled", async () => {
@@ -22,7 +22,7 @@ test("a line: said at once, then replied (its check rolled by the rules engine f
   const roll = nextCheck(host, scene.controllerId, "medicine", 12);
   const phases: string[] = [];
   const phaseNow = () => phases.push(sceneNow(host, scene.id).turns[1]!.phase);
-  script.then("reply", () => { phaseNow(); return checked("You kneel by the body. The rope burn is wrong.", "medicine", 12, { gm: { offered: "yard", repeated: null } }); });
+  script.then("reply", () => { phaseNow(); return checked("You kneel by the body. The rope burn is wrong.", "medicine", 12, { gm: { offered: "yard" } }); });
   script.then("settle", () => { phaseNow(); return { ops: [], coGm: { roles: {}, moves: [], log: [] }, usage: { calls: 2, costUsd: 0.0005, byOperation: {} } } satisfies SettleResponse; });
 
   assert.equal(host.as(wren).say({ text: "  *I kneel by the body and look at his neck.*  " }), undefined);
@@ -68,7 +68,7 @@ test("each step's request carries what the commit before it did", async () => {
   assert.equal(reply.turn.scene.turn, 1);
   assert.deepEqual(reply.turn.present.map(p => p.key), ["kell", "cob", "moll"]);
   assert.deepEqual(reply.turn.transcript.map(e => e.kind), ["narration", "player"]);
-  assert.deepEqual([reply.twoPart, reply.decision, reply.outcome.lines], [true, undefined, []]);
+  assert.deepEqual(reply.outcome.lines, []);
   assert.equal(reply.stream.turn, String(turn.id));
 
   assert.equal(settle.reply, `You look at his neck.\n\nOutcome: ${bandOf(roll)}.`, "the reply and the outcome that came up");

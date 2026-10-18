@@ -180,7 +180,6 @@ const PathStep = t.object("PathStep", {
   known: t.option(t.u32()),
 });
 const OpenedNote = t.object("OpenedNote", { path: t.string(), title: t.string(), scope: t.string(), turn: t.u32() });
-const EndingLead = t.object("EndingLead", { exitId: t.string(), count: t.u32(), probability: t.f64() });
 const PendingExit = t.object("PendingExit", { exitId: t.string(), turn: t.u32(), via: t.string(), extended: t.bool(), waits: t.option(t.string()) });
 const ExitAt = t.object("ExitAt", { exitId: t.string(), turn: t.u32() });
 /** The co-GM's steering for one of the cast, from the turn it reviewed. */
@@ -237,15 +236,11 @@ export const gmState = table({ name: "gm_state" }, {
   hinted: t.array(t.string()),
   /** The newest 24. */
   opened: t.array(OpenedNote),
-  endingLead: t.option(EndingLead),
   pendingExit: t.option(PendingExit),
   closing: t.option(ExitAt),
   ended: t.option(ExitAt),
-  /** on_track, drifting, stuck, uncovered. */
-  sceneStatus: t.option(t.string()),
   oocTurns: t.array(t.u32()),
   pressureOffered: t.array(t.string()),
-  repeated: t.option(t.string()),
   /** The co-GM's: details improvised in play that must stay true. */
   canon: t.array(t.string()).default([]),
   /** JSON: ScenePatch[], the scene's prep as play changed it (the co-GM's routes and bridging beats, the ways of trying a ruling shut). */

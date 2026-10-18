@@ -1,13 +1,12 @@
-// Copied from the prototype's src/runtime/director.ts at 44c6d4a: lines 24-52, 60-93, 95-327, 625-637, 1231-1232 and 1360-1369 as they are (reading a TurnView), freeformCheck (:639-650) as its questions and their reading (freeformQuestions, readFreeform: the roll is the simulation's), and decideBefore (:718-1019) and decideAfter (:1234-1358) trimmed to the v2 approach's questions and split in two each: the questions (beforeQuestions, afterQuestions) and their reading (readBefore, readAfter). With the full GM (full-gm-design §3.1): considered rolls' roll_call and the means in every beat, the co-GM's off_graph, the considered read (:878-880, :896, :902-932), offGraph and byPrep (:987, :1010-1016), and after the reply the rules' left (:1279-1283, :1350). With the world bridge (world-bridge-design §2.2): the rules' mechanic question (:793-809), the ruling, actSettles and the route an act holds (:887-893, :897-901, :925, :938), the act's details call (:988-1009, means_only included) as withMechanic, which the decide endpoint runs after the read, and after the reply the threat and its severity (:1284-1295, :1343-1349); the details' questions are gm/mechanics.ts. With the town (town-design §3.4, §3.6): `forced` (:705-711 rulingOf, :793, :889-901, :915, :993), the map's menu's act played as a turn, asked no mechanic question. (A talk's settings and its staged secrets after the reply, :1219-1229, :1263-1275, :1324, went with the old pipeline's talk, since a talk plays on the two-part GM.) Left out: relocation, pressure rolls, the speaker and freeform checks; and the dice: a route's check is picked here (its skill the player's means where both are social) and rolled by the simulation, as are the rules' acts. The directives' words are gm/directives.ts.
+// Copied from the prototype's src/runtime/director.ts at 44c6d4a: lines 24-52, 60-93, 95-327, 625-637, 1231-1232 and 1360-1369 as they are (reading a TurnView), freeformCheck (:639-650) as its questions and their reading (freeformQuestions, readFreeform: the roll is the simulation's), and decideBefore (:718-1019) trimmed to the v2 approach's questions and split in two: the questions (beforeQuestions) and their reading (readBefore). With the full GM (full-gm-design §3.1): considered rolls' roll_call and the means in every beat, the co-GM's off_graph, the considered read (:878-880, :896, :902-932), offGraph and byPrep (:987, :1010-1016). With the world bridge (world-bridge-design §2.2): the rules' mechanic question (:793-809), the ruling, actSettles and the route an act holds (:887-893, :897-901, :925, :938), the act's details call (:988-1009, means_only included) as withMechanic, which the decide endpoint runs after the read; the details' questions are gm/mechanics.ts. With the town (town-design §3.4, §3.6): `forced` (:705-711 rulingOf, :793, :889-901, :915, :993), the map's menu's act played as a turn, asked no mechanic question. decideAfter (:1234-1358, the read after the reply) went with the old pipeline's settle (docs/migration-log.md, M2's "The old pipeline's salvage"), but for its threat and severity (:1284-1295, :1343-1349), parked for combat as threatQuestions and readThreat; a talk's settings and its staged secrets after the reply (:1219-1229, :1263-1275, :1324) went with the old pipeline's talk. Left out: relocation, pressure rolls, the speaker and freeform checks; and the dice: a route's check is picked here (its skill the player's means where both are social) and rolled by the simulation, as are the rules' acts. The directives' words are gm/directives.ts.
 
 import type { ChoiceAnswer, ChoiceQuestion, Decider, Decision as Answers } from "../llm/decide.ts";
 import { describeRoll, titleCase } from "../../shared/dice.ts";
-import type { SceneStatus } from "../../shared/gm/state.ts";
-import type { After, Decision } from "../../shared/protocol/ai.ts";
+import type { Decision } from "../../shared/protocol/ai.ts";
 import { HAZARD_KINDS } from "../../shared/rules/acts.ts";
 import type { Mechanic, ThreatRead } from "../../shared/rules/types.ts";
 import { currentBeat, endsScene, IMPROVISED_EXIT_ID, openRoutes, presentCast } from "../../shared/scene/graph.ts";
-import type { Character, Essential, Exit, Scene, Skill, Transition } from "../../shared/scene/types.ts";
+import type { Character, Exit, Scene, Skill, Transition } from "../../shared/scene/types.ts";
 import { sceneEntries, scriptTranscript } from "./brief.ts";
 import { alsoQuestion, meansQuestion, mechanicDetails, RULED_ACTS, type RuledAct, type RulesOptions } from "./mechanics.ts";
 import type { TurnView } from "./view.ts";
@@ -164,27 +163,6 @@ function brinkQuestion(exit: Exit): ChoiceQuestion {
     },
   };
 }
-
-/**
- * After the reply, whether an ending found now would leave something hanging: a question or a request
- * the reply hasn't answered. Asked every turn, in the call the turn makes anyway.
- */
-const ASK_QUESTION: ChoiceQuestion = {
-  instructions: "Did the player's latest turn ask someone in the scene a question, or ask them for something, that the latest GM reply leaves unanswered (neither answered, granted nor refused)?",
-  criteria: {
-    unanswered: "Yes: they asked someone here something, or asked them for something, and the reply hasn't answered, granted or refused it.",
-    none: "No: they asked nothing of anyone here, or the reply answered, granted or refused it.",
-  },
-};
-
-/** After the reply, whether the scene is ending by the player's own choice (one wind-down turn), or through others (it waits for their answer). */
-const OWN_EXIT_QUESTION: ChoiceQuestion = {
-  instructions: "Is the player, in their latest turn, choosing to end the scene themselves: leaving or setting off, handing someone or something over, settling it their own way, or saying they're done here? Not if the scene is ending through what someone else decided or did, or how things now stand.",
-  criteria: {
-    theirs: "Yes: the player's own choice in their latest turn ends it.",
-    no: "No: if it's ending, that's other people's doing or how things stand, not the player's choice.",
-  },
-};
 
 /** Is the player's turn out of character? On its own, for a wind-down turn, which asks nothing else. */
 export async function outOfCharacter(decider: Decider, scene: Scene, state: TurnView, playerTurn: string): Promise<{ ooc: boolean; decision: Answers }> {
@@ -345,17 +323,6 @@ export function readFreeform(decision: Answers): { skill: Skill; dc: number } {
   const dc = DIFFICULTY[(decision.answers.difficulty?.choice ?? "moderate") as keyof typeof DIFFICULTY] ?? 13;
   return { skill, dc };
 }
-
-/** Tier-one scene health, asked alongside the outcome check at no extra latency. */
-const STATUS_QUESTION: ChoiceQuestion = {
-  instructions: "How is this tabletop roleplaying scene going right now, judging by the recent transcript and the latest exchange?",
-  criteria: {
-    on_track: "Moving: the player is engaged with what the scene is about, or something new and promising is developing.",
-    drifting: "The player is off on a tangent the scene hasn't absorbed yet; it isn't connecting back to anything.",
-    stuck: "The same exchange is repeating, someone keeps refusing or deferring, or the player seems unsure what to do next.",
-    uncovered: "The player is pursuing a reasonable approach to the scene's central problem that the scene doesn't seem to have a way to resolve.",
-  },
-};
 
 // ---------------------------------------------------------------------------------------------
 // Before the reply: decideBefore (director.ts:718-1019), as V0 asks it, in two.
@@ -680,153 +647,47 @@ function pick(t: Transition, phase: "attempt" | "cue", means: Skill | undefined,
 }
 
 // ---------------------------------------------------------------------------------------------
-// After the reply: decideAfter (director.ts:1234-1358), as V0 asks it, in two.
-
-/** What afterQuestions asks, and what the reading needs of how it asked. */
-export interface AfterAsked {
-  questions: Record<string, ChoiceQuestion>;
-  outcomes: Transition[];
-  endings: Exit[];
-  pending: Essential[];
-  /** Who's here (a rules session): whose blow the threat question offers. */
-  present: Character[];
-}
-
-/** The player has left the scene's place altogether (asked after each reply in rules sessions). */
-export const LEFT_CONFIDENCE = 0.7;
+// Parked for combat (docs/migration-log.md, M2's "The old pipeline's salvage"): what a reply left
+// hanging over the player, as decideAfter asked it (director.ts:1284-1295) and read it (:1343-1349).
+// The old pipeline asked it in its read after every reply, for a character with a build, and its
+// settle commit kept the threat for the next turn's start to land (rules/play.ts rulesFirst lands one
+// still); nothing asks it since the old pipeline's settle went with the rest of its scene steps.
 
 /**
- * After the reply, the turn's second decision: how the scene is going, which ending (if any) the
- * story is at, which essentials the player has come across or been pointed to, whether the player
- * has walked out of the place and whether the reply left a blow or a danger hanging over them (asked
- * when their character is the rules engine's: their sheet has a build), which outcome route has
- * happened, whether they asked something left unanswered, and whether an ending would be their own
- * doing. `hold`: an ending held back this turn for the player's answer, which this reply can't
- * confirm.
+ * Whether the reply ends with the player in immediate physical danger: someone here in the act of
+ * striking them (`attack:<id>`, for each of `present`), or a danger about to catch them
+ * (`hazard:<kind>`, shared/rules/acts.ts HAZARD_KINDS); and how bad it would be.
  */
-export function afterQuestions(scene: Scene, state: TurnView, hold?: string): AfterAsked {
-  // An ending held back this turn (the player gets a last chance) can't be confirmed by the same reply.
-  const leadsTo = (t: Transition) => [t.to, t.check?.onSuccess, t.check?.onFailure];
-  // While an ending is held for the player's response, no other ending (not even the improvised one) can fire.
-  const outcomes = [...transitionsFor(scene, state, "outcome"), ...transitionsFor(scene, state, "cue")]
-    .filter(t => !hold || (!leadsTo(t).includes(hold) && t.to !== IMPROVISED_EXIT_ID));
-  const questions: Record<string, ChoiceQuestion> = { status: STATUS_QUESTION };
-  // Which ending is the story at now, if any? Asked over every ending, including ones the player
-  // reaches without dice or that no route leads to, as a state rather than "what just happened".
-  const endings = scene.exits.filter(e => e.id !== hold && !state.fought?.includes(e.id));
-  questions.ending = {
-    instructions: "Judging by the whole scene so far (recent_transcript, latest_player_turn and latest_gm_reply), has the scene's central situation now reached one of these endings, so that nothing more needs to happen here for it to be true? Consider the state the story is in now, not only what happened in the last exchange. Offers, threats and plans that haven't happened don't count. Choose not_yet if the situation is still open.",
-    criteria: {
-      ...Object.fromEntries(endings.map(e => [e.id, `${e.title}: ${e.outcome}`])),
-      not_yet: "Not yet: the situation is still open, or still being negotiated or played out.",
-    },
-  };
-  // Which of the scene's essentials has the player now come across (by any route)?
-  const pending = (scene.essentials ?? []).filter(e => !state.landed?.includes(e.id));
-  for (const e of pending) {
-    questions[`landed_${e.id}`] = {
-      instructions: "In this roleplaying scene, has the player now come across this, by any means (told, shown, found, worked out), as of the latest exchange?",
-      criteria: {
-        landed: `Yes: the player now knows or has this: ${e.what}`,
-        hinted: "Not yet, but the latest GM reply pointed towards it: a sign, a telltale detail or a remark the player could follow up.",
-        not_yet: "Not yet: it hasn't reached the player, and the latest reply didn't point towards it.",
-      },
-    };
-  }
-  // The rules: did the reply leave a blow or a danger hanging over the player? It lands at the
-  // start of their next turn, so they get to answer it, as at the table.
-  const present = state.rules ? presentCast(scene, state) : [];
-  // The rules: has the player walked out of the place altogether? (Its name is the scene's world's,
-  // which the AI service has as the world's root: a campaign's scene keeps its place apart.)
-  if (state.rules) {
-    const place = scene.world?.name ?? (state.world ? state.world.entities[state.world.root]?.name : undefined);
-    questions.left = {
-      instructions: `Where is the player character at the end of the latest GM reply? This scene is set in ${scene.title}${place ? ` (${place})` : ""}.`,
-      criteria: { here: `Still in or around ${scene.title}.`, gone: "Gone somewhere else altogether: another building, across town, down the river, or on their way there." },
-    };
-    questions.threat = {
+export function threatQuestions(present: Character[]): Record<string, ChoiceQuestion> {
+  return {
+    threat: {
       instructions: "Does the latest GM reply end with the player character in immediate physical danger that hasn't been resolved yet: someone in the act of striking, shooting or lunging at them, or a danger about to catch them (a fall, fire, poison, cold water, being grabbed or dragged, something working on their mind)? Only something already under way, not a threat in words, a warning or a possibility.",
       criteria: {
         ...Object.fromEntries(present.map(c => [`attack:${c.id}`, `${c.name} is in the act of attacking them`])),
         ...Object.fromEntries(Object.entries(HAZARD_KINDS).map(([k, text]) => [`hazard:${k}`, `About to be caught by ${text}`])),
         none: "No: nothing physical is about to hit them.",
       },
-    };
-    questions.threat_severity = {
+    },
+    threat_severity: {
       instructions: "If something is about to hit the player character, how bad would it be?",
       criteria: { glancing: "A knock, a scare, a ducking: it could hurt a bit.", serious: "Serious: it could badly hurt someone." },
-    };
-  }
-  if (outcomes.length) {
-    // A cue's text describes its trigger ("they set off..."); after the reply, ask about its effect.
-    const effect = (t: Transition) => {
-      if (phaseOf(t) !== "cue") return t.when;
-      const target = t.to ?? t.check?.onSuccess ?? "";
-      const beat = scene.beats.find(b => b.id === target);
-      const exit = scene.exits.find(e => e.id === target);
-      return beat ? `The story has already moved on to "${beat.title}": ${beat.direction.split(/(?<=\.)\s/)[0]}` : exit ? `It has already happened: ${exit.outcome}` : t.when;
-    };
-    const q = question("outcome", outcomes);
-    questions.outcome = { ...q, criteria: { ...Object.fromEntries(outcomes.map(t => [t.id, effect(t)])), none: q.criteria.none! } };
-  }
-  // Whether an ending found now waits for the player's answer: something they asked is still hanging,
-  // or it isn't their own doing.
-  questions.ask = ASK_QUESTION;
-  questions.own_exit = OWN_EXIT_QUESTION;
-  return { questions, outcomes, endings, pending, present };
+    },
+  };
 }
 
 /**
- * The after-reply decision read as the prototype reads it: the improvised ending gives way to an
- * authored one read at 0.2 or more; ending on an outcome needs 0.6 (the improvised ending's share
- * added to an authored one's); an outcome route is returned with its check for the simulation to
- * roll; landed and hinted; a question left unanswered; the player's own exit at 0.6; the player
- * gone from the place at 0.7; a blow or a danger left hanging over them at 0.6 (someone here's
- * blow, or a danger with its severity), with the threat question's raw choice, which lets go of a
- * hold the reply no longer has them in (threats.ts holdAfterReply).
+ * threatQuestions' answers, read at 0.6: someone here's blow, or a danger with its severity; and the
+ * threat question's raw choice, which lets go of a hold the reply no longer has the player in
+ * (threats.ts holdAfterReply).
  */
-export function readAfter(scene: Scene, decision: Answers, asked: AfterAsked): After {
-  const { outcomes, endings, pending, present } = asked;
-  const probabilities = decision.answers.outcome?.probabilities ?? {};
-  let picked = outcomes.find(t => t.id === decision.answers.outcome?.choice);
-  // The built-in improvised ending is a last resort: if any authored ending is plausible, prefer it
-  // (its script knows what that ending means for the world).
-  if (picked?.to === IMPROVISED_EXIT_ID) {
-    const authored = outcomes.filter(t => t.to !== IMPROVISED_EXIT_ID && endsScene(scene, t)).sort((a, b) => (probabilities[b.id] ?? 0) - (probabilities[a.id] ?? 0))[0];
-    if (authored && (probabilities[authored.id] ?? 0) >= 0.2) picked = authored;
-  }
-  // Ending the scene on an outcome needs the same confidence as ending it on an attempt.
-  const confidence = picked ? (probabilities[picked.id] ?? 1) + (picked.to !== IMPROVISED_EXIT_ID ? probabilities[outcomes.find(t => t.to === IMPROVISED_EXIT_ID)?.id ?? ""] ?? 0 : 0) : 0;
-  const chosen = picked && endsScene(scene, picked) && confidence < SCENE_ENDING_CONFIDENCE ? undefined : picked;
-  const status = decision.answers.status?.choice as SceneStatus | undefined;
-  const endingAnswer = decision.answers.ending;
-  // The improvised ending defers to any authored ending the ending-state read finds plausible,
-  // even one with no route (a holed scene, or an approach nobody authored).
-  const instead = chosen && !chosen.check && chosen.to === IMPROVISED_EXIT_ID && endingAnswer ? endings.filter(e => e.id !== IMPROVISED_EXIT_ID).map(e => ({ e, p: endingAnswer.probabilities?.[e.id] ?? 0 })).sort((a, b) => b.p - a.p)[0] : undefined;
-  let ending = endingAnswer && endingAnswer.choice !== "not_yet" ? { exitId: endingAnswer.choice, probability: endingAnswer.probabilities?.[endingAnswer.choice] ?? 0 } : undefined;
-  // The improvised ending is a last resort here too: prefer a plausible authored ending (its script knows what it means).
-  if (ending?.exitId === IMPROVISED_EXIT_ID && endingAnswer) {
-    const authored = endings.filter(e => e.id !== IMPROVISED_EXIT_ID).map(e => ({ id: e.id, p: endingAnswer.probabilities?.[e.id] ?? 0 })).sort((a, b) => b.p - a.p)[0];
-    if (authored && authored.p >= 0.2) ending = { exitId: authored.id, probability: authored.p + ending.probability };
-  }
-  const landed = pending.filter(e => decision.answers[`landed_${e.id}`]?.choice === "landed").map(e => e.id);
-  const hinted = pending.filter(e => decision.answers[`landed_${e.id}`]?.choice === "hinted").map(e => e.id);
-  let threat: ThreatRead | undefined;
+export function readThreat(decision: Answers, present: Character[]): { threat?: ThreatRead; threatRead?: string } {
   const t = decision.answers.threat;
-  if (t && t.choice !== "none" && (t.probabilities?.[t.choice] ?? 1) >= SCENE_ENDING_CONFIDENCE) {
+  if (!t) return {};
+  let threat: ThreatRead | undefined;
+  if (t.choice !== "none" && (t.probabilities?.[t.choice] ?? 1) >= SCENE_ENDING_CONFIDENCE) {
     const [kind, what] = t.choice.split(":");
     if (kind === "attack" && present.some(c => c.id === what)) threat = { kind: "attack", by: what! };
     if (kind === "hazard" && what) threat = { kind: "hazard", hazard: what, severity: decision.answers.threat_severity?.choice === "serious" ? "serious" : "glancing" };
   }
-  const left = decision.answers.left?.choice === "gone" && (decision.answers.left?.probabilities?.gone ?? 1) >= LEFT_CONFIDENCE;
-  // (Unsure reads wait: a question left hanging on an even read, and only a clear read is the player's own exit.)
-  const unanswered = decision.answers.ask?.choice === "unanswered";
-  const theirs = decision.answers.own_exit?.choice === "theirs" && (decision.answers.own_exit?.probabilities?.theirs ?? 1) >= SCENE_ENDING_CONFIDENCE;
-  return {
-    ...(left ? { left } : {}),
-    ...(threat ? { threat } : {}), ...(t ? { threatRead: t.choice } : {}),
-    ...(chosen ? { outcome: { route: chosen.id, ...(chosen.check ? { check: { skill: chosen.check.skill, dc: chosen.check.dc, ...(chosen.check.reason ? { reason: chosen.check.reason } : {}) } } : {}), ...(instead && instead.p >= 0.2 ? { exit: instead.e.id } : {}) } } : {}),
-    ...(ending ? { ending } : {}), ...(status ? { status } : {}),
-    landed, hinted, unanswered, theirs,
-  };
+  return { ...(threat ? { threat } : {}), threatRead: t.choice };
 }

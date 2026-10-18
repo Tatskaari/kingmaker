@@ -97,7 +97,7 @@ const NEEDS: Record<Step, Need[]> = {
     ["pending { exitId } (the ending held, when it's sent)", r => at(r, "pending") === undefined || isText(r, "pending.exitId")],
   ],
   reply: [
-    ...TURN, ["decision (the decider's: a two-part reply has none)", r => at(r, "twoPart") === true || isObject(r, "decision")], ["outcome { directives }", r => isList(r, "outcome.directives")], STREAM,
+    ...TURN, ["outcome { directives }", r => isList(r, "outcome.directives")], STREAM,
     ["outcome.windDown { exit } (the wind-down's, when it's sent)", r => at(r, "outcome.windDown") === undefined || isText(r, "outcome.windDown.exit")],
   ],
   settle: [
@@ -120,7 +120,6 @@ function at(value: unknown, path: string): unknown {
 const isText = (r: unknown, path: string) => typeof at(r, path) === "string";
 const isNumber = (r: unknown, path: string) => typeof at(r, path) === "number";
 const isList = (r: unknown, path: string) => Array.isArray(at(r, path));
-const isObject = (r: unknown, path: string) => { const v = at(r, path); return v !== null && typeof v === "object" && !Array.isArray(v); };
 
 /** A 400 naming what a request is missing, if anything. */
 function missing(gaps: Array<string | false>): void {

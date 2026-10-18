@@ -35,7 +35,7 @@ export const canned: Endpoints = {
     const opening = said(`${scene.title}. (The AI service is canned: no model was asked, and nothing here is the GM's.) `, voice, "Say something, and it answers");
     await written(ctx.stream(req.stream.turn), opening);
     // A talk keeps nothing back: on the two-part GM, its discovery isn't this talk's (ai/gm/talk.ts nothingToConfide).
-    const patches = req.talk && req.twoPart ? [{ turn: 0, why: "Canned: nothing to confide.", drop: TOLD }] : [];
+    const patches = req.talk ? [{ turn: 0, why: "Canned: nothing to confide.", drop: TOLD }] : [];
     const talk = req.talk ? { talk: { established: [], patches, withheld: [], suggestions: req.talk.suggest ? TALK_LINES : [] } } : {};
     return { present: presentCast(scene, req.gm).map(c => c.id), entries: [opening], opened: [], ...talk, usage: noUsage() };
   },
@@ -51,20 +51,17 @@ export const canned: Endpoints = {
   async reply(req, ctx) {
     const scene = effectiveScene(ctx.campaign.scene(req.turn.scene.key), req.turn.gm.patches);
     const line = req.turn.line.text.length > 200 ? `${req.turn.line.text.slice(0, 199)}…` : req.turn.line.text;
-    // The two-part GM's wind-down (no decision) always closes; the old pipeline's waits out a word out of character.
-    const reply = req.outcome.windDown && !req.decision?.outOfCharacter
+    // The two-part GM's wind-down always closes.
+    const reply = req.outcome.windDown
       ? narration("The scene draws to a close. (Canned: no model was asked.)")
       : answered(line, speakerAt(scene, presentCast(scene, req.turn.gm), req.turn.scene.turn, req.turn.transcript));
     const sink = ctx.stream(req.stream.turn);
     await written(sink, reply);
-    return { entries: [reply], gm: { repeated: null }, firstTextMs: sink.firstTextMs(), ...(req.twoPart && req.outcome.windDown ? { closes: true } : {}), usage: noUsage() };
+    return { entries: [reply], gm: {}, firstTextMs: sink.firstTextMs(), ...(req.outcome.windDown ? { closes: true } : {}), usage: noUsage() };
   },
   async settle(req) {
     // The two-part GM's co-GM, canned: it sets no roles and moves nothing (and a talk's lines, as ever).
-    if (req.twoPart) return { ops: [], coGm: { roles: {}, moves: [], log: [] }, ...(req.talk ? { talk: { suggestions: req.talk.suggest ? TALK_LINES : [] } } : {}), usage: noUsage() };
-    const closed = !!req.turn.gm.ended;
-    const talk = req.talk ? { talk: { suggestions: req.talk.suggest && !closed ? TALK_LINES : [] } } : {};
-    return { ops: [], ...(closed ? {} : { after: { status: "on_track", landed: [], hinted: [], unanswered: false, theirs: false } }), ...talk, usage: noUsage() };
+    return { ops: [], coGm: { roles: {}, moves: [], log: [] }, ...(req.talk ? { talk: { suggestions: req.talk.suggest ? TALK_LINES : [] } } : {}), usage: noUsage() };
   },
   async suggest() {
     return { lines: LINES, dropped: [], usage: noUsage() };

@@ -50,14 +50,14 @@ export function twoPartStart(tx: TxCtx, scene: SceneRow, graph: Scene, gm: GmSta
   if (scene.kind === "talk" && !gm.closing && isFarewell(line)) farewell(tx, scene, graph, gm, turn.n);
   const first = gm.closing ? undefined : rulesFirst(tx, scene, graph, gm, turn.n, line);
   const outcome: Outcome = {
-    lines: [...(first?.lines ?? [])], directives: [...(first?.directives ?? [])], wasStuck: false,
+    lines: [...(first?.lines ?? [])], directives: [...(first?.directives ?? [])],
     ...(gm.closing ? { windDown: { exit: gm.closing.exitId } } : {}),
   };
   const rules = first?.directives.length ? { rulesFirst: { directives: first.directives, down: first.down, shielded: first.shielded } } : {};
   const forced = turn.mechanic && !gm.closing ? JSON.parse(turn.mechanic) as Mechanic : undefined;
   if (forced) takeAct(tx, { scene, graph, gm }, { n: turn.n, input: line, ...rules }, forced, undefined, outcome);
   putGm(tx, scene.id, gm);
-  return { ...base, ...rules, step: "reply", twoPart: true, windDown: !!gm.closing, outcome, lines: outcome.lines, ...(forced ? { forced } : {}) };
+  return { ...base, ...rules, step: "reply", windDown: !!gm.closing, outcome, lines: outcome.lines, ...(forced ? { forced } : {}) };
 }
 
 /**

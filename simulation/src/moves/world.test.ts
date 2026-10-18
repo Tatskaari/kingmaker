@@ -93,7 +93,7 @@ test("parked for combat: the reactions to the player's violence take effect on t
   const directive = "Rules: that was violence, and everyone here reacts at once.";
   const outcome = host.transact(tx => {
     const at = atTurn(tx, { scene: idText(scene.id) });
-    const out: Outcome = { lines: [], directives: [], wasStuck: false };
+    const out: Outcome = { lines: [], directives: [] };
     const violence = takeAct(tx, at, { n: 1, input: "(I cast Magic Missile at the hoist rope)" }, MISSILE, undefined, out)!;
     assert.match(violence.what, /^cast Magic Missile/);
     reactionsTakeEffect(tx, at, { n: 1 }, violence, QUIET, directive, out);
@@ -113,7 +113,7 @@ test("parked for combat: the reactions to the player's violence take effect on t
   // A fight: Kell goes for the player, and her blow lands as the next turn starts.
   host.transact(tx => {
     const at = atTurn(tx, { scene: idText(scene.id) });
-    const out: Outcome = { lines: [], directives: [], wasStuck: false };
+    const out: Outcome = { lines: [], directives: [] };
     const violence = takeAct(tx, at, { n: 1, input: "*I hit the sergeant with my staff.*" }, { kind: "attack", target: "kell" }, undefined, out)!;
     reactionsTakeEffect(tx, at, { n: 1 }, violence, { kell: "fight", moll: "cower" }, "Rules: that was violence. It's a fight now: end on the moment it breaks out.", out);
     putGm(tx, scene.id, at.gm);

@@ -14,7 +14,7 @@ import { all, nextCheck, openedGame, sceneNow } from "../host/testing.ts";
 
 const usage = { calls: 1, costUsd: 0.001, byOperation: {} };
 const said = (text: string, speakers: string[] = []): Reply => ({ speaker: "gm", kind: "narration", text, ...(speakers.length ? { markup: { speech: speakers.map((speaker, i) => ({ start: i, end: i + 1, speaker })) } } : {}) });
-const replied = (text: string, more: Partial<ReplyResponse> = {}): ReplyResponse => ({ entries: [said(text)], gm: { repeated: null }, firstTextMs: 3, usage, ...more });
+const replied = (text: string, more: Partial<ReplyResponse> = {}): ReplyResponse => ({ entries: [said(text)], gm: {}, firstTextMs: 3, usage, ...more });
 const coGm = (moves: CoGmAnswer["moves"], roles: CoGmAnswer["roles"] = {}): SettleResponse => ({ ops: [], coGm: { roles, moves, log: [] }, usage });
 const outcomes = Object.fromEntries(BANDS.map(b => [b, said(`Outcome: ${b}.`)])) as Record<Band, Reply>;
 
@@ -52,7 +52,7 @@ test("a line: replied with no decide, the GM's check rolled through the rules en
   const now = await line("(I climb the stair and look at his neck)");
   assert.deepEqual(script.to("decide"), [], "no decide");
   const reply = script.to("reply")[0]!.body as ReplyRequest;
-  assert.deepEqual([reply.twoPart, reply.decision, reply.outcome.windDown], [true, undefined, undefined]);
+  assert.equal(reply.outcome.windDown, undefined);
   assert.deepEqual(now.lines.slice(-4).map(l => [l.kind, l.text]), [
     ["player", "(I climb the stair and look at his neck)"],
     ["narration", "You climb the outside stair and get a look at his throat."],
@@ -60,7 +60,7 @@ test("a line: replied with no decide, the GM's check rolled through the rules en
     ["narration", `Outcome: ${band}.`],
   ]);
   const settle = script.to("settle")[0]!.body as SettleRequest;
-  assert.deepEqual([settle.twoPart, settle.check?.skill, settle.check?.band, settle.check?.success], [true, "medicine", band, roll.success]);
+  assert.deepEqual([settle.check?.skill, settle.check?.band, settle.check?.success], ["medicine", band, roll.success]);
   assert.equal(settle.reply, `You climb the outside stair and get a look at his throat.\n\nOutcome: ${band}.`);
   assert.deepEqual(settle.lines, [diceLine(roll)], "the stage manager's dice lines");
 
@@ -106,7 +106,7 @@ test("a route to an ending leaves the scene closing; the next line's reply is th
   script.then("reply", replied("Kell raises her pencil. “One more thing?”", { closes: false }));
   const held = await line("Wait: Cob, who was the big man?");
   const winding = script.to("reply").at(-1)!.body as ReplyRequest;
-  assert.deepEqual([winding.twoPart, winding.outcome.windDown?.exit], [true, "murder-unknown"]);
+  assert.equal(winding.outcome.windDown?.exit, "murder-unknown");
   assert.deepEqual([held.scene.status, held.gm.twoPart.held, held.gm.closing?.exitId], ["closing", true, "murder-unknown"], "it waited, once");
   assert.equal(script.to("settle").length, 1, "no settle on a wind-down");
 
