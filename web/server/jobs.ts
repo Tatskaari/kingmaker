@@ -55,26 +55,47 @@ export function startJobs(sim: MemoryHost): Jobs {
     void run.finally(() => { running.delete(run); settle(); });
   };
 
-  /** A fight's next turn (its fight_clock row), when its time comes: the other side's turns, a step at a time, on the page's own time. */
-  const fightTimers = new Set<ReturnType<typeof setTimeout>>();
-  const fightAt = (at: unknown) => {
+  /**
+   * A fight's next turn (its fight_clock row), when its time comes: the other side's turns, a step at
+   * a time, on the page's own time. The simulation runs a row only once its time has come by the
+   * simulation's clock, and a browser's timers and its coarsened performance.now() can disagree by a
+   * millisecond, so a timer that wakes before the row is due waits again for what's left: a fight
+   * otherwise stood still on the other side's turn, with no commit coming to wake it.
+   */
+  const fightTimers = new Map<bigint, ReturnType<typeof setTimeout>>();
+  const fightAt = (row: { scheduledId: bigint; scheduledAt: unknown }) => {
+    const left = microsLeft(row.scheduledAt);
+    if (stopped || left === undefined) return;
+    clearTimeout(fightTimers.get(row.scheduledId));
+    fightTimers.set(row.scheduledId, setTimeout(() => {
+      fightTimers.delete(row.scheduledId);
+      sim.fightSteps();
+      const still = sim.db.fightClock.scheduledId.find(row.scheduledId);
+      // Still there and not yet due: woken early. (Due and still there, its step threw, and was logged.)
+      if (still && (microsLeft(still.scheduledAt) ?? 0n) > 0n) fightAt(still);
+    }, left > 0n ? Math.ceil(Number(left) / 1000) : 0));
+  };
+  /** How long until a schedule's time by the simulation's clock, in microseconds; undefined for one that isn't a time. */
+  const microsLeft = (at: unknown): bigint | undefined => {
     const time = at as { tag?: string; value?: { microsSinceUnixEpoch?: bigint } } | undefined;
-    if (stopped || time?.tag !== "Time" || typeof time.value?.microsSinceUnixEpoch !== "bigint") return;
-    const ms = Math.max(0, Number((time.value.microsSinceUnixEpoch - sim.now().microsSinceUnixEpoch) / 1000n));
-    const timer = setTimeout(() => { fightTimers.delete(timer); sim.fightSteps(); }, ms);
-    fightTimers.add(timer);
+    return time?.tag === "Time" && typeof time.value?.microsSinceUnixEpoch === "bigint" ? time.value.microsSinceUnixEpoch - sim.now().microsSinceUnixEpoch : undefined;
   };
 
   const reaper = setInterval(() => sim.reap(), reapEveryMs(sim));
   const clock = setInterval(() => sim.tickPlaces(), TICK_EVERY_MS);
   // What was due when the database was last kept (a dispatch saved before its run began, a fight's next turn).
   dispatchSoon();
-  for (const row of sim.db.fightClock.iter()) fightAt(row.scheduledAt);
+  for (const row of sim.db.fightClock.iter()) fightAt(row);
 
   return {
     afterCommit(changes) {
       if (changes.changes.some(change => change.table === "jobDispatch" && change.op === "insert")) dispatchSoon();
-      for (const change of changes.changes) if (change.table === "fightClock" && change.op === "insert") fightAt(change.row["scheduledAt"]);
+      for (const change of changes.changes) {
+        if (change.table !== "fightClock") continue;
+        const row = change.row as { scheduledId: bigint; scheduledAt: unknown };
+        if (change.op !== "delete") fightAt(row);
+        else { clearTimeout(fightTimers.get(row.scheduledId)); fightTimers.delete(row.scheduledId); }
+      }
     },
     idle: () => new Promise(resolve => { waiters.push(resolve); settle(); }),
     stop() {
@@ -83,7 +104,7 @@ export function startJobs(sim: MemoryHost): Jobs {
       soon = undefined;
       clearInterval(reaper);
       clearInterval(clock);
-      for (const timer of fightTimers) clearTimeout(timer);
+      for (const timer of fightTimers.values()) clearTimeout(timer);
       fightTimers.clear();
     },
   };

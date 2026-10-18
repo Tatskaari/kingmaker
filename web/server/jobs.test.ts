@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { ScheduleAt, Timestamp } from "spacetimedb";
 import { memoryHost } from "../../simulation/src/host/memory.ts";
 import { all, caerwynArgs, DEFAULTS, held, identity, scriptedAi } from "../../simulation/src/host/testing.ts";
 import { markOnline } from "../../simulation/src/lifecycle.ts";
@@ -62,6 +63,28 @@ test("the town's clock runs every 6 s, as SpacetimeDB schedules tick_place by it
   jobs.stop();
   t.mock.timers.tick(60_000);
   assert.equal(ticked, 3, "another tab has the game: its clock is that tab's");
+});
+
+test("a fight's next turn runs once its fight_clock row's time has come by the simulation's clock, even when its timer wakes a little before it (a browser's)", t => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  // The simulation's clock a shade slower than the timers', as a browser's coarsened performance.now()
+  // can be beside its timers: a wait of exactly the time left wakes before the row is due.
+  const start = BigInt(Date.UTC(2026, 9, 18, 9)) * 1000n;
+  let timersMs = 0;
+  const clock = () => new Timestamp(start + BigInt(Math.floor(timersMs * 999)));
+  let jobs: Jobs | undefined;
+  const host = memoryHost({ ai: scriptedAi().ai, seed: 7, clock, onCommit: commit => jobs?.afterCommit(commit) });
+  let ran = 0;
+  jobs = startJobs({ ...host, fightSteps: () => { ran++; return host.fightSteps(); } });
+  t.after(() => jobs?.stop());
+  const tick = (ms: number) => { for (let i = 0; i < ms; i++) { timersMs++; t.mock.timers.tick(1); } };
+
+  host.transact(tx => { tx.db.fightClock.insert({ scheduledId: 0n, scheduledAt: ScheduleAt.time(start + 1_650_600n), fightId: 1n }); });
+  tick(1640);
+  assert.equal(host.db.fightClock.count(), 1n, "not yet");
+  tick(40);
+  assert.equal(host.db.fightClock.count(), 0n, "its turn ran (fight_step takes its row away as it runs)");
+  assert.ok(ran >= 1 && ran <= 3, `woken early, it waited again for what was left (${ran} wake-ups), and no more`);
 });
 
 test("a start after the page went: every job that was running is dispatched again now, and every seated player is offline", async () => {
