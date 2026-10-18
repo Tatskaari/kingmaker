@@ -47,9 +47,10 @@ test("a fight played headless against the page host: ring, observe's MODE: fight
   const storage = await openStorage(memoryDatabase(), () => {});
   const host = await startHost({ model: fakeModel(content.fake), ownerMoves: true, log: () => {} }, storage, content);
   const { port1, port2 } = new MessageChannel();
-  t.after(() => { port1.close(); port2.close(); });
   host.serve(portDuplex(port2));
   const game = new Replica(portLink(port1, { session: "default" }));
+  // Whatever happens, the host's clocks stop and the ports close: a failed assertion doesn't leave the run waiting on them.
+  t.after(() => { host.stop(); game.close(); port1.close(); port2.close(); });
   await game.ready;
   assert.equal(await game.newGame({ campaign: "caerwyn", name: "Wren Ashdown", concept: "a sellsword between contracts", build: "fighter" }), undefined);
 
@@ -63,7 +64,8 @@ test("a fight played headless against the page host: ring, observe's MODE: fight
   assert.match(first, /a bandit +11\/11 HP/);
   assert.match(first, /\n {3}0123456789/, "the board, with its rulers");
   assert.match(first, /What happened:\nRoll for initiative! /);
-  assert.match(first, /\nACTIONS:\n(- .+\n)*- walk@\d+,\d+: Close in on a bandit \(\d+ ft\)\n/);
+  // The page host's dice are its own: the bandit may have won initiative and closed in already, and then there's no closing in, but a blow.
+  assert.match(first, /\nACTIONS:\n(- .+\n)*- (walk@\d+,\d+: Close in on a bandit \(\d+ ft\)|attack@\d+,\d+: Attack a bandit \(Longsword \+5; 5 ft\))\n/);
   assert.match(first, /- end_turn: End your turn/);
   assert.match(first, /- walk@x,y: Move to any tile marked · \(35 ft left\)/);
   // Observe says the same.
@@ -76,11 +78,13 @@ test("a fight played headless against the page host: ring, observe's MODE: fight
   const nonsense = printed();
   assert.equal(await verbs.act(game, "fly_away", nonsense.out), 1);
   assert.match(nonsense.last(), /^\(There's no fly_away in the fight: observe lists the actions/);
-  const close = /- (walk@\d+,\d+): Close in on a bandit/.exec(first)![1]!;
+  const close = /- (walk@\d+,\d+): Close in on a bandit/.exec(first)?.[1];
   const moved = printed();
-  assert.equal(await verbs.act(game, close, moved.out), 0);
-  assert.match(moved.last(), /What happened:\nYou (close|step) in on a bandit/);
-  const blow = /- (attack@\d+,\d+): Attack a bandit/.exec(moved.last())?.[1];
+  if (close) {
+    assert.equal(await verbs.act(game, close, moved.out), 0);
+    assert.match(moved.last(), /What happened:\nYou (close|step) in on a bandit/);
+  }
+  const blow = /- (attack@\d+,\d+): Attack a bandit/.exec(close ? moved.last() : first)?.[1];
   if (blow) {
     const struck = printed();
     assert.equal(await verbs.act(game, blow, struck.out), 0);
@@ -108,6 +112,4 @@ test("a fight played headless against the page host: ring, observe's MODE: fight
   assert.match(out.lines.join("\n"), /^The practice ring: /);
   assert.match(out.last(), /^MODE: explore/);
   await host.idle();
-  host.stop();
-  game.close();
 });
