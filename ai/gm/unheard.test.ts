@@ -84,6 +84,10 @@ test("a group's members who go by a name inside what they are: the Crakes until 
   assert.match(namesNote(unheardOf(scene, view))!, /\n- the first Crake: "the first bruiser"\n- the second Crake: "the second bruiser"$/);
   // The screen knows them by it too: a line tagged "[the first bruiser]" is his.
   assert.ok(speakersOf(scene, view).find(p => p.id === "crake-1")?.names.includes("first bruiser"));
+  // And in the reply they arrive in, before they're in the world (the simulation joins them as it's written: QA round qa3-1018).
+  const arriving = heronAtMidnight();
+  for (const id of ["crake-1", "crake-2", "lantern-boy"]) delete arriving.view.world!.entities[id];
+  assert.ok(speakersOf(arriving.scene, arriving.view).find(p => p.id === "crake-1")?.names.includes("first bruiser"), "his line is his in the reply he arrives in");
   // Sallow says it: heard.
   const said = heronAtMidnight([{ turn: 16, speaker: "gm", kind: "narration", text: "He smiles thinly. “Crake.” Both bruisers move." }]);
   assert.ok(!unheardOf(said.scene, said.view).some(u => u.word));
