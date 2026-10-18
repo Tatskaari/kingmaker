@@ -221,3 +221,24 @@ html, body {
 #key-bar button[hidden] {
   display: none;
 }
+
+/* On the left: the game's sound, voices and music, each a switch (struck through when off). */
+#key-bar [data-sounds] {
+  display: flex;
+  gap: 0 8px;
+}
+
+#key-bar [data-sound][aria-pressed="false"] {
+  color: var(--dim);
+  text-decoration: line-through;
+}
+
+/* The volume: a small slider beside the switches, in the game's gold. */
+#key-bar [data-volume] {
+  width: 90px;
+  height: 12px;
+  margin: 0;
+  align-self: center;
+  accent-color: var(--title);
+  cursor: pointer;
+}

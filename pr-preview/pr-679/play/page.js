@@ -1,10 +1,11 @@
-// Copied from the prototype's src/web/page/client.js at 44c6d4a, as v2's page (browser-design §2, §5): the workers' transport (transport.js) is the only one, so the socket transport and the server's branches go, and it's imported with the rest; the doors' and lamps' pictures over the map are drawn (doors.js, bundled from doors.ts and the client's art by the build: M5); the key form's other choice is Play with the fake GM (?fake skips the form on it, and the choice puts ?fake in the address, so a reload keeps it; ?fake=arc plays the whole story's recipe); ?zoo and ?zoo=<exhibit> open the zoo (M6), on the fake GM unless ?fake says; a tab told the game is open in another (busy) plays once its server worker has the game (ready); Play again (and Try again) starts the client worker again, the server worker playing on, and Play here instead (the game moved to another tab) loads the page again; km.heard says what the workers said; the server's stats and the wait for a closed game's notes go (v2's jobs are the server worker's, and it plays on); the report's download is the transport's (M5).
-import { Terminal } from "./vendor/xterm.mjs?v=d5ebbe6ab072";
-import { FitAddon } from "./vendor/addon-fit.mjs?v=d5ebbe6ab072";
-import { WebglAddon } from "./vendor/addon-webgl.mjs?v=d5ebbe6ab072";
-import { Unicode11Addon } from "./vendor/addon-unicode11.mjs?v=d5ebbe6ab072";
-import { workerTransport } from "./transport.js?v=d5ebbe6ab072";
-import { doorOverlay } from "./doors.js?v=d5ebbe6ab072";
+// Copied from the prototype's src/web/page/client.js at 44c6d4a, as v2's page (browser-design §2, §5): the workers' transport (transport.js) is the only one, so the socket transport and the server's branches go, and it's imported with the rest; the doors' and lamps' pictures over the map are drawn (doors.js, bundled from doors.ts and the client's art by the build: M5); the key form's other choice is Play with the fake GM (?fake skips the form on it, and the choice puts ?fake in the address, so a reload keeps it; ?fake=arc plays the whole story's recipe); ?zoo and ?zoo=<exhibit> open the zoo (M6), on the fake GM unless ?fake says; the game's sound is played here (sound.js, from the client worker's words), turned on and off on the bar; a tab told the game is open in another (busy) plays once its server worker has the game (ready); Play again (and Try again) starts the client worker again, the server worker playing on, and Play here instead (the game moved to another tab) loads the page again; km.heard says what the workers said; the server's stats and the wait for a closed game's notes go (v2's jobs are the server worker's, and it plays on); the report's download is the transport's (M5).
+import { Terminal } from "./vendor/xterm.mjs?v=7c4396e32616";
+import { FitAddon } from "./vendor/addon-fit.mjs?v=7c4396e32616";
+import { WebglAddon } from "./vendor/addon-webgl.mjs?v=7c4396e32616";
+import { Unicode11Addon } from "./vendor/addon-unicode11.mjs?v=7c4396e32616";
+import { workerTransport } from "./transport.js?v=7c4396e32616";
+import { doorOverlay } from "./doors.js?v=7c4396e32616";
+import { pageSound } from "./sound.js?v=7c4396e32616";
 
 // The page's half of Kingmaker in the browser (browser-design §2): xterm.js draws the game, which runs
 // in two Web Workers on this page, joined by a MessageChannel: the client (v2's screens, on the JS
@@ -173,6 +174,8 @@ function freshAtlas() {
 useWebgl();
 // The doors and lamp posts, drawn as pictures over the ASCII where the game says they are (doors.ts); ?doors=off leaves the ASCII alone.
 const doors = params.get("doors") === "off" ? undefined : doorOverlay(term);
+// The game's sound (sound.ts): the music, the voices and the effects the client worker asks for, from the player's first key or click; the bar turns each on and off.
+const sound = pageSound({ version: VERSION, controls: $("key-bar"), turned: () => term.focus() });
 // No cursor until the game asks for one (it hides it anyway; this covers the moments before it starts).
 term.write("\x1b[?25l");
 resize();
@@ -245,6 +248,8 @@ window.km = {
   atlas,
   /** The doors' overlay (undefined with ?doors=off): the last frame of doors and lamps the game sent, and how many are drawn. */
   doors,
+  /** The sound: what's on, whether the audio runs, how much the client worker has asked for. */
+  sound,
   get playing() {
     return playing;
   },
@@ -322,7 +327,7 @@ function connect() {
   };
   // ?glyphs=ascii draws letters, as the smoke test plays.
   transport = workerTransport(handlers, {
-    fake, glyphs: params.get("glyphs") ?? undefined, askForKey, seed,
+    fake, glyphs: params.get("glyphs") ?? undefined, askForKey, seed, sound: messages => sound.play(messages),
     ...(zoo !== undefined ? { zoo, build: params.get("build") ?? undefined, foes: params.get("foes") ?? undefined } : {}),
     closeKeyForm: () => { keyForm(false); term.focus(); },
   });
