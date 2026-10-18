@@ -11,7 +11,7 @@ import type { Scene } from "../../shared/scene/types.ts";
 import { fakeFetch, readPrep, walkTo, type FakeOptions } from "../llm/fake-openrouter.ts";
 import type { CallContext } from "../llm/openrouter.ts";
 import { CAERWYN, viewAt } from "./fixtures.ts";
-import { closingDirective, coGm, coGmInstructions, mouthpieceInput, mouthpieceInstructions, movedDirective, narrationSoFar, prepOf, pressureOffered, speak, twoPartNow } from "./two-part.ts";
+import { closingDirective, coGm, coGmInstructions, mouthpieceInput, mouthpieceInstructions, movedDirective, narrationSoFar, prepOf, pressureOffered, routeLine, speak, twoPartNow } from "./two-part.ts";
 import type { TurnView } from "./view.ts";
 
 /**
@@ -116,6 +116,13 @@ test("the per-turn note: the stage, the routes open now with a dice route's chec
   assert.ok(clerkNow(2).includes("If it's stalling or drifting, the world can push: Tull's constables start getting Prout down"));
   assert.equal(pressureOffered(clerk, yard({ reached: ["start", "cart-arrives"], beat: "cart-arrives", turnsInBeat: 2 })), "cart-arrives", "the reply says it offered it, for the simulation to mark");
   assert.ok(!clerkNow(3, ["cart-arrives"]).includes("sitting here a while"), "once offered, never again");
+});
+
+test("a route into a discovery is taken once its revelation has landed: the co-GM's open routes say what the revelation is, the mouthpiece's note leaves it to the prep", () => {
+  const find = clerk.routes.find(r => r.id === "find-murder")!;
+  assert.equal(routeLine(clerk, find), "- [find-murder] from Stones at a hanged man [start] to The victim was murdered [murder]. When: its revelation has landed with the player");
+  assert.match(routeLine(clerk, find, { revelation: true }), /When: its revelation has landed with the player \(Prout didn't hang himself: he was struck and strangled, then hoisted up on the sack hoist to look like a suicide\.\)$/);
+  assert.doesNotMatch(twoPartNow(clerk, yard(), []), /struck and strangled/);
 });
 
 test("the narration is read as the reply streams: its escapes undone, an escape cut off part-way held back, nothing before it starts", () => {

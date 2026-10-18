@@ -82,13 +82,14 @@ const listed = (scene: Scene, ids: string[]) => ids.map(id => named(scene, id)).
  * it goes from and to, what it needs reached first, its dice or that it's a cue, then ". When: "
  * and what has to have happened. The fake model reads this line (ai/llm/fake-openrouter.ts).
  */
-export function routeLine(scene: Scene, r: SceneRoute): string {
+export function routeLine(scene: Scene, r: SceneRoute, options: { revelation?: boolean } = {}): string {
   const target = scene.beats.find(b => b.id === r.target);
   const needs = r.requires?.length ? `, once ${listed(scene, r.requires)} ${r.requires.length === 1 ? "is" : "are"} reached` : "";
   const how = r.skill
     ? `; the dice decide (${titleCase(r.skill)} DC ${r.dc}): a success takes it, a failure ${r.onFailure ? `goes to ${named(scene, r.onFailure)}` : "leaves the scene where it is"}`
     : r.phase === "cue" ? "; a cue: bring it about when its moment comes" : "";
-  const when = r.condition.trim() || (target && isDiscovery(target) ? "its revelation has landed with the player" : r.label);
+  const discovery = !!target && isDiscovery(target);
+  const when = r.condition.trim() || (discovery ? `its revelation has landed with the player${options.revelation && target.revelation ? ` (${target.revelation})` : ""}` : r.label);
   return `- [${r.id}] from ${named(scene, r.source)} to ${named(scene, r.target)}${needs}${how}. When: ${when}`;
 }
 
@@ -399,7 +400,7 @@ function coGmInput(scene: Scene, view: TurnView, check: TurnCheck | undefined): 
     `# The scene so far\n\n${scriptTranscript(scene, view)}`,
     `# Where the scene is: ${stage.title} [${stage.id}]\nIt has been here for ${view.turnsInBeat} exchange${view.turnsInBeat === 1 ? "" : "s"}. Reached so far: ${reachedOf(view).map(id => `[${id}]`).join(", ")}.${notes.length ? `\nSuggested roles while it's here:\n${notes.map(([id, n]) => `- ${id}: ${n}`).join("\n")}` : ""}`,
     `# The targets\nThe discoveries not reached yet:\n${targetsOf(scene, view).map(b => `- ${b.title} [${b.id}]${b.required ? " (required)" : ""}: ${b.revelation}`).join("\n") || "- (none: every discovery is reached)"}`,
-    `# Open routes\n${open.map(r => routeLine(scene, r)).join("\n") || "- (none)"}`,
+    `# Open routes\n${open.map(r => routeLine(scene, r, { revelation: true })).join("\n") || "- (none)"}`,
     ...(check ? [`# This turn's check\nThe GM called ${titleCase(check.skill)} DC ${check.dc}, and the roll came to ${check.total}: a ${check.success ? "success" : "failure"} (${check.band.replace("_", " ")}).${dice.length ? ` It is the check of ${dice.map(r => `[${r.id}]`).join(" and ")}: take ${dice.length === 1 ? "it" : "the one the player was attempting"} with outcome ${check.success ? "success" : "failure"} if that's what the player was attempting.` : ""}`] : []),
     ...(view.established.length ? [`# Established in play\n${view.established.map(f => `- ${f}`).join("\n")}`] : []),
     `# Current character roles\n\n${rolesBody(scene, view.twoPart.roles)}`,
