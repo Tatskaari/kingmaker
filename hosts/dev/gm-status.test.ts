@@ -176,7 +176,7 @@ test("the scene's background jobs in flight: its memory reviews and co-GM review
   const jobs = [
     { scene_id: 7, move: "remember", key: "g1-abc:s7:t3:remember" },
     { scene_id: 7, move: "repair", key: "g1-abc:s7:t3:repair" },
-    { scene_id: 7, move: "say", key: "g1-abc:s7:t4:decide" },
+    { scene_id: 7, move: "say", key: "g1-abc:s7:t4:reply" },
     { scene_id: 8, move: "remember", key: "g2-def:s8:t1:remember" },
     { scene_id: null, move: "creation", key: "c5:offer" },
   ];

@@ -230,7 +230,7 @@ test("a spectator gets no lines, nor rows kept for them; nor does anyone with th
 test("a line just said: the last set goes at once, and the next is on its way until it lands, or is dropped", () => {
   const rows = answered();
   rows.scene = { ...rows.scene, turns: 2, turnId: 6n };
-  rows.turns = [...rows.turns, turn(6n, 2, "deciding")];
+  rows.turns = [...rows.turns, turn(6n, 2, "replying")];
 
   let view = sceneViewOf(rows);
   assert.deepEqual([view.suggestions, view.suggestionsComing], [[], true]);
@@ -278,7 +278,7 @@ test("settling: the reply's in, the world settling behind it; the box is open, a
   assert.equal(sceneViewOf(rows).note, "The GM has lost the thread for a moment: trying again.");
 });
 
-test("considering: the GM rules on a risky act before the reply; the box stays shut, as while deciding, and the lines are still on their way", () => {
+test("considering: the GM rules on a risky act before the reply; the box stays shut, as while queued, and the lines are still on their way", () => {
   const rows = base();
   rows.scene = { ...rows.scene, turns: 1, turnId: 5n };
   rows.turns = [turn(4n, 0, "done"), turn(5n, 1, "considering")];

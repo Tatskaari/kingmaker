@@ -141,7 +141,7 @@ export class SceneModel {
   }
 
   /**
-   * A new view from the rows. A line that starts the GM thinking (queued, or deciding) gets a fresh
+   * A new view from the rows. A line that starts the GM thinking (queued) gets a fresh
    * line for the spinner; another scene forgets what was looked at and picked out in the old one.
    */
   update(view: SceneView): void {
@@ -391,7 +391,7 @@ export class SceneModel {
     const way = this.wayOn();
     if (way) return way.to === "wait" && this.story?.onward === "moving" ? "The story moves on…" : undefined;
     const { phase, draft } = this.view;
-    if (phase === "queued" || phase === "deciding") return this.busyLine ?? "The GM is thinking…";
+    if (phase === "queued") return this.busyLine ?? "The GM is thinking…";
     if (phase === "considering") return CONSIDERING;
     if (phase === "replying") return draft?.kind === "dialogue" ? `${draft.name ?? draft.speaker} is speaking…` : "The GM is speaking…";
     // The world settling behind the reply: the GM's bookkeeping.
@@ -529,7 +529,7 @@ export class SceneModel {
     const v = this.view;
     if (v.mayType) { this.input(line); return; }
     if (v.over || v.ending) this.status = ONLY_LOOKING;
-    else if (!v.watching && (v.phase === "queued" || v.phase === "deciding" || v.phase === "replying")) this.status = DEED_WAITS;
+    else if (!v.watching && (v.phase === "queued" || v.phase === "replying")) this.status = DEED_WAITS;
     else { this.input(line); return; }
     this.emit();
   }
@@ -540,8 +540,8 @@ export class SceneModel {
   }
 }
 
-/** The GM has a line to think about: said and waiting, or being decided. */
-const thinking = (view: SceneView) => view.phase === "queued" || view.phase === "deciding";
+/** The GM has a line to think about: said and waiting. */
+const thinking = (view: SceneView) => view.phase === "queued";
 
 /** Where the scene stands, for a refusal to lapse by: the turn shown and its phase, what it waits on, how much has been said, whether it's over. A draft growing doesn't move it on. */
 const momentOf = (view: SceneView) => JSON.stringify([view.turn, view.phase, view.note, view.entries.length, view.over]);

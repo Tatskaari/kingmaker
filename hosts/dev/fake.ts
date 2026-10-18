@@ -24,8 +24,8 @@ const BY_NAME = ["byName", "byNameDelayMs", "choices", "toolCalls"] as const;
 /**
  * --fake's options: fake.json's, KM_AI_FAKE's (JSON) on top ('{"streamMs":0}' answers at once), as
  * onTop puts them: so answers given for character creation's calls (v1's recipe of the prototype's
- * own) keep the others' answers, and '{"choices":{"roll_call":"new"}}' keeps the full GM's quiet
- * defaults (full-gm-design §4.4). Throws, saying so, when KM_AI_FAKE isn't JSON.
+ * own) keep the others' answers, and '{"choices":{"did":"flagged"}}' keeps the attention filter's
+ * other quiet answers. Throws, saying so, when KM_AI_FAKE isn't JSON.
  */
 export function fakeOptions(own: string | undefined): FakeOptions {
   if (!own) return devFake();

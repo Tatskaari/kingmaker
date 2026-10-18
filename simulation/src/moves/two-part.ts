@@ -44,7 +44,7 @@ export function openingRolesFor(graph: Scene, gm: GmState): void {
  * closing; unless this is the wind-down, the rules first (a spell's time, fire's tick, coming round, a
  * blow left hanging), then the map's act when it's this turn's (town-design §3.4: resolved by the
  * rules as it is now, without the decider; its directive the reply's, after the rules'), each with
- * its dice lines; the reply next. Nothing reacts to the act: the reactions step is the old pipeline's.
+ * its dice lines; the reply next. Nothing reacts to the act: the reactions step is parked for combat.
  */
 export function twoPartStart(tx: TxCtx, scene: SceneRow, graph: Scene, gm: GmState, turn: TurnRow, line: string, base: Omit<SayPlan, "step" | "lines" | "outcome">): SayPlan {
   if (scene.kind === "talk" && !gm.closing && isFarewell(line)) farewell(tx, scene, graph, gm, turn.n);
@@ -55,7 +55,7 @@ export function twoPartStart(tx: TxCtx, scene: SceneRow, graph: Scene, gm: GmSta
   };
   const rules = first?.directives.length ? { rulesFirst: { directives: first.directives, down: first.down, shielded: first.shielded } } : {};
   const forced = turn.mechanic && !gm.closing ? JSON.parse(turn.mechanic) as Mechanic : undefined;
-  if (forced) takeAct(tx, { scene, graph, gm }, { n: turn.n, input: line, ...rules }, forced, undefined, outcome);
+  if (forced) takeAct(tx, { scene, graph, gm }, { n: turn.n, input: line, ...rules }, forced, outcome);
   putGm(tx, scene.id, gm);
   return { ...base, ...rules, step: "reply", windDown: !!gm.closing, outcome, lines: outcome.lines, ...(forced ? { forced } : {}) };
 }

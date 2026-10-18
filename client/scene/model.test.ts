@@ -102,7 +102,7 @@ test("a game gone from the server while the screen comes up shows as gone", asyn
 
 test("considering: the status line says the GM is considering the ramifications, for the whole step; a line waits in the box", () => {
   const asked: string[] = [];
-  const scene = new SceneModel({ ...YARD, phase: "deciding", turn: 3, mayType: false }, { say: text => asked.push(text), retry: () => {}, setSuggestions: async () => undefined, out: () => {}, quit: () => {} });
+  const scene = new SceneModel({ ...YARD, phase: "queued", turn: 3, mayType: false }, { say: text => asked.push(text), retry: () => {}, setSuggestions: async () => undefined, out: () => {}, quit: () => {} });
   const thinking = scene.busy();
 
   scene.update({ ...scene.view, phase: "considering" });

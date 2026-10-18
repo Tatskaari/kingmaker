@@ -6,7 +6,7 @@ import { Failure } from "./context.ts";
 /**
  * What each think's endpoint reads of its request (v0-design §5.2, v1-design §3.7, full-gm-design
  * §4.1, world-bridge-design §3.1, story-design §4.4, town-design §3.6-3.8: a talk's open and settle,
- * decide's forced, the looks' things), checked before any model is asked, whichever
+ * the looks' things), checked before any model is asked, whichever
  * GM answers, and before a kept answer or the day's ceiling is looked at. A request without it is
  * the sender's mistake: 400 bad_request, which the module doesn't retry, rather than the endpoint's
  * TypeError, a 500 the module would retry for ten minutes (or an answer made from undefined, kept by
@@ -89,7 +89,6 @@ const TALK_OPEN: Need = [
 
 const NEEDS: Record<Step, Need[]> = {
   open: [["scene { key }", r => isText(r, "scene.key")], ...viewNeeds(""), STREAM, TALK_OPEN],
-  decide: [...TURN, ["forced { kind } (the menu's act, when it's sent)", r => at(r, "forced") === undefined || isText(r, "forced.kind")]],
   reactions: [...TURN, ["act { what, victims, property } (what the rules decided the player did)", r => isText(r, "act.what") && isList(r, "act.victims") && isList(r, "act.property")]],
   consider: [
     ...TURN,

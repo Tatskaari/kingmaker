@@ -6,7 +6,7 @@ import { join, relative } from "node:path";
 import { fakeFetch, type FakeOptions } from "../../llm/fake-openrouter.ts";
 import { prompt } from "../../prompts/index.ts";
 import { initialGm, type GmState } from "../../../shared/gm/state.ts";
-import type { ConsiderRequest, ConsiderResponse, Decision, DecideRequest, Entry, SheetRow } from "../../../shared/protocol/ai.ts";
+import type { ConsiderRequest, ConsiderResponse, Decision, Entry, SheetRow } from "../../../shared/protocol/ai.ts";
 import type { PlaceFile } from "../../../shared/scene/files.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import { keysFor, worldToRows, type PlaceRows } from "../../../shared/world/rows.ts";
@@ -21,10 +21,10 @@ import { pipeline } from "./pipeline.ts";
 
 /**
  * A turn's thinks with the full GM (full-gm-design §4.1, package A1), on the stand-in for
- * OpenRouter: the decision read for a roll to rule on and a plan off the graph; the GM's ruling, its
- * verdict and its route; and a review past its deadline, and the plain check to roll instead. (The
- * reply told what the ruling decided, and the player gone from the place read after the reply, went
- * with the old pipeline's reply and settle.)
+ * OpenRouter: the GM's ruling, its verdict and its route; and a review past its deadline, and the
+ * plain check to roll instead. (The decision read for a roll to rule on and a plan off the graph went
+ * with the old pipeline's decide; the reply told what the ruling decided, and the player gone from
+ * the place read after the reply, with its reply and settle.)
  */
 
 const CAERWYN = join(import.meta.dirname, "..", "..", "..", "campaigns", "caerwyn");
@@ -89,26 +89,6 @@ const READ: NonNullable<Decision["considered"]> = { probability: 0.97, routes: [
 function considerRequest(n: number, gm: GmState, rows: PlaceRows, read: Decision["considered"] = READ): ConsiderRequest {
   return { key: `${GAME}:s1:t${n}:consider`, game, player, turn: turnOf(n, gm, rows, [opening, said(n)]), ...(read ? { read } : {}) };
 }
-
-test("decide: a roll wanted that no route settles is the GM's to rule on (no route taken), with the routes the decider leant towards; a plan off the graph is the co-GM's", async () => {
-  const { fake, contextFor, rows } = await setUp({ choices: { roll_call: "new", off_graph: "off_graph", attempt: "coax-cob" }, odds: { attempt: 0.5 } });
-  const gm = initialGm({ start: "yard" });
-  const req: DecideRequest = { key: `${GAME}:s1:t1:decide`, game, player, turn: turnOf(1, gm, rows(gm), [opening, said(1)]), landed: [] };
-  const { decision } = await pipeline.decide(req, contextFor(req.key));
-
-  assert.equal(decision.route, undefined, "nothing rolled or moved for it: the GM rules on it first");
-  assert.ok(decision.considered && decision.considered.probability >= 0.7, "a roll wanted");
-  assert.deepEqual(decision.considered.routes, [{ id: "coax-cob", p: 0.5 }], "the routes with a roll it leant towards (0.05 or more)");
-  assert.equal(decision.offGraph, true);
-  const before = fake.sent.find(b => b.questions?.roll_call)!;
-  assert.deepEqual(Object.keys(before.questions!.roll_call!.criteria), ["route", "new", "none"]);
-
-  // A quiet turn: neither.
-  const quiet = await setUp();
-  const plain = await pipeline.decide(req, quiet.contextFor(req.key));
-  assert.equal(plain.decision.considered, undefined);
-  assert.equal(plain.decision.offGraph, undefined);
-});
 
 test("consider: the GM's ruling on the fake's byName.ruling, with its verdict (the guidance's grid) and its route, told the decider's read", async () => {
   const { fake, contextFor, rows } = await setUp({ byName: { ruling: LINING } });

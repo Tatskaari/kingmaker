@@ -215,7 +215,7 @@ async function placeAt(checks: Array<[string, boolean]>, [w, h]: readonly [numbe
   checks.push([`${size}: Esc lets go of what Tab picked out`, !/^The girl in the shawl/.test(under(frame))]);
 
   // While the GM has the floor: only looking (Prout's menu is a glance, and the rope's under it), and a deed waits for nobody.
-  set({ ...yard, phase: "deciding", mayType: false });
+  set({ ...yard, phase: "replying", mayType: false });
   await click(prout, RIGHT);
   const busy = scene.sceneMenu?.actions.map(a => a.id) ?? [];
   checks.push([`${size}: while the GM has the floor, Prout's menu only looks (${busy.join(", ")})`, busy[0] === "look" && !busy.includes("get-down") && !busy.includes("cast")]);

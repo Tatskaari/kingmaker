@@ -4,7 +4,7 @@ import { Identity } from "spacetimedb";
 import type { RollResult } from "../../../shared/dice.ts";
 import type { Backstory } from "../../../shared/creation/types.ts";
 import type {
-  BackstoriesRequest, BackstoriesResponse, BoundaryRequest, BoundaryResponse, CharactersRequest, CharactersResponse, ConsiderResponse, DecideResponse, LooksResponse, OpenResponse, ReactionsResponse,
+  BackstoriesRequest, BackstoriesResponse, BoundaryRequest, BoundaryResponse, CharactersRequest, CharactersResponse, ConsiderResponse, LooksResponse, OpenResponse, ReactionsResponse,
   RememberResponse, RepairRequest,
   RepairResponse, ReplyResponse, SettleResponse, SuggestResponse, Usage,
 } from "../../../shared/protocol/ai.ts";
@@ -74,7 +74,7 @@ export const identity = (n: number) => new Identity(BigInt(0x1000 + n));
 // A scripted AI service.
 
 /** A turn's steps (its own, the lines beside it, and the jobs after it), a scene's boundary, and character creation's (named from the request: /v1/characters' ask, /v1/backstories' op). */
-export type Step = "open" | "decide" | "reactions" | "consider" | "reply" | "settle" | "suggest" | "remember" | "repair" | "boundary" | "look" | CreationStep;
+export type Step = "open" | "reactions" | "consider" | "reply" | "settle" | "suggest" | "remember" | "repair" | "boundary" | "look" | CreationStep;
 
 /** What an endpoint answers: the answer itself (200, as JSON), another HTTP reply, a thrown error (a refused connection), or a function of the request that gives one of those. */
 export type Scripted = unknown | { http: AiReply } | ((request: any, headers: Record<string, string>) => unknown);
@@ -94,11 +94,10 @@ const usage = (calls: number, costUsd: number): Usage => ({ calls, costUsd, byOp
  * nothing owed (the canned GM's), for three calls.
  */
 export const DEFAULTS: {
-  open: OpenResponse; decide: DecideResponse; reactions: ReactionsResponse; consider: ConsiderResponse; reply: ReplyResponse; settle: SettleResponse; suggest: SuggestResponse;
+  open: OpenResponse; reactions: ReactionsResponse; consider: ConsiderResponse; reply: ReplyResponse; settle: SettleResponse; suggest: SuggestResponse;
   remember: RememberResponse; repair: (request: RepairRequest) => RepairResponse; boundary: (request: BoundaryRequest) => BoundaryResponse; look: LooksResponse;
 } = {
   open: { present: ["kell", "cob", "moll"], entries: [{ speaker: "gm", kind: "narration", text: "Sergeant Kell looks up from her notebook as you come through the gate. \"You'll be the King's investigator.\"" }], opened: [], usage: usage(2, 0.002) },
-  decide: { decision: { earned: false, daft: false, outOfCharacter: false }, opened: [], usage: usage(1, 0.0005) },
   reactions: { reactions: {}, usage: usage(0, 0) },
   consider: { error: "scripted: no ruling", ms: 0, usage: usage(0, 0) },
   reply: { entries: [{ speaker: "gm", kind: "narration", text: "Kell taps her pencil on the notebook. \"Noted.\"" }], gm: {}, firstTextMs: 3, usage: usage(1, 0.001) },
@@ -136,7 +135,7 @@ export const onTrack = (turn: number): RepairResponse["review"] => ({
 });
 
 const STEPS: Record<string, Step> = {
-  "/v1/scenes/open": "open", "/v1/turns/decide": "decide", "/v1/turns/reactions": "reactions", "/v1/turns/consider": "consider", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle", "/v1/turns/suggest": "suggest",
+  "/v1/scenes/open": "open", "/v1/turns/reactions": "reactions", "/v1/turns/consider": "consider", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle", "/v1/turns/suggest": "suggest",
   "/v1/turns/remember": "remember", "/v1/turns/repair": "repair", "/v1/scenes/boundary": "boundary", "/v1/looks": "look",
 };
 
@@ -205,14 +204,14 @@ export const http = (status: number, body: unknown = { error: { code: status ===
 
 /** The AI service unreachable: the POST throws, as SpacetimeDB's fetch does on a refused connection. */
 export const down = () => () => {
-  const refused = new Error("error sending request for url (http://11.0.0.1:8787/v1/turns/decide): tcp connect error: Connection refused (os error 111)");
+  const refused = new Error("error sending request for url (http://11.0.0.1:8787/v1/turns/reply): tcp connect error: Connection refused (os error 111)");
   refused.name = "HttpError";
   throw refused;
 };
 
 export function scriptedAi() {
   const sent: Sent[] = [];
-  const queues: Record<Step, Scripted[]> = { open: [], decide: [], reactions: [], consider: [], reply: [], settle: [], suggest: [], remember: [], repair: [], boundary: [], look: [], offer: [], pick: [], own: [], draft: [], work: [], check: [], traits: [] };
+  const queues: Record<Step, Scripted[]> = { open: [], reactions: [], consider: [], reply: [], settle: [], suggest: [], remember: [], repair: [], boundary: [], look: [], offer: [], pick: [], own: [], draft: [], work: [], check: [], traits: [] };
 
   const ai: AiPost = async (endpoint, body, headers) => {
     const request = JSON.parse(body) as { key: string; ask?: { kind?: string }; op?: string };

@@ -1,5 +1,5 @@
 import type { Identity } from "spacetimedb";
-import type { ConsiderResponse, DecideResponse, ReactionsResponse, ReplyResponse, SettleResponse } from "../../../shared/protocol/ai.ts";
+import type { ConsiderResponse, ReactionsResponse, ReplyResponse, SettleResponse } from "../../../shared/protocol/ai.ts";
 import { idText, playerSpeaker } from "../../../shared/protocol/keys.ts";
 import { MAX_LINE, refusal, type Refusal } from "../../../shared/protocol/refusals.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
@@ -14,7 +14,7 @@ import { newTurn, queuedTurnOf } from "../turns.ts";
 import type { Move } from "./move.ts";
 import { seenOf } from "./open-scene.ts";
 import type { SayPlan } from "./plans.ts";
-import { afterConsider, afterDecide, afterReactions } from "./say-commits.ts";
+import { afterConsider, afterReactions } from "./say-commits.ts";
 import { afterTwoPartReply, afterTwoPartSettle, twoPartStart } from "./two-part.ts";
 
 /**
@@ -55,7 +55,6 @@ export const say: Move<{ text: string }, SayPlan> = {
   commit(tx, plan, answer) {
     if (plan.step === "reply") return afterTwoPartReply(tx, plan, answer as ReplyResponse);
     if (plan.step === "settle") return afterTwoPartSettle(tx, plan, answer as SettleResponse);
-    if (plan.step === "decide") return afterDecide(tx, plan, answer as DecideResponse);
     if (plan.step === "reactions") return afterReactions(tx, plan, answer as ReactionsResponse);
     return afterConsider(tx, plan, answer as ConsiderResponse);
   },

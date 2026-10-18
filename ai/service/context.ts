@@ -1,7 +1,7 @@
 import type { CallContext } from "../llm/openrouter.ts";
 import type {
   AiErrorCode, BackstoriesRequest, BackstoriesResponse, BoundaryRequest, BoundaryResponse, CharactersRequest, CharactersResponse, ConsiderRequest, ConsiderResponse,
-  DecideRequest, DecideResponse, LooksRequest, LooksResponse, OpenRequest, OpenResponse, ReactionsRequest, ReactionsResponse, RememberRequest, RememberResponse, RepairRequest, RepairResponse,
+  LooksRequest, LooksResponse, OpenRequest, OpenResponse, ReactionsRequest, ReactionsResponse, RememberRequest, RememberResponse, RepairRequest, RepairResponse,
   ReplyRequest, ReplyResponse, SettleRequest, SettleResponse, SuggestRequest, SuggestResponse, Usage,
 } from "../../shared/protocol/ai.ts";
 import type { Campaign } from "./campaigns.ts";
@@ -33,8 +33,8 @@ export interface AiContext {
 export type Handler<Req, Res> = (req: Req, ctx: AiContext) => Promise<Res>;
 
 /**
- * The thinks: the opening, a turn's own (decide, reactions on a turn the player's violence drew them:
- * world-bridge-design §3.1, consider on a turn the GM rules on, reply, settle),
+ * The thinks: the opening, a turn's own (reply, settle; reactions, parked for combat, on a turn the
+ * player's violence drew them: world-bridge-design §3.1; consider on a turn the GM rules on),
  * the one beside a turn once its reply is in (the lines suggested after it: v5-design §3.6; the
  * notes on its marks went in M2), the two in the background once it's over (the memory reviews and the co-GM:
  * full-gm-design §4.1), the boundary once a scene is over (story-design §4.4), the looks of what a
@@ -44,7 +44,6 @@ export type Handler<Req, Res> = (req: Req, ctx: AiContext) => Promise<Res>;
  */
 export interface Endpoints {
   open: Handler<OpenRequest, OpenResponse>;
-  decide: Handler<DecideRequest, DecideResponse>;
   /** Everyone who saw the player's violence reacts, each by their own lights, before the reply: none, and no model call, when nobody saw it. */
   reactions: Handler<ReactionsRequest, ReactionsResponse>;
   /** The GM's ruling on an act the decider flagged, before the reply: cut off at the deadline, then the plain check to roll instead. */

@@ -48,13 +48,13 @@ export interface SceneRows {
 
 type TurnRow = SceneRows["turns"][number];
 
-const PHASES: readonly Phase[] = ["queued", "deciding", "considering", "replying", "settling", "done", "failed"];
+const PHASES: readonly Phase[] = ["queued", "considering", "replying", "settling", "done", "failed"];
 const KINDS: readonly EntryKind[] = ["player", "narration", "dialogue", "roll", "system"];
 const SUGGESTION_KINDS: ReadonlyArray<Suggestion["kind"]> = ["say", "do", "try", "leave"];
 /** The phases the player may speak in: before the first line, and once the reply is final (the world settles behind it). */
 const OPEN: readonly Phase[] = ["idle", "settling", "done"];
 /** The phases of a turn whose reply hasn't come yet: lines will follow it. */
-const BEFORE_REPLY: readonly string[] = ["queued", "deciding", "considering", "replying"];
+const BEFORE_REPLY: readonly string[] = ["queued", "considering", "replying"];
 
 export function sceneViewOf(rows: SceneRows): SceneView {
   const { lease, newest } = turnsOf(rows);

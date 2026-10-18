@@ -109,11 +109,11 @@ for (const [w, h] of SIZES) {
 
   // The rows come back: the line in its own turn, the GM thinking.
   const turn = view.entries.at(-1)!.turn + 1;
-  set({ entries: [...view.entries, { turn, speaker: "player:1", kind: "player", name: view.player.name, text: "Sergeant, who found him?" }], phase: "deciding", mayType: false });
+  set({ entries: [...view.entries, { turn, speaker: "player:1", kind: "player", name: view.player.name, text: "Sergeant, who found him?" }], phase: "queued", mayType: false });
   frame = await draw();
-  if (show) console.log(`${size}, deciding\n${frame}`);
+  if (show) console.log(`${size}, queued\n${frame}`);
   const thinking = GM_BUSY.find(l => frame.includes(l.slice(0, 20)));
-  checks.push([`${size}: deciding: the line in a turn under the player's name, the spinner's line (${thinking ?? "none"}), the box shut`, /╭─ Pell Marrow/.test(frame) && /Sergeant, who found him\?/.test(frame) && !!thinking && /The GM has the floor/.test(frame)]);
+  checks.push([`${size}: queued: the line in a turn under the player's name, the spinner's line (${thinking ?? "none"}), the box shut`, /╭─ Pell Marrow/.test(frame) && /Sergeant, who found him\?/.test(frame) && !!thinking && /The GM has the floor/.test(frame)]);
 
   // A line typed while the GM has the floor waits in the box.
   await act(async () => { await setup.mockInput.typeText("Who else"); });
@@ -243,7 +243,7 @@ for (const [w, h] of SIZES) {
   // The lead says a line: the refusal (still on the view, as the connection keeps it until the next
   // move) gives way to the spinner, and then to the turn's note.
   const next = YARD.entries.at(-1)!.turn + 1;
-  set({ entries: [...view.entries, { turn: next, speaker: "player:1", kind: "player", name: "Pell Marrow", text: "Who found him?" }], phase: "deciding", turn: next });
+  set({ entries: [...view.entries, { turn: next, speaker: "player:1", kind: "player", name: "Pell Marrow", text: "Who found him?" }], phase: "queued", turn: next });
   frame = await draw();
   const spinning = GM_BUSY.find(l => frame.includes(l.slice(0, 20)));
   checks.push([`${size}: when the lead's next line comes, the spectator's refusal gives way to the spinner (${spinning ?? "none"})`, !!spinning && !/has the lead here: you're watching\.\)/.test(frame)]);
@@ -389,7 +389,7 @@ for (const [w, h] of SIZES) {
   const talkColumns = w - sceneSide(w) - 3;
 
   // Turn 2's lines are in, numbered over the box. A line is said: the move, then its rows (turn 3
-  // deciding; the old set's rows are still in the table, for turn 2).
+  // replying; the old set's rows are still in the table, for turn 2).
   rows.suggestions = linesFor(2);
   changed();
   let frame = await draw();
@@ -401,7 +401,7 @@ for (const [w, h] of SIZES) {
   await draw();
   entry(3, "player:1", "player", "Who else was here?");
   rows.scene = { ...rows.scene, turns: 3, turnId: 103n };
-  turn(turnRow(3, "deciding"));
+  turn(turnRow(3, "replying"));
   changed();
   frame = await draw();
   if (show) console.log(`${size}, lines coming\n${frame}`);
@@ -574,7 +574,7 @@ for (const [what, next, shows] of comingUp) {
 // ---------------------------------------------------------------------------------------------
 // A considered turn, from rows (full-gm-design §4.3): the GM rules on a risky act no route covers
 // before the reply. The turn's considering phase puts the prototype's CONSIDERING on the status
-// line, whole, for the whole step; the box is shut, as while deciding, and a line typed waits in
+// line, whole, for the whole step; the box is shut, as while queued, and a line typed waits in
 // it; the suggested lines' rows are kept while they come. Then the ruling's dice line, before the
 // reply as it's written.
 
@@ -590,10 +590,10 @@ for (const [w, h] of [[80, 24], [120, 40]] as const) {
   const phase = (n: number, p: string) => { rows.turns = [...rows.turns.filter(t => t.n !== n), turnRow(n, p)]; };
   await draw();
 
-  // The line said: its turn deciding, then considering.
+  // The line said: its turn queued, then considering.
   entry(3, "player:1", "player", "(I try to lift the folded paper out of the boy's boot while he watches the sergeant)");
   rows.scene = { ...rows.scene, turns: 3, turnId: 103n };
-  phase(3, "deciding");
+  phase(3, "queued");
   changed();
   await draw();
   phase(3, "considering");
@@ -601,7 +601,7 @@ for (const [w, h] of [[80, 24], [120, 40]] as const) {
   let frame = await draw();
   if (show) console.log(`${size}, considering\n${frame}`);
   checks.push([`${size}: considering: the status line says the GM is considering the ramifications, whole`, frame.includes(CONSIDERING) && scene.busy() === CONSIDERING]);
-  checks.push([`${size}: considering: the box is shut, as while deciding, and the lines' rows are kept`, /The GM has the floor/.test(frame) && styleIn(setup, "What do you say?")?.fg === C.border && over(frame).length === (h < 26 ? 4 : 5)]);
+  checks.push([`${size}: considering: the box is shut, as while queued, and the lines' rows are kept`, /The GM has the floor/.test(frame) && styleIn(setup, "What do you say?")?.fg === C.border && over(frame).length === (h < 26 ? 4 : 5)]);
   await act(async () => { await setup.mockInput.typeText("Easy, lad."); });
   await draw();
   act(() => setup.mockInput.pressEnter());

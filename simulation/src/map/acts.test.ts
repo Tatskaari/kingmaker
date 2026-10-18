@@ -164,7 +164,6 @@ test("Ray of Frost at Kell opens the hanged clerk as walking in does; once the o
   const line = now.lines.find(l => l.kind === "player")!;
   assert.deepEqual([line.turn, line.text], [1, "(I cast Ray of Frost at Sergeant Kell)"]);
   assert.equal(now.turns.find(t => t.n === 1)!.mechanic, JSON.stringify({ kind: "cast", spell: "ray-of-frost", targets: ["kell"], from: { backOff: 10 } }), "its mechanic on the turn, chosen already");
-  assert.deepEqual(script.to("decide"), [], "no decide: the rules resolve the act as the turn starts");
   const reply = script.to("reply")[0]!.body as ReplyRequest;
   assert.deepEqual([reply.turn.line.text, reply.outcome.acts?.length], ["(I cast Ray of Frost at Sergeant Kell)", 1], "the act's directive, the reply's");
   assert.ok(now.lines.some(l => l.turn === 1 && l.kind === "roll" && /^Ray of Frost/.test(l.text)), "the scene's rules resolved it");
@@ -260,7 +259,6 @@ test("after the yard, a word with Kell on the two-part GM: a talk opens with her
   script.then("reply", replied("Kell's pencil stops. \"Long enough.\""));
   script.then("settle", settled([], { kell: ROLE }, ["Who was the thief?", "Do you regret it?"]));
   await say("How long have you been with the watch?");
-  assert.deepEqual(script.to("decide"), [], "no decide: a talk plays on the two-part GM");
   const reply = script.to("reply").at(-1)!.body as ReplyRequest;
   assert.equal(reply.outcome.windDown, undefined);
   const settle = script.to("settle").at(-1)!.body as SettleRequest;
@@ -341,7 +339,6 @@ test("Ray of Frost at Kell walking with you opens a talk with the act its first 
   const now = sceneNow(host, talk.id);
   const line = now.lines.find(l => l.kind === "player")!;
   assert.deepEqual([line.turn, line.text], [1, "(I cast Ray of Frost at Sergeant Kell)"]);
-  assert.deepEqual(script.to("decide"), [], "no decide: the rules resolve the act as the turn starts");
   assert.ok(now.lines.some(l => l.turn === 1 && l.kind === "roll" && /^Ray of Frost/.test(l.text)), "its dice lines, the talk's rules'");
   const reply = script.to("reply").at(-1)!.body as ReplyRequest;
   assert.deepEqual([reply.outcome.acts?.length, reply.turn.line.text], [1, "(I cast Ray of Frost at Sergeant Kell)"]);

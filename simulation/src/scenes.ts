@@ -102,7 +102,7 @@ export function graphOf(def: SceneDefRow, patches: ScenePatch[] = []): Scene {
 /**
  * The graph of a scene being played, as play has changed it (full-gm-design §4.2): the co-GM's routes
  * and bridging beats, and the ways of trying a ruling shut (gm.patches), as the AI service's own graph
- * has them, so a route it offers is one the decide commit finds. `{ patches: [] }`: the scene as
+ * has them, so a route it offers is one the simulation finds. `{ patches: [] }`: the scene as
  * authored.
  */
 export function sceneGraph(tx: TxCtx, scene: SceneRow, gm: Pick<GmState, "patches">): Scene {

@@ -1,17 +1,14 @@
-// Copied from the prototype's src/runtime/director.ts at 44c6d4a: lines 24-52, 60-93, 95-327, 625-637, 1231-1232 and 1360-1369 as they are (reading a TurnView), freeformCheck (:639-650) as its questions and their reading (freeformQuestions, readFreeform: the roll is the simulation's), and decideBefore (:718-1019) trimmed to the v2 approach's questions and split in two: the questions (beforeQuestions) and their reading (readBefore). With the full GM (full-gm-design §3.1): considered rolls' roll_call and the means in every beat, the co-GM's off_graph, the considered read (:878-880, :896, :902-932), offGraph and byPrep (:987, :1010-1016). With the world bridge (world-bridge-design §2.2): the rules' mechanic question (:793-809), the ruling, actSettles and the route an act holds (:887-893, :897-901, :925, :938), the act's details call (:988-1009, means_only included) as withMechanic, which the decide endpoint runs after the read; the details' questions are gm/mechanics.ts. With the town (town-design §3.4, §3.6): `forced` (:705-711 rulingOf, :793, :889-901, :915, :993), the map's menu's act played as a turn, asked no mechanic question. decideAfter (:1234-1358, the read after the reply) went with the old pipeline's settle (docs/migration-log.md, M2's "The old pipeline's salvage"), but for its threat and severity (:1284-1295, :1343-1349), parked for combat as threatQuestions and readThreat; a talk's settings and its staged secrets after the reply (:1219-1229, :1263-1275, :1324) went with the old pipeline's talk. Left out: relocation, pressure rolls, the speaker and freeform checks; and the dice: a route's check is picked here (its skill the player's means where both are social) and rolled by the simulation, as are the rules' acts. The directives' words are gm/directives.ts.
+// Copied from the prototype's src/runtime/director.ts at 44c6d4a: lines 24-52 (decisionState) as they are (reading a TurnView), freeformCheck (:639-650) as its questions and their reading (freeformQuestions, readFreeform: the roll is the simulation's), and the tries that failed (:1231-1232 and 1360-1369, failedTries) that considered rolls read. The rest of decideBefore (:718-1019, the turn's one decision: the route, the cue, the roll call, the same push again, a plan off the graph, earned, daft, out of character, an ending on the brink, a limit) went with the old pipeline's decide (docs/migration-log.md, M2's "The old pipeline's salvage"), but for the rules' mechanic question (:793-809, with the world bridge: world-bridge-design §2.2) and the act's details call (:988-1009, withMechanic's), parked for combat as mechanicQuestion, readMechanic and mechanicOf; decideAfter (:1234-1358, the read after the reply) went with the old pipeline's settle, but for its threat and severity (:1284-1295, :1343-1349), parked for combat as threatQuestions and readThreat; a talk's settings and its staged secrets after the reply (:1219-1229, :1263-1275, :1324) went with the old pipeline's talk. The details' questions are gm/mechanics.ts.
 
-import type { ChoiceAnswer, ChoiceQuestion, Decider, Decision as Answers } from "../llm/decide.ts";
-import { describeRoll, titleCase } from "../../shared/dice.ts";
-import type { Decision } from "../../shared/protocol/ai.ts";
+import type { ChoiceQuestion, Decider, Decision as Answers } from "../llm/decide.ts";
+import { describeRoll } from "../../shared/dice.ts";
 import { HAZARD_KINDS } from "../../shared/rules/acts.ts";
 import type { Mechanic, ThreatRead } from "../../shared/rules/types.ts";
-import { currentBeat, endsScene, IMPROVISED_EXIT_ID, openRoutes, presentCast } from "../../shared/scene/graph.ts";
-import type { Character, Exit, Scene, Skill, Transition } from "../../shared/scene/types.ts";
+import { currentBeat, presentCast } from "../../shared/scene/graph.ts";
+import type { Character, Scene, Skill } from "../../shared/scene/types.ts";
 import { sceneEntries, scriptTranscript } from "./brief.ts";
-import { alsoQuestion, meansQuestion, mechanicDetails, RULED_ACTS, type RuledAct, type RulesOptions } from "./mechanics.ts";
+import { mechanicDetails, RULED_ACTS, type RuledAct, type RulesOptions } from "./mechanics.ts";
 import type { TurnView } from "./view.ts";
-
-const phaseOf = (t: Transition): "attempt" | "cue" | "outcome" => t.on ?? (t.check ? "attempt" : "outcome");
 
 /** What every decision is shown (the state the Decisions API judges by): the scene, where it is, who's here, the last twelve entries and the latest turn (and reply). */
 export function decisionState(scene: Scene, state: TurnView, latestPlayerTurn: string, reply?: string) {
@@ -36,205 +33,11 @@ export function decisionState(scene: Scene, state: TurnView, latestPlayerTurn: s
  */
 const READ_TURN = "plain words are what their character says out loud, and what they do is in *asterisks* or (parentheses), or plainly narrated (\"I open the door\")";
 
-const QUESTION_TEXT = {
-  attempt: `A player in a tabletop roleplaying scene has just taken their turn (latest_player_turn). Which of these is the player attempting or doing in that turn? Judge the player's own words and actions in context: ${READ_TURN}. A passing mention is not an attempt. If none clearly applies, choose none.`,
-  cue: "Pacing judgement for a tabletop roleplaying scene. Given the scene so far and the player's latest turn, should one of these happen right now? Choose not_yet unless its condition clearly holds now.",
-  outcome: "After the latest exchange in a tabletop roleplaying scene (latest_player_turn and latest_gm_reply), which of these has now actually happened in the story? Count only what has happened in the fiction (said, shown, given, decided), not what was merely offered, hinted at or attempted. If none clearly happened, choose none.",
-} as const;
-
-/** The bar for a mistake scales with its cost: ending the scene needs a committed attempt. */
+/** A clear read (the prototype's SCENE_ENDING_CONFIDENCE, its bar for what costs most to get wrong): what the rules resolve, and a threat left hanging. */
 const SCENE_ENDING_CONFIDENCE = 0.6;
-
-/**
- * A considered turn costs the player seconds, so the flag wants a clear read: on the QA runs' turns
- * every act a table would roll for read 0.84 or more ("route" and "new" together), and small honest
- * asks and making a case 0.62 to 0.64.
- */
-const CONSIDER_CONFIDENCE = 0.7;
-
-/**
- * In a beat with no route with a roll the flag can only say "new" or "none", and reads lower: big
- * asks of Moll in the motive beat read 0.57 to 0.63 and went unflagged. There the bar is lower,
- * set where the controls (plain questions, making the case) still stay under it.
- */
-export const CONSIDER_CONFIDENCE_OPEN = 0.5;
-
-/**
- * A route with a roll the decider chose this surely is the author's answer to the turn: rolled as
- * written, with its outcomes, whatever the roll call's split between it and another act. On the QA
- * pass's turns where the two disagreed, at 0.74 to 0.91 the route was what the player was doing in
- * all eight (Hobb's mum asked of Nan at 0.81 and of Dilly at 0.85, ruled on instead, and the success
- * lost the route's payoff, Hobb opening up; the holes in Moll's story picked at 0.74; a bluff on the
- * floor at 0.78); at 0.63 to 0.66 the other act was, in all three (a second shilling for Cob's trust,
- * Scrope asked to name the Master with the book already in hand, Hobb asked to block the Crake).
- */
-export const ROUTE_CONFIDENCE = 0.7;
-
-/**
- * Unless the roll call is this sure that the roll is for something none of the routes is for: then the
- * player is plainly doing something else risky as well (or instead), and the GM rules on it. (No QA
- * turn had a route read that surely and this beside it.)
- */
-const PLAINLY_ANOTHER = 0.8;
-
-/**
- * A pacing cue moves the scene on without the player's say, so it fires only on a clear read, as a
- * route with a roll does. It had no bar: the Heron's Master came in at 0.57 against 0.43, one
- * exchange after the player got inside. In the decision suite the cues that should fire read 0.87
- * and 0.98 (and goblins losing patience at a roared threat 0.65, where the threat outranks it).
- */
-export const CUE_CONFIDENCE = 0.6;
-
-/**
- * A cue that counts exchanges ("at least five exchanges at this point") is checked against the
- * engine's own count, the exchanges at this point (`turnsInBeat`, which an out-of-character turn
- * doesn't add to). Before its count, only the rest of its condition can fire it ("or is lying low
- * and waiting"), and only when that clearly holds.
- */
-export const CUE_EARLY_CONFIDENCE = 0.8;
-
-const NUMBERS = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
-const HOW_MANY = `\\d+|an?|a couple of|${NUMBERS.join("|")}`;
-/** How cues count exchanges: "at least five exchanges", "two exchanges have gone by", "has waited an exchange". */
-const COUNTED = [
-  new RegExp(`\\bat least (${HOW_MANY}) exchanges?\\b`, "i"),
-  new RegExp(`\\b(${HOW_MANY}) exchanges? (?:has|have) (?:gone by|passed)\\b`, "i"),
-  new RegExp(`\\bwaited (${HOW_MANY}) exchanges?\\b`, "i"),
-];
-
-/** The exchanges a cue's condition counts ("at least five exchanges"), if it counts them ("several" doesn't). */
-export function cueCount(t: Transition): number | undefined {
-  const n = COUNTED.map(re => re.exec(t.when)?.[1]?.toLowerCase()).find(Boolean);
-  if (!n) return undefined;
-  if (/^\d+$/.test(n)) return Number(n);
-  return n === "a" || n === "an" ? 1 : n === "a couple of" ? 2 : NUMBERS.indexOf(n) + 1;
-}
-
-/**
- * The pacing cues, each that counts exchanges with the engine's count beside it: whether that much
- * holds is the game's to say, and the decider judges the rest.
- */
-function cueQuestion(cues: Transition[], exchanges: number): ChoiceQuestion {
-  const q = question("cue", cues);
-  const counted = (t: Transition) => {
-    const n = cueCount(t);
-    if (n === undefined) return t.when;
-    const so = exchanges >= n ? "so that much holds" : "so that part doesn't hold yet: choose this only if the rest of it clearly holds on its own";
-    return `${t.when} [The game's count: ${exchanges} exchange${exchanges === 1 ? "" : "s"} at this point so far, against the ${n} this asks for, ${so}.]`;
-  };
-  return { ...q, criteria: { ...Object.fromEntries(cues.map(t => [t.id, counted(t)])), not_yet: q.criteria.not_yet! } };
-}
-
-/**
- * Something daft, reckless or cheeky that the world would answer (the consequences flag): what the
- * player does or says, not what they ask for. A courteous ask, an honest offer, a case made or a plan
- * is never billed, however bold. Brother Ambrose's polite look at the evidence (the granary's T18),
- * eel for a look in Cob's boot (the Rat's T43) and a safe house for Hobb's mother (T57) were billed at
- * 0.60 to 0.63 under the old wording, and read 0.02 to 0.38 under this one (pressing the King, 0.59);
- * the absurd round's daft acts read 0.93 to 0.99 under it, but for a purse of buttons (0.56, and
- * 0.44 before). Hence the bar: 0.7.
- */
-export const DAFT_CONFIDENCE = 0.7;
-
-const DAFT_QUESTION: ChoiceQuestion = {
-  instructions: "Does the player's latest turn include something daft, reckless or cheeky that people in this world would really react to: a stunt or showing off where there's danger, mocking someone or what they hold dear, an insult, taking, using or spoiling what's someone else's without asking, a scam, a bluff or a lie, or going back on their word? Judge what the player actually does or says, by how the people here would take it, not by whether it's funny. Earnest play isn't daft, however bold: asking for something (to see it, for help, for evidence), an honest offer (food, coin, a trade), making a case or an accusation from what they've seen, pressing someone for answers, or proposing a plan (where someone could hide, what to do tonight), even one the others turn down.",
-  criteria: {
-    consequential: "Yes: something daft, reckless or cheeky that in this world would provoke a real reaction or carry a real risk.",
-    harmless: "It's playful, but nobody here would mind or be put at risk.",
-    none: "Nothing daft or reckless in it: ordinary talk and questions, or earnest play (an ask, an honest offer, a case made, a plan).",
-  },
-};
-
-const OOC_QUESTION: ChoiceQuestion = {
-  instructions: "Is the player's latest turn spoken out of character, to the GM rather than in the story (e.g. asking what their options are, how something works in the game, or what they know)? An action in *asterisks* or (parentheses) is in character: it's what their character does.",
-  criteria: { in_character: "In character: the player's character speaks or acts in the story.", out_of_character: "Out of character: a question or remark to the GM about the game or the situation." },
-};
-
-/**
- * With an ending held for the player's answer: are they answering it (it waits once more), or
- * letting it happen (it lands in this reply)? Asked only then, in the turn's one decision.
- */
-function brinkQuestion(exit: Exit): ChoiceQuestion {
-  return {
-    instructions: `The scene is about to end like this: ${exit.title}. ${exit.outcome} In their latest turn, is the player answering that, or letting it happen?`,
-    criteria: {
-      lets_it_happen: "Letting it happen: they accept it or go along with it (agreeing, thanking someone, saying goodbye, leaving), or do something that doesn't bear on it.",
-      answers: "Answering it: they engage with it some other way: a question or a request to someone here, an objection, a challenge or calling someone out (even just their name, said to them), something new offered or shown, or a try to change it.",
-    },
-  };
-}
-
-/** Is the player's turn out of character? On its own, for a wind-down turn, which asks nothing else. */
-export async function outOfCharacter(decider: Decider, scene: Scene, state: TurnView, playerTurn: string): Promise<{ ooc: boolean; decision: Answers }> {
-  const decision = await decider.decide(decisionState(scene, state, playerTurn), { ooc: OOC_QUESTION }, "director.ooc");
-  return { ooc: decision.answers.ooc?.choice === "out_of_character", decision };
-}
-
-/** The cue the decider chose, if its read clears the bar: a clear read, and a clearer one before its count. */
-export function firedCue(cues: Transition[], read: ChoiceAnswer | undefined, exchanges: number): Transition | undefined {
-  const cue = cues.find(t => t.id === read?.choice);
-  if (!cue) return undefined;
-  const count = cueCount(cue);
-  const bar = count !== undefined && exchanges < count ? CUE_EARLY_CONFIDENCE : CUE_CONFIDENCE;
-  return (read!.probabilities?.[cue.id] ?? 1) >= bar ? cue : undefined;
-}
-
-/**
- * A check is rolled for the act it tests, so the attempt is judged against that act: getting to
- * where it can be done (getting him down, getting the door open) is an act of its own, for the
- * rules or the story, not a reason to roll this.
- */
-function rollNote(t: Transition): string {
-  const check = t.check!;
-  return `(The ${titleCase(check.skill)} check is ${check.reason ? check.reason.trim().replace(/\.$/, "") : "for this act itself"}: only when the player is doing that now, not something that comes first.)`;
-}
-
-function question(phase: keyof typeof QUESTION_TEXT, transitions: Transition[], scene?: Scene): ChoiceQuestion {
-  const none = phase === "cue" ? "not_yet" : "none";
-  const describe = (t: Transition) => {
-    if (!(phase === "attempt" && scene)) return t.when;
-    const when = t.check ? `${t.when} ${rollNote(t)}` : t.when;
-    if (!endsScene(scene, t)) return when;
-    const exit = scene.exits.find(e => e.id === (t.check ? t.check.onSuccess : t.to));
-    const violence = exit?.kind === "combat" ? " Only if they are actually trying to hurt someone right now: threats, grabs and taking a hostage are leverage, not an attack." : "";
-    return `${when} (This would settle the whole scene: only if the player is clearly committing to it right now, not asking about it, examining things or thinking aloud.${violence})`;
-  };
-  return {
-    instructions: QUESTION_TEXT[phase],
-    criteria: {
-      ...Object.fromEntries(transitions.map(t => [t.id, describe(t)])),
-      [none]: phase === "cue" ? "None of these should happen yet." : "None of the above clearly applies.",
-    },
-  };
-}
-
-function transitionsFor(scene: Scene, state: TurnView, phase: "attempt" | "cue" | "outcome"): Transition[] {
-  if (state.fought?.length) return transitionsFor({ ...scene, beats: scene.beats.map(b => ({ ...b, transitions: b.transitions.filter(t => !state.fought!.includes(t.to ?? "")) })), anytime: (scene.anytime ?? []).filter(t => !state.fought!.includes(t.to ?? "")) }, { ...state, fought: [] }, phase);
-  const beat = currentBeat(scene, state);
-  return openRoutes([...beat.transitions, ...(scene.anytime ?? [])], state).filter(t => phaseOf(t) === phase);
-}
 
 /** Social means are interchangeable ways to reach the same goal: the roll follows the player's method. */
 export const SOCIAL: Skill[] = ["persuasion", "intimidation", "deception", "performance"];
-
-/**
- * Considered rolls' flag (asked in the decision the turn makes anyway): would a good GM call for a
- * roll, and is it what one of the scene's routes with a roll is for? Its "yes" is split in two (a
- * route's, or none's), and the two count together for whether a roll is wanted at all.
- */
-function rollCallQuestion(checks: Transition[]): ChoiceQuestion {
-  const routes = checks.map(t => `[${t.id}] ${titleCase(t.check!.skill)} ${t.check!.reason ? t.check!.reason.trim().replace(/\.$/, "") : `(${t.when.replace(/\.$/, "")})`}`);
-  return {
-    instructions: `A good tabletop GM calls for a roll when what the player attempts could go either way and failing would cost something or change things, and otherwise just says yes or no. In the player's latest turn (${READ_TURN}), are they attempting something like that? Either working on someone for something that matters to that person (their safety, what they own or hold, what they know or hide, their loyalty, their pride), by whatever means: persuading, bargaining, bribing, threatening, lying, bluffing, forging, reading them, performing. Or a physical or sneaky feat that could fail (climbing, forcing, palming, sneaking past someone), or dredging up something obscure. Judge what they actually do and ask for, and what giving it would cost the other person, not how boldly or kindly it's put.`,
-    criteria: {
-      ...(routes.length ? { route: `Yes, and it's squarely what one of these is for: the same person, the same thing asked or tried, and its payoff is what the player is after: ${routes.join("; ")}.` } : {}),
-      new: routes.length
-        ? "Yes, but none of those is for it: someone else, a different ask, a different payoff, or another kind of attempt."
-        : "Yes: an attempt like that, whose outcome is genuinely uncertain.",
-      none: "No roll needed: ordinary talk, questions someone would happily answer, accepting what's offered, keeping a promise already made, a small ask nobody would think twice about, looking properly, searching or working out what's in front of them, something that simply works, or something that plainly can't.",
-    },
-  };
-}
 
 /**
  * The tries that failed in this scene, in a line each: the routes' rolls that went against the
@@ -258,36 +61,6 @@ function failedPushes(scene: Scene, state: TurnView, options: { rulings?: boolea
   const ruled = options.rulings === false ? [] : (state.rulings ?? []).filter(r => r.went === "failure")
     .map(r => ({ line: `turn ${r.turn}: ${r.act.replace(/\.$/, "")} (${r.roll ? describeRoll(r.roll) : "no roll: it couldn't work like that"}): ${r.changed}`, answer: r.changed }));
   return [...rolled, ...ruled];
-}
-
-/**
- * The same push again (a try that failed, tried again with nothing new on the table), asked in the
- * turn's own decision when something has failed in this scene: a route's roll isn't rolled again
- * for it, as the GM's ruling wouldn't be. Which try it repeats, so that only the same route (or a
- * ruling's same objective) counts: the goals run's first press on the King was read as "the same
- * push" as the catch-out that had failed twice, and got no roll.
- */
-function sameAgainQuestion(tried: FailedPush[]): ChoiceQuestion {
-  return {
-    instructions: "Earlier in this scene the player tried these, and they failed. Is the player's latest turn the same push as one of them again: the same ask of the same person by the same means, reworded or louder, with nothing new on the table? Which one? A new lever (an offer, a threat or a promise not made before, evidence, something learned since), a different ask or person, or a real change in the situation since makes it a new try, and so does pushing for something else, even of the same person.",
-    criteria: {
-      ...Object.fromEntries(tried.map((t, i) => [`again_${i}`, `The same push as this one again, with nothing new: ${t.line}`])),
-      new: "A new try, or not one of these at all.",
-    },
-  };
-}
-
-/**
- * How surely the turn is the same push again as a try that failed on this route, or as a ruling that
- * failed (the decider has matched the turn to both, so they share the objective); with the answer it
- * got then, the most likely one's.
- */
-function pushedAgain(tried: FailedPush[], answer: ChoiceAnswer | undefined, route: Transition): { p: number; answer?: string } {
-  if (!answer) return { p: 0 };
-  const same = tried.map((t, i) => ({ t, p: answer.probabilities?.[`again_${i}`] ?? (answer.choice === `again_${i}` ? 1 : 0) }))
-    .filter(({ t }) => t.route === undefined || t.route === route.id);
-  const best = [...same].sort((a, b) => b.p - a.p)[0];
-  return { p: same.reduce((sum, { p }) => sum + p, 0), ...(best && best.p > 0 ? { answer: best.t.answer } : {}) };
 }
 
 const SKILL_TEXT: Record<Skill, string> = {
@@ -325,325 +98,56 @@ export function readFreeform(decision: Answers): { skill: Skill; dc: number } {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Before the reply: decideBefore (director.ts:718-1019), as V0 asks it, in two.
+// Parked for combat (docs/migration-log.md, M2's "The old pipeline's salvage"): what the player's
+// line does that the D&D rules resolve, as decideBefore asked it (director.ts:793-809) in the turn's
+// one decision and read it (:887-893, a rest at once), then asked the act's details in a second small
+// call (:988-1009, withMechanic's). The old pipeline's decide asked it for a character with a build;
+// nothing asks it since its decide went with the rest of its scene steps, and a scene of the story
+// resolves only the map's act (its mechanic chosen already, the turn's), narrating a spell said in
+// words. The route an act held back (alsoQuestion) and the act that's only the means to something
+// risky (meansQuestion) can ride along in the details call (mechanicDetails' `extra`).
 
-/** What beforeQuestions asks, and what the reading needs of how it asked. */
-export interface BeforeAsked {
-  questions: Record<string, ChoiceQuestion>;
-  attempts: Transition[];
-  cues: Transition[];
-  outcomes: Transition[];
-  tried: FailedPush[];
-  /** An ending held for the player's answer: the brink question was asked. */
-  brink?: Exit;
-  /** The player's spells, weapons and features, and what's around them (a rules session): the mechanic question was asked, unless `forced`. */
-  rules?: RulesOptions;
-  /** What the rules resolve this turn, chosen already (a rules session): the mechanic question wasn't asked. */
-  forced?: Mechanic;
-}
-
-/**
- * Before the reply, the turn's one decision: is the player attempting a route (or doing something
- * that simply happens), by what means, should a pacing cue fire, would a good GM call for a roll
- * (considered rolls), the same push again, a plan off the graph (the co-GM's), earned, daft, what
- * the rules resolve (a rules session: `rules`), out of character, answering an ending on the brink,
- * reaching for a limit. As the prototype's v2 approach asks them, in its order.
- */
-export function beforeQuestions(scene: Scene, state: TurnView, brink?: Exit, options: BeforeOptions = {}): BeforeAsked {
-  const considered = options.considered !== false, offGraph = options.offGraph !== false;
-  const attempts = transitionsFor(scene, state, "attempt");
-  const cues = transitionsFor(scene, state, "cue");
-  // Outcomes that need no roll are shown as alternatives, so the decider can see that a kind
-  // word might simply work; choosing one means "no attempt now" (it's judged after the reply).
-  // The built-in improvised ending, and what only someone else can give, are only ever judged
-  // after the reply, on what happened.
-  const outcomes = transitionsFor(scene, state, "outcome").filter(t => t.to !== IMPROVISED_EXIT_ID && !t.given);
-  const questions: Record<string, ChoiceQuestion> = {};
-  if (attempts.length || outcomes.length) {
-    const q = question("attempt", attempts, scene);
-    questions.attempt = {
-      // (Two spaces after "choose that.": the prototype's, where its freeform option would go.)
-      instructions: `${q.instructions} Some things need no dice: if the player's turn is better described by one of the "simply happens" options, choose that.  Risky things none of the options cover are for the GM to resolve in the story: choose none.`,
-      criteria: {
-        ...q.criteria,
-        none: "Nothing risky and none of the above: the player talks, asks, accepts an offer, looks around or searches at leisure, or does something with no real chance or cost of failure.",
-        ...Object.fromEntries(outcomes.map(t => [`plain:${t.id}`, `Simply happens, no dice needed: ${t.when}`])),
-      },
-    };
-  }
-  // The method: for a route written for one social means, and (considered rolls) in every beat, so
-  // the GM's review hears a lie read as a lie wherever it's told.
-  if (considered || attempts.some(t => t.check && SOCIAL.includes(t.check.skill))) {
-    questions.attempt_means = {
-      instructions: "If the player is working on someone in their latest turn, by what means?",
-      criteria: { persuasion: "Persuading: an appeal, an argument, a bargain, reassurance or flattery.", intimidation: "Intimidating: threats, menace or a show of force.", deception: "Deceiving: a lie, a bluff, a disguise or a trick.", performance: "Performing: a speech, a song or a show for a crowd.", none: "Not working on anyone, or something else." },
-    };
-  }
-  if (cues.length) questions.cue = cueQuestion(cues, state.turnsInBeat);
-  // Considered rolls: whether a roll is wanted, and whether a route's roll is for it, in this call.
-  if (considered) questions.roll_call = rollCallQuestion(attempts.filter(t => t.check));
-  // The same push that already failed here, again: asked only once something has failed.
-  const tried = attempts.some(t => t.check) ? failedPushes(scene, state) : [];
-  if (tried.length) questions.same_again = sameAgainQuestion(tried);
-  // The co-GM's: a way through the scene that none of its routes describes (the routes as the beat has them, every one).
-  if (offGraph) {
-    const routes = [...currentBeat(scene, state).transitions, ...(scene.anytime ?? [])].map(t => t.when);
-    questions.off_graph = {
-      instructions: `Is the player, in their latest turn, proposing or pursuing a way to deal with the scene's central situation that none of the scene's routes describes? A plan put as a question ("could we...?", "what if we...?") counts. The routes: ${routes.map(r => `"${r}"`).join("; ")}. Ordinary conversation, questions about the situation and small actions don't.`,
-      criteria: { off_graph: "Yes: a real attempt or proposal to resolve or change the situation by a means none of the routes describes.", covered: "No: it matches a route, or it's ordinary play." },
-    };
-  }
-  // Holding back after the player has done the work is the commonest pacing failure we've seen.
-  questions.earned = {
-    instructions: "Has the player, in their latest turn, done what it takes to get something they've been working towards from someone in this scene: met that person's own terms, shown them the proof, made their case in full, or given the help or leverage that person was waiting for? Judge by what the story so far has established that person needs, not by how hard the player is pushing.",
-    criteria: { earned: "Yes: they've just done what it takes; it should land now.", not_yet: "No: they're still working on it, asking, or haven't done what it takes." },
-  };
-  questions.daft = DAFT_QUESTION;
-  // (What the rules resolve, chosen already, isn't asked: the map's menu's act, `forced`.)
-  if (options.rules && !options.forced) {
-    questions.mechanic = {
-      instructions: `Is the player, in their latest turn, doing one of these things the game's rules resolve? (In a turn, ${READ_TURN}.)`,
-      criteria: {
-        // Offered to everyone: a character without magic who tries it gets the rules' "it doesn't come", not a fireball.
-        cast: "Casting a spell now (naming a spell, or plainly working new magic). Not using what a spell already running gives them (seeing through a familiar's eyes, keeping up an illusion, a light already lit).",
-        attack: "Attacking someone or something right now, to hurt a person or break a thing: a blow, a stab, a punch, a kick, a shot or a thrown weapon. Threats, grabs, shoves and drawing a weapon aren't attacks, and nor is tossing something to someone or working on something in hand.",
-        grapple: "Grabbing hold of someone who'd resist, to hold or restrain them: a grapple, a headlock, pinning them, or a hold in a wrestling bout (a sparring partner resists too).",
-        shove: "Shoving someone who'd resist: to knock them down, or push them back or away.",
-        jump: "Jumping: across a gap or over something, up onto something, or down from it.",
-        ...(options.rules.features?.length ? { feature: `Using one of their class features: ${options.rules.features.map(f => f.name).join(", ")}.` } : {}),
-        short_rest: "Stopping to rest for an hour or so: catching their breath, binding wounds, a meal and a sit-down.",
-        long_rest: "Sleeping the night, or resting for many hours.",
-        none: "None of these.",
-      },
-    };
-  }
-  questions.ooc = OOC_QUESTION;
-  // An ending held for the player's answer: are they answering it, or letting it happen?
-  if (brink) questions.brink = brinkQuestion(brink);
-  if (scene.limits?.length) {
-    // (Considered rolls: a forged warrant is a lie to be judged, not the real warrant the scene can't
-    // offer; it has an answer of its own, so faking one isn't read as reaching for it.)
-    questions.limit = {
-      instructions: `Is the player, in their latest turn, reaching for one of the things this scene can't offer (asking for it, trying to do it, or assuming it exists)? Only choose one if the player's turn clearly depends on getting it.${considered ? " Faking one isn't reaching for it: a forged paper, a fake badge or a lie that they have one of these is a trick the player is attempting on someone (choose pretending), unless what they're after by it is itself one of these." : ""}`,
-      criteria: {
-        ...Object.fromEntries(scene.limits.map((l, i) => [`limit_${i}`, l])),
-        ...(considered ? { pretending: "The player fakes or claims one of these as a trick on someone (a forgery, a fake, a lie that they have it), to get something else." } : {}),
-        none: "No: the player's turn doesn't depend on any of these.",
-      },
-    };
-  }
-  return { questions, attempts, cues, outcomes, tried, ...(brink ? { brink } : {}), ...(options.rules ? { rules: options.rules } : {}), ...(options.rules && options.forced ? { forced: options.forced } : {}) };
-}
-
-/**
- * How the turn's decision is asked: the rules' options (a character with a build); what the rules
- * resolve this turn, chosen already (`forced`: the map's menu's act played as the turn, town-design
- * §3.4), asked no mechanic question; and the scene's own settings, the prototype's sceneApproach,
- * which only a talk changes (scenes/talk.ts: considered rolls and the co-GM off, so no roll_call,
- * no off_graph, and the means only for a route with a social check).
- */
-export interface BeforeOptions { rules?: RulesOptions; forced?: Mechanic; considered?: boolean; offGraph?: boolean }
-
-/** The decider's name for what a mechanic is, as the mechanic question would have answered it. */
-function rulingOf(m: Mechanic): string {
-  switch (m.kind) {
-    case "wrestle": return m.how === "grapple" ? "grapple" : "shove";
-    case "rest": return m.length === "short" ? "short_rest" : "long_rest";
-    default: return m.kind;
-  }
-}
-
-/**
- * What the rules' act still needs asked, in the act's details call (director.ts:988-1009, withMechanic):
- * which act it is, the route's check it held back (rolled as well only if the player is also doing
- * what it's for), the player's means for that check, and whether to ask if the act is only the means
- * to something risky it doesn't settle (`asksMeans`: then `wanted` is the roll the decider wanted).
- */
-export interface ActDetails { act: RuledAct; held?: Transition; method?: Skill; asksMeans: boolean; wanted?: NonNullable<Decision["considered"]> }
-
-/** The read before the reply: the turn's decision, and on a turn the rules resolve an act, what its details call needs (`details`: not part of the answer). */
-export type BeforeRead = Decision & { details?: ActDetails };
-
-/**
- * The decision read as the prototype reads it, its bars and all: the attempt (a route with a check
- * or an ending needs 0.6, anything else 0.45), the plain outcome, a cue (never over a real attempt,
- * an earned payoff, a word out of character, or the player's own way out), what the rules resolve
- * (0.6, not over a limit or a word out of character: a rest at once, an act after its details call),
- * a roll wanted that nothing the author wrote settles (considered: then no route is taken and no cue
- * fires, the GM rules on it before the reply; nor when the rules' act settles it), the same push
- * again (no dice), daft, earned, out of character, a limit, an answer on the brink, a plan off the
- * graph, and a plain route the prep's own answer (byPrep). What it picks is the route the turn
- * takes, its check as the simulation will roll it (not while the rules' act holds it: see
- * withMechanic): no die is cast here.
- */
-export function readBefore(scene: Scene, state: TurnView, decision: Answers, asked: BeforeAsked): BeforeRead {
-  const { attempts, cues, outcomes, tried, brink, rules } = asked;
-  // What the rules resolve, chosen already (the map's menu): as if the mechanic question had answered it, surely.
-  const forced = rules && asked.forced ? rulingOf(asked.forced) : undefined;
-  const answer = decision.answers.attempt?.choice;
-  const candidate = attempts.find(t => t.id === answer);
-  // Two routes for the same check (the co-GM's beside another, or one refreshed as things changed)
-  // split the read between them, and neither clears the bar: it's the same roll either way, so their
-  // shares count together. Not towards ending the scene, which needs the player committed to that.
-  const sameRoll = (t: Transition) => !!candidate?.check && t.check?.skill === candidate.check.skill && !endsScene(scene, t);
-  const shared = candidate && sameRoll(candidate) ? attempts.filter(t => t !== candidate && sameRoll(t)).reduce((sum, t) => sum + (decision.answers.attempt?.probabilities?.[t.id] ?? 0), 0) : 0;
-  const probability = candidate ? (decision.answers.attempt?.probabilities?.[candidate.id] ?? 1) + shared : 0;
-  // Every attempt needs some confidence (a 0.39 match shouldn't take over a turn); endings need more.
-  // A roll forces its outcome into the reply (a reveal, a cost), so it needs the same confidence as
-  // an ending: a weak read of an announcement shouldn't hand over a secret.
-  const attempt = candidate && probability >= (endsScene(scene, candidate) || candidate.check ? SCENE_ENDING_CONFIDENCE : 0.45) ? candidate : undefined;
-  const plain = answer?.startsWith("plain:") ?? false;
-  // A player's attempt (or something they simply do) outranks a pacing cue: the player acted first.
-  // Only a real attempt outranks a pacing cue: talking or simply doing things doesn't hold the world back.
-  // A pacing cue never interrupts a payoff the player has just earned: the world can wait a reply.
-  // Nor does one fire on a word out of character: that isn't time passing in the scene.
-  const earnedNow = decision.answers.earned?.choice === "earned" && (decision.answers.earned?.probabilities?.earned ?? 1) >= SCENE_ENDING_CONFIDENCE;
-  const ooc = decision.answers.ooc?.choice === "out_of_character";
-  const fired = attempt || earnedNow || ooc ? undefined : firedCue(cues, decision.answers.cue, state.turnsInBeat);
-  // Nor does a cue end the scene over the player's own way out (a fight aside: danger doesn't wait).
-  // It waits while an ending is held for their answer, which it would replace, and while they're
-  // going for an ending of their own: the routes that settle the scene, read together as an attempt
-  // is (0.45), though none surely enough to take (walking off the wharf with the book, 0.56, became
-  // "The barge sails"). And when they're plainly leaving (0.6, together) by a way that leads where
-  // the cue does, the cue's ending is their own choice, and it closes in this reply ("(I leave the
-  // Rat for the Heron)" read 0.57 and 0.16 between two ways out, and the eleventh bell's ending, the
-  // second's, was held for the answer they'd just given).
-  const pOf = (t: Transition) => decision.answers.attempt?.probabilities?.[t.id] ?? (answer === t.id ? 1 : 0);
-  const exitOf = (t: Transition) => t.check ? t.check.onSuccess : t.to;
-  const leavingBy = attempts.filter(t => endsScene(scene, t));
-  const leaving = leavingBy.reduce((sum, t) => sum + pOf(t), 0);
-  const cueEnding = fired && endsScene(scene, fired) && scene.exits.find(e => e.id === exitOf(fired))?.kind !== "combat" ? exitOf(fired) : undefined;
-  const theirsToo = !!cueEnding && !brink && leaving >= SCENE_ENDING_CONFIDENCE && leavingBy.some(t => exitOf(t) === cueEnding && pOf(t) >= 0.1);
-  const cue = cueEnding && !theirsToo && (brink || leaving >= 0.45) ? undefined : fired;
-  // Something the player simply does that settles the scene (setting off, handing it over) is
-  // their chosen ending: close it in this reply rather than letting the reply run past it.
-  const plainOutcome = plain ? outcomes.find(t => `plain:${t.id}` === answer) : undefined;
-  const plainEnding = plainOutcome && endsScene(scene, plainOutcome) && (decision.answers.attempt?.probabilities?.[answer!] ?? 1) >= SCENE_ENDING_CONFIDENCE ? plainOutcome : undefined;
-  // A route the author gave no dice, read with an attempt's confidence, is the prep's own answer to
-  // the turn (a bribe gets haggling, trust needs no roll): no ruling of the GM's overrides it.
-  const plainSettles = !!plainOutcome && (decision.answers.attempt?.probabilities?.[answer!] ?? 1) >= (endsScene(scene, plainOutcome) ? SCENE_ENDING_CONFIDENCE : 0.45);
-  const means = decision.answers.attempt_means?.choice;
-  const sureMeans = means && means !== "none" && (decision.answers.attempt_means?.probabilities?.[means] ?? 1) >= SCENE_ENDING_CONFIDENCE ? means as Skill : undefined;
-  // Saying no wrongly costs as much as ending the scene wrongly: same confidence bar.
-  const limitChoice = decision.answers.limit?.choice;
-  const limitConfident = (decision.answers.limit?.probabilities?.[limitChoice ?? ""] ?? 1) >= SCENE_ENDING_CONFIDENCE;
-  const limit = limitChoice?.startsWith("limit_") && limitConfident ? scene.limits?.[Number(limitChoice.slice(6))] : undefined;
-  // What the rules resolve this turn, on a confident read: not when the scene can't offer it, or
-  // when the player is out of character.
-  const named = forced ?? decision.answers.mechanic?.choice;
-  const sure = !!forced || (named && named !== "none" && (decision.answers.mechanic?.probabilities?.[named] ?? 1) >= SCENE_ENDING_CONFIDENCE);
-  const ruling = rules && sure && !limit && (!ooc || forced) ? named : undefined;
-  const act = ruling && RULED_ACTS.includes(ruling) ? ruling as RuledAct : undefined;
-  // No dice for the impossible: if the player is reaching for something the scene can't offer,
-  // the "no, but" answers it and nothing is rolled.
-  const limitBlocks = decision.answers.limit?.choice?.startsWith("limit_") && (decision.answers.limit?.probabilities?.[decision.answers.limit.choice] ?? 1) >= SCENE_ENDING_CONFIDENCE;
-  // An act on the world the rules resolve is its own resolution (no Arcana check to cast a cantrip,
-  // no Athletics check for a throw already rolled to hit), and a roll needs a confident read. (A
-  // class feature isn't such an act: something risky alongside it can still call for a roll.)
-  const ruled = forced ?? decision.answers.mechanic?.choice;
-  const actSettles = !!ruled && ruled !== "feature" && RULED_ACTS.includes(ruled) && (!!forced || (decision.answers.mechanic?.probabilities?.[ruled] ?? 1) >= SCENE_ENDING_CONFIDENCE);
-  // Considered rolls: a roll is wanted (a route's "yes" and none's count together), and nothing the
-  // author wrote settles it: a route's roll the decider chose surely (unless the roll is plainly for
-  // something else), or chose and didn't call the act another's, a route the author gave no dice, or
-  // an ending the player simply reaches. Then no route is rolled here, and no cue fires: the GM rules
-  // on it before the reply.
-  // (A player who has just met someone's terms has earned the payoff: that lands, as ever, without dice.)
-  const call = decision.answers.roll_call;
-  const yes = (option: string) => call ? call.probabilities?.[option] ?? (call.choice === option ? 1 : 0) : 0;
-  const routeSure = !!attempt?.check && probability >= ROUTE_CONFIDENCE && yes("new") < PLAINLY_ANOTHER;
-  const settledByPrep = attempt ? !attempt.check || routeSure || yes("route") >= yes("new") : !!plainEnding || plainSettles;
-  const earnedRead = decision.answers.earned?.probabilities?.earned ?? (decision.answers.earned?.choice === "earned" ? 1 : 0);
-  // (A beat with no route with a roll has a lower bar: there the flag can only say "new" or "none".)
-  const bar = attempts.some(t => t.check) ? CONSIDER_CONFIDENCE : CONSIDER_CONFIDENCE_OPEN;
-  const wanted = yes("route") + yes("new") >= bar && earnedRead < SCENE_ENDING_CONFIDENCE && !settledByPrep && !limitBlocks && !ooc && !forced
-    ? {
-      probability: yes("route") + yes("new"),
-      routes: attempts.filter(t => t.check).map(t => ({ id: t.id, p: decision.answers.attempt?.probabilities?.[t.id] ?? 0 })).filter(r => r.p >= 0.05).sort((a, b) => b.p - a.p),
-      ...(sureMeans ? { means: sureMeans } : {}),
-      ...(earnedRead >= 0.3 ? { earned: earnedRead } : {}),
-    }
-    : undefined;
-  // The rules' act settles it, unless it's only the means to something risky they don't (asked with
-  // the act's details, withMechanic: then the GM rules on that, knowing how the act went).
-  const considered = wanted && !actSettles ? wanted : undefined;
-  // The same push that already failed here isn't rolled again on a route's dice (the GM's ruling
-  // says no to it without them too): it gets the same answer.
-  // (Only a push that already failed on this route, or a ruling's same objective: a first press on
-  // the King isn't the catch-out that failed before it.)
-  const again = attempt?.check ? pushedAgain(tried, decision.answers.same_again, attempt) : { p: 0 };
-  const sameAgain = attempt?.check && !considered && again.p >= SCENE_ENDING_CONFIDENCE ? attempt : undefined;
-  const chosen = considered || sameAgain ? undefined : attempt ?? plainEnding ?? cue;
-  // (a plain action alongside a cue: the cue's beat change carries the reply)
-  const method = attempt ? sureMeans : undefined;
-  // When the rules resolve the player's act, that act is the turn: a route's check waits for the
-  // act's details, and is rolled only if the player is also doing what the check is for. Otherwise
-  // the route stays open for when they do.
-  const held = act && attempt?.check && !considered && !sameAgain ? attempt : undefined;
-  const move = chosen && !held ? chosen : undefined;
-  // The rules: a spell or a blow gets its details in a second small call (withMechanic); a rest needs
-  // none; and one chosen already (the menu's) has its details (a route's check waits for a turn of its own).
-  const mechanic: Mechanic | undefined = ruling && forced ? asked.forced
-    : ruling === "short_rest" || ruling === "long_rest" ? { kind: "rest", length: ruling === "short_rest" ? "short" : "long" } : undefined;
-  // A roll wanted that only the rules' act stood in the way of (no route's roll waiting on it): is the act only the means?
-  const asksMeans = !!wanted && !considered && !held && !move && !sameAgain;
-  const details: ActDetails | undefined = act && !forced ? { act, ...(held ? { held } : {}), ...(method ? { method } : {}), asksMeans, ...(asksMeans ? { wanted } : {}) } : undefined;
-  const daft = decision.answers.daft?.choice === "consequential" && (decision.answers.daft?.probabilities?.consequential ?? 1) >= DAFT_CONFIDENCE;
-  const earned = decision.answers.earned?.choice === "earned" && (decision.answers.earned?.probabilities?.earned ?? 1) >= SCENE_ENDING_CONFIDENCE;
-  const offGraph = decision.answers.off_graph?.choice === "off_graph" && (decision.answers.off_graph?.probabilities?.off_graph ?? 1) >= SCENE_ENDING_CONFIDENCE;
-  // The plain route the reply is told of (the prototype's plainTransition): not one that ends the scene now, nor over a roll to rule on.
-  const plainTransition = plainOutcome && !plainEnding && !considered ? plainOutcome : undefined;
+/** Whether the player, in their line, is doing one of the things the game's rules resolve: a spell, a blow, a grab, a shove, a jump, a class feature, a rest. */
+export function mechanicQuestion(rules: RulesOptions): ChoiceQuestion {
   return {
-    // (The cue's ending is the one the player is leaving by: their choice, as their own route's would be.)
-    ...(move ? { route: pick(move, attempt || plainEnding ? "attempt" : "cue", method, move === cue && theirsToo) } : {}),
-    ...(plainOutcome ? { plain: plainOutcome.id } : {}),
-    ...(sameAgain ? { sameAgain: { route: sameAgain.id, ...(again.answer ? { answer: again.answer } : {}) } } : {}),
-    earned, daft, outOfCharacter: ooc,
-    ...(limit ? { limit } : {}),
-    ...(decision.answers.brink?.choice === "answers" ? { answering: true } : {}),
-    ...(considered ? { considered } : {}),
-    ...(offGraph ? { offGraph } : {}),
-    ...(plainTransition && plainSettles ? { byPrep: true } : {}),
-    ...(mechanic ? { mechanic } : {}),
-    ...(details ? { details } : {}),
+    instructions: `Is the player, in their latest turn, doing one of these things the game's rules resolve? (In a turn, ${READ_TURN}.)`,
+    criteria: {
+      // Offered to everyone: a character without magic who tries it gets the rules' "it doesn't come", not a fireball.
+      cast: "Casting a spell now (naming a spell, or plainly working new magic). Not using what a spell already running gives them (seeing through a familiar's eyes, keeping up an illusion, a light already lit).",
+      attack: "Attacking someone or something right now, to hurt a person or break a thing: a blow, a stab, a punch, a kick, a shot or a thrown weapon. Threats, grabs, shoves and drawing a weapon aren't attacks, and nor is tossing something to someone or working on something in hand.",
+      grapple: "Grabbing hold of someone who'd resist, to hold or restrain them: a grapple, a headlock, pinning them, or a hold in a wrestling bout (a sparring partner resists too).",
+      shove: "Shoving someone who'd resist: to knock them down, or push them back or away.",
+      jump: "Jumping: across a gap or over something, up onto something, or down from it.",
+      ...(rules.features?.length ? { feature: `Using one of their class features: ${rules.features.map(f => f.name).join(", ")}.` } : {}),
+      short_rest: "Stopping to rest for an hour or so: catching their breath, binding wounds, a meal and a sit-down.",
+      long_rest: "Sleeping the night, or resting for many hours.",
+      none: "None of these.",
+    },
   };
 }
 
-/**
- * The rules' act's details (director.ts:988-1009), in the second small call those turns make: which
- * spell at whom, which blow, whom to grab or shove, the jump, the feature (gm/mechanics.ts). With it,
- * whether the player is also doing what the route's check the act held is for (then that check is
- * rolled as well), and, when a roll was wanted that only the act stood in the way of, whether the act
- * is only the means to it (then the GM rules on that, after the rules: considered). The decide
- * endpoint runs it after the read; a read with no act to detail is the decision as it stands.
- */
-export async function withMechanic(decider: Decider, scene: Scene, state: TurnView, line: string, read: BeforeRead, rules: RulesOptions): Promise<Decision> {
-  const { details, ...decision } = read;
-  if (!details) return decision;
-  const { act, held, method, asksMeans, wanted } = details;
-  const extra: Record<string, ChoiceQuestion> = { ...(held ? { also: alsoQuestion(held, act) } : {}), ...(asksMeans ? { means_only: meansQuestion(act) } : {}) };
-  const asked = await mechanicDetails(decider, scene, state, line, act, rules, extra);
-  const mechanic = asked.mechanic;
-  const also = asked.decision.answers.also;
-  const doingIt = !!held && also?.choice === "yes" && (also.probabilities?.yes ?? 1) >= SCENE_ENDING_CONFIDENCE;
-  const only = asked.decision.answers.means_only;
-  const meansOnly = asksMeans && !!mechanic && only?.choice === "yes" && (only.probabilities?.yes ?? 1) >= SCENE_ENDING_CONFIDENCE;
-  return {
-    ...decision,
-    ...(mechanic ? { mechanic } : {}),
-    ...(doingIt ? { route: pick(held!, "attempt", method, false) } : {}),
-    ...(meansOnly && wanted ? { considered: wanted } : {}),
-  };
+/** mechanicQuestion's answer on a clear read (0.6): an act whose details the rules still need, or a rest, which needs none; nothing on an unsure read. */
+export function readMechanic(decision: Answers): RuledAct | Extract<Mechanic, { kind: "rest" }> | undefined {
+  const named = decision.answers.mechanic?.choice;
+  if (!named || named === "none" || (decision.answers.mechanic?.probabilities?.[named] ?? 1) < SCENE_ENDING_CONFIDENCE) return undefined;
+  if (named === "short_rest" || named === "long_rest") return { kind: "rest", length: named === "short_rest" ? "short" : "long" };
+  return RULED_ACTS.includes(named) ? named as RuledAct : undefined;
 }
 
 /**
- * The route the turn takes, as resolve (director.ts:330-342) began it: its check with the skill the
- * player's means where the route's and theirs are both social ("preserve intent, change method": a
- * threat aimed at a route written for persuasion rolls intimidation). The simulation rolls it and
- * works out where it leads; `theirs`, the cue that is the player's own way out, makes it chosen.
+ * What the rules resolve of the player's line, for a character with a build (`rules`: rulesOptions,
+ * gm/mechanics.ts): the mechanic question in a call of its own (`director.rules`), then, for a spell,
+ * a blow, a grab, a shove, a jump or a feature, its details in a second small call (mechanicDetails:
+ * which spell at whom, which blow, where they act from), `extra` questions riding along in it. None
+ * when the line does nothing the rules resolve.
  */
-function pick(t: Transition, phase: "attempt" | "cue", means: Skill | undefined, theirs: boolean): NonNullable<Decision["route"]> {
-  const check = t.check && { skill: means && means !== t.check.skill && SOCIAL.includes(means) && SOCIAL.includes(t.check.skill) ? means : t.check.skill, dc: t.check.dc, ...(t.check.reason ? { reason: t.check.reason } : {}) };
-  return { id: t.id, phase, ...(check ? { check } : {}), ...(theirs ? { theirs } : {}) };
+export async function mechanicOf(decider: Decider, scene: Scene, state: TurnView, line: string, rules: RulesOptions, extra: Record<string, ChoiceQuestion> = {}): Promise<{ mechanic?: Mechanic; details?: Answers }> {
+  const asked = await decider.decide(decisionState(scene, state, line), { mechanic: mechanicQuestion(rules) }, "director.rules");
+  const act = readMechanic(asked);
+  if (!act) return {};
+  if (typeof act !== "string") return { mechanic: act };
+  const detailed = await mechanicDetails(decider, scene, state, line, act, rules, extra);
+  return { ...(detailed.mechanic ? { mechanic: detailed.mechanic } : {}), details: detailed.decision };
 }
 
 // ---------------------------------------------------------------------------------------------

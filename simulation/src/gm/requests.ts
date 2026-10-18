@@ -1,6 +1,6 @@
 import type { Backstory } from "../../../shared/creation/types.ts";
 import {
-  STEP_ENDPOINT, STEP_TIMEOUT_MS, type AiRequest, type BoundaryRequest, type Chapter, type ConsiderRequest, type DecideRequest, type Entry, type LooksRequest, type OpenRequest, type ReactionsRequest,
+  STEP_ENDPOINT, STEP_TIMEOUT_MS, type AiRequest, type BoundaryRequest, type Chapter, type ConsiderRequest, type Entry, type LooksRequest, type OpenRequest, type ReactionsRequest,
   type RememberRequest, type RepairRequest, type ReplyRequest, type SceneContext, type SettleRequest, type SheetRow, type Story, type SuggestRequest, type TalkOpen, type TurnContext,
 } from "../../../shared/protocol/ai.ts";
 import type { GuardStage, TalkRecord } from "../../../shared/gm/state.ts";
@@ -59,7 +59,7 @@ export function boundaryCall(tx: TxCtx, plan: BoundaryPlan): AiCall {
   return { endpoint: STEP_ENDPOINT.boundary, key, timeoutMs: STEP_TIMEOUT_MS.boundary, request };
 }
 
-/** A say turn's call for its step: decide, reactions, consider, reply or settle, each with the turn's working set. */
+/** A say turn's call for its step: reply or settle (reactions and consider too), each with the turn's working set. */
 export function sayCall(tx: TxCtx, plan: SayPlan): AiCall {
   const at = whereOf(tx, plan.scene);
   const key = idempotencyKey(at.game.uid, at.scene.id, plan.n, plan.step);
@@ -141,12 +141,11 @@ function aiRequest(key: string, at: Where): AiRequest {
 }
 
 /**
- * reactions: what the decide commit's act did, which everyone who saw it reacts to (the turn's working
- * set is the world after it). consider: the decider's read that asked for the ruling, and the ending
+ * reactions (parked for combat): what the rules' act did (takeAct), which everyone who saw it reacts
+ * to (the turn's working set is the world after it). consider: the decider's read that asked for the ruling, and the ending
  * held for the player's answer (the decide commit took it off the bookkeeping).
  */
-function stepRequest(plan: SayPlan, base: AiRequest & { turn: TurnContext }, suggest: boolean): DecideRequest | ReactionsRequest | ConsiderRequest | ReplyRequest | SettleRequest {
-  if (plan.step === "decide") return { ...base, landed: [], ...(plan.forced ? { forced: plan.forced } : {}) };
+function stepRequest(plan: SayPlan, base: AiRequest & { turn: TurnContext }, suggest: boolean): ReactionsRequest | ConsiderRequest | ReplyRequest | SettleRequest {
   if (plan.step === "reactions") return { ...base, act: needs(plan.act, "act", "reactions") };
   if (plan.step === "consider") return { ...base, ...(plan.decision?.considered ? { read: plan.decision.considered } : {}), ...(plan.pendingExit ? { pending: plan.pendingExit } : {}) };
   // The two-part GM's reply: the outcome's directives are the rules' and the map's act's (docs/two-part-design.md).

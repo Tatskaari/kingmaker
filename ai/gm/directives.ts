@@ -46,17 +46,6 @@ export function openingDirective(scene: Scene, state: Pick<TurnView, "history" |
 export const FIGHT_CLOSE = " A fight starts here and is played out blow by blow on the map: end on the moment it breaks out, before any blow lands, any shot hits or any spell takes hold.";
 
 /**
- * No dice for the same push again: it gets the answer it got then (the route's authored failure, or
- * the ruling's), and being pushed again shows, but nothing more comes of it. (Told only "the same
- * answer", the GM had the King release Sallow outright on a press the author answers with "nothing is
- * settled yet, but the morning is going".)
- */
-export function sameAgainDirective(t: Transition, answer?: string): string {
-  const then = answer ? ` it got before: ${answer.trim().replace(/([^.!?'"’”])$/, "$1.")}` : "";
-  return `No dice: the player is pushing for the same thing that already failed (${t.when.replace(/\.$/, "")}), with nothing new on the table, and it gets the same answer${then || "."} Play that answer again, in this moment's own words: whoever they're pushing reacts to being pushed again (patience wearing thin, a sharper no), but nothing more comes of it than that answer: nothing changes hands, nobody gives way or decides anything new, and nothing already said is taken back.`;
-}
-
-/**
  * A reply that closes the scene answers the player's turn first: what they ask someone here is
  * answered, and a challenge to someone in the room lands (Brother Ambrose's "Sallow." to the man in
  * the doorway got a polite nod and the procession).

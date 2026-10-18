@@ -1,4 +1,4 @@
-// Copied from the prototype's src/runtime/threats.test.ts at 44c6d4a, its first four tests: on the hanged clerk's granary yard with builds.json's builds (the prototype's pregens, made by createCharacter), Sergeant Kell's club where the Heron's Sallow swung, each call synchronous on the host's Rules and pinned. Its last test plays a whole turn (the prototype's playerTurn), the simulation's decide commit here: a Shield the blow forestalled isn't cast again (S's takeAct).
+// Copied from the prototype's src/runtime/threats.test.ts at 44c6d4a, its first four tests: on the hanged clerk's granary yard with builds.json's builds (the prototype's pregens, made by createCharacter), Sergeant Kell's club where the Heron's Sallow swung, each call synchronous on the host's Rules and pinned. Its last test plays a whole turn (the prototype's playerTurn): in the game that's the simulation's (simulation/src/moves/world.test.ts, takeAct: a Shield the blow forestalled isn't cast again).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";

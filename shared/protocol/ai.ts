@@ -25,7 +25,7 @@ import type { CreationStep, Step } from "./keys.ts";
  */
 
 export type Endpoint =
-  | "/v1/scenes/open" | "/v1/turns/decide" | "/v1/turns/reactions" | "/v1/turns/consider" | "/v1/turns/reply" | "/v1/turns/settle" | "/v1/turns/suggest"
+  | "/v1/scenes/open" | "/v1/turns/reactions" | "/v1/turns/consider" | "/v1/turns/reply" | "/v1/turns/settle" | "/v1/turns/suggest"
   | "/v1/turns/remember" | "/v1/turns/repair" | "/v1/scenes/boundary" | "/v1/looks"
   | "/v1/characters" | "/v1/backstories";
 
@@ -37,13 +37,13 @@ export type Endpoint =
  * then presence, about 10 to 20 s on real models; the looks of what a turn made, one small call.
  */
 export const STEP_ENDPOINT: Record<Step | CreationStep, Endpoint> = {
-  open: "/v1/scenes/open", decide: "/v1/turns/decide", reactions: "/v1/turns/reactions", consider: "/v1/turns/consider", reply: "/v1/turns/reply", settle: "/v1/turns/settle",
+  open: "/v1/scenes/open", reactions: "/v1/turns/reactions", consider: "/v1/turns/consider", reply: "/v1/turns/reply", settle: "/v1/turns/settle",
   suggest: "/v1/turns/suggest", remember: "/v1/turns/remember", repair: "/v1/turns/repair", boundary: "/v1/scenes/boundary", look: "/v1/looks",
   offer: "/v1/characters", pick: "/v1/characters", own: "/v1/characters",
   draft: "/v1/backstories", work: "/v1/backstories", check: "/v1/backstories", traits: "/v1/backstories",
 };
 export const STEP_TIMEOUT_MS: Record<Step | CreationStep, number> = {
-  open: 60_000, decide: 20_000, reactions: 20_000, consider: 20_000, reply: 60_000, settle: 60_000, suggest: 30_000, remember: 170_000, repair: 170_000, boundary: 120_000, look: 30_000,
+  open: 60_000, reactions: 20_000, consider: 20_000, reply: 60_000, settle: 60_000, suggest: 30_000, remember: 170_000, repair: 170_000, boundary: 120_000, look: 30_000,
   offer: 60_000, pick: 60_000, own: 30_000, draft: 60_000, work: 60_000, check: 60_000, traits: 60_000,
 };
 
@@ -226,15 +226,11 @@ export interface Decision {
    */
   mechanic?: Mechanic;
 }
-/**
- * landed: [] in V0 (no world clock). forced: what the rules resolve this turn, chosen already (the
- * map's action menu, town-design §3.4: an act at a waiting scene, played as its first turn): the
- * decider asks no mechanic question (the prototype's decideBefore `forced`, director.ts:793, 889-901).
- */
-export interface DecideRequest extends AiRequest { turn: TurnContext; landed: string[]; forced?: Mechanic }
-export interface DecideResponse { decision: Decision; opened: OpenedNote[]; usage: Usage }
 
-/** What the decide commit did: the reply builds its directives from it. */
+/**
+ * What the turn's commits before the reply did (the rules first, the map's act, a ruling): the reply
+ * builds its directives from it. (The move the old pipeline's decide commit took went with it.)
+ */
 export interface Outcome {
   /** This turn's dice lines. */
   lines: string[];
@@ -243,7 +239,6 @@ export interface Outcome {
    * running out, fire's tick, coming round, a blow left hanging): first in the reply.
    */
   directives: string[];
-  move?: { route: string; phase: "attempt" | "cue"; from: string; to: string; roll?: RollResult; exit?: string; chosen: boolean };
   taken?: { ended?: string; closing?: string; pendingExit?: string };
   held?: "ooc" | "brink" | "closes";
   pending?: { exit: string };
@@ -334,9 +329,9 @@ export interface ConsiderResponse {
 
 /**
  * POST /v1/turns/reactions (world-bridge-design §3.1): everyone who saw the player's violence reacts,
- * each by their own lights, before the GM says a word (the prototype's decideReactions). turn: the
- * turn's working set as the decide commit left it (the world after the act); act: what the rules
- * decided it did (scene-acts.ts violence).
+ * each by their own lights, before the GM says a word (the prototype's decideReactions). Parked for
+ * combat: nothing queues it since the old pipeline's decide went. turn: the turn's working set as the
+ * act left it (the world after it); act: what the rules decided it did (scene-acts.ts violence).
  */
 export interface ReactionsRequest extends AiRequest { turn: TurnContext; act: Act }
 /**

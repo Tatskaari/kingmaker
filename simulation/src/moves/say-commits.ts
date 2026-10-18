@@ -1,6 +1,6 @@
 import { describeRoll } from "../../../shared/dice.ts";
 import type { GmState } from "../../../shared/gm/state.ts";
-import type { ConsiderResponse, Decision, DecideResponse, Outcome, ReactionsResponse, ReplyResponse } from "../../../shared/protocol/ai.ts";
+import type { ConsiderResponse, Decision, Outcome, ReactionsResponse, ReplyResponse } from "../../../shared/protocol/ai.ts";
 import { idOf } from "../../../shared/protocol/keys.ts";
 import { attack, castSpell, dispelConjured, rest, useFeature, wrestle, type RulesOutcome } from "../../../shared/rules/acts.ts";
 import { leap, moveToAct, react, violence } from "../../../shared/rules/scene-acts.ts";
@@ -10,7 +10,7 @@ import { unnamed } from "../../../shared/scene/names.ts";
 import type { Exit, Scene } from "../../../shared/scene/types.ts";
 import type { TxCtx } from "../context.ts";
 import { rollerFor } from "../dice-row.ts";
-import { applyMove, holdEnding, keepOpened, resolveMove, routeOf, takeMove, wantsReview, type Move } from "../gm/bookkeeping.ts";
+import { applyMove, holdEnding, takeMove } from "../gm/bookkeeping.ts";
 import { settleRuling } from "../gm/consider.ts";
 import { getGm, putGm } from "../gm/rows.ts";
 import { sceneRow, updateScene, updateTurn, type SceneRow } from "../rows.ts";
@@ -39,63 +39,26 @@ export const SCENE_ENDED_FIRST = "The scene ended first.";
 export interface At { scene: SceneRow; graph: Scene; gm: GmState }
 
 /**
- * After decide: the notes disclosure opened kept; then, on the wind-down, only whether the player
- * spoke out of character. Otherwise the route taken (its check rolled, the dice line written, the
- * beat moved on), the rules' act resolved on the world (its dice lines written), and where that
- * leaves the endings. On to the reply; or, when the act was violence, to the reactions to it first,
- * the turn still deciding (what comes after them kept in `then`); or, when the GM is to rule on the
- * act first (wantsReview), to consider, the turn considering.
- */
-export function afterDecide(tx: TxCtx, plan: SayPlan, answer: DecideResponse): Next<SayPlan> {
-  const at = atTurn(tx, plan);
-  // The map's act (town-design §3.4): what the rules resolve this turn was chosen already, whatever the decider read (director.ts:793's forced).
-  const read = needs(answer.decision, "decision");
-  const decision = plan.forced ? { ...read, mechanic: plan.forced } : read;
-  at.gm.opened = keepOpened(at.gm.opened, answer.opened ?? []);
-
-  const decided = plan.windDown ? { outcome: windDownOutcome(at, plan, decision) } : decideOutcome(tx, at, plan, decision);
-  const { outcome } = decided;
-  const pending = "pending" in decided && decided.pending ? { pendingExit: decided.pending } : {};
-
-  putGm(tx, at.scene.id, at.gm);
-  if ("act" in decided && decided.act) {
-    return { done: false, plan: { ...plan, step: "reactions", decision, outcome, lines: outcome.lines, act: decided.act, then: decided.considers ? "consider" : "reply", ...pending } };
-  }
-  if ("considers" in decided && decided.considers) {
-    updateTurn(tx, idOf(plan.turn), { phase: "considering" });
-    return { done: false, plan: { ...plan, step: "consider", decision, outcome, lines: outcome.lines, ...pending } };
-  }
-  updateTurn(tx, idOf(plan.turn), { phase: "replying" });
-  return { done: false, plan: { ...plan, step: "reply", decision, outcome, lines: outcome.lines } };
-}
-
-/**
- * After reactions (engine.ts:637-656): everyone who saw the player's violence reacts as the AI
- * service decided (scene-acts.ts react): the fleeing leave the place (gone, absent, off the stage),
- * the cowering cower, and a fight starts if anyone wants one, its first fighter's blow left hanging
- * over the player. Their directive follows the act's, and their step goes on the path. A fight that
- * broke out is the turn's answer: an ending the move reached this turn is undone, and the GM's
- * ruling is skipped. Then what the decide commit left for after them: the ruling, or the reply with
- * the tail it held back (an ending held for the player's answer, what this reply closes on).
+ * The reactions step's commit (engine.ts:637-656), parked for combat: nothing in a scene asks the
+ * reactions since the old pipeline's decide went (docs/migration-log.md, M2's "The old pipeline's
+ * salvage"), and the map's act (two-part.ts twoPartStart) goes straight to the reply. Everyone who saw
+ * the player's violence (`plan.act`, what takeAct found it to be) reacts as the AI service decided
+ * (reactionsTakeEffect: the fleeing leave the place, the cowering cower, a fight starts if anyone
+ * wants one, its first fighter's blow left hanging over the player); a fight that broke out this turn
+ * is the turn's answer (Outcome.brawl). Then the two-part GM's reply, its directives the act's and
+ * the reactions' after the rules'.
  */
 export function afterReactions(tx: TxCtx, plan: SayPlan, answer: ReactionsResponse): Next<SayPlan> {
   const at = atTurn(tx, plan);
-  const decision = needs(plan.decision, "decision");
   const outcome: Outcome = { ...needs(plan.outcome, "outcome"), lines: [...plan.lines] };
   const reactions = answer.reactions ?? {};
 
   if (Object.keys(reactions).length) reactionsTakeEffect(tx, at, plan, needs(plan.act, "act"), reactions, answer.directive, outcome);
-  const brawl = at.gm.brawl?.turn === plan.n;
-  if (brawl) breakOut(at.gm, plan.n, outcome);
-  const then = brawl ? "reply" : (plan.then ?? "reply");
-  if (then === "reply") {
-    if (decision.offGraph) at.gm.offGraphTurn = plan.n;
-    closesOrHolds(at.gm, plan.n, decision, outcome, plan.pendingExit, !!outcome.move, false);
-  }
+  if (at.gm.brawl?.turn === plan.n) outcome.brawl = true;
 
   putGm(tx, at.scene.id, at.gm);
-  updateTurn(tx, idOf(plan.turn), { phase: then === "consider" ? "considering" : "replying" });
-  return { done: false, plan: { ...plan, step: then, outcome, lines: outcome.lines } };
+  updateTurn(tx, idOf(plan.turn), { phase: "replying" });
+  return { done: false, plan: { ...plan, step: "reply", outcome, lines: outcome.lines } };
 }
 
 /**
@@ -151,48 +114,12 @@ function dispelAtTheEnd(tx: TxCtx, scene: SceneRow, n: number): void {
 }
 
 // ---------------------------------------------------------------------------------------------
-// afterDecide's parts.
+// The turn's parts.
 
 export function atTurn(tx: TxCtx, plan: Pick<SayPlan, "scene">): At {
   const scene = sceneRow(tx, idOf(plan.scene));
   const gm = getGm(tx, scene.id);
   return { scene, graph: sceneGraph(tx, scene, gm), gm };
-}
-
-/** The wind-down: the ending it closes on; nothing moves but a word out of character noted. */
-function windDownOutcome(at: At, plan: SayPlan, decision: Decision): Outcome {
-  if (!at.gm.closing) throw new Error(`scene ${at.scene.id} is winding down with no ending closing`);
-  if (decision.outOfCharacter) at.gm.oocTurns.push(plan.n);
-  return { lines: [], directives: [], windDown: { exit: at.gm.closing.exitId } };
-}
-
-/**
- * engine.ts:593-638, 703, 723-738: the pending ending taken off; the route's move, or the same push
- * again; the rules' act (takeAct); out of character; then, for an act that was violence, nothing
- * more until the reactions to it (`act`, with whether the GM is to rule on it after them:
- * `considers`), and for a turn the GM is to rule on (wantsReview), nothing more until the ruling
- * (`considers`, with the ending held for the player's answer: `pending`). Otherwise a plan off the
- * graph noted for the co-GM, the held ending, and what this reply closes on. The turn's dice lines
- * start with the rules first's, and its directives are theirs.
- */
-function decideOutcome(tx: TxCtx, at: At, plan: SayPlan, decision: Decision): { outcome: Outcome; considers: boolean; pending: GmState["pendingExit"]; act?: Act } {
-  const { gm } = at;
-  const outcome: Outcome = { lines: [...plan.lines], directives: [...(plan.rulesFirst?.directives ?? [])] };
-  const pending = gm.pendingExit;
-  delete gm.pendingExit;
-
-  const move = decision.route ? routeMove(tx, at, plan, decision.route) : undefined;
-  if (move) takeRoute(tx, at, plan, move, pending, outcome);
-  else if (decision.sameAgain) gm.path.push({ turn: plan.n, from: gm.beat, to: gm.beat, via: `same-again:${decision.sameAgain.route}`, source: "pre" });
-  const act = decision.mechanic ? takeAct(tx, at, plan, decision.mechanic, move, outcome) : undefined;
-
-  if (decision.outOfCharacter) gm.oocTurns.push(plan.n);
-  const considers = wantsReview(gm, decision, move);
-  if (act) return { outcome, considers, pending, act };
-  if (considers) return { outcome, considers: true, pending };
-  if (decision.offGraph) gm.offGraphTurn = plan.n;
-  closesOrHolds(gm, plan.n, decision, outcome, pending, !!move, false);
-  return { outcome, considers: false, pending };
 }
 
 /**
@@ -210,32 +137,6 @@ function closesOrHolds(gm: GmState, n: number, decision: Decision, outcome: Outc
   }
 }
 
-/** The decision's route, resolved and its check rolled; none when it isn't a route open here (a stale or mistaken pick moves nothing). */
-function routeMove(tx: TxCtx, at: At, plan: SayPlan, route: NonNullable<Decision["route"]>): Move | undefined {
-  const transition = routeOf(at.graph, at.gm, route.id);
-  if (!transition) {
-    tx.log(`[scene ${at.scene.id} turn ${plan.n}] the decision's route ${route.id} isn't open from ${at.gm.beat}: no move`);
-    return undefined;
-  }
-  return resolveMove(at.graph, at.gm, transition, route, rollerFor(tx, at.scene));
-}
-
-/** The move taken: its dice line, what the reply is told of it (from the beat before), the beat moved on, and the ending it reaches. */
-function takeRoute(tx: TxCtx, at: At, plan: SayPlan, move: Move, pending: GmState["pendingExit"], outcome: Outcome): void {
-  if (move.roll) outcome.lines.push(diceLine(tx, at.scene, plan.n, move));
-  outcome.move = {
-    route: move.transition.id, phase: move.phase === "cue" ? "cue" : "attempt", from: at.gm.beat, to: move.to,
-    ...(move.roll ? { roll: move.roll } : {}), ...(move.exit ? { exit: move.exit.id } : {}), chosen: move.chosen,
-  };
-  applyMove(at.gm, move, "pre", plan.n);
-  outcome.taken = takeMove(at.gm, move, pending, plan.n);
-}
-
-/** A check's line in the transcript, as the dice say it. */
-function diceLine(tx: TxCtx, scene: SceneRow, n: number, move: Move): string {
-  return diceEntry(tx, scene, n, describeRoll(move.roll!, move.transition.check?.reason));
-}
-
 /** A dice line written to the transcript. */
 function diceEntry(tx: TxCtx, scene: SceneRow, n: number, text: string): string {
   addEntry(tx, scene, { turn: n, speaker: "dice", kind: "roll", text });
@@ -247,11 +148,10 @@ function diceEntry(tx: TxCtx, scene: SceneRow, n: number, text: string): string 
  * scene's world, from where they moved to first: a spell, a blow, a grab or a shove, a jump, a class
  * feature, a rest. Its dice lines, its directive (Outcome.acts), its step on the path; the world, the
  * character, the sheet and the pockets written. Then whether it was violence people would react to
- * (not while a fight is on already, nor on a route into one, which answers it on its own): the
- * reactions step's act. Not when the blow before their turn put them down (it doesn't happen), nor a
- * Shield already raised against it.
+ * (not while a fight is on already): the reactions step's act, parked for combat. Not when the blow
+ * before their turn put them down (it doesn't happen), nor a Shield already raised against it.
  */
-export function takeAct(tx: TxCtx, at: At, plan: Pick<SayPlan, "n" | "input" | "rulesFirst">, m: Mechanic, move: Move | undefined, outcome: Outcome): Act | undefined {
+export function takeAct(tx: TxCtx, at: At, plan: Pick<SayPlan, "n" | "input" | "rulesFirst">, m: Mechanic, outcome: Outcome): Act | undefined {
   const first = plan.rulesFirst;
   const forestalled = !!first?.down || (!!first?.shielded && m.kind === "cast" && m.spell === "shield");
   if (forestalled && first?.down) outcome.lines.push(diceEntry(tx, at.scene, plan.n, "(Knocked down before you could act: it doesn't happen)"));
@@ -281,8 +181,8 @@ export function takeAct(tx: TxCtx, at: At, plan: Pick<SayPlan, "n" | "input" | "
   for (const text of result.lines) outcome.lines.push(diceEntry(tx, at.scene, plan.n, text));
   if (result.directive) outcome.acts = [...(outcome.acts ?? []), result.directive];
   at.gm.path.push({ turn: plan.n, from: at.gm.beat, to: at.gm.beat, via: `rules:${m.kind}${m.kind === "cast" ? `:${m.spell}` : m.kind === "attack" || m.kind === "wrestle" ? `:${m.target}` : m.kind === "jump" ? `:${m.how}` : m.kind === "feature" ? `:${m.feature}` : `:${m.length}`}`, source: "pre" });
-  // Violence draws a reaction from everyone present: some fight, some flee, some run for help. An authored fight answers it on its own.
-  const act = move?.exit?.kind !== "combat" && !at.gm.brawl ? engine(rules => violence(rules, at.graph, session, m, before)) : undefined;
+  // Violence draws a reaction from everyone present: some fight, some flee, some run for help (not while a fight is on already).
+  const act = !at.gm.brawl ? engine(rules => violence(rules, at.graph, session, m, before)) : undefined;
 
   playedOut(tx, at.scene, at.graph, at.gm, played);
   tx.log(`[rules] act ${m.kind} ${Math.round(tx.elapsedMs() - started)} ms: ${result.lines.length} dice lines${act ? `; violence: ${act.what}` : ""}`);
@@ -302,18 +202,6 @@ export function reactionsTakeEffect(tx: TxCtx, at: At, plan: Pick<SayPlan, "n">,
   at.gm.path.push({ turn: plan.n, from: at.gm.beat, to: at.gm.beat, via: `reactions:${read}`, source: "pre" });
   syncStage(tx, at.scene, at.graph, at.gm);
   tx.log(`[scene ${at.scene.id} turn ${plan.n}] reactions to "${act.what}": ${read}`);
-}
-
-/**
- * engine.ts:643-648: a fight broke out this turn, and it's the turn's answer: an ending the move
- * reached this turn is undone (the reply isn't told it, and nothing closes on it), and the reply
- * ends on the fight breaking out (Outcome.brawl: the move's closing lines are dropped).
- */
-function breakOut(gm: GmState, n: number, outcome: Outcome): void {
-  delete outcome.taken;
-  if (gm.closing?.turn === n) delete gm.closing;
-  if (gm.pendingExit?.turn === n) delete gm.pendingExit;
-  outcome.brawl = true;
 }
 
 // ---------------------------------------------------------------------------------------------

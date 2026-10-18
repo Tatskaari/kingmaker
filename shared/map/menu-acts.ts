@@ -42,7 +42,7 @@ export interface Done {
   scene?: boolean;
   /** A talk with someone walking with the player opens (the act is its first turn). */
   talk?: { with: string; where: string };
-  /** The player's first turn in the scene or talk that opens: what they do (in brackets), and what the rules resolve (the decide request's `forced`). */
+  /** The player's first turn in the scene or talk that opens: what they do (in brackets), and what the rules resolve (the turn's `mechanic`, resolved as the turn starts). */
   act?: { text: string; mechanic: Mechanic };
   /** A fight breaks out on the map: recorded on the explore row for V12. */
   fight?: TownFight;

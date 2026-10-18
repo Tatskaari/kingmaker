@@ -42,7 +42,7 @@ test("a scene of the story opens on the two-part GM: everyone present has a role
   assert.deepEqual([now.scene.status, now.turns[0]!.phase], ["live", "done"]);
 });
 
-test("a line: replied with no decide, the GM's check rolled through the rules engine from the game's dice, its outcome written; then the stage manager and the co-GM, its move taken again on the rows", async () => {
+test("a line: replied at once, the GM's check rolled through the rules engine from the game's dice, its outcome written; then the stage manager and the co-GM, its move taken again on the rows", async () => {
   const { host, script, scene, line } = await yard();
   const roll = nextCheck(host, scene.controllerId, "medicine", 12);
   const band = bandOf(roll);
@@ -50,7 +50,6 @@ test("a line: replied with no decide, the GM's check rolled through the rules en
   script.then("settle", coGm([{ route: "find-murder", outcome: "none", why: "The cord mark landed." }], { cob: { status: "Behind the water butt", mental_state: "Scared", conversation_role: "Could show the loose board." } }));
 
   const now = await line("(I climb the stair and look at his neck)");
-  assert.deepEqual(script.to("decide"), [], "no decide");
   const reply = script.to("reply")[0]!.body as ReplyRequest;
   assert.equal(reply.outcome.windDown, undefined);
   assert.deepEqual(now.lines.slice(-4).map(l => [l.kind, l.text]), [

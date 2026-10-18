@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fakeFetch, type FakeOptions, type Request } from "../../llm/fake-openrouter.ts";
 import { initialGm, type GmState } from "../../../shared/gm/state.ts";
-import type { DecideRequest, Entry, ReactionsRequest, SheetRow } from "../../../shared/protocol/ai.ts";
+import type { Entry, ReactionsRequest, SheetRow } from "../../../shared/protocol/ai.ts";
 import type { Act } from "../../../shared/rules/types.ts";
 import type { PlaceFile } from "../../../shared/scene/files.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
@@ -13,19 +13,24 @@ import { keysFor, worldToRows, type PlaceRows } from "../../../shared/world/rows
 import { buildWorld, joinWorld } from "../../../shared/world/scene-world.ts";
 import { callContext } from "../calls.ts";
 import { campaigns } from "../campaigns.ts";
+import { mechanicOf } from "../../gm/director.ts";
 import { withTestClerk } from "../../gm/fixtures.ts";
+import { rulesOptions } from "../../gm/mechanics.ts";
+import { turnSource } from "../../gm/view.ts";
 import type { AiContext } from "../context.ts";
 import { folderStores } from "../folder-stores.ts";
 import { streamSink } from "../stream.ts";
 import { pipeline } from "./pipeline.ts";
+import { director, sceneAndView } from "./turn.ts";
 
 /**
  * A turn's thinks with the world bridge (world-bridge-design §3.1, package C), on the stand-in for
- * OpenRouter, for a wizard with her spells, weapons and features on her sheet: the decision's act
- * for the rules (which spell at what, a route's roll held behind it and let go on also, a roll wanted
- * that the act settles, or that it's only the means to), and the reactions of everyone who saw the
- * violence (and none when nobody did). (The threat a reply left hanging, read in the old pipeline's
- * settle, is director.test.ts's now, parked for combat; the old reply's directives went with it.)
+ * OpenRouter, for a wizard with her spells, weapons and features on her sheet, both parked for combat
+ * (nothing in a scene's play asks them since the old pipeline's decide went): what the rules resolve
+ * of her line (which spell at what, the world in the details call), and the reactions of everyone who
+ * saw the violence (and none when nobody did). (A route's roll held behind the act, and a roll wanted
+ * that the act settles, went with decide's one decision; the threat a reply left hanging, read in the
+ * old pipeline's settle, is director.test.ts's now, and the old reply's directives went with it.)
  */
 
 const CAERWYN = join(import.meta.dirname, "..", "..", "..", "campaigns", "caerwyn");
@@ -82,24 +87,27 @@ function turnOf(n: number, gm: GmState, rows: PlaceRows, transcript: Entry[], pa
   return { scene: { id: "1", key: "hanged-clerk", kind: "scene" as const, turn: n }, pc: "pc:1", gm, transcript, line: { speaker: "player:1", text: line }, world: rows, party, present: [], story: { time: "morning", day: 1, flags: {} } };
 }
 
-/** A decide on the yard's first turn, the player's line as given. */
-async function decided(options: FakeOptions, line: string, party: SheetRow[] = [WIZARD]) {
+/**
+ * What the rules resolve of the player's line on the yard's first turn, as the old pipeline's decide
+ * asked it of the director (mechanicOf, parked for combat: nothing in play asks it since that decide
+ * went), with what rulesOptions offers from the sheet and the world; nothing asked for a sheet with no build.
+ */
+async function ruled(options: FakeOptions, line: string, party: SheetRow[] = [WIZARD]) {
   const { fake, contextFor, rows } = await setUp(options);
   const gm = initialGm({ start: "yard" });
-  const req: DecideRequest = { key: `${GAME}:s1:t1:decide`, game, player, turn: turnOf(1, gm, rows(gm), [opening, said(1, line)], party), landed: [] };
-  const { decision } = await pipeline.decide(req, contextFor(req.key));
-  return { decision, sent: fake.sent };
+  const ctx = contextFor(`${GAME}:s1:t1:reply`);
+  const { scene, view } = sceneAndView(ctx, "hanged-clerk", turnSource({ game, turn: turnOf(1, gm, rows(gm), [opening, said(1, line)], party) }));
+  const rules = rulesOptions(scene, view, line);
+  const { mechanic } = rules ? await mechanicOf(director(ctx.calls), scene, view, line, rules) : {};
+  return { mechanic, sent: fake.sent };
 }
 
-test("decide: the rules' act on a scripted cast, at what the player aimed it, its details asked in a second small call with the world", async () => {
-  const { decision, sent } = await decided({ choices: { mechanic: "cast", spell: "magic-missile", aim_thing: "hoist-rope" } }, MISSILE);
+test("parked for combat: the rules' act on a scripted cast, at what the player aimed it, its details asked in a second small call with the world", async () => {
+  const { mechanic, sent } = await ruled({ choices: { mechanic: "cast", spell: "magic-missile", aim_thing: "hoist-rope" } }, MISSILE);
 
-  assert.deepEqual(decision.mechanic, { kind: "cast", spell: "magic-missile", targets: ["hoist-rope"] });
-  assert.equal(decision.route, undefined);
-  assert.equal("details" in decision, false, "what the details call needed isn't part of the answer");
-  // (Disclosure asks the Decisions API too: the director's calls are found by their questions.)
-  const before = sent.find(b => b.questions?.earned), details = sent.find(b => b.questions?.spell);
-  assert.ok(before!.questions!.mechanic, "the turn's one decision asks what the rules resolve");
+  assert.deepEqual(mechanic, { kind: "cast", spell: "magic-missile", targets: ["hoist-rope"] });
+  const [question, details] = sent;
+  assert.deepEqual(Object.keys(question!.questions!), ["mechanic"], "what the rules resolve, in a call of its own");
   assert.deepEqual(Object.keys(details!.questions!.spell!.criteria), ["fire-bolt", "magic-missile", "burning-hands", "scorching-ray", "not_theirs"], "her spells, from the sheet");
   assert.equal(details!.questions!.spell!.criteria["magic-missile"], "Magic Missile (1st-level)");
   assert.equal(Object.keys(details!.questions!.aim_thing!.criteria)[0], "hoist-rope", "what the line names first, of what's near enough to aim at");
@@ -107,42 +115,12 @@ test("decide: the rules' act on a scripted cast, at what the player aimed it, it
   assert.match(JSON.stringify((details as Request & { state?: { world?: string } }).state?.world), /hoist rope/, "where they act from means something: the world is in the call");
 
   // A quiet turn asks nothing more; a sheet with no build isn't asked what the rules resolve at all.
-  const quiet = await decided({}, "Sergeant, who found him?");
-  assert.equal(quiet.decision.mechanic, undefined);
-  assert.equal(quiet.sent.filter(b => b.questions?.earned || b.questions?.spell || b.questions?.target).length, 1, "the turn's one decision, and no details call");
+  const quiet = await ruled({}, "Sergeant, who found him?");
+  assert.equal(quiet.mechanic, undefined);
+  assert.equal(quiet.sent.length, 1, "the question, and no details call");
   const { build: _, ...plain } = WIZARD;
-  const none = await decided({ choices: { mechanic: "cast" } }, MISSILE, [plain]);
-  assert.equal(none.sent.find(b => b.questions?.earned)!.questions!.mechanic, undefined);
-  assert.equal(none.decision.mechanic, undefined);
-});
-
-test("decide: a route's roll is held behind the rules' act, and let go on also; a roll wanted is the act's to settle, unless it's only the means", async () => {
-  const throwAt = "(I hurl my dagger at the rope above the corpse, then get right up to Prout to examine his neck)";
-  const blow = { attempt: "examine-body", mechanic: "attack", target: "hoist-rope", weapon: "dagger" };
-  const held = await decided({ choices: blow }, throwAt);
-  assert.deepEqual(held.decision.mechanic, { kind: "attack", target: "hoist-rope", weapon: "dagger" });
-  assert.equal(held.decision.route, undefined, "no Medicine roll while the rules resolve the throw");
-  const asked = held.sent.find(b => b.questions?.target)!;
-  // (The tests' hanged clerk has its routes in the scene format, whose checks give no reason: the question names the act by the route's condition.)
-  assert.match((asked.questions!.also as { instructions?: string }).instructions ?? "", /this Medicine check is for \(The player examines Prout's neck, head or hands up close/);
-
-  const released = await decided({ choices: { ...blow, also: "yes" } }, throwAt);
-  assert.deepEqual(released.decision.route, { id: "examine-body", phase: "attempt", check: { skill: "medicine", dc: 12 } });
-  assert.equal(released.decision.mechanic?.kind, "attack");
-
-  // A roll wanted, and the rules' act: the act settles it (the means question rides the details call, and says no).
-  const cast = { roll_call: "new", mechanic: "cast", spell: "magic-missile", aim_thing: "hoist-rope" };
-  const settled = await decided({ choices: cast }, MISSILE);
-  assert.equal(settled.decision.considered, undefined);
-  assert.equal(settled.decision.mechanic?.kind, "cast");
-  assert.ok(settled.sent.find(b => b.questions?.spell)!.questions!.means_only);
-  assert.equal(settled.sent.find(b => b.questions?.earned)!.questions!.means_only, undefined);
-  // Only the means to something risky the rules don't settle: the GM rules on that too, after the rules.
-  const means = await decided({ choices: { ...cast, means_only: "yes" } }, "(I cast Magic Missile at the hoist rope and dive to catch the body as it falls)");
-  assert.ok(means.decision.considered && means.decision.considered.probability >= 0.7);
-  assert.equal(means.decision.mechanic?.kind, "cast");
-  // No act: the roll wanted is the GM's, as before.
-  assert.ok((await decided({ choices: { roll_call: "new" } }, "*crouches by Cob* Take the left boot off yourself.")).decision.considered);
+  const none = await ruled({ choices: { mechanic: "cast" } }, MISSILE, [plain]);
+  assert.deepEqual([none.sent.length, none.mechanic], [0, undefined]);
 });
 
 const AT_COB: Act = { what: "cast Magic Missile at the boy in the too-big boots", victims: ["cob"], property: [] };

@@ -7,13 +7,10 @@ import { fakeFetch, type FakeFetch, type FakeOptions, type Request } from "../..
 import { LOOK_MODEL } from "../../look/invent.ts";
 import { initialGm, type GmState, type TalkRecord } from "../../../shared/gm/state.ts";
 import { openingRoles, rolesNote } from "../../../shared/gm/two-part.ts";
-import type { DecideRequest, Entry, LooksRequest, OpenRequest, SettleRequest, SheetRow, Story, TalkPrep } from "../../../shared/protocol/ai.ts";
-import type { Mechanic } from "../../../shared/rules/types.ts";
-import type { PlaceFile } from "../../../shared/scene/files.ts";
+import type { Entry, LooksRequest, OpenRequest, SettleRequest, SheetRow, Story, TalkPrep } from "../../../shared/protocol/ai.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import { CONFIDED, GOODBYE, talkSceneId, TOLD } from "../../../shared/scene/talk.ts";
-import { keysFor, worldToRows, type PlaceRows } from "../../../shared/world/rows.ts";
-import { buildWorld, joinWorld } from "../../../shared/world/scene-world.ts";
+import type { PlaceRows } from "../../../shared/world/rows.ts";
 import { callContext } from "../calls.ts";
 import { campaigns } from "../campaigns.ts";
 import { withTestClerk } from "../../gm/fixtures.ts";
@@ -31,8 +28,9 @@ import { pipeline } from "./pipeline.ts";
  * discovery with the ways it can come out, two to four lines, the deepest of her story withheld
  * before the third talk), a talk's settle (the co-GM, her role and the discovery its target, and the
  * next lines; once the co-GM has it out, a line of the GM's notes on her that she told it, written
- * once), decide with the map's menu's act already chosen (forced: no mechanic question, the act is
- * the decision's), and the looks of what the story made (an Invention per key; the canned GM's none).
+ * once), and the looks of what the story made (an Invention per key; the canned GM's none). (Decide
+ * with the map's menu's act already chosen went with the old pipeline's decide: the two-part GM's turn
+ * resolves the act in the simulation, simulation/src/map/acts.test.ts.)
  */
 
 const CAERWYN = join(import.meta.dirname, "..", "..", "..", "campaigns", "caerwyn");
@@ -73,15 +71,6 @@ const WIZARD: SheetRow = {
   spells: [{ id: "fire-bolt", name: "Fire Bolt", level: 0 }, { id: "ray-of-frost", name: "Ray of Frost", level: 0 }, { id: "magic-missile", name: "Magic Missile", level: 1 }],
   weapons: [{ id: "quarterstaff", name: "Quarterstaff" }], features: [],
 };
-
-/** The yard as the hanged clerk opens it, by the game's keys. */
-function yardRows(gm: GmState): PlaceRows {
-  const place = JSON.parse(FILES["places/granary-yard.json"]!) as PlaceFile;
-  const people = presentCast(campaign.scene("hanged-clerk"), gm).map(c => ({ id: c.id, name: c.name }));
-  const world = buildWorld("hanged-clerk", place, people, { name: "Wren Ashdown" });
-  joinWorld(world, people, 0);
-  return worldToRows(world, keysFor("granary-yard", "hanged-clerk", "pc:1"));
-}
 
 /** The town's own place, as a talk's requests carry it (a talk has no world of its own: the AI service reads none of it). */
 const TOWN: PlaceRows = {
@@ -284,31 +273,6 @@ test("once the co-GM takes the way into told, a line of the GM's notes on her th
   const again = await pipeline.settle(talkSettle(5, later, "And you never went back?", "“Never.”"), setUp({ talkSuggestions: LINES, coGm: { endings: [TOLD] } }).contextFor(`${GAME}:s11:t5:settle`));
   assert.deepEqual(again.coGm?.moves, []);
   assert.equal(remembered().length, 1);
-});
-
-const RAY: Mechanic = { kind: "cast", spell: "ray-of-frost", targets: ["kell"], from: { backOff: 30 } };
-
-test("decide with the menu's act chosen already (forced): no mechanic question, no details call, the act is the decision's, and no ruling over it", async () => {
-  const { fake, contextFor } = setUp({ choices: { roll_call: "new", mechanic: "attack" } });
-  const gm = initialGm({ start: "yard" });
-  const line = "(I cast Ray of Frost at Sergeant Agnes Kell)";
-  const req: DecideRequest = {
-    key: `${GAME}:s1:t1:decide`, game, player,
-    turn: { scene: { id: "1", key: "hanged-clerk", kind: "scene", turn: 1 }, pc: "pc:1", gm, transcript: [{ turn: 0, speaker: "gm", kind: "narration", text: "Rain on the cobbles." }, { turn: 1, speaker: "player:1", kind: "player", text: line }], line: { speaker: "player:1", text: line }, world: yardRows(gm), party: [WIZARD], present: [], story: { time: "morning", day: 1, flags: {} } },
-    landed: [], forced: RAY,
-  };
-  const { decision } = await pipeline.decide(req, contextFor(req.key));
-
-  assert.deepEqual(decision.mechanic, RAY);
-  assert.equal(decision.considered, undefined, "the act settles it: no ruling, whatever the roll call says");
-  const before = asking(fake, "earned")[0]!;
-  assert.equal(before.questions!.mechanic, undefined, "not asked: it's chosen");
-  assert.equal(fake.sent.filter(b => b.questions?.spell || b.questions?.target || b.questions?.weapon).length, 0, "no details call");
-
-  // Without it, the same line is asked as ever.
-  const asked = setUp();
-  await pipeline.decide({ ...req, key: `${GAME}:s1:t2:decide`, forced: undefined }, asked.contextFor(`${GAME}:s1:t2:decide`));
-  assert.ok(asking(asked.fake, "earned")[0]!.questions!.mechanic);
 });
 
 test("POST /v1/looks: an Invention per key it answers (the model's words made safe), a key it left out none, one call a batch of twenty; the canned GM's none", async () => {

@@ -17,18 +17,19 @@ export interface Seen { scene: number; place: number }
  * scene picking up after a fight on a turn of its own: the think is told how the fight went, and its
  * commit applies what the stage manager says the aftermath did. With `act` (town-design §3.4), the
  * map's action menu opened it: once the opening is in, the commit queues the act as turn 1, its
- * words the player's line and its mechanic the turn's (decide's `forced`). A talk's opening (§3.6)
+ * words the player's line and its mechanic the turn's (the say plan's `forced`). A talk's opening (§3.6)
  * is told its own in the request (`talk`), and keeps the answer's prep.
  */
 export interface OpenPlan { step: "open"; game: string; scene: string; turn: string; seen: Seen; aftermath?: { summary: string }; act?: { text: string; mechanic: Mechanic }; twoPart?: boolean }
 
 /**
- * A say turn's plan: decide, then reply, then settle (or, on the wind-down, decide and reply). A turn
- * whose act the rules resolved as violence (world-bridge-design §3.4) has reactions after decide; a
- * turn the GM rules on (full-gm-design §4.2) has consider before the reply.
+ * A say turn's plan: the two-part GM's reply, then its settle (on the wind-down, the reply alone).
+ * The reactions to the player's violence (world-bridge-design §3.4) are a step of their own, parked for
+ * combat (nothing queues them since the old pipeline's decide went); a turn the GM rules on
+ * (full-gm-design §4.2) has consider before the reply.
  */
 export interface SayPlan {
-  step: "decide" | "reactions" | "consider" | "reply" | "settle";
+  step: "reactions" | "consider" | "reply" | "settle";
   game: string; scene: string; turn: string; n: number; player: string;
   input: string;
   /** Who was on stage as the player spoke (presentCast): whyItWaits' arrivals. */
@@ -45,10 +46,8 @@ export interface SayPlan {
    */
   rulesFirst?: { directives: string[]; down: boolean; shielded: boolean };
   decision?: Decision;
-  /** The decide commit's act, when the rules resolved it as violence people react to (scene-acts.ts violence): the reactions step's request. */
+  /** The act the rules resolved, when it was violence people react to (scene-acts.ts violence): the reactions step's request (parked for combat). */
   act?: Act;
-  /** Where a turn with reactions goes after them: the full GM's consider, or the reply. */
-  then?: "consider" | "reply";
   /**
    * A considered turn's: the ending held for the player's answer, which the decide commit took off
    * the bookkeeping (consider's `pending`, and the held ending the consider commit decides).
@@ -66,7 +65,7 @@ export interface SayPlan {
   /** This turn's dice lines. */
   lines: string[];
   seen: Seen;
-  /** What the rules resolve this turn, chosen already (town-design §3.4: turn.mechanic, the map's act): the decide request's `forced`. */
+  /** What the rules resolve this turn, chosen already (town-design §3.4: turn.mechanic, the map's act), resolved as the turn starts. */
   forced?: Mechanic;
   /** The check the two-part GM's mouthpiece called this turn, as rolled, for the co-GM. */
   check?: TurnCheck;

@@ -161,7 +161,7 @@ test("a run that throws is logged, never rejected; so is a throw from the commit
 
   host.transact(tx => {
     const job = tx.db.job.insert({
-      id: 0n, key: "x:s1:t1:decide", gameId: undefined, sceneId: undefined, turnId: undefined, move: "nosuch", step: "decide", endpoint: "/v1/turns/decide", timeoutMs: 20_000,
+      id: 0n, key: "x:s1:t1:reply", gameId: undefined, sceneId: undefined, turnId: undefined, move: "nosuch", step: "reply", endpoint: "/v1/turns/reply", timeoutMs: 60_000,
       request: "{}", plan: "{}", state: "queued", attempts: 0, deadline: undefined, retryAt: undefined, failingSince: undefined, error: undefined, updatedAt: tx.now,
     });
     tx.db.jobDispatch.insert({ scheduledId: 0n, scheduledAt: ScheduleAt.time(tx.now.microsSinceUnixEpoch), jobId: job.id });

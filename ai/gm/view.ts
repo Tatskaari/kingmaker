@@ -40,9 +40,9 @@ export interface TurnView {
   player: { name: string; concept: string; modifiers: Partial<Record<Skill, number>>; build?: string; backstory?: Backstory };
   /**
    * Present when the sheet is a ready-made build: then the table rules are D&D's (sceneBrief), the GM
-   * hears the character's state, and the decider is asked what the rules resolve, offered the spells
-   * ready, the weapons carried and the class features with uses (the sheet row's: world-bridge-design
-   * §3.1), which the suggested lines hear of too.
+   * hears the character's state, and the spells ready, the weapons carried and the class features
+   * with uses (the sheet row's: world-bridge-design §3.1) are what the suggested lines hear of, and
+   * what the rules' mechanic question offers (parked for combat: gm/mechanics.ts rulesOptions).
    */
   rules?: { status?: string; aliases?: Record<string, string>; spells?: SpellRef[]; weapons?: WeaponRef[]; features?: Array<{ id: string; name: string; target: "self" | "creature" }> };
   /** The story the scene belongs to: the scenes the copied code reads besides this one (gm/story.ts, in place of the prototype's SCENES and sceneById). */

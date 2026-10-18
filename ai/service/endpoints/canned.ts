@@ -39,9 +39,6 @@ export const canned: Endpoints = {
     const talk = req.talk ? { talk: { established: [], patches, withheld: [], suggestions: req.talk.suggest ? TALK_LINES : [] } } : {};
     return { present: presentCast(scene, req.gm).map(c => c.id), entries: [opening], opened: [], ...talk, usage: noUsage() };
   },
-  async decide() {
-    return { decision: { earned: false, daft: false, outOfCharacter: false }, opened: [], usage: noUsage() };
-  },
   async reactions() {
     return { reactions: {}, usage: noUsage() };
   },

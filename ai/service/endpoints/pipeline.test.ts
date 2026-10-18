@@ -7,7 +7,7 @@ import { fakeFetch, type FakeOptions, type Request } from "../../llm/fake-openro
 import { prompt } from "../../prompts/index.ts";
 import { initialGm, type GmState } from "../../../shared/gm/state.ts";
 import type { Markup } from "../../../shared/markup.ts";
-import type { DecideRequest, Entry, OpenRequest, ReplyRequest, SettleRequest, StreamReplyArgs, SuggestRequest } from "../../../shared/protocol/ai.ts";
+import type { Entry, OpenRequest, ReplyRequest, SettleRequest, StreamReplyArgs, SuggestRequest } from "../../../shared/protocol/ai.ts";
 import type { PlaceFile } from "../../../shared/scene/files.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import { keysFor, worldToRows, type PlaceRows } from "../../../shared/world/rows.ts";
@@ -78,8 +78,7 @@ function turnOf(n: number, gm: GmState, rows: PlaceRows, transcript: Entry[]) {
 const opening: Entry = { turn: 0, speaker: "gm", kind: "narration", text: "Rain on the cobbles. A body hangs from the hoist." };
 const said = (n: number, text = LINE): Entry => ({ turn: n, speaker: "player:1", kind: "player", text });
 
-/** A decision call's questions, and a Responses call's last developer message (the GM's note for this reply). */
-const questionsOf = (body: Request) => Object.keys(body.questions ?? {});
+/** A Responses call's last developer message (the GM's note for this reply). */
 const noteOf = (body: Request) => body.input?.filter(m => m.role === "developer").at(-1)?.content ?? "";
 
 test("the opening: what bears on the scene's start is opened, the GM opens it, and its words stream to the opening's draft", async () => {
@@ -142,35 +141,6 @@ test("a sheet with no backstory written leaves the player's doc as it was: their
   await pipeline.open(req, contextFor(req.key));
 
   assert.equal(readFileSync(join(store, "games", GAME, "docs", "Player", "Wren Ashdown.md"), "utf8").includes("backstory"), false);
-});
-
-test("decide: the route the turn takes with its check (rolled by the simulation), and whose memories bear on it", async () => {
-  const { campaign, fake, contextFor } = await setUp({ choices: { attempt: "catch-moll" } });
-  const gm = initialGm({ start: "yard" });
-  const req: DecideRequest = { key: `${GAME}:s1:t1:decide`, game, player: { id: "1", name: "Wren Ashdown" }, turn: turnOf(1, gm, openingRows(gm, campaign), [opening, said(1, "Moll, you never saw him jump. You were asleep on that wall.")]), landed: [] };
-  const answer = await pipeline.decide(req, contextFor(req.key));
-
-  const before = fake.sent.find(b => b.questions?.earned)!;
-  // (The tests' hanged clerk has its routes in the scene format, whose checks give no reason.)
-  assert.deepEqual(answer.decision.route, { id: "catch-moll", phase: "attempt", check: { skill: "insight", dc: 13 } });
-  assert.deepEqual([answer.decision.earned, answer.decision.daft, answer.decision.outOfCharacter], [false, false, false]);
-  // (The wizard's sheet has a build: what the rules resolve is asked too, and on the quiet answer nothing is.)
-  assert.deepEqual(questionsOf(before), ["attempt", "attempt_means", "cue", "roll_call", "off_graph", "earned", "daft", "mechanic", "ooc", "limit"]);
-  assert.equal(answer.decision.mechanic, undefined);
-  assert.ok(Object.keys(before.questions!.attempt!.criteria).some(k => k.startsWith("plain:")), "the outcomes that simply happen are options");
-  assert.ok(answer.opened.length > 0);
-  assert.deepEqual(answer.decision.remembered, ["Sergeant Agnes Kell", "Cob", "Moll"]);
-});
-
-test("decide on the wind-down asks only whether the player is out of character", async () => {
-  const { campaign, fake, contextFor } = await setUp({ choices: { ooc: "out_of_character" } });
-  const gm: GmState = { ...initialGm({ start: "yard" }), closing: { exitId: "case-made", turn: 3 } };
-  const req: DecideRequest = { key: `${GAME}:s1:t4:decide`, game, player: { id: "1", name: "Wren Ashdown" }, turn: turnOf(4, gm, openingRows(gm, campaign), [opening, said(4, "(What happens now?)")]), landed: [] };
-  const answer = await pipeline.decide(req, contextFor(req.key));
-
-  assert.deepEqual(answer.decision, { earned: false, daft: false, outOfCharacter: true });
-  assert.deepEqual(fake.sent.map(questionsOf), [["ooc"]]);
-  assert.deepEqual(answer.opened, []);
 });
 
 test("settle: the stage manager's operations by game key, beside the co-GM", async () => {

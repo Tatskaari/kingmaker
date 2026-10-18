@@ -111,7 +111,7 @@ function prepared(gm: GmState, prep: TalkPrep): Partial<GmState> {
 
 /**
  * The map's act as the scene's first turn (town-design §3.4: storyAct's): the player's line in
- * brackets, and its mechanic, chosen already, on the turn (turn.mechanic: decide's `forced`). It
+ * brackets, and its mechanic, chosen already, on the turn (turn.mechanic, which the turn's start resolves). It
  * waits as queued; turn 0's end starts it (turns.ts).
  */
 function queueAct(tx: TxCtx, scene: SceneRow, act: { text: string; mechanic: Mechanic }): void {

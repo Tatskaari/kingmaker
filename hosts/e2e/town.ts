@@ -19,7 +19,7 @@ import { bigints, callLog, check, doneTurn, mapUntil, moduleLog, nextTurn, note,
  * Then, the yard ended, a word with Kell between scenes, played on the two-part GM: a talk opens with
  * her greeting (the mouthpiece's, from her opening role) and lines to choose, told the GM's notes on
  * her (the memory reviews' line, and what the yard's ending says of her), a line chosen brings her
- * reply (no decide) and new lines beside the co-GM, and walking on puts the player back on the map
+ * reply and new lines beside the co-GM, and walking on puts the player back on the map
  * with the waiting Rat exactly as it was; a second talk's goodbye said closes it with her reply. The
  * menu acts' times, as the module logged them.
  */
@@ -160,7 +160,7 @@ export async function theTown(stack: Stack, root: string, lead: Player, b: Playe
   const next = await until(lead, "her next lines", 10_000, r => r.suggestions.some(s => s.turn === 1) && r);
   check(`her reply, and ${next.suggestions.filter(s => s.turn === 1).length} new lines`, replied.transcript.some(t => t.turn === 1 && t.kind === "narration") && next.suggestions.filter(s => s.turn === 1).length >= 2);
   const asked = callLog(root, uid).filter(c => c.started && String(c.key).includes(`:s${talk.scene.id}:t1:`));
-  check(`played on the two-part GM: ${[...new Set(asked.map(c => c.operation))].join(", ")} for its turn, and no decide`, asked.some(c => c.operation === "two-part.reply") && asked.some(c => c.operation === "two-part.co-gm") && !asked.some(c => String(c.key).endsWith(":decide")));
+  check(`played on the two-part GM: ${[...new Set(asked.map(c => c.operation))].join(", ")} for its turn`, asked.some(c => c.operation === "two-part.reply") && asked.some(c => c.operation === "two-part.co-gm"));
   check(`the goodbye is a line too ("${FAREWELL}"): not said here; walking on (walk toward out)`, (await lead.conn.walk({ toward: "out" })) === undefined);
   const back = await mapUntil(lead, `${lead.name} back on the map after the talk`, 10_000, v => !v.ex.scene && v);
   const [talked] = await stack.sql(`SELECT * FROM scene WHERE id = ${talk.scene.id}`);

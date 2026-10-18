@@ -318,7 +318,7 @@ export const turn = table({ name: "turn", public: true }, {
   /** 0 is the opening. */
   n: t.u32(),
   playerId: t.u64(),
-  /** queued, deciding, considering (the GM rules on the act before replying), replying, settling, done, failed (noting, while its reply's notes were written, until M2). */
+  /** queued, considering (the GM rules on the act before replying), replying, settling, done, failed (noting, while its reply's notes were written, until M2; deciding, until the old pipeline's decide went). */
   phase: t.string(),
   /** While it waits on the AI service. */
   note: t.option(t.string()),
@@ -337,8 +337,8 @@ export const turn = table({ name: "turn", public: true }, {
   suggestAsks: t.u32().default(0),
   /**
    * JSON: shared/rules Mechanic, what the rules resolve this turn, chosen already (town-design §3.4:
-   * the map's action menu's act at a waiting scene, played as its first turn): its decide request's
-   * `forced`. None for a line the player typed.
+   * the map's action menu's act at a waiting scene, played as its first turn), which the turn's start
+   * resolves (two-part.ts twoPartStart). None for a line the player typed.
    */
   mechanic: t.option(t.string()).default(undefined),
 });

@@ -42,7 +42,7 @@ const CALLS: Call[] = [
   { key: "u1:s7:t1:reply", error: "OpenRouter reply HTTP 402: {\"error\":\"in_flight_budget_exhausted\"}" },
   { key: "u1:s7:t1:reply", retry: 1, status: 429 },
   { key: "u1:s7:t1:reply", text: "Kell nods.", costUsd: 0.003 },
-  { key: "u1:s7:t1:decide", answers: { attempt: { choice: "none" } }, costUsd: 0.001 },
+  { key: "u1:s7:t1:suggest", answers: { line_1: { choice: "fits" } }, costUsd: 0.001 },
   { key: "u1:s3:t2:boundary", text: "hand-off", costUsd: 0.004 },
 ];
 
