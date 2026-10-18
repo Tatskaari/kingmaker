@@ -134,11 +134,11 @@ The docs service and the model client are changed the same way, with the same ch
 
 What the prototype's AI did that the game doesn't do yet (its code is in git history at `bc2ab1f`), built a vertical at a time:
 
-- **the rest of the GM pipeline:** V0's, V5's, the full GM's and the whole story's part is in gm/ (a copy of the prototype's src/runtime and src/world/stage.ts); the voices of the `actors` approaches (a narrator and each character's own voice), the quick co-GM, the improvisation guide (#661's `gm-improv.md` and `gm-improv-remind.md`, which are in prompts/ but which gm/ doesn't send), and a boundary previewed without moving on (the zoo's boundary desk) were the prototype's only;
-- **the other model work:** the decider's reading of a line typed in a fight and the GM's line after it, with fight.md (src/game/combat); the world scribe's update script after a scene, with scribe.md (src/world/scribe.ts); a place's plan, compiled into a map (src/game/map/generate); skill modifiers from the concept when there's no build, and the sheet a character-creation scene writes from its conversation (src/runtime/engine.ts);
+- **the rest of the GM pipeline:** V0's, V5's, the full GM's and the whole story's part is in gm/ (a copy of the prototype's src/runtime and src/world/stage.ts); the voices of the `actors` approaches (a narrator and each character's own voice), the quick co-GM, the improvisation guide (#661's, whose prompts went from prompts/ after the old pipeline's salvage, never sent), and a boundary previewed without moving on (the zoo's boundary desk) were the prototype's only;
+- **the other model work:** the decider's reading of a line typed in a fight and the GM's line after it, with fight.md (src/game/combat: the prompt kept, parked for combat); the world scribe's update script after a scene (src/world/scribe.ts, its prompt gone with the salvage's cleanup); a place's plan, compiled into a map (src/game/map/generate); skill modifiers from the concept when there's no build, and the sheet a character-creation scene writes from its conversation (src/runtime/engine.ts);
 - **stores for a stateless host:** the service's stores are behind interfaces, but V0's are a folder, and the docs service reads and writes each game's copy of the lore as files (see below).
 
-The prototype's evals called the model too (src/eval and evals/: the judge and the simulated players, with judge.md and player-sim.md from here), to check the AI's work; they went with it.
+The prototype's evals called the model too (src/eval and evals/: the judge and the simulated players, whose prompts were here until the old pipeline's salvage), to check the AI's work; they went with it.
 
 ## Known gaps and sharp edges
 

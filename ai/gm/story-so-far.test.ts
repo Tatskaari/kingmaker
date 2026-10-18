@@ -101,8 +101,6 @@ test("nobody answers a question put to the player for them, and nobody knows wha
   assert.match(gm, /A question put to the player character is theirs to answer: nobody answers it for them, over them or before them \(a companion included\), and the reply stops on it\./);
   assert.match(gm, /A companion speaks to what they saw themselves when the player calls on them, or once if the player's word is doubted, and never to what they didn't see\./);
   assert.match(gm, /What you know of the story \(your prep, earlier scenes, what happened elsewhere\) isn't theirs, so nobody asks about, names or guesses at something they haven't heard of\./);
-  assert.match(prompt("actor"), /A question put to the player's character is theirs to answer: don't answer it for them or over them\./);
-  assert.match(prompt("narrator"), /a question put to them is theirs to answer, not anyone else's/);
 });
 
 test("what someone saw or heard for themselves goes in the GM's notes on them: a companion's included, in the words that matter", () => {

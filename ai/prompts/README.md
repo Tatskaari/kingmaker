@@ -2,7 +2,7 @@
 
 Part of the [architecture overview](../../ARCHITECTURE.md), and of [ai/](../README.md): the AI service's prompts and their loader.
 
-The system prompts for the GM (the two-part GM's mouthpiece and co-GM that play the story's scenes, and the old pipeline's GM that plays the aftermath of a fight), the suggested lines and the memory reviewers, one Markdown file each, and some the prototype used that the game doesn't load yet (the narrator, the actors, the world scribe, the fights, the improvisation guide and the evals'). A prompt is loaded by name and sent as a call's `instructions`; everything that changes from call to call (the scene's prep, the transcript, what was decided this turn) is built in code and sent as the input.
+The system prompts for the GM (the two-part GM's mouthpiece and co-GM that play the story's scenes, and the old pipeline's GM that plays the aftermath of a fight), the suggested lines and the memory reviewers, one Markdown file each, and the fights', which the game doesn't load yet (parked for combat). A prompt is loaded by name and sent as a call's `instructions`; everything that changes from call to call (the scene's prep, the transcript, what was decided this turn) is built in code and sent as the input.
 
 ## What it is
 
@@ -14,17 +14,13 @@ Each file is the standing brief for one role: how the GM runs the table ([gm.md]
 |---|---|---|
 | [two-part-gm.md](two-part-gm.md) | `mouthpieceInstructions`, [gm/two-part.ts](../gm/two-part.ts) | The two-part GM's mouthpiece (docs/two-part-design.md): every reply, opening and closing of a scene of the story. The user's words, copied verbatim from PR #666 (`prompts/two-part-gm.md` at `origin/claude/two-part-gm` c749270): never edit them. `{{tone}}` is tone-comic.md, `{{beats}}` the prep rendered from the .kmscene, `{{characters}}` the cast cards; the code appends the reply format (JSON with the narration and a check) and gm.md's speaker paragraph. |
 | [two-part-co-gm.md](two-part-co-gm.md) | `coGmInstructions`, [gm/two-part.ts](../gm/two-part.ts) | The two-part GM's co-GM, after each reply beside the stage manager: each person's role, and the scene's moves along its routes. The user's words, verbatim from the same commit: never edit them. The prep it's given adds each stage's suggested roles and each person's palette and clues; the code appends its tools section. |
-| [gm.md](gm.md) | `gmReply`, [gm/voice.ts](../gm/voice.ts) | The old pipeline's GM: a talk's every reply and opening, and the aftermath of a fight. `{{tone}}` becomes tone-comic.md. Its last part teaches the markup the screen reads: the speaker before each line ([gm/markup.ts](../gm/markup.ts) reads it; the notes on marked words went in M2, and a mark a model writes anyway is taken out of the words). |
+| [gm.md](gm.md) | `gmReply`, [gm/voice.ts](../gm/voice.ts) | The old pipeline's GM: the aftermath of a fight (the suggested lines' screen reads its words too). `{{tone}}` becomes tone-comic.md. Its last part teaches the markup the screen reads: the speaker before each line ([gm/markup.ts](../gm/markup.ts) reads it; the notes on marked words went in M2, and a mark a model writes anyway is taken out of the words). |
 | [tone-comic.md](tone-comic.md) | gm.md's `{{tone}}` | The house style, in every GM call; the suggested lines' screen reads its words too ([gm/suggest.ts](../gm/suggest.ts)) |
 | [suggest.md](suggest.md) | `propose`, [gm/suggest.ts](../gm/suggest.ts) | After a GM reply in a scene of the story, with the game's suggested lines on: three to five lines the player might say or do next. Its brief (what the player knows and nothing more, what's not to come again) is built in code. No backticks: in Luna's instructions they cost 6 to 7 s before the first word. |
-| [gm-markup.md](gm-markup.md) | `gmReply` (`nowNote`'s `remind`) | The old pipeline's every reply: a line on the markup (the speaker tags), just before "For this reply", where a model attends most |
+| [gm-markup.md](gm-markup.md) | `gmReply` (`nowNote`'s `remind`) | The old pipeline's GM's reply (a fight's aftermath): a line on the markup (the speaker tags), just before "For this reply", where a model attends most |
 | [memory-review.md](memory-review.md) | the notes review, [docs/reviews.ts](../docs/reviews.ts) | When the attention filter flags anything after a turn: the GM's notes on the people present brought up to date ([docs/notes.ts](../docs/notes.ts)), in one structured call whose updates each rewrite, take out or add a line. `{{parts}}` is the note's five parts with how many lines each holds (`partsText`). Third person, only what this moment brought, each thing once where it belongs, only what each person lived through, a witness's words that matter |
 | [review/system.md](review/system.md) with [improvised.md](review/improvised.md), [world.md](review/world.md), [focused.md](review/focused.md) | the world-facts agent, reviews.ts | When it flags an improvised detail or a lasting change (focused.md always comes with this agent). People's notes are the notes review's, not this agent's |
-| [gm-improv.md](gm-improv.md), [gm-improv-remind.md](gm-improv-remind.md) | nothing in the game yet | The improvisation guide (#661): the prototype's `v2` approach put it after gm.md, and the reminder before each reply's directives (`guide: "improv"`); neither the old pipeline's GM nor the two-part GM ([gm/](../gm/)) sends it |
-| [narrator.md](narrator.md), [actor.md](actor.md) | nothing in the game | The prototype's `actors` approaches: the narration between the characters, and one call per speaking character with their card |
-| [fight.md](fight.md) | nothing in the game yet | The prototype's fights: a line typed in a fight, read and answered (V13) |
-| [scribe.md](scribe.md) | nothing in the game | The prototype's world scribe: a scene's update script |
-| [judge.md](judge.md), [player-sim.md](player-sim.md) | nothing in the game | The prototype's evals: the judge, and the trajectory suite's simulated players |
+| [fight.md](fight.md) | nothing in the game yet: parked for combat | The prototype's fights: a line typed in a fight, read and answered (V13). Kept for the combat work, with the spells and blows the rules resolve ([gm/mechanics.ts](../gm/mechanics.ts)); the other prompts nothing loaded (the improvisation guide, the narrator and the actors, the world scribe, the evals' judge and simulated players) went after the old pipeline's salvage ([docs/migration-log.md](../../docs/migration-log.md)) |
 
 ## How it fits
 
@@ -60,7 +56,7 @@ npm run dev                                # then play (npm run client, npm run 
 npm run live -- --script v5                # a scripted run on real models, recorded in docs/live/ (hosts/dev/README.md)
 ```
 
-There are no unit tests of what a prompt does: that's only seen in a model's replies. The prototype judged replies with evals (`npm run eval`, judge.md and player-sim.md; how to read one is in [the prototype's testing guide](../../docs/prototype/guide/testing.md)); they're in git history at `bc2ab1f`.
+There are no unit tests of what a prompt does: that's only seen in a model's replies. The prototype judged replies with evals (`npm run eval`, with a judge's and simulated players' prompts; how to read one is in [the prototype's testing guide](../../docs/prototype/guide/testing.md)); they're in git history at `bc2ab1f`, the prompts until the old pipeline's salvage.
 
 ## Known gaps and sharp edges
 
