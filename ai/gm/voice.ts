@@ -100,19 +100,15 @@ function gmHistory(scene: Scene, state: TurnView): Message[] {
   return messages;
 }
 
-/** The player's latest turn, whose words a reply may quote back. */
-const lastSaid = (state: TurnView) => state.transcript.findLast(e => e.kind === "player")?.text;
-
 /** A GM reply's markup read as it streams: `onText` hears the words shown so far (never the markup) and who says each line in them, only when they've grown. */
 export function streamed(scene: Scene, state: TurnView, onText: (text: string, markup?: Markup) => void): (raw: string) => void {
   const people = speakersOf(scene, state);
-  const player = lastSaid(state);
   let shown = "";
   return raw => {
     const parsed = parseMarkup(raw, { final: false });
     if (parsed.text === shown) return;
     shown = parsed.text;
-    const { text, speech } = withSpeakers(parsed, people, { player });
+    const { text, speech } = withSpeakers(parsed, people);
     onText(text, { speech });
   };
 }
@@ -120,7 +116,7 @@ export function streamed(scene: Scene, state: TurnView, onText: (text: string, m
 /** A GM reply's markup read once it's whole: the words, and who says each line (a note on a mark a model writes anyway is taken out of the words, and dropped). */
 export function readReply(scene: Scene, state: TurnView, raw: string): { text: string; marked: Markup; stats: MarkupStats } {
   const parsed = parseMarkup(prose(raw));
-  const { text, speech } = withSpeakers(parsed, speakersOf(scene, state), { player: lastSaid(state) });
+  const { text, speech } = withSpeakers(parsed, speakersOf(scene, state));
   return { text, marked: { speech }, stats: parsed.stats };
 }
 

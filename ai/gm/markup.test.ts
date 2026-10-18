@@ -264,9 +264,8 @@ test("who says each line: the tag, a speech tag carrying on, or the prose", () =
   // A tag that's only what someone is ("[Porter]", "[A porter]") isn't someone the player knows by it.
   const porters = [...PEOPLE, speaker("hobb", "Big Hobb Mallory", "the big porter with the bandaged hand")];
   assert.deepEqual(withSpeakers(parseMarkup("A porter turns toward the grille. [Porter] “Who's there?” [the big porter] “Me.”"), porters).speech.map(s => s.speaker), [undefined, "hobb"]);
-  // Words quoted in narration aren't a line said, or are the player's own when they echo their turn.
-  const quoted = withSpeakers(parseMarkup("At “the Purveyor's office,” her pencil stills. Kell mouths the word “trout”."), PEOPLE, { player: "Who at the Purveyor's office signs for it?" });
-  assert.deepEqual(quoted.speech.map(s => [quoted.text.slice(s.start, s.end), s.speaker]), [["“the Purveyor's office,”", "you"]]);
+  // Words quoted in narration aren't a line said, even the player's own echoed (QA round qa2-1018: they read as the player speaking mid-sentence).
+  assert.deepEqual(withSpeakers(parseMarkup("At “the Purveyor's office,” her pencil stills. Kell mouths the word “trout”."), PEOPLE).speech, []);
   // Someone the player knows only by sight, told by what they're called ("the boy in the too-big boots" is the scene's boy).
   const yard = [...PEOPLE, speaker("cob", "Cob", "the boy in the too-big boots")];
   const o = withSpeakers(parseMarkup("A scrawny boy in enormous boots lobs a stone at the body. “Hold still!” [the boy] “Nearly got him.”"), yard);
@@ -349,6 +348,24 @@ test("who says a line untagged, as the narration says: its own attribution befor
   assert.deepEqual(speakers("[Kell] “Out.” A porter shoves past with a sack. “Mind yourself.”", yard), ["kell", undefined]);
   // The sentence leading in starts after the line before it: Hobb's whisper is his, not Hep's, whose call came just before (QA round qa1-1018, g05's T6).
   assert.deepEqual(speakers("[Big Hobb Mallory] “Not yet, missus.” He glances toward the land door. “At the bell.” Across the floor Hep calls, [Hepzibah Grist] “Thirty-eight to the hatch! Keep those seams shut!” Hobb lowers his voice further. “When he comes, don’t let him see me looking at you.”", castOf("heron-warehouse")), ["hobb", "hobb", "hep", "hobb"]);
+});
+
+test("who says a line, on QA round qa2-1018's own replies: the big man by what he's called, a quote inside a sentence nobody's, and a tag naming a stranger theirs", () => {
+  const rat = castOf("drowned-rat");
+  // "The big man’s shoulders tighten." leads into his refusal (g04's T2, untagged as written; T6 the same).
+  assert.deepEqual(speakers("The landlady follows your glance to the fireside corner, where the biggest man keeps his face lowered over his pot. “Poorly’s a measure I don’t sell, my duck. He’s champion eleven years. Ask him.” The old bargewoman’s cards whisper over the table. The young lighterman by the door taps his elbow down and grins. “Third challenge, Hobb. You can’t duck me all night.” The big man’s shoulders tighten. “Not tonight, Arlo.”", rat), ["nan-quill", "arlo", "hobb"]);
+  assert.deepEqual(speakers("Before the old bargewoman can deal again, the young lighterman plants his elbow on Hobb’s table. [Arlo Quarry] “Come on, Hobb. Third time. House says the chair goes if you refuse.” The room quiets around the challenge. The big man stares into his pot. “Not tonight, Arlo.”", rat), ["arlo", "hobb"]);
+  // "…,” the big man says": his, not Arlo's, whom the sentence before was about (g07's T2).
+  assert.deepEqual(speakers("The landlady’s gaze settles on the coin. [the landlady] “Wagers paid at the bar, my duck. And the champion decides whether he plays.” The lighterman plants his elbow on the table, still looking toward the corner. “Not tonight, Arlo,” the big man says, quietly. The room waits to see whether you leave the wager standing.", rat), ["nan-quill", "hobb"]);
+  assert.deepEqual(speakers("[the big man] “Not tonight.”", rat), ["hobb"], "a tag that's what he's called, two words");
+  // Someone else's tag, whoever they are: not the lead-in's subject's, nor the last speaker's.
+  assert.deepEqual(speakers("[Arlo Quarry] “Third time.” The lighterman grins at the corner. “Not tonight, Arlo,” a porter says.", rat), ["arlo", undefined]);
+  assert.deepEqual(speakers("Hobb raises the brass heron token to the grille. From within, a voice asks, “Who’s the clerk?”", rat), [undefined]);
+  // At “granary rope,” his face drains: the player's words quoted in a sentence aren't a line, the player's or anyone's (g04's T7).
+  const t7 = withSpeakers(parseMarkup("His eyes rise to yours, then flick toward the closed door. At “granary rope,” his face drains of colour. [Big Hobb Mallory] “Sir.” His voice is low and careful. “I don’t want to hang.” He looks down at the table. “I only held him. I only held the rope.”"), rat);
+  assert.deepEqual(t7.speech.map(s => [t7.text.slice(s.start, s.end), s.speaker]), [["“Sir.”", "hobb"], ["“I don’t want to hang.”", "hobb"], ["“I only held him. I only held the rope.”", "hobb"]]);
+  // A sentence about the mastiff at his boots goes on about him: the watchman's line, not nobody's (g03's T1).
+  assert.deepEqual(speakers("Kell gives one short nod and stays by the door, whistle ready. The old watchman squints at the brass token, then turns his right ear toward you. At his boots, the mastiff opens one eye and sniffs. “Hobb sent you, you say?” He glances at the dog. “She says you smell of river and trouble.”", castOf("heron-warehouse")), ["saul", "saul"]);
 });
 
 test("words written and read aren't anyone's line", () => {
