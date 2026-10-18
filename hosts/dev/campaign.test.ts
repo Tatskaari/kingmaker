@@ -210,6 +210,20 @@ test("the Heron's bells are felt coming, and Hep's count falls each time she cal
   assert.match(node(heron, "floor").cast.hep, /calls the count as it falls: a few fewer every exchange, never the same number twice/);
 });
 
+test("the clerk's lead reaches the player before the scene runs out: once the cart has come, the porters' noon break brings Old Wat to tell it, and Kell names him unasked from any description (QA round qa3-1018's H6: g07 and g08 ran out of turns without it)", () => {
+  const clerk = JSON.parse(files[SCENE]!);
+  const porters = route(clerk, "porters-come");
+  assert.deepEqual([porters.source, porters.target, porters.data.phase, porters.data.limit], ["cart-arrives", "porters-break", "cue", [{ exchanges: 4, after: "cart-arrives", until: ["hobb"] }]]);
+  assert.match(porters.data.condition, /^Once the cart has come and the player still hasn't the Hobb lead \(who was there, by name, and where to find him\), and the case is being made to Kell or has stalled/);
+  assert.match(porters.data.condition, /Not needed while Cob or Moll is in the middle of telling who else was there, or a description has just reached Kell for her to name him from \(let that lead land first\), or once the player has the lead \[hobb\]\.$/, "it never comes over a lead about to land");
+  const wat = clerk.cast.find((c: any) => c.id === "wat");
+  assert.deepEqual([wat.enters, wat.called], ["porters-break", "the old porter"]);
+  assert.match(node(clerk, "porters-break").cast.wat, /^Cap off to the dead clerk, then straight to the Sarge, unasked/);
+  assert.match(node(clerk, "hobb").paths.find((p: any) => p.via === "wat").earn, /^No dice: when the porters come in for their noon break, after the cart, he comes to the Sarge and tells it unasked/, "the porters' path has someone to give it");
+  assert.equal(node(clerk, "hobb").paths.find((p: any) => p.via === "kell").earn, "No dice: as soon as any description of him reaches her (his size, his bandaged hand, the Rat's arm-wrestling), she names him unasked and writes it down, and concludes nothing else.");
+  assert.match(node(clerk, "cart-arrives").cast.kell, /The moment any description of the big man reaches her \(his size, his bandaged hand, the Rat's arm-wrestling\), she names him unasked/, "and her note at the cart says so");
+});
+
 test("a discovery: a revelation, two paths or more, three for a required one with one free of dice, each path whole and via the cast or a thing; never behind a roll alone", () => {
   const paths = changed(SCENE, s => {
     node(s, "murder").paths = node(s, "murder").paths.slice(0, 1);
@@ -243,7 +257,8 @@ test("every node can be reached, a good or mixed ending among them; a good endin
 
   assert.deepEqual(sceneChecks(stuck), [
     "scenes/hanged-clerk.kmscene: cart-arrives can't be reached from the start", "scenes/hanged-clerk.kmscene: murder-unknown can't be reached from the start",
-    "scenes/hanged-clerk.kmscene: suspicious can't be reached from the start", "scenes/hanged-clerk.kmscene: it has no good or mixed ending that can be reached",
+    "scenes/hanged-clerk.kmscene: suspicious can't be reached from the start", "scenes/hanged-clerk.kmscene: porters-break can't be reached from the start",
+    "scenes/hanged-clerk.kmscene: it has no good or mixed ending that can be reached",
   ]);
   assert.deepEqual(sceneChecks(bleak), [
     "scenes/hanged-clerk.kmscene: it has no good or mixed ending that can be reached",

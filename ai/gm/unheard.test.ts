@@ -48,10 +48,11 @@ test("who the player hasn't heard named, with what to call them: the cast with a
     ["cob", "the boy in the too-big boots", "the boy", true],
     ["moll", "the girl in the shawl", "the girl", true],
     ["tull", "the corporal", "the corporal", false],
+    ["wat", "the old porter", "the old porter", false],
   ]);
   // Once someone has said it (Cob, of himself), it's heard.
   const heard = unheardOf(clerk, viewOf(clerk, [{ turn: 1, speaker: "gm", kind: "narration", text: "“Cob don’t take orders off palace pigeons.”" }]));
-  assert.deepEqual(heard.map(u => u.id), ["moll", "tull"]);
+  assert.deepEqual(heard.map(u => u.id), ["moll", "tull", "wat"]);
 
   const heron = sceneFile("heron-warehouse");
   const wharf = unheardOf(heron, viewOf(heron));
