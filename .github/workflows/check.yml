@@ -134,8 +134,9 @@ jobs:
   authoring:
     # The Obsidian authoring plugin (tools/authoring, a package of its own, tools/authoring/README.md#checks):
     # its type check, its host and model tests, its build, then its journeys in Chromium on the campaign's
-    # real scenes and lore, and the built bundle loaded as Obsidian loads a plugin on every scene. It needs
-    # none of the root's packages: it bundles the game's shared code itself.
+    # real files (its scenario, scenes, maps, places and lore), and the built bundle loaded as Obsidian loads
+    # a plugin, opening every one of them. It needs none of the root's packages: it bundles the game's shared
+    # code itself.
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
