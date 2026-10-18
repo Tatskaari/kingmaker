@@ -7,7 +7,7 @@ On 2026-10-17 the repo stopped being two codebases: the prototype (the "Kingmake
 - **M3:** the Obsidian plugin authors them.
 - **M4:** the scenario, its maps and its places in Obsidian: the game's files first, then the plugin's editors for them.
 - **M5:** problem reports.
-- **M6:** the zoo and a combat ring: the fight on the map as simulation state and moves, the other side's turns played one at a time with a moment written for each thing they do, started from the zoo's rings, and played headless (below).
+- **M6:** the zoo and a combat ring: the fight on the map as simulation state and moves, the other side's turns played one at a time with a moment written for each thing they do, started from the zoo's rings, played headless, and on its own screen with every move played out (below).
 
 Each entry says what changed, where the old thing is in git history, and why where there was a choice. The prototype's last commit is `bc2ab1f`: `git show bc2ab1f:<path>` shows any file of it.
 
@@ -666,7 +666,7 @@ From tools/authoring after a fresh `npm ci`: `npm run typecheck`; `npm run test:
 
 ## M6: the zoo and a combat ring
 
-The user, on the combat to come: "If you get time can you also implement a combat test in the zoo? I'd like to iterate on that. The combat before kinda worked but I think it was a bit confusing. I probably want there to be animations for each move the NPCs make." So: a design note to react to first ([combat-design.md](combat-design.md)), then the fight as simulation state and moves, the other side's turns played one at a time with a moment for each thing they do (what a screen would animate), the zoo's rings to start one, and headless play. The screen that plays the moments is the next step; the story's fights keep the stand-in until the user has iterated.
+The user, on the combat to come: "If you get time can you also implement a combat test in the zoo? I'd like to iterate on that. The combat before kinda worked but I think it was a bit confusing. I probably want there to be animations for each move the NPCs make." So: a design note to react to first ([combat-design.md](combat-design.md)), then the fight as simulation state and moves, the other side's turns played one at a time with a moment for each thing they do (what a screen would animate), the zoo's rings to start one, and headless play. The screen that plays the moments came next ("The fight's screen", below); the story's fights keep the stand-in until the user has iterated.
 
 ### What changed
 
@@ -702,8 +702,52 @@ From the worktree's root, after a fresh `npm ci`: `npm run typecheck` clean (bot
 
 ### Open
 
-- **The fight's screen** (combat-design.md §2 and §3): the turn-order bar, everyone's hit points, the options as the action menu, ranges and areas while aiming, and each moment played as the note's table has it. The moments and the pace are there for it; the terminal client doesn't draw a fight yet, and a ring started in it shows the map.
+- ~~**The fight's screen**~~: built, below ("The fight's screen").
 - **The story's fights** on this one (combat-design.md §5): the Heron's and the town's brawls as setups from their places (the prototype's `battlefield` and `heronEncounter`), the aftermath picking up from the result, the story's people reused in the engine, the arc's checks 11 to 13 on (V12's). Until then the stand-in tells every story fight as won.
 - **The zoo beyond the arena** (V19): its other wings, and a way into it from the title.
 - **Typed lines in a fight** (V13).
+
+### The fight's screen
+
+The brief, from the user's words ("I probably want there to be animations for each move the NPCs make"; "the combat before kinda worked but I think it was a bit confusing"): the fight on screen in the terminal client and the page, on the map's renderer, with a turn-order bar, the player's turn as the map's action menu with its reach and targets shown and what each costs, every move of the other side animated in order from the moments (a step every 80 to 120 ms, a blow's flash, a shot or a spell travelling the line, a hit's flash with its number popping up and drifting, "miss", a fall changing the glyph, each move's caption on a caption line and in the log), paced with a beat between combatants, skippable, reduced motion respected, Caves of Qud-style procedural ASCII in the look layer, the same moments as headless lines, and fight screens in the screen check.
+
+#### What changed
+
+- **The fight's rows say what a screen needs** (`shared/fight`, `simulation/src/fight`): the pace laid out in parts (`pace.ts partsOf`: the start's order, a turn's beat between combatants (new, 250 ms) then its start, the path a tile at a time, the act, what it did, each fall, the caption held), which the screen's playback and the simulation's spacing both read; each of the player's options with its name, cost, aim and target, reach, an area's tiles and a move's feet; the options with the player's full movement and the tiles a walk to would draw a swing; each hit with how its target stood before it (`was`); `hurry`, a new `fight_turn` act, the screen's skip to the player's turn. The arena's rings moved to `shared/zoo/rings.ts`, unchanged.
+- **The playback** (`client/fight/script.ts`, `client/fight/player.ts`): a moment as beats on the pace's parts; the moments scheduled one after another from when they come, what's on screen a pure function of the clock, folded into what's shown as each ends, the board's own again once nothing's left to play; finish, skip, reduced motion; a fight seen from its start wound back by the hits' `was`.
+- **The look** (`client/look/fight.ts`; the effects' `slash`, a flight's time and arc; the renderer's `flash`): who's who on the board, falls tipping over (lit red, `/`, `_`, then `x`; `%` dead), blows by kind (a blade's sweep across the blow's way, a club's knock, a bite), shots by their way across the isometric screen, bolts in their element's colour, areas as a fireball or a shockwave, sparks and numbers, words off someone (miss, parried, saved, a condition), the hit-point gauge, tags, a hit's flicker, whose turn's breathing light, the board's tints.
+- **The screen** (`client/ui/fight.tsx`, `client/fight/model.ts`, `client/fight/draw.ts`; the app's new "fight" screen): the turn-order bar, the board, the caption line, the log, the panel with whose turn (YOUR TURN, the action and bonus action, movement as a gauge), the action menu by what each line spends, aiming on the board, walking by a click or the arrows, the bottom line, the help, the whole log, the sheet and the menu with motion full or reduced. Reduced motion is the pace's new `reducedMotion`: `KM_REDUCED_MOTION` in a terminal, `prefers-reduced-motion` on a page.
+- **Headless** (`client/fight/text.ts`): under each moment's caption a `▸` line of what the screen plays of it.
+- **Checks:** the screen check's fight screens (`client/check/fight-screens.tsx`) from a recorded wolf run (`client/check/fixtures/fight-wolves.json`, recorded by `hosts/fight-fixture.ts` from the game on the memory host); the playback's, the script's, the look's and the model's tests; the screen against the page host (`web/server/fight-screen.test.ts`); the e2e's step 40, the screen's script for the wolves' moves and `hurry`.
+
+#### Judgement calls
+
+- **The playback is the client's, from the moments as they come, and a pure function of the clock.** Each moment gets a slot (start, end) from when it arrived and the one before it ended; what's on screen at any instant is the moments ended folded in plus the one playing as far as it's got, so a frame mid-step is exact however it was reached (the screen check draws an instant), and finishing or skipping only moves slots. Once nothing is left to play, what's shown is the board's again: the rows are the truth, and anything a moment didn't carry (a condition the engine dropped between moments) comes right there.
+- **One pace table, laid out in shared** (`partsOf`), so the screen and the simulation's spacing can't drift: the simulation waits exactly as long as the screen plays. The beat between combatants is a part of a turn's moment, so the simulation's spacing grew a little with it (a turn's start 650 ms where it was 400; a miss and a shove now have their 450 ms for what they did).
+- **"The options from the map's action menu" is the same menu fed from the fight's options.** The map's own menu (`shared/map/menu.ts`) aims on the town's world (its catalogue, its lines of sight, the walker's tile), and a ring is a map of its own; the M6 note said the client's menu could drive a fight unchanged, but it can't on a ring. So the fight's options, which the simulation already computes as the rules see them, are the menu's lines in the same component (`client/ui/actions.tsx`), one line a name with its targets aimed on the board, and they now carry what the menu and the aiming need. The ids are still the map's.
+- **One way to act, the menu; walking direct.** A click on a blue tile walks; a click on someone opens the menu aimed at them (what can be done to them) rather than attacking at once, so the reach and targets are seen before it's done (the note's §6.3, the prototype's click that aimed first and attacked second).
+- **The swing tiles are the simulation's** (`options.swings`): the path a walk takes there (the same search the move runs), leaving the reach of someone standing with their reaction ready and a melee weapon; none once disengaged. An approximation of the engine's own opportunity rules, but from the same paths.
+- **Skip to your turn asks the simulation** (`hurry`): the other side's turns are paced by the simulation (each a step on its clock), so skipping only the screen's playback would still wait. Finishing a move is the client's alone. On the player's own turn `hurry` says there's nothing to hurry.
+- **Space finishes, F skips.** Not Enter (it opens the menu on the player's turn, and three Enters would have skipped, opened the menu and done its first line), not `s` (WASD steps).
+- **Reduced motion** shows each moment's end at once with its caption for the caption's least time (500 ms), no effects; the moments still come one after another so each caption can be read.
+- **A fight seen starting plays from its first moment; one already on as the client comes up starts where it is,** its moments so far in the log, nothing replayed.
+- **The player's own moments are played too** (their walk, their swing, its hit). The menu waits for the other side's moves to play (YOUR TURN appears when the bar reaches them); acting while the player's own moment still plays finishes it first.
+- **The camera** holds the whole ring when it fits, else sits between the action and the player, moving only when either nears the edge, eased a tile at a time.
+- **Props and hazards are drawn as the rows have them,** not played: a lantern brought down is gone when its moment's rows come, not at its blow's beat.
+- **The fixture is recorded from the game** (`hosts/fight-fixture.ts`, the memory host), not made by hand, so the screen check reads real options, captions and dice; record it again when a fight's rows change shape.
+- **No way into a ring from the screens here:** the zoo (the work beside this in the same branch: its campaign, its menu on the title) is the way in; until then `npm run play -- ring --session <you> --ring wolves`, then `npm run client -- --session <you>`.
+
+#### Checked
+
+From the worktree's root: `npm run typecheck` clean; the unit tests (the new: the pace's 4, the fight's options, a hit's `was` and `hurry` 4, the script's 6, the playback's 8, the look's 6, the model's 6, the headless lines' 1, the screen against the page host 1); `npm run screens`, the fight's 62 among them. Numbers, the page's build and the e2e: below, once run.
+
+#### Open
+
+- **Wolves put their hands up:** the prototype's AI lets a beast surrender, and its flavour has it "drop the wolf bite and put both hands up" (seen in the recorded wolf run).
+- **The line to an aimed target**, red when something's in the way (combat-design.md §2), isn't drawn; the reach ring, the targets and the bracket are.
+- **The menu's spell lines don't say the slots left** (the options don't carry them), and a higher slot can't be asked for (M6's open item).
+- **Props and hazards aren't played** (above), and the grain dust going up plays as the area's blast only.
+- **Kingmaker Glyphs:** a fall tips the letter over to an x, sprites or not; a sprite of someone down would read better.
+- **Headless `act --id hurry`** is answered at once on the player's own turn now; from the other side's turn it waits for the player's turn as any act does.
+
 
