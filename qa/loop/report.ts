@@ -46,7 +46,7 @@ async function statsOf(config: LoopConfig, round: Round, deps: ReportDeps): Prom
   const all = personas();
   return await Promise.all(Object.entries(round.games).map(async ([id, spec]) => {
     const record = readRecord(recordPath(config, round.name, id));
-    const scene = await deps.scene(record, spec.scene).catch(() => ({ title: spec.scene, endings: [] }));
+    const scene = await deps.scene(record, record?.scene ?? spec.scene).catch(() => ({ title: spec.scene, endings: [] }));
     return gameStats(round, id, all, {
       record, review: readJson<Review>(reviewPath(config, round.name, id)), notes: readText(notesPath(config, round.name, id)),
       triage, calls: record ? deps.calls(record) : [], endings: scene.endings,
@@ -57,7 +57,7 @@ async function statsOf(config: LoopConfig, round: Round, deps: ReportDeps): Prom
 async function sceneTitles(round: Round, games: GameStats[], deps: ReportDeps): Promise<Record<string, string>> {
   const pairs = await Promise.all(round.scenes.map(async s => {
     const record = games.find(g => g.scene === s.scene && g.record)?.record;
-    const scene = await deps.scene(record, s.scene).catch(() => ({ title: s.scene }));
+    const scene = await deps.scene(record, record?.scene ?? s.scene).catch(() => ({ title: s.scene }));
     return [s.scene, scene.title] as const;
   }));
   return Object.fromEntries(pairs);

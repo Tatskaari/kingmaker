@@ -124,6 +124,14 @@ async function stack(what: string | undefined, flags: Flags): Promise<number> {
   return shown({ code: 0, text: await stackUp(ask, REPO) });
 }
 
+/** The zoo's scene exhibits a round can play, as zoo/<exhibit> (docs/combat-gm.md: the Crakes' toll, zoo/toll). */
+function zooScenes(): string[] {
+  const path = join(CAMPAIGNS, "zoo", scenarioPath("zoo"));
+  if (!existsSync(path)) return [];
+  const file = JSON.parse(readFileSync(path, "utf8")) as { exhibits?: Array<{ id: string; fight?: unknown }> };
+  return (file.exhibits ?? []).filter(e => !e.fight).map(e => `zoo/${e.id}`);
+}
+
 async function round(config: LoopConfig, name: string, flags: Flags): Promise<number> {
   const loaded = await campaignAt(join(CAMPAIGNS, "caerwyn"));
   const made = newRound(config, name, {
@@ -133,7 +141,7 @@ async function round(config: LoopConfig, name: string, flags: Flags): Promise<nu
     ...(flags.repeat ? { repeat: Number(flags.repeat) } : {}),
     ...(flags["max-turns"] ? { maxTurns: Number(flags["max-turns"]) } : {}),
     ...(flags.goal ? { goal: flags.goal } : {}),
-  }, { personas: personas(), scenes: playable(loaded), build: build(), now: new Date().toISOString() });
+  }, { personas: personas(), scenes: [...playable(loaded), ...zooScenes()], build: build(), now: new Date().toISOString() });
 
   const n = Object.keys(made.games).length;
   console.log(`Round ${name}: ${n} game${n === 1 ? "" : "s"} (${made.scenes.map(s => `${s.scene} ${s.games}`).join(", ")}) in ${shortPath(roundDir(config, name))}`);

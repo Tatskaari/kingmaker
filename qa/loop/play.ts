@@ -10,6 +10,7 @@ import { BACKOFF_MS, capture, carryTurnOn, ceiling, patiently, QUIET, SETTLED, t
 import { BRIEFS, notesPath, recordPath, roundDir, shortPath, type LoopConfig } from "./paths.ts";
 import { reachScene } from "./reach.ts";
 import { entriesOf, entryText, mergeEntries, newRecord, readRecord, turnsOf, turnsTaken, turnText, writeRecord, type GameRecord, type HandedOn, type TurnLog, type Wait } from "./record.ts";
+import { zooOf } from "../../client/zoo/zoo.ts";
 import { gameOf, loadRound, type Persona, type Round } from "./round.ts";
 import type { Loaded } from "./scenes.ts";
 
@@ -55,6 +56,7 @@ export async function start(config: LoopConfig, roundName: string, id: string, d
   const round = loadRound(config, roundName);
   const game = gameOf(round, id);
   const file = recordPath(config, roundName, id);
+  const exhibit = exhibitOf(game.scene);
   const record = readRecord(file) ?? newRecord({ round: roundName, game: id, scene: game.scene, stack: game.armed.stack });
   if (record.sceneRow) return { code: 0, text: `Game ${id} has already started. Go on with: ${config.command} say ${roundName} ${id} "<what you say or do>"` };
 
@@ -62,10 +64,12 @@ export async function start(config: LoopConfig, roundName: string, id: string, d
   const patience = patienceOf(deps, []);
   const conn = await deps.connect(record.stack, { runs: roundDir(config, roundName), name: id });
   try {
-    await makeCharacter(conn, game.who, record, patience);
+    if (exhibit) await visitExhibit(conn, exhibit, game.who, record);
+    else await makeCharacter(conn, game.who, record, patience);
     await conn.setSuggestions(false);
     const loaded = await gameFacts(conn, record, deps);
-    await reachScene(conn, game.scene, loaded, record, patience);
+    if (exhibit) record.scene = zooOf(conn.home())?.exhibits.find(e => e.id === exhibit)?.scene ?? exhibit;
+    await reachScene(conn, record.scene, loaded, record, patience);
     if (conn.view()?.suggestionsOn) await conn.setSuggestions(false);
     await snapshot(conn, record, deps);
 
@@ -79,6 +83,26 @@ export async function start(config: LoopConfig, roundName: string, id: string, d
     conn.close();
     writeRecord(file, record);
   }
+}
+
+/** A round's scene that's one of the zoo's scene exhibits (`zoo/<exhibit>`: docs/combat-gm.md): the exhibit's id; undefined for a scene of the story. */
+export const exhibitOf = (scene: string): string | undefined => (scene.startsWith("zoo/") ? scene.slice("zoo/".length) : undefined);
+
+/**
+ * A visit to the zoo, opening a scene exhibit, unless a start before this one made it: the persona as
+ * the zoo's ready-made build nearest theirs (the zoo has the fighter, the wizard and the rogue), by
+ * the persona's name; the exhibit's scene opens as the visit's first, its opening played.
+ */
+async function visitExhibit(conn: Backend, exhibit: string, who: Persona, record: GameRecord): Promise<void> {
+  if (record.player && record.gameId === seatOf(conn)) return;
+  const zoo = zooOf(conn.home());
+  if (!zoo) throw new Error("the stack hasn't the zoo installed");
+  const build = zoo.builds.some(b => b.id === who.build) ? who.build : zoo.builds[0]?.id ?? "fighter";
+  const { name } = newGameOf(who.as, "", "zoo");
+  const out = capture();
+  if (await verbs.visitZoo(conn, { exhibit, build, name }, out, SETTLED) !== 0) throw new Error(`the zoo's ${exhibit} didn't open: ${out.printed.trim()}`);
+  record.player = { name, concept: zoo.builds.find(b => b.id === build)?.concept ?? build, ...buildOf(conn), made: `the zoo's ready-made ${build}${build === who.build ? "" : ` (the zoo hasn't the ${who.build})`}` };
+  record.gameId = seatOf(conn);
 }
 
 /** The character, unless a start before this one made it (the session is seated in its game), then set off on the map. */

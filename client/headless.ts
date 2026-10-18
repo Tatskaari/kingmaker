@@ -27,7 +27,7 @@ import { describe } from "./title/model.ts";
 import { withZoo, zooAct } from "./zoo/text.ts";
 import { fileReport, type Reporting } from "./report/file.ts";
 import type { Where } from "../shared/report/format.ts";
-import { again, pickFoes, visit, zooFightOf, type VisitWith, type ZooFight } from "./zoo/zoo.ts";
+import { again, pickFoes, visit, zooFightOf, zooOf, type VisitWith, type ZooFight } from "./zoo/zoo.ts";
 
 export type { VisitWith };
 
@@ -346,8 +346,12 @@ export async function ring(game: Backend, name: string, out: Out, waiting: Waiti
  */
 export async function visitZoo(game: Backend, how: VisitWith, out: Out, waiting: Waiting = {}): Promise<number> {
   const before = game.fight?.()?.id;
+  const games = new Set(game.home().games.map(g => String(g.gameId)));
+  const scenic = !zooOf(game.home())?.exhibits.find(e => e.id === how.exhibit)?.fight;
   const refused = await visit(game, how);
   if (refused) return said(out, refused);
+  // A scene exhibit (the Crakes' toll: docs/combat-gm.md) opens as a game's first scene does: its opening, played.
+  if (scenic) return await setOff(game, id => !games.has(id), out, waiting);
 
   const view = await fightWhen(game, v => v.id !== before && (myTurn(v) || v.status !== "on"), waiting.ms ?? TURN_MS);
   out.print(boardText(game, view, view.events));
