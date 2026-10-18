@@ -3,15 +3,15 @@ import { hashOf } from "./dsp.ts";
 import type { Voice } from "./patches.ts";
 
 /** The GM's narration: soft, low and quick, a typewriter's tick under the words. */
-export const NARRATOR: Voice = { pitch: 330, wave: "triangle", range: 1.5, length: 26, bright: 0.25, gain: 0.08, every: 3 };
+export const NARRATOR: Voice = { pitch: 330, wave: "triangle", range: 1.5, length: 26, bright: 0.25, gain: 0.11, every: 3 };
 
 /** The player's character, when the GM has them say something. */
 export const PLAYER: Voice = { pitch: 262, wave: "pulse", duty: 0.25, range: 4, length: 36, bright: 0.45, gain: 0.06 };
 
 /** People's voices, low to high: a person's is one of these, moved a little by their key. */
 const REGISTERS: Voice[] = [
-  { pitch: 98, wave: "square", range: 3, length: 52, bright: 0.25, gain: 0.08 },
-  { pitch: 117, wave: "pulse", duty: 0.3, range: 3, length: 48, bright: 0.3, gain: 0.08 },
+  { pitch: 110, wave: "square", range: 3, length: 52, bright: 0.25, gain: 0.08 },
+  { pitch: 124, wave: "pulse", duty: 0.3, range: 3, length: 48, bright: 0.3, gain: 0.08 },
   { pitch: 139, wave: "square", range: 4, length: 44, bright: 0.35, gain: 0.075 },
   { pitch: 165, wave: "pulse", duty: 0.25, range: 4, length: 42, bright: 0.4, gain: 0.07 },
   { pitch: 196, wave: "saw", range: 4, length: 40, bright: 0.3, gain: 0.06 },

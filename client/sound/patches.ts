@@ -90,23 +90,23 @@ const N = note;
 export function patchOf(cue: Cue, seed: number): PartSpec[] {
   const r = rng(cue.seed ?? seed);
   switch (cue.sfx) {
-    case "ui.move": return [tone("triangle", N("E6"), { a: 1, d: 35 }, 0.11), tone("pulse", N("E7"), { a: 1, d: 12 }, 0.02, { duty: 0.25 })];
-    case "ui.choose": return roomy(0.15, [
+    case "ui.move": return scaled(0.6, [tone("triangle", N("E6"), { a: 1, d: 35 }, 0.11), tone("pulse", N("E7"), { a: 1, d: 12 }, 0.02, { duty: 0.25 })]);
+    case "ui.choose": return scaled(0.6, roomy(0.15, [
       tone("pulse", N("C6"), { a: 1, d: 70 }, 0.075, { duty: 0.25, lp: 4000 }),
       tone("pulse", N("G6"), { a: 1, d: 150 }, 0.075, { duty: 0.25, lp: 4000, at: 55 }),
       tone("sine", N("C7"), { a: 2, d: 180 }, 0.03, { at: 55 }),
-    ]);
-    case "ui.back": return [tone("triangle", N("G5"), { a: 1, d: 60 }, 0.1), tone("triangle", N("C5"), { a: 1, d: 110 }, 0.1, { at: 50 })];
-    case "ui.open": return [tone("triangle", 660, { a: 2, d: 110 }, 0.08, { to: 1320, glide: 70 }), noise("hp", 3000, { a: 10, d: 60 }, 0.03)];
-    case "ui.close": return [tone("triangle", 1100, { a: 2, d: 100 }, 0.065, { to: 550, glide: 70 }), noise("hp", 2500, { a: 5, d: 50 }, 0.025)];
-    case "ui.denied": return [
+    ]));
+    case "ui.back": return scaled(0.6, [tone("triangle", N("G5"), { a: 1, d: 60 }, 0.1), tone("triangle", N("C5"), { a: 1, d: 110 }, 0.1, { at: 50 })]);
+    case "ui.open": return scaled(0.6, [tone("triangle", 660, { a: 2, d: 110 }, 0.08, { to: 1320, glide: 70 }), noise("hp", 3000, { a: 10, d: 60 }, 0.03)]);
+    case "ui.close": return scaled(0.6, [tone("triangle", 1100, { a: 2, d: 100 }, 0.065, { to: 550, glide: 70 }), noise("hp", 2500, { a: 5, d: 50 }, 0.025)]);
+    case "ui.denied": return scaled(0.55, [
       tone("pulse", 196, { a: 2, s: 1, hold: 70, r: 20 }, 0.08, { duty: 0.25, lp: 1200 }),
       tone("pulse", 185, { a: 2, s: 1, hold: 90, r: 30 }, 0.08, { duty: 0.25, lp: 1200, at: 95 }),
-    ];
-    case "ui.send": return [tone("sine", 520, { a: 2, d: 90 }, 0.07, { to: 1040, glide: 60 }), noise("bp", 2200, { a: 8, d: 70 }, 0.04, { q: 1.5 })];
-    case "ui.page": return [noise("bp", 3500, { a: 15, d: 140 }, 0.07, { q: 0.9 }), noise("bp", 5000, { a: 5, d: 160 }, 0.05, { crackle: 300 })];
-    case "ui.bump": return [tone("square", 110, { a: 1, d: 70 }, 0.09, { to: 70, lp: 700 }), noise("lp", 600, { a: 1, d: 40 }, 0.05)];
-    case "dice.roll": return diceRoll(cue.count ?? 1, r);
+    ]);
+    case "ui.send": return scaled(0.6, [tone("sine", 520, { a: 2, d: 90 }, 0.07, { to: 1040, glide: 60 }), noise("bp", 2200, { a: 8, d: 70 }, 0.04, { q: 1.5 })]);
+    case "ui.page": return scaled(0.95, [noise("bp", 3500, { a: 15, d: 140 }, 0.07, { q: 0.9 }), noise("bp", 5000, { a: 5, d: 160 }, 0.05, { crackle: 300 })]);
+    case "ui.bump": return [tone("square", 130, { a: 1, d: 70 }, 0.07, { to: 85, lp: 1600 }), noise("bp", 900, { a: 1, d: 30 }, 0.06, { q: 1.2 })];
+    case "dice.roll": return scaled(0.8, diceRoll(cue.count ?? 1, r));
     case "dice.success": return roomy(0.25, [bell(N("E5"), 0.06, 700, 2, 1.2), bell(N("B5"), 0.06, 800, 2, 1.2, { at: 90 })]);
     case "dice.failure": return [
       tone("triangle", N("E4"), { a: 5, s: 1, hold: 120, r: 80 }, 0.07, { to: N("D#4"), glide: 200 }),
@@ -128,17 +128,17 @@ export function patchOf(cue: Cue, seed: number): PartSpec[] {
       bell(N("D5"), 0.03, 1600, 2, 0.8, { at: 160 }),
     ]);
     case "story.end": return theEnd();
-    case "story.alert": return roomy(0.2, [
+    case "story.alert": return scaled(1.3, roomy(0.2, [
       tone("pulse", N("B6"), { a: 1, d: 45 }, 0.05, { duty: 0.125, lp: 6000 }),
       tone("pulse", N("E7"), { a: 1, d: 120 }, 0.05, { duty: 0.125, lp: 6000, at: 60 }),
-    ]);
-    case "spell.cast": return spellCast(cue.element, r);
+    ]));
+    case "spell.cast": return scaled(1.6, spellCast(cue.element, r));
     case "spell.bolt": return spellBolt(cue.element, cue.ms ?? 300, cue.count ?? 1, r);
     case "spell.hit": return spellHit(cue.element, 1, r);
     case "spell.area": return spellArea(cue.element, cue.size ?? 15, r);
     case "spell.heal": return heal(r);
     case "blow.swing": return swing(cue.kind ?? "", r);
-    case "blow.shot": return shot(cue.kind ?? "", cue.ms ?? 300);
+    case "blow.shot": return scaled(1.8, shot(cue.kind ?? "", cue.ms ?? 300));
     case "blow.hit": return hit(cue.kind ?? "", cue.element, cue.critical ?? false, r);
     case "blow.miss": return [noise("hp", 1800, { a: 20, d: 80 }, 0.05, { to: 3000, sweep: 90 })];
     case "blow.parry": return roomy(0.25, [noise("hp", 4000, { a: 0.3, d: 30 }, 0.1), tone("sine", 1200 + r() * 300, { a: 1, d: 400 }, 0.07, { fm: { ratio: 2.76, index: 3, fall: 250 } })]);
@@ -147,34 +147,34 @@ export function patchOf(cue: Cue, seed: number): PartSpec[] {
       noise("lp", 500, { a: 5, d: 200 }, 0.1),
       noise("lp", 350, { a: 5, d: 150 }, 0.06, { at: 120 }),
     ];
-    case "blow.step": return [noise("lp", 1100, { a: 1, d: 24 }, 0.035, { pan: (r() - 0.5) * 0.4 }), tone("sine", 140, { a: 1, d: 30 }, 0.03, { to: 90 })];
-    case "blow.flee": return [noise("bp", 900, { a: 20, d: 200 }, 0.05, { to: 2200 }), ...[0, 110, 220].flatMap(t => later(t + 60, [noise("lp", 1100, { a: 1, d: 24 }, 0.03)]))];
-    case "fight.start": return roomy(0.4, [
+    case "blow.step": return scaled(1.5, [noise("lp", 1100, { a: 1, d: 24 }, 0.035, { pan: (r() - 0.5) * 0.4 }), tone("sine", 140, { a: 1, d: 30 }, 0.03, { to: 90 })]);
+    case "blow.flee": return scaled(2, [noise("bp", 900, { a: 20, d: 200 }, 0.05, { to: 2200 }), ...[0, 110, 220].flatMap(t => later(t + 60, [noise("lp", 1100, { a: 1, d: 24 }, 0.03)]))]);
+    case "fight.start": return scaled(0.65, roomy(0.4, [
       tone("sine", 150, { a: 1, d: 180 }, 0.3, { to: 45 }),
       tone("sine", 150, { a: 1, d: 200 }, 0.3, { to: 45, at: 220 }),
       ...["E2", "B2", "E3"].map(n => tone("saw", N(n), { a: 10, s: 1, hold: 500, r: 300 }, 0.045, { detune: 15, lp: 900, at: 220 })),
       noise("hp", 6000, { a: 1, d: 900 }, 0.05, { at: 220 }),
-    ]);
+    ]));
     case "fight.turn": return roomy(0.3, [bell(N("A5"), 0.055, 500, 2, 1), bell(N("D6"), 0.055, 600, 2, 1, { at: 80 })]);
-    case "fight.won": return roomy(0.3, [
+    case "fight.won": return scaled(0.65, roomy(0.3, [
       ...["G4", "C5", "E5", "G5"].map((n, i) => tone("pulse", N(n), { a: 1, d: 150 }, 0.06, { duty: 0.25, lp: 4500, at: i * 90 })),
       tone("pulse", N("C6"), { a: 2, s: 0.8, hold: 500, r: 300 }, 0.06, { duty: 0.25, lp: 4500, at: 360 }),
       tone("triangle", N("C4"), { a: 5, s: 0.8, hold: 800, r: 300 }, 0.1, { at: 360 }),
       bell(N("C7"), 0.04, 1000, 2, 1, { at: 360 }),
-    ]);
-    case "fight.lost": return roomy(0.3, ["E4", "D4", "C4", "B3"].map((n, i) => tone("triangle", N(n), { a: 5, s: 0.8, hold: 240, r: 200 }, 0.08, { at: i * 220 })));
+    ]));
+    case "fight.lost": return scaled(0.65, roomy(0.3, ["E4", "D4", "C4", "B3"].map((n, i) => tone("triangle", N(n), { a: 5, s: 0.8, hold: 240, r: 200 }, 0.08, { at: i * 220 }))));
     case "world.explosion": return roomy(0.5, [...scaled(1.2, spellArea("fire", Math.max(15, cue.size ?? 20), r)), noise("lp", 3000, { a: 2, d: 900 }, 0.08, { crackle: 120 })]);
-    case "world.ignite": return roomy(0.3, [
+    case "world.ignite": return scaled(1.6, roomy(0.3, [
       noise("lp", 200, { a: 60, s: 1, hold: 120, r: 300 }, 0.15, { to: 2200, sweep: 180 }),
       noise("hp", 1500, { a: 20, d: 1200 }, 0.07, { crackle: 50 }),
       noise("lp", 400, { a: 100, d: 1300 }, 0.05),
-    ]);
-    case "world.splash": return splash(r);
+    ]));
+    case "world.splash": return scaled(1.4, splash(r));
     case "world.douse": return [...splash(r), noise("hp", 4000, { a: 60, d: 900 }, 0.06, { at: 80 })];
     case "world.steam": return [noise("hp", 3500, { a: 80, d: 900 }, 0.06)];
     case "world.debris": return debris(r);
-    case "world.poof": return [noise("lp", 900, { a: 25, d: 140 }, 0.05)];
-    case "world.sparks": return [noise("hp", 4000, { a: 1, d: 250 }, 0.07, { crackle: 300 }), tone("pulse", 2400, { a: 1, d: 40 }, 0.03, { duty: 0.125, to: 1200 })];
+    case "world.poof": return scaled(2, [noise("lp", 900, { a: 25, d: 140 }, 0.05)]);
+    case "world.sparks": return scaled(1.5, [noise("hp", 4000, { a: 1, d: 250 }, 0.07, { crackle: 300 }), tone("pulse", 2400, { a: 1, d: 40 }, 0.03, { duty: 0.125, to: 1200 })]);
     case "world.freeze": return scaled(0.7, spellHit("cold", 1, r));
   }
 }
@@ -382,12 +382,16 @@ function letterStep(letter: string, range: number): number {
   return (step / 12 - 0.5) * range;
 }
 
-/** One blip of someone's talk: a short tone at a letter's pitch in their voice, a growl in it for a creature. */
+/**
+ * One blip of someone's talk: a short tone at a letter's pitch in their voice, a growl in it for a
+ * creature. Its buzz reaches past 1.8 kHz whatever its pitch, so a low voice still carries on a
+ * laptop's speakers, which give little below 200 Hz.
+ */
 export function blipOf(voice: Voice, letter: string, seed: number): PartSpec[] {
   const r = rng(seed);
   const f = voice.pitch * 2 ** ((letterStep(letter, voice.range) + (r() - 0.5) * 0.5) / 12);
   const env: Env = { a: 2, s: 1, hold: voice.length * 0.6, r: voice.length * 0.4 };
-  const parts: PartSpec[] = [tone(voice.wave, f, env, voice.gain, { bus: "voice", ...(voice.duty ? { duty: voice.duty } : {}), lp: Math.min(9000, f * (2 + 10 * voice.bright)), to: f * 0.97 })];
+  const parts: PartSpec[] = [tone(voice.wave, f, env, voice.gain, { bus: "voice", ...(voice.duty ? { duty: voice.duty } : {}), lp: Math.min(9000, Math.max(1800, f * (3 + 12 * voice.bright))), to: f * 0.97 })];
   if (voice.rough) parts.push(noise("bp", f * 2.5, { a: 2, d: voice.length }, voice.gain * voice.rough * 2, { q: 1.2, bus: "voice" }));
   return parts;
 }

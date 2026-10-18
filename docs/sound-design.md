@@ -28,6 +28,8 @@ The game's sound: its menus, its talk said Undertale's way, its dice, spells and
 - **The building blocks** ([dsp.ts](../client/sound/dsp.ts)): band-limited waves, a state-variable filter, the envelope, the plucked string and a small room (a cut-down Freeverb) the music and the spells ring in.
 - **The recipes** ([patches.ts](../client/sound/patches.ts)): every sound effect as parts, from a seed, so no two dice rolls or sword blows are quite alike. Spells go by their element (fire roars and crackles, cold rings like glass, lightning cracks, thunder booms, acid and poison bubble, necrotic sinks, radiant chimes, force is a "pew", psychic warbles); a spell with no element sparkles.
 - **Three buses,** each with its volume: the effects (the menus' too), the voices, the music. Everything is started on its sample, so a sound asked for 300 ms on lands with its effect; a hush stops a group (a talk's blips, a fight's moment): what's playing fades, what's still to come never comes.
+- **The level a game is heard at.** The mix is brought up 12 dB into a look-ahead limiter (2 ms ahead, its ceiling at -1.5 dBFS), so a fireball over the music comes out quieter, not clipped. At the page's own volume the music sits about -20 LUFS (each mood within a couple of dB of the next: a style's `level` evens them), a voice about -17 (the narrator's -19), a menu's tick peaks about -14 dBFS and a spell's blast reaches the limiter. The first cut was 15 to 20 dB quieter than that (the music at -33 to -39 LUFS), and too quiet to hear (the user's report): it's measured now, by BS.1770's K-weighting, not by peaks.
+- **Small speakers.** A laptop's give little below 200 Hz, so a voice's buzz always reaches past 1.8 kHz, the bass is a low-passed saw (its harmonics carry it where its fundamental can't), and the kick has a click.
 
 ## 3. The voices
 
@@ -55,7 +57,7 @@ A person's lines are said a blip a syllable, as Undertale says them: one on each
 
 - **The audio thread.** The engine runs in an AudioWorklet ([web/page/sound-worklet.ts](../web/page/sound-worklet.ts), bundled as `sound-worklet.js`), off the page's thread. The client worker says what to play (`{type: "sound", messages}`), the transport hands it to the page's sound ([web/page/sound.ts](../web/page/sound.ts), `sound.js`), and that posts it to the worklet. The page does no audio work itself.
 - **From the first key or click:** a browser plays nothing before the player has done something on the page, so the audio starts then. The effects asked for before go unheard; the music waits, and starts in the mood it was last asked for.
-- **The bar under the game** turns the sound effects, the voices and the music on and off, each kept in this browser (localStorage, `kingmaker.sound`). With all three off the audio stops altogether. A tab out of sight is quiet until it's back.
+- **The bar under the game** turns the sound effects, the voices and the music on and off, and its slider sets the volume, from nothing to half again over the game's own level (100%), each kept in this browser (localStorage, `kingmaker.sound`). With all three off, or the volume at nothing, the audio stops altogether. A tab out of sight is quiet until it's back.
 - `km.sound` (the console, and the browser check): what's on, whether the audio runs, and how many of each kind the client worker has asked for.
 
 ## 6. The sound board
@@ -74,7 +76,7 @@ A new mood is a style in `STYLES` ([music.ts](../client/sound/music.ts)), a line
 ## 8. Checked by
 
 - `client/sound/*.test.ts`: the engine offline (every sound effect and every mood heard, under full scale, over in time; a seed's sound the same; a hush; a bus turned down), the talk's timing, voices, what a scene says (its chime, a streaming reply in the narrator's and a person's voice, the dice and how a check went, its end), a fight's beats, and the music for each screen.
-- `npm run web:check`, in the zoo's ring: the fight's music and blows reach the page, its audio runs from the keys pressed, and the bar's Music turns the music off (kept) and on again.
+- `npm run web:check`, in the zoo's ring: the fight's music and blows reach the page, its audio runs from the keys pressed, the bar's Music turns the music off (kept) and on again, and its slider sets the volume (kept), the audio stopping at nothing.
 
 ## 9. Not yet
 

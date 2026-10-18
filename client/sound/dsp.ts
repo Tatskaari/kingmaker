@@ -250,10 +250,53 @@ export class Room {
   }
 }
 
-/** A soft limit near full scale: quiet sounds pass untouched, and a pile of them rounds off rather than clipping. */
+/**
+ * A limiter over the mix: nothing goes out above `ceiling`. It looks a moment ahead (the mix comes
+ * out `ahead` ms late), so its gain is down before a peak reaches the output, holds it there while
+ * the peak passes, and lets it back up over about `release` ms: a pile of loud sounds (a fireball on
+ * the music) comes out quieter, not clipped.
+ */
+export class Limiter {
+  private readonly left: Float32Array;
+  private readonly right: Float32Array;
+  private at = 0;
+  private gain = 1;
+  private target = 1;
+  private held = 0;
+  private readonly attack: number;
+  private readonly release: number;
+  private readonly ceiling: number;
+
+  constructor(rate: number, ceiling = 0.84, ahead = 2, release = 150) {
+    this.ceiling = ceiling;
+    const size = Math.max(1, Math.round((ahead * rate) / 1000));
+    this.left = new Float32Array(size);
+    this.right = new Float32Array(size);
+    this.attack = 1 - Math.exp(-5 / size);
+    this.release = 1 - Math.exp(-1 / ((release * rate) / 1000));
+  }
+
+  /** One stereo sample in; the limited one out (`ahead` ms behind it). */
+  run(l: number, r: number, out: { l: number; r: number }): void {
+    const peak = Math.max(Math.abs(l), Math.abs(r));
+    const need = peak > this.ceiling ? this.ceiling / peak : 1;
+    if (need <= this.target) { this.target = need; this.held = this.left.length; }
+    else if (this.held > 0) this.held--;
+    else this.target = need;
+    this.gain += (this.target - this.gain) * (this.target < this.gain ? this.attack : this.release);
+    const dl = this.left[this.at]!, dr = this.right[this.at]!;
+    this.left[this.at] = l;
+    this.right[this.at] = r;
+    this.at = (this.at + 1) % this.left.length;
+    out.l = dl * this.gain;
+    out.r = dr * this.gain;
+  }
+}
+
+/** A last soft limit at full scale, past the limiter: anything that gets by it rounds off rather than clipping. */
 export function soften(x: number): number {
   const a = Math.abs(x);
-  if (a <= 0.8) return x;
-  const over = (a - 0.8) / 0.2;
-  return Math.sign(x) * (0.8 + 0.2 * Math.tanh(over));
+  if (a <= 0.9) return x;
+  const over = (a - 0.9) / 0.1;
+  return Math.sign(x) * (0.9 + 0.1 * Math.tanh(over));
 }

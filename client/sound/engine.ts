@@ -1,8 +1,11 @@
-// New: the sound engine (docs/sound-design.md): told what to play (sound effects, voices' blips, the music's mood, a hush, the volumes) and asked for its next block of samples, it makes them all from parts (parts.ts), each started on the sample it was asked for, mixed through its bus's volume and the room, and softened at the top. A page runs it on its audio thread (web/page/sound-worklet.ts); the tests offline.
-import { hashOf, rng, Room, soften } from "./dsp.ts";
+// New: the sound engine (docs/sound-design.md): told what to play (sound effects, voices' blips, the music's mood, a hush, the volumes) and asked for its next block of samples, it makes them all from parts (parts.ts), each started on the sample it was asked for, mixed through its bus's volume and the room, brought up to the level a game is heard at, and limited at the top. A page runs it on its audio thread (web/page/sound-worklet.ts); the tests offline.
+import { hashOf, Limiter, rng, Room, soften } from "./dsp.ts";
 import { Song, type Mood } from "./music.ts";
 import { play, type Bus, type PartSpec, type Playing } from "./parts.ts";
 import { blipOf, patchOf, type Cue, type Voice } from "./patches.ts";
+import { MOST_MASTER, VOLUMES, type Volumes } from "./volumes.ts";
+
+export type { Volumes };
 
 /**
  * What the engine is told. `delay` (ms) starts a sound that much later, on the sample; `group` names
@@ -16,11 +19,12 @@ export type SoundMessage =
   | { type: "hush"; group: string }
   | { type: "volume"; volumes: Partial<Volumes> };
 
-/** How loud each bus is, and all of them (0 to 1). */
-export interface Volumes { master: number; sfx: number; voice: number; music: number }
-
-/** The volumes the engine starts at: the music under everything. */
-export const VOLUMES: Volumes = { master: 0.9, sfx: 0.8, voice: 0.75, music: 0.5 };
+/**
+ * The mix's level: the parts' gains are a quiet mix's, which this brings up 12 dB to where a game is
+ * heard (the music about -20 LUFS, a voice about -17), into the limiter, which keeps a fireball on
+ * the music from clipping.
+ */
+const LEVEL = 4;
 
 /** How far ahead the music is written (s): a bar is made once its start is this close. */
 const AHEAD = 0.3;
@@ -41,6 +45,8 @@ export class Engine {
   private waiting: Waiting[] = [];
   private playing: Array<{ part: Playing; from: number }> = [];
   private readonly room: Room;
+  private readonly limiter: Limiter;
+  private readonly limited = { l: 0, r: 0 };
   private readonly seed: number;
   private seq = 0;
   private song: Song | undefined;
@@ -57,6 +63,7 @@ export class Engine {
     this.rate = rate;
     this.seed = seed;
     this.room = new Room(rate);
+    this.limiter = new Limiter(rate);
     // Volumes move over about 20 ms, so a change never clicks.
     this.smoothing = 1 - Math.exp(-1 / (0.02 * rate));
   }
@@ -153,7 +160,7 @@ export class Engine {
     this.playing = kept;
   }
 
-  /** The buses at their volumes, the room behind them, softened near full scale. */
+  /** The buses at their volumes, the room behind them, brought up to the game's level and limited. */
   private master(left: Float32Array, right: Float32Array, n: number): void {
     const g = this.gains, t = this.targets, k = this.smoothing, m = this.mix, s = this.sends;
     for (let i = 0; i < n; i++) {
@@ -163,11 +170,12 @@ export class Engine {
       g.music += (t.music - g.music) * k;
       const sfx = g.sfx * g.master, voice = g.voice * g.master, music = g.music * g.master;
       this.room.run(s.sfx[i]! * sfx + s.voice[i]! * voice + s.music[i]! * music, this.wet);
-      const l = m.sfx.l[i]! * sfx + m.voice.l[i]! * voice + m.music.l[i]! * music + this.wet.l;
-      const r = m.sfx.r[i]! * sfx + m.voice.r[i]! * voice + m.music.r[i]! * music + this.wet.r;
-      left[i] = soften(l);
-      if (right !== left) right[i] = soften(r);
-      else left[i] = soften((l + r) * 0.5);
+      const l = (m.sfx.l[i]! * sfx + m.voice.l[i]! * voice + m.music.l[i]! * music + this.wet.l) * LEVEL;
+      const r = (m.sfx.r[i]! * sfx + m.voice.r[i]! * voice + m.music.r[i]! * music + this.wet.r) * LEVEL;
+      this.limiter.run(l, r, this.limited);
+      left[i] = soften(this.limited.l);
+      if (right !== left) right[i] = soften(this.limited.r);
+      else left[i] = soften((this.limited.l + this.limited.r) * 0.5);
     }
   }
 
@@ -201,12 +209,12 @@ export class Engine {
 
 const pair = (n: number) => ({ l: new Float32Array(n), r: new Float32Array(n) });
 
-/** Volumes kept between 0 and 1, and only the numbers. */
+/** Volumes kept in bounds (the buses' 0 to 1, the master's to MOST_MASTER), and only the numbers. */
 function clean(v: Partial<Volumes>): Partial<Volumes> {
   const out: Partial<Volumes> = {};
   for (const key of ["master", "sfx", "voice", "music"] as const) {
     const x = v[key];
-    if (typeof x === "number" && Number.isFinite(x)) out[key] = Math.max(0, Math.min(1, x));
+    if (typeof x === "number" && Number.isFinite(x)) out[key] = Math.max(0, Math.min(key === "master" ? MOST_MASTER : 1, x));
   }
   return out;
 }

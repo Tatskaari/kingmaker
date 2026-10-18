@@ -1,6 +1,7 @@
 // New: the game's sound in the page (docs/sound-design.md): the client worker says what to play, and this plays it through the sound engine (client/sound/engine.ts) on the browser's audio thread (sound-worklet.ts, bundled as sound-worklet.js). The build bundles this as sound.js, which page.js imports.
-import type { SoundMessage, Volumes } from "../../client/sound/engine.ts";
+import type { SoundMessage } from "../../client/sound/engine.ts";
 import type { Mood } from "../../client/sound/music.ts";
+import { MOST_MASTER, VOLUMES } from "../../client/sound/volumes.ts";
 
 /**
  * The page's sound (browser-design §5's page, docs/sound-design.md):
@@ -9,20 +10,18 @@ import type { Mood } from "../../client/sound/music.ts";
  *     at the first key or click: until then the effects asked for go unheard, and the music waits.
  *   - The engine runs in an AudioWorklet, off the page's thread: the worker's words (a few dozen
  *     bytes each) go to it as they come, and it makes every sample itself.
- *   - The bar under the game turns the effects, the voices and the music on and off, each kept in
- *     this browser (localStorage, "kingmaker.sound"); with all three off the audio stops altogether.
+ *   - The bar under the game turns the effects, the voices and the music on and off, and sets the
+ *     volume (up to half again over the game's own level), each kept in this browser (localStorage,
+ *     "kingmaker.sound"); with all three off, or the volume at nothing, the audio stops altogether.
  *   - A tab out of sight is quiet: the audio's suspended until it's back.
  */
 
 const STORAGE = "kingmaker.sound";
 
-/** What the player has on: the effects (and the menus' sounds), the voices, the music. */
-export interface SoundSettings { sfx: boolean; voice: boolean; music: boolean }
+/** What the player has on: the effects (and the menus' sounds), the voices, the music; and the volume of all of them (1 the game's own level). */
+export interface SoundSettings { sfx: boolean; voice: boolean; music: boolean; volume: number }
 
-const DEFAULTS: SoundSettings = { sfx: true, voice: true, music: true };
-
-/** Each bus's volume when it's on (the engine's own balance), and off. */
-const ON: Volumes = { master: 0.9, sfx: 0.8, voice: 0.75, music: 0.5 };
+const DEFAULTS: SoundSettings = { sfx: true, voice: true, music: true, volume: 1 };
 
 export interface PageSound {
   /** The client worker's words to the engine. */
@@ -73,27 +72,48 @@ export function pageSound(options: { version: string; controls?: HTMLElement | n
     else if (anyOn(settings)) void context.resume();
   });
 
-  /** A setting turned over: kept, told to the engine (the music started or stopped with it), the audio stopped when there's nothing on. */
-  const turn = (which: keyof SoundSettings) => {
-    settings[which] = !settings[which];
+  /**
+   * The settings changed (a switch turned over, the volume moved): kept, and told to the engine with
+   * `more` (the music started or stopped with its switch); the audio stopped when nothing's to be heard.
+   */
+  const changed = (more: SoundMessage[] = []) => {
     saveSettings(settings);
     drawControls();
     if (!anyOn(settings)) { void context?.suspend(); return; }
     if (!starting) { void start(); return; }
     if (context && !document.hidden) void context.resume();
-    port?.postMessage([volumeMessage(settings), ...(which === "music" ? [{ type: "music", mood: settings.music ? heard.mood : null }] : [])]);
+    port?.postMessage([volumeMessage(settings), ...more]);
+  };
+  const turn = (which: Switch) => {
+    settings[which] = !settings[which];
+    changed(which === "music" ? [{ type: "music", mood: settings.music ? heard.mood : null }] : []);
+  };
+  const setVolume = (volume: number) => {
+    settings.volume = Math.max(0, Math.min(MOST_MASTER, volume));
+    changed();
   };
 
   const controls = options.controls;
+  const slider = controls?.querySelector<HTMLInputElement>("[data-volume]");
   const drawControls = () => {
     for (const button of controls?.querySelectorAll<HTMLButtonElement>("[data-sound]") ?? []) {
-      const which = button.dataset.sound as keyof SoundSettings;
+      const which = button.dataset.sound as Switch;
       button.setAttribute("aria-pressed", String(settings[which]));
       button.title = `${settings[which] ? "Turn off" : "Turn on"} ${{ sfx: "the sound effects", voice: "the voices", music: "the music" }[which]}`;
     }
+    if (slider) {
+      slider.value = String(Math.round(settings.volume * 100));
+      slider.title = `Volume: ${Math.round(settings.volume * 100)}%`;
+    }
   };
   // A switch clicked turns its setting over, and the keys go back to the game (`turned`), not to the switch.
-  for (const button of controls?.querySelectorAll<HTMLButtonElement>("[data-sound]") ?? []) button.addEventListener("click", () => { turn(button.dataset.sound as keyof SoundSettings); options.turned?.(); });
+  for (const button of controls?.querySelectorAll<HTMLButtonElement>("[data-sound]") ?? []) button.addEventListener("click", () => { turn(button.dataset.sound as Switch); options.turned?.(); });
+  // The volume, as it's dragged; let go of, the keys go back to the game.
+  if (slider) {
+    slider.max = String(MOST_MASTER * 100);
+    slider.addEventListener("input", () => setVolume(Number(slider.value) / 100));
+    slider.addEventListener("change", () => options.turned?.());
+  }
   drawControls();
 
   return {
@@ -116,17 +136,21 @@ export function pageSound(options: { version: string; controls?: HTMLElement | n
   };
 }
 
-const anyOn = (s: SoundSettings) => s.sfx || s.voice || s.music;
+/** The settings that are switches. */
+type Switch = "sfx" | "voice" | "music";
 
-/** The engine's volumes for the settings: each bus on at its own level, or off. */
+const anyOn = (s: SoundSettings) => (s.sfx || s.voice || s.music) && s.volume > 0;
+
+/** The engine's volumes for the settings: each bus on at its own level, or off; all of them at the volume. */
 function volumeMessage(s: SoundSettings): SoundMessage {
-  return { type: "volume", volumes: { master: ON.master, sfx: s.sfx ? ON.sfx : 0, voice: s.voice ? ON.voice : 0, music: s.music ? ON.music : 0 } };
+  return { type: "volume", volumes: { master: VOLUMES.master * s.volume, sfx: s.sfx ? VOLUMES.sfx : 0, voice: s.voice ? VOLUMES.voice : 0, music: s.music ? VOLUMES.music : 0 } };
 }
 
 function loadSettings(): SoundSettings {
   try {
     const kept = JSON.parse(localStorage.getItem(STORAGE) ?? "{}") as Partial<SoundSettings>;
-    return { sfx: kept.sfx ?? DEFAULTS.sfx, voice: kept.voice ?? DEFAULTS.voice, music: kept.music ?? DEFAULTS.music };
+    const volume = typeof kept.volume === "number" && Number.isFinite(kept.volume) ? Math.max(0, Math.min(MOST_MASTER, kept.volume)) : DEFAULTS.volume;
+    return { sfx: kept.sfx ?? DEFAULTS.sfx, voice: kept.voice ?? DEFAULTS.voice, music: kept.music ?? DEFAULTS.music, volume };
   } catch {
     return { ...DEFAULTS };
   }

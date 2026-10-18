@@ -22,6 +22,8 @@ interface Style {
   hold: number;
   /** Eighth notes' lilt: 0.5 straight, more for a swing. */
   swing?: number;
+  /** The style's level beside the others' (1 unless it says): each mood about as loud as the next. */
+  level?: number;
   bass?: { kind: "root" | "fifths" | "pump"; gain: number; wave?: "triangle" | "pulse" };
   arp?: { instrument: Instrument; pattern: number[]; per: number; octave: number; gain: number };
   /** Oom-pah on a lute: the bass on one and three, the chord on two and four. */
@@ -56,21 +58,21 @@ export const STYLES: Record<Mood, Style> = {
   },
   // A Aeolian, slow: a drone, a harp now and then, bells in the dark.
   night: {
-    bpm: 62, beats: 4, root: 45, mode: AEOLIAN, hold: 2,
+    bpm: 62, beats: 4, root: 45, mode: AEOLIAN, hold: 2, level: 1.7,
     progressions: [[0, 5, 2, 6], [0, 3, 5, 4], [0, 5, 3, 4]],
     arp: { instrument: "harp", pattern: [0, 2, 1, 3], per: 1, octave: 12, gain: 0.05 },
     pad: { gain: 0.016, octave: 12 }, drone: { gain: 0.04 }, bells: { gain: 0.025, chance: 0.12 },
   },
   // A Dorian, sparse and low, under the talk: so the voices sit on top of it.
   scene: {
-    bpm: 66, beats: 4, root: 45, mode: DORIAN, hold: 2,
+    bpm: 66, beats: 4, root: 45, mode: DORIAN, hold: 2, level: 1.8,
     progressions: [[0, 3, 0, 6], [0, 2, 3, 0], [0, 6, 2, 3]],
     arp: { instrument: "harp", pattern: [0, 2, 1, 2], per: 1, octave: 0, gain: 0.045 },
     pad: { gain: 0.013, octave: 12 }, bass: { kind: "root", gain: 0.07 },
   },
   // D Dorian again, gentler: the walk between scenes.
   between: {
-    bpm: 70, beats: 4, root: 38, mode: DORIAN, hold: 1,
+    bpm: 70, beats: 4, root: 38, mode: DORIAN, hold: 1, level: 1.7,
     progressions: [[0, 6, 3, 0], [0, 2, 3, 6]],
     arp: { instrument: "harp", pattern: [0, 1, 2, 3], per: 2, octave: 24, gain: 0.055 },
     pad: { gain: 0.014, octave: 12 }, bass: { kind: "root", gain: 0.08 },
@@ -152,7 +154,8 @@ export class Song {
     const degree = this.progression[Math.floor(within / s.hold)] ?? 0;
     const chord = this.chord(degree);
     const out: Array<{ t: number; spec: PartSpec }> = [];
-    const at = (t: number, spec: PartSpec) => out.push({ t: this.lilt(t), spec });
+    const level = s.level ?? 1;
+    const at = (t: number, spec: PartSpec) => out.push({ t: this.lilt(t), spec: level === 1 ? spec : { ...spec, gain: spec.gain * level } });
 
     if (s.bass) this.bassOf(s.bass, chord, at);
     if (s.strum) this.strumOf(s.strum.gain, chord, at);
@@ -287,7 +290,7 @@ export class Song {
     const fill = within % 4 === 3;
     for (let i = 0; i < s.beats * 2; i++) {
       const t = i / 2;
-      if (t === 0 || t === 2 || (t === 2.5 && r() < 0.4)) at(t, kick(0.26 * gain));
+      if (t === 0 || t === 2 || (t === 2.5 && r() < 0.4)) for (const part of kick(0.26 * gain)) at(t, part);
       if (t === 1 || t === 3) at(t, snare(0.1 * gain));
       if (!(fill && t >= 3)) at(t, hat(0.025 * gain * (i % 2 ? 0.7 : 1)));
     }
@@ -320,8 +323,9 @@ function instrument(kind: Instrument, midi: number, beats: number, gain: number,
   }
 }
 
+/** A bass note: a warm saw (or a pulse, the fight's) low-passed, with harmonics enough for a small speaker, which plays little of the fundamental. */
 function bassNote(midi: number, ms: number, gain: number, wave: "triangle" | "pulse"): PartSpec {
-  return { kind: "tone", wave, duty: 0.25, freq: hz(midi), gain, bus: "music", lp: wave === "pulse" ? 700 : 900, env: { a: 6, s: 0.8, d: 200, hold: Math.max(40, ms), r: 90 } };
+  return { kind: "tone", wave: wave === "pulse" ? "pulse" : "saw", duty: 0.25, freq: hz(midi), gain: gain * 0.7, bus: "music", lp: wave === "pulse" ? 900 : 800, env: { a: 6, s: 0.8, d: 200, hold: Math.max(40, ms), r: 90 } };
 }
 
 function pad(midi: number, ms: number, gain: number): PartSpec {
@@ -332,8 +336,12 @@ function drone(midi: number, ms: number, gain: number): PartSpec {
   return { kind: "tone", wave: "triangle", freq: hz(midi), gain, bus: "music", room: 0.4, detune: 4, lp: 600, env: { a: 1500, s: 1, hold: Math.max(400, ms - 400), r: 2000 } };
 }
 
-function kick(gain: number): PartSpec {
-  return { kind: "tone", wave: "sine", freq: 150, to: 45, glide: 100, gain, bus: "music", env: { a: 1, d: 180 } };
+/** A kick: the thump, and a click a small speaker can play. */
+function kick(gain: number): PartSpec[] {
+  return [
+    { kind: "tone", wave: "sine", freq: 150, to: 45, glide: 100, gain, bus: "music", env: { a: 1, d: 180 } },
+    { kind: "noise", filter: "bp", freq: 2500, q: 0.8, gain: gain * 0.35, bus: "music", env: { a: 0.5, d: 12 } },
+  ];
 }
 
 function snare(gain: number): PartSpec {

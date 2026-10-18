@@ -907,6 +907,13 @@ async function theSound(page: Page): Promise<void> {
   const on = await page.evaluate(`km.sound.settings.music`);
   if (/^false .*"music":false.* false$/.test(String(off)) && on === true) ok("the bar's Music turns the music off (kept in this browser) and on again");
   else fail(`the bar's Music: off said ${off}, on again ${on}`);
+  await page.locator("#key-bar [data-volume]").fill("50");
+  const half = await page.evaluate(`[km.sound.settings.volume, JSON.parse(localStorage.getItem("kingmaker.sound")).volume].join(" ")`);
+  await page.locator("#key-bar [data-volume]").fill("0");
+  const none = await until(page, `km.sound.settings.volume === 0 && km.sound.state !== "running"`, 3000);
+  await page.locator("#key-bar [data-volume]").fill("100");
+  if (half === "0.5 0.5" && none && (await page.evaluate("km.sound.settings.volume")) === 1) ok("the bar's slider sets the volume (kept in this browser), the audio stopping at nothing");
+  else fail(`the bar's volume: at half ${half}, stopped at nothing ${none}`);
 }
 
 /**
