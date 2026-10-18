@@ -1,6 +1,6 @@
 import { ruledLines } from "../../gm/consider.ts";
 import { directivesFor, exitOf, replyOperation } from "../../gm/directives.ts";
-import { closingDirective, movedDirective, pressureOffered as stagePressure, speak } from "../../gm/two-part.ts";
+import { closingDirective, movedDirective, pressureOffered as stagePressure, saidLast, speak } from "../../gm/two-part.ts";
 import { turnSource, type TurnView } from "../../gm/view.ts";
 import { gmReply, replyOf } from "../../gm/voice.ts";
 import type { Decision, ReplyRequest, ReplyResponse } from "../../../shared/protocol/ai.ts";
@@ -52,7 +52,7 @@ async function twoPartReply(req: ReplyRequest, ctx: AiContext): Promise<ReplyRes
   const closing = req.outcome.windDown ? exitOf(scene, req.outcome.windDown.exit) : undefined;
   const mayHold = !!closing && !view.twoPart.held;
   const moved = closing ? undefined : movedDirective(scene, view);
-  const directives = [...req.outcome.directives, ...(req.outcome.acts ?? []), ...(closing ? [closingDirective(closing, mayHold)] : moved ? [moved] : [])];
+  const directives = [...req.outcome.directives, ...(req.outcome.acts ?? []), ...(closing ? [closingDirective(closing, mayHold, saidLast(scene, view))] : moved ? [moved] : [])];
   const offered = closing ? undefined : stagePressure(scene, view);
 
   const sink = ctx.stream(req.stream.turn);

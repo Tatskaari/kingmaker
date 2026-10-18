@@ -11,7 +11,7 @@ import type { Scene } from "../../shared/scene/types.ts";
 import { fakeFetch, readPrep, walkTo, type FakeOptions } from "../llm/fake-openrouter.ts";
 import type { CallContext } from "../llm/openrouter.ts";
 import { CAERWYN, viewAt } from "./fixtures.ts";
-import { closingDirective, coGm, coGmInstructions, firstSentence, mouthpieceInput, mouthpieceInstructions, movedDirective, narrationSoFar, prepOf, pressureOffered, routeLine, speak, tellOf, twoPartNow } from "./two-part.ts";
+import { closingDirective, coGm, coGmInstructions, companionsOf, firstSentence, mouthpieceInput, mouthpieceInstructions, movedDirective, narrationSoFar, prepOf, pressureOffered, routeLine, saidLast, speak, tellOf, twoPartNow } from "./two-part.ts";
 import type { TurnView } from "./view.ts";
 
 /**
@@ -163,6 +163,36 @@ test("the instructions after the user's prompt: written words read untagged, and
   assert.match(mouthpiece, /\n\n## What the player sees and hears\n[\s\S]*- Names: [\s\S]*- What's hidden: [\s\S]*A fist that stays shut is a shut fist\.[\s\S]*- The player's words: [\s\S]*- Your notes stay behind the screen\./);
 });
 
+test("the instructions after the user's prompt: a check at a turning point, never on a remark, whose outcomes follow their setup; and the companion, whose case it isn't", () => {
+  const mouthpiece = mouthpieceInstructions(clerk, yard());
+  assert.match(mouthpiece, /Never for a remark, a compliment or a question/);
+  assert.match(mouthpiece, /when they try to frighten, persuade, trick or press someone who could go either way/);
+  assert.match(mouthpiece, /Each one follows on from the narration as you wrote it and never undoes it: [^\n]*an offer made there is still on the table after a failure[^\n]* And each adds what's new: it never repeats what the narration has just said\./);
+  // Kell walks with the player from the granary on (its onEnd's follow), and here already.
+  assert.deepEqual(companionsOf(clerk, yard()).map(c => c.id), ["kell"]);
+  assert.match(mouthpiece, /\n\n## The companion\nSergeant Agnes Kell goes with the player, and it's the player's case, not hers: she never makes their case for them, examines or searches anything for them unasked, draws their conclusions, or chooses their next step or where they go, or hints at it\. She answers when asked, does what she's asked, and tests a case once, at its weakest point\.$/);
+  // The King's morning has no follow of its own: Kell is the companion because the granary made her one.
+  const king = sceneFile("kings-morning");
+  const morning = viewAt(king, king.start, { turn: 1 });
+  assert.deepEqual(companionsOf(king, morning), []);
+  morning.history = [{ sceneId: "hanged-clerk" } as TurnView["history"][number]];
+  morning.story = { scene: (id: string) => sceneFile(id) } as unknown as TurnView["story"];
+  assert.deepEqual(companionsOf(king, morning).map(c => c.id), ["kell"]);
+});
+
+test("the closing goes on from where the last reply ended: what was said there is listed, and not said again", () => {
+  const heron = sceneFile("heron-warehouse");
+  const view = viewAt(heron, heron.start, { turn: 16 });
+  const arrest = "Kell steps in. “Master Josiah Sallow, you are under arrest.” His reply is smooth. “Sergeant, you will regret this.”";
+  const line = (words: string, speaker: string) => ({ start: arrest.indexOf(words), end: arrest.indexOf(words) + words.length, speaker });
+  view.transcript.push({ turn: 15, scene: heron.id, speaker: "gm", kind: "narration", text: arrest, marked: { speech: [line("“Master Josiah Sallow, you are under arrest.”", "kell"), line("“Sergeant, you will regret this.”", "sallow")] } });
+  view.transcript.push({ turn: 16, scene: heron.id, speaker: "player", kind: "player", text: "(I grab the mooring rope.)" });
+  assert.deepEqual(saidLast(heron, view), ["[Sergeant Agnes Kell] “Master Josiah Sallow, you are under arrest.”", "[Master Josiah Sallow] “Sergeant, you will regret this.”"]);
+  const caught = heron.exits.find(e => e.id === "caught")!;
+  assert.match(closingDirective(caught, false, saidLast(heron, view)), /Don't narrate beyond the ending into what comes next\. Your last reply's moment has happened \(an arrest made, a ruling given, words said\), even where it's what this ending should feel like: don't stage it again or say it again, but go on from where it ended\. Said there already, so not said again: \[Sergeant Agnes Kell\] “Master Josiah Sallow, you are under arrest\.” \[Master Josiah Sallow\] “Sergeant, you will regret this\.”$/);
+  assert.equal(closingDirective(caught, false).includes("Said there already"), false, "nothing said, nothing listed");
+});
+
 test("the mouthpiece's narration and each outcome keep names the player hasn't heard out of their words, as they stream and as they're kept", async () => {
   const shown: string[] = [];
   const view = yard({ turn: 1 });
@@ -228,7 +258,7 @@ test("the mouthpiece on the fake: its narration streamed as it grows with who sa
 
 test("the closing: it may wait once for something the ending has to answer; a fight's ends on the moment it breaks out", () => {
   const caught = clerk.exits.find(e => e.id === "murder-unknown")!;
-  assert.match(closingDirective(caught, true), /^The scene is ending: Kell signs Prout in[\s\S]*set `closes` to false[\s\S]*Otherwise bring the scene to a close[\s\S]*set `closes` to true\.$/);
+  assert.match(closingDirective(caught, true), /^The scene is ending: Kell signs Prout in[\s\S]*set `closes` to false[\s\S]*Otherwise bring the scene to a close[\s\S]*set `closes` to true\. Your last reply's moment has happened/);
   assert.match(closingDirective(caught, false), /^This reply closes the scene: Kell signs Prout in[\s\S]*Then bring the scene to a close/);
   const fight = sceneFile("heron-warehouse").exits.find(e => e.id === "fight")!;
   assert.match(closingDirective(fight, false), /A fight starts here and is played out blow by blow on the map/);
