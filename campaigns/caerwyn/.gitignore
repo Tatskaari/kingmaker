@@ -1,0 +1,10 @@
+# This folder is the Obsidian vault the scenes are authored in (tools/authoring/README.md). Two of
+# Obsidian's settings are the campaign's, shared: app.json (a new note goes in lore/) and
+# community-plugins.json (Kingmaker Authoring is on). The rest of .obsidian is each author's own and
+# stays out of git: the workspace (workspace.json, workspace-mobile.json), the cache, the plugins'
+# installed files (npm run install:vault puts this one's there), appearance, hotkeys, the core plugins
+# and the graph's view. So is the trash.
+/.obsidian/*
+!/.obsidian/app.json
+!/.obsidian/community-plugins.json
+/.trash/

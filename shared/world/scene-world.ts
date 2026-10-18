@@ -183,7 +183,7 @@ function spread(world: SceneWorld, area: Entity, id: string): Point {
 // Space.
 
 export function positionOf(world: SceneWorld, id: string): Point | undefined {
-  for (let e = world.entities[id], guard = 0; e && guard < 12; e = e.parent ? world.entities[e.parent] : undefined, guard++) {
+  for (let e: Entity | undefined = world.entities[id], guard = 0; e && guard < 12; e = e.parent ? world.entities[e.parent] : undefined, guard++) {
     if (e.at) return e.at;
     if (e.rect) return { x: e.rect.x + e.rect.w / 2, y: e.rect.y + e.rect.h / 2 };
   }
@@ -192,7 +192,7 @@ export function positionOf(world: SceneWorld, id: string): Point | undefined {
 
 /** The area something is in (following holders up the tree). */
 export function areaOf(world: SceneWorld, id: string): Entity | undefined {
-  for (let e = world.entities[id], guard = 0; e && guard < 12; e = e.parent ? world.entities[e.parent] : undefined, guard++) {
+  for (let e: Entity | undefined = world.entities[id], guard = 0; e && guard < 12; e = e.parent ? world.entities[e.parent] : undefined, guard++) {
     if (e.kind === "area" || e.kind === "place") return e;
   }
   return undefined;
@@ -207,7 +207,7 @@ export function areaAt(world: SceneWorld, p: Point): Entity {
 /** Is `id` the same as `ancestor`, or held (however deep) by it? A cycle in the tree ends the walk. */
 export function isWithin(world: SceneWorld, id: string, ancestor: string): boolean {
   const seen = new Set<string>();
-  for (let e = world.entities[id]; e && !seen.has(e.id); e = e.parent ? world.entities[e.parent] : undefined) {
+  for (let e: Entity | undefined = world.entities[id]; e && !seen.has(e.id); e = e.parent ? world.entities[e.parent] : undefined) {
     if (e.id === ancestor) return true;
     seen.add(e.id);
   }

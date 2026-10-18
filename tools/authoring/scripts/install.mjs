@@ -1,14 +1,17 @@
 #!/usr/bin/env node
-import {copyFile,cp,mkdir,readFile,readdir,realpath,stat,writeFile} from 'node:fs/promises';
+// Installs the built plugin (dist/plugin) into an Obsidian vault: the game's campaign folder,
+// campaigns/caerwyn, is the one it's made for. Only the plugin's own files are written, and the
+// community plugins list gains it; nothing else in the vault is touched.
+import {copyFile,cp,mkdir,readFile,realpath,stat,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
 const target=process.argv[2];
-if(!target)throw Error('Usage: npm run install:vault -- /absolute/path/to/lore-vault');
+if(!target)throw Error('Usage: npm run install:vault -- <vault> (the campaign folder: npm run install:vault -- ../../campaigns/caerwyn)');
 const vault=await realpath(target);
-if(!(await stat(path.join(vault,'.obsidian'))).isDirectory())throw Error('Target must already be an Obsidian vault.');
 const exists=async file=>{try{await stat(file);return true}catch(error){if(error.code==='ENOENT')return false;throw error}};
+if(!await exists(path.join(vault,'.obsidian')))throw Error(`${vault} isn't an Obsidian vault (it has no .obsidian folder): open it as a vault in Obsidian first.`);
 const plugin=path.join(vault,'.obsidian/plugins/kingmaker-authoring');
 const backup=path.join(root,'dist/install-backups',new Date().toISOString().replaceAll(':','-'));
 const enabledFile=path.join(vault,'.obsidian/community-plugins.json');
@@ -27,16 +30,8 @@ if(!enabled.includes('kingmaker-authoring')){
   if(await exists(enabledFile)){await mkdir(backup,{recursive:true});await copyFile(enabledFile,path.join(backup,'community-plugins.json'))}
   await writeFile(enabledFile,JSON.stringify([...enabled,'kingmaker-authoring'],null,2)+'\n');
 }
-async function installExamples(relative=''){
-  const from=path.join(root,'examples',relative);
-  for(const entry of await readdir(from,{withFileTypes:true})){
-    const next=path.join(relative,entry.name),destination=path.join(vault,next);
-    if(entry.isDirectory())await installExamples(next);
-    else if(await exists(destination))console.log(`Kept existing: ${next}`);
-    else{await mkdir(path.dirname(destination),{recursive:true});await copyFile(path.join(from,entry.name),destination,1);console.log(`Created: ${next}`)}
-  }
-}
-await installExamples();
 console.log(`Installed Kingmaker Authoring in ${vault}`);
 console.log('Reload Obsidian. If Restricted mode is on, allow community plugins and enable Kingmaker Authoring.');
-console.log('Open Scenarios/Caerwyn.kmscenario or Scenes/The Hanged Clerk.kmscene from the vault file explorer.');
+console.log(await exists(path.join(vault,'campaign.json'))
+  ?'Open a scene from scenes/ (scenes/hanged-clerk.kmscene is the worked example).'
+  :'This vault has no campaign.json: the scene editor checks scenes against a campaign folder (campaigns/caerwyn), so open that as the vault.');

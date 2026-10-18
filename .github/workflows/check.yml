@@ -1,7 +1,7 @@
 name: check
 
 # The game's checks: the type check, the unit tests and the screens, the site's build, the bindings,
-# end to end on SpacetimeDB, the page in a browser, and the AI service's image.
+# end to end on SpacetimeDB, the page in a browser, the authoring plugin, and the AI service's image.
 on:
   pull_request:
   push:
@@ -129,6 +129,44 @@ jobs:
         with:
           name: web-check
           path: runs/web/
+          if-no-files-found: ignore
+
+  authoring:
+    # The Obsidian authoring plugin (tools/authoring, a package of its own, tools/authoring/README.md#checks):
+    # its type check, its host and model tests, its build, then its journeys in Chromium on the campaign's
+    # real scenes and lore, and the built bundle loaded as Obsidian loads a plugin on every scene. It needs
+    # none of the root's packages: it bundles the game's shared code itself.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: tools/authoring
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26.9.0
+          cache: npm
+          cache-dependency-path: tools/authoring/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run test:host
+      - run: npm run build
+      - name: Playwright's Chromium, cached by the plugin's lock
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-authoring-${{ runner.os }}-${{ hashFiles('tools/authoring/package-lock.json') }}
+      # The browser comes from the cache while the lock is unchanged; the system libraries it needs are
+      # installed every run.
+      - run: npx --no-install playwright install --with-deps chromium
+      - run: npx playwright test --workers=1
+      - name: The journeys' results, when they failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: authoring-playwright
+          path: tools/authoring/test-results/
           if-no-files-found: ignore
 
   container:

@@ -153,7 +153,7 @@ export function inventory(world: SceneWorld, turn: number): InventoryService {
 }
 
 function isWithin(world: SceneWorld, id: string, ancestor: string): boolean {
-  for (let e = world.entities[id], n = 0; e && n < 20; e = e.parent ? world.entities[e.parent] : undefined, n++) if (e.id === ancestor) return true;
+  for (let e: Entity | undefined = world.entities[id], n = 0; e && n < 20; e = e.parent ? world.entities[e.parent] : undefined, n++) if (e.id === ancestor) return true;
   return false;
 }
 
