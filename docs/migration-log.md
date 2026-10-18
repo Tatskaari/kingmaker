@@ -787,6 +787,8 @@ From the worktree's root, with the fight's screen's commits in it: `npm run type
 
 The dev stack on the fake, in namespace mode on ports of its own (`npm run dev -- --fake --fresh --port 3740 --ai-port 9240 --root runs/dev-zoo --no-keys`): its screen said "caerwyn 0.1.0 installed in both; zoo 0.1.0 installed in the module (no GM plays it)"; `npm run play -- new --session zoo-dev --zoo ring --build wizard --stack runs/dev-zoo` came back at the wizard's first turn in 2.4 s (Kell first, her club at the talking Crake), a Fire Bolt by its id (4 fire), `end_turn` with the other side's three turns played on SpacetimeDB's schedule in 5.4 s (the talking Crake's critical on Kell, Sallow's lunge putting her down, the silent Crake's cudgel on the wizard), `again` (everyone whole, round 1), and `foes_dogs`.
 
+`npm run e2e -- --port 3760 --ai-port 9260 --root runs/e2e-zoo2` once, at the end, in namespace mode on ports of its own: PASS, every step, 364 checks in 389.6 s; its first step now installs the zoo in the module beside the campaign on a real SpacetimeDB, its words never sent to the AI service.
+
 #### Open
 
 - **The arena's rings as exhibits** (the wolf run, the goblin pit, the porters' floor, the grain floor), each a map, a place, a scene and a line-up in the zoo.
