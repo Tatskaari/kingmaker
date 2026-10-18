@@ -17,6 +17,8 @@ import { afterAct, autoTurn, endTurn, playersTurn, step } from "./turns.ts";
 export const FIGHT_ON = "(There's a fight on: see it through first.)";
 /** And once it's over, until the player goes back to the map. */
 export const FIGHT_OVER = "(The fight's over: out goes back to the map.)";
+/** hurry on the player's own turn. */
+export const HURRY_MINE = "(It's your turn already: there's nothing to hurry.)";
 
 /** The actor's game's fight, while it's on or its end is still on screen: the map's moves are the fight's then. */
 export function fightFor(tx: TxCtx, actor: Actor): FightRow | undefined {
@@ -51,11 +53,11 @@ export function fightTurnReducer(tx: TxCtx, sender: Identity, args: { act: strin
 /**
  * hurry (the screen's "skip to your turn"): the other side's turns still to come before the player's
  * are played now, one after another in this one move, each written as its moments as fight_step
- * would, until it's the player's turn or the fight is over. On the player's own turn it does
- * nothing. The step on the clock, if any, finds nothing left to do.
+ * would, until it's the player's turn or the fight is over. On the player's own turn there's nothing
+ * to hurry, and it says so. The step on the clock, if any, finds nothing left to do.
  */
 function hurry(tx: TxCtx, fight: FightRow): void {
-  if (fight.options) return;
+  if (fight.options) throw new Refused(refusal("not_now", { text: HURRY_MINE }));
   play(tx, fight, s => {
     for (let i = 0; i < 64 && step(s); i++);
   });

@@ -481,14 +481,14 @@ test("a hit says how its target stood as the moment began, so a screen that sees
   assert.fail("no blow landed in four tries");
 });
 
-test("hurry, the screen's skip to your turn: the other side's turns before the player's played at once, each its moments; on the player's turn it does nothing, and a spectator can't", () => {
+test("hurry, the screen's skip to your turn: the other side's turns before the player's played at once, each its moments; on the player's turn there's nothing to hurry, and a spectator can't", () => {
   const { host, playerId, game, wren } = onMap();
   const tom = identity(2);
   assert.equal(host.as(tom).joinGame({ game: game.id }), undefined);
   started(host, playerId, room([{ id: "bandit-1", at: { x: 9, y: 1 } }, { id: "bandit-2", name: "another bandit", at: { x: 9, y: 5 } }], { x: 2, y: 3 }));
   toPlayer(host, game.id);
   const mine = fightNow(host, game.id);
-  assert.equal(host.as(wren).fightTurn({ act: "hurry" }), undefined, "on the player's own turn: nothing to do");
+  assert.equal(host.as(wren).fightTurn({ act: "hurry" })?.text, "(It's your turn already: there's nothing to hurry.)", "on the player's own turn: nothing to hurry");
   assert.equal(fightNow(host, game.id).seq, mine.seq, "and nothing written");
   assert.equal(host.as(wren).fightTurn({ act: "end_turn" }), undefined);
   const theirs = fightNow(host, game.id);
