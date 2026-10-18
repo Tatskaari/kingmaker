@@ -1,4 +1,4 @@
-// Copied from PR #666's src/runtime/two-part.ts at origin/claude/two-part-gm c749270: FORMAT and SCHEMA (the reply format), routeLine, mouthpieceInstructions, characters, mouthpieceInput with gmText, speak, movedDirective, the wind-down's words (twoPartTurn's), the co-GM's tools (UPDATE_ROLE, MOVE_SCENE, CO_GM_TOOLS), coGmInput and coGm, whole but at the seams docs/two-part-design.md names. It reads a TurnView (gm/view.ts) for the session. Where the scene is, is shared/scene/beats.ts's (its stage, the routes open, a route taken) in place of the beat and its transitions; the prep ({{beats}}) is the scene format's, rendered as the design orders it, in place of beatsBlock; {{characters}} has the cards' whyHere and limits too, and the co-GM's each person's role palette and the clues via them. speak doesn't roll: the check comes back with its five outcomes, and the simulation rolls it; the narration streams through the game's markup (who says each line) as it's written. The per-turn note is twoPartNow, nowNote's copy (brief.ts) with the open routes. The co-GM's moves are beats.ts's takeRoute on a copy of the request's bookkeeping, and its answer is the roles it set and the moves it made, for the simulation to make again. The speakers paragraph is gm.md's, appended after the format.
+// Copied from PR #666's src/runtime/two-part.ts at origin/claude/two-part-gm c749270: FORMAT and SCHEMA (the reply format), routeLine, mouthpieceInstructions, characters, mouthpieceInput with gmText, speak, movedDirective, the wind-down's words (twoPartTurn's), the co-GM's tools (UPDATE_ROLE, MOVE_SCENE, CO_GM_TOOLS), coGmInput and coGm, whole but at the seams docs/two-part-design.md names. It reads a TurnView (gm/view.ts) for the session. Where the scene is, is shared/scene/beats.ts's (its stage, the routes open, a route taken) in place of the beat and its transitions; the prep ({{beats}}) is the scene format's, rendered as the design orders it, in place of beatsBlock; {{characters}} has the cards' whyHere and limits too, and the co-GM's each person's role palette and the clues via them. speak doesn't roll: the check comes back with its five outcomes, and the simulation rolls it; the narration streams through the game's markup (who says each line) as it's written. The per-turn note is twoPartNow, nowNote's copy (brief.ts) with the open routes. The co-GM's moves are beats.ts's takeRoute on a copy of the request's bookkeeping, and its answer is the roles it set and the moves it made, for the simulation to make again. The speakers paragraph is gm.md's, appended after the format. The narration's names the player hasn't heard are swapped for what they'd call them before it's shown or kept (unheard.ts, QA round qa1-1018), and the per-turn note says what to call each of them (namesNote).
 
 import { titleCase } from "../../shared/dice.ts";
 import type { GmState, TwoPartRole } from "../../shared/gm/state.ts";
@@ -7,7 +7,6 @@ import type { Markup } from "../../shared/markup.ts";
 import type { CoGmAnswer, Reply, SpokenCheck, TurnCheck } from "../../shared/protocol/ai.ts";
 import { enteringAt, isDiscovery, isEvent, openRoutes, reachedOf, stageOf, takeRoute, targetsOf, type RouteOutcome } from "../../shared/scene/beats.ts";
 import { presentCast } from "../../shared/scene/graph.ts";
-import { unnamed } from "../../shared/scene/names.ts";
 import { SKILLS, type Character, type Exit, type Scene, type SceneRoute, type Skill } from "../../shared/scene/types.ts";
 import { worldView } from "../../shared/world/scene-world.ts";
 import { PHYSICS } from "../../shared/world/systems.ts";
@@ -17,6 +16,7 @@ import { prompt } from "../prompts/index.ts";
 import { bullets, castBlock, OWED_PLACE, outOfSight, playerNow, sceneBrief, sceneEntries, scriptTranscript } from "./brief.ts";
 import { FIGHT_CLOSE } from "./directives.ts";
 import type { TurnView } from "./view.ts";
+import { asKnown, unheardOf, type Unheard } from "./unheard.ts";
 import { asWritten, readReply, streamed } from "./voice.ts";
 
 /**
@@ -220,8 +220,6 @@ export function mouthpieceInstructions(scene: Scene, view: TurnView): string {
  */
 export function twoPartNow(scene: Scene, view: TurnView, directive: string[]): string {
   const stage = stageOf(scene, view);
-  const present = new Set(presentCast(scene, view).map(c => c.id));
-  const strangers = Object.entries(unnamed(scene, view)).filter(([id]) => present.has(id)).map(([id, called]) => { const c = scene.cast.find(x => x.id === id)!; return `- ${c.name}${c.aka?.length ? ` (${c.aka.join(", ")})` : ""}: "${called}"`; });
   const unseen = outOfSight(scene, view);
   const open = openRoutes(scene, view);
   const parts = [
@@ -233,10 +231,21 @@ export function twoPartNow(scene: Scene, view: TurnView, directive: string[]): s
     ...(view.canon.length || view.established.length ? [`## Details established in play (keep them true)\nWhat has happened and been found, in the order it happened.${view.world ? " Where people are and what they're doing now is the world's, below: a detail here about where someone was or what they were doing was true then, and where the world says otherwise, they've moved on (people who have left don't come back unless the story brings them)." : ""}\n${bullets([...view.established, ...view.canon])}`] : []),
     ...(playerNow(view) ? [playerNow(view)!] : []),
     ...(view.world ? [`## The world right now\nWhere everyone and everything is, and what state it's in (ids in brackets). Keep to it, since it's updated after every reply: people and things are where it says, and what's destroyed, burning or gone stays that way until the story changes it. Details it doesn't list are yours to invent, consistent with it. It's as things stood before the player's turn: what the player does in it (shutting a book and buttoning it into their coat, picking something up, crossing the room) has happened by your reply, and the world catches up after it. It's the truth behind the screen, not what the player has seen: of what people carry, the player sees what's out in the open (worn, in hand, held up), and of the rest (in a pocket, a fist, a lining, a box) they know only what they've seen or been told.${unseen.length ? ` Out of the player's sight, and nobody has shown or told them of it: ${unseen.map(e => `${e.name} [${e.id}]`).join("; ")}. Until they find it, the narration doesn't mention it or where it is.` : ""}\n${PHYSICS}\n\n${worldView(view.world)}`] : []),
-    ...(strangers.length ? [`## Names the player hasn't heard yet\nUntil someone in the story says their name, the narration (and anyone who wouldn't know it) doesn't use it: call them what the player would. Your prep, the details established, the world and your directions use their names; your narration doesn't, until someone says it.\n${strangers.join("\n")}`] : []),
+    ...(namesNote(unheardOf(scene, view)) ? [namesNote(unheardOf(scene, view))!] : []),
     ...(directive.length ? [`## For this reply\n${directive.join("\n\n")}`] : []),
   ];
   return parts.join("\n\n");
+}
+
+/**
+ * The names the player hasn't heard, of whoever's here, with what to call them (unheard.ts): the
+ * first time in a reply in full, then the short way. The game swaps any the narration uses anyway
+ * (`asKnown`, as the reply is shown and kept), but a reply written with them reads better.
+ */
+export function namesNote(unheard: Unheard[]): string | undefined {
+  const here = unheard.filter(u => u.here);
+  if (!here.length) return undefined;
+  return `## Names the player hasn't heard yet\nUntil someone says a name aloud where the player can hear it (or the player reads it or says it), the narration calls them what the player would: in full the first time in a reply, then the short way. Someone who knows a name may say it in a line: that's how the player hears it. Your prep, the details established, the world and your directions use the names; your narration doesn't.\n${here.map(u => `- ${u.name}${u.aka?.length ? ` (${u.aka.join(", ")})` : ""}: "${u.called}"${u.short !== u.called ? `, then "${u.short}"` : ""}`).join("\n")}`;
 }
 
 /** The stage whose pressure this reply's note offers: two exchanges in, once a stage (the simulation marks it offered). */
@@ -287,39 +296,47 @@ export async function speak(scene: Scene, view: TurnView, directive: string[], h
   // A closing that may wait once says whether it closed: { closes } beside the reply.
   const schema = how.mayHold ? { ...SCHEMA, required: [...SCHEMA.required, "closes"], properties: { ...SCHEMA.properties, closes: { type: "boolean" } } } : SCHEMA;
   const show = how.onText ? streamed(scene, view, how.onText) : undefined;
+  // Names the player hasn't heard come out of the narration before it's shown or kept (unheard.ts).
+  const unheard = unheardOf(scene, view);
   const result = await respond({
     operation: how.operation, instructions: mouthpieceInstructions(scene, view), input: mouthpieceInput(scene, view, directive), effort: "none", maxOutputTokens: 2500,
     json: { name: "reply", schema }, calls: how.calls,
-    ...(show ? { onText: (raw: string) => { const said = narrationSoFar(raw); if (said !== undefined) show(said); } } : {}),
+    ...(show ? { onText: (raw: string) => { const said = narrationOf(raw); if (said) show(asKnown(said.text, unheard, { partial: !said.done }).text); } } : {}),
   });
   const out = JSON.parse(result.text) as { narration: string; check: { skill: Skill; dc: number; outcomes: Record<Band, string> } | null; closes?: boolean };
   const said = (text: string): Reply => {
     const { text: words, marked } = readReply(scene, view, text.trim());
     return { speaker: "gm", kind: "narration", text: words, ...(marked.speech.length ? { markup: how.byKey({ speech: marked.speech }) } : {}) };
   };
+  const narration = asKnown(out.narration, unheard);
+  // An outcome follows the narration: a name said aloud there has been heard.
+  const after = unheard.filter(u => !narration.heard.includes(u.id));
   const check = out.check && SKILLS.includes(out.check.skill) && Number.isInteger(out.check.dc) && BANDS.every(b => typeof out.check!.outcomes?.[b] === "string")
-    ? { skill: out.check.skill, dc: out.check.dc, outcomes: Object.fromEntries(BANDS.map(b => [b, said(out.check!.outcomes[b])])) as Record<Band, Reply> }
+    ? { skill: out.check.skill, dc: out.check.dc, outcomes: Object.fromEntries(BANDS.map(b => [b, said(asKnown(out.check!.outcomes[b], after).text)])) as Record<Band, Reply> }
     : undefined;
-  return { narration: said(out.narration), ...(check ? { check } : {}), closes: out.closes !== false, costUsd: result.costUsd, firstTextMs: result.firstTextMs };
+  return { narration: said(narration.text), ...(check ? { check } : {}), closes: out.closes !== false, costUsd: result.costUsd, firstTextMs: result.firstTextMs };
 }
 
 /**
  * The narration as far as it's been written: the JSON's `narration` string, read as the reply
  * streams in (its escapes undone, one cut off part-way held back), or undefined before it starts.
  */
-export function narrationSoFar(raw: string): string | undefined {
+export const narrationSoFar = (raw: string): string | undefined => narrationOf(raw)?.text;
+
+/** The narration so far, and whether it's whole (its closing quote has come). */
+export function narrationOf(raw: string): { text: string; done: boolean } | undefined {
   const start = /"narration"\s*:\s*"/.exec(raw);
   if (!start) return undefined;
   let out = "";
   for (let i = start.index + start[0].length; i < raw.length; i++) {
     const c = raw[i]!;
-    if (c === "\"") return out;
+    if (c === "\"") return { text: out, done: true };
     if (c !== "\\") { out += c; continue; }
     const next = raw[i + 1];
-    if (next === undefined) return out;
+    if (next === undefined) return { text: out, done: false };
     if (next === "u") {
       const hex = raw.slice(i + 2, i + 6);
-      if (!/^[0-9a-fA-F]{4}$/.test(hex)) return out;
+      if (!/^[0-9a-fA-F]{4}$/.test(hex)) return { text: out, done: false };
       out += String.fromCharCode(parseInt(hex, 16));
       i += 5;
       continue;
@@ -327,7 +344,7 @@ export function narrationSoFar(raw: string): string | undefined {
     out += ({ n: "\n", t: "\t", r: "\r", b: "\b", f: "\f" } as Record<string, string>)[next] ?? next;
     i++;
   }
-  return out;
+  return { text: out, done: false };
 }
 
 /**

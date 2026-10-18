@@ -118,6 +118,38 @@ test("the per-turn note: the stage, the routes open now with a dice route's chec
   assert.ok(!clerkNow(3, ["cart-arrives"]).includes("sitting here a while"), "once offered, never again");
 });
 
+test("the per-turn note: whoever's here whose name the player hasn't heard, with what to call them, in full and then the short way", () => {
+  const names = (view: TurnView) => { const note = twoPartNow(clerk, view, []); const at = note.indexOf("## Names the player hasn't heard yet"); return at < 0 ? "" : note.slice(at).split("\n\n")[0]!; };
+  assert.match(names(yard()), /^## Names the player hasn't heard yet\nUntil someone says a name aloud where the player can hear it[\s\S]*\n- Cob: "the boy in the too-big boots", then "the boy"\n- Moll: "the girl in the shawl", then "the girl"$/);
+  assert.doesNotMatch(names(yard()), /Tull/, "the corporal isn't here yet");
+  const told = yard({ turn: 1 });
+  told.transcript.push({ turn: 0, scene: "hanged-clerk", speaker: "gm", kind: "narration", text: "“Cob don’t take orders off palace pigeons.”" });
+  assert.match(names(told), /\n- Moll: "the girl in the shawl", then "the girl"$/);
+  assert.doesNotMatch(names(told), /- Cob/, "once said aloud, it's heard");
+  assert.match(twoPartNow(clerk, told, ["Go."]), /## Names the player hasn't heard yet[\s\S]*\n\n## For this reply\nGo\.$/, "the names, and the directives last");
+});
+
+
+test("the mouthpiece's narration and each outcome keep names the player hasn't heard out of their words, as they stream and as they're kept", async () => {
+  const shown: string[] = [];
+  const view = yard({ turn: 1 });
+  view.transcript.push({ turn: 1, scene: "hanged-clerk", speaker: "player", kind: "player", text: "Hello up there." });
+  const reply = {
+    narration: "Moll snorts from the wall. [Cob] “Cob don’t talk to pigeons.” Cob stamps. Moll’s fist stays shut.",
+    check: { skill: "persuasion", dc: 13, outcomes: { major_failure: "Moll spits.", minor_failure: "Cob shrugs. Moll looks away.", barely_passed: "Moll nods.", minor_success: "[Cob] “Moll says yes.” Moll nods.", major_success: "Moll grins." } },
+  };
+  const spoke = await speak(clerk, view, [], { operation: "two-part.reply", calls: fake({ byName: { reply }, streamMs: 5 }), byKey: m => m, onText: text => shown.push(text) });
+  assert.equal(spoke.narration.text, "The girl in the shawl snorts from the wall. “Cob don’t talk to pigeons.” Cob stamps. The girl’s fist stays shut.");
+  assert.deepEqual(spoke.narration.markup?.speech.map(s => s.speaker), ["cob"]);
+  assert.ok(shown.every((t, i) => i === 0 || t.startsWith(shown[i - 1]!)), "what's shown only grows");
+  assert.ok(shown.every(t => !/\bMoll\b/.test(t)), "and never shows the name");
+  assert.equal(shown.at(-1), spoke.narration.text);
+  assert.equal(spoke.check?.outcomes.major_failure.text, "The girl in the shawl spits.");
+  assert.equal(spoke.check?.outcomes.minor_failure.text, "Cob shrugs. The girl in the shawl looks away.", "Cob said his own name in the narration: heard");
+  assert.equal(spoke.check?.outcomes.minor_success.text, "“Moll says yes.” Moll nods.", "said aloud, it's heard");
+});
+
+
 test("a route into a discovery is taken once its revelation has landed: the co-GM's open routes say what the revelation is, the mouthpiece's note leaves it to the prep", () => {
   const find = clerk.routes.find(r => r.id === "find-murder")!;
   assert.equal(routeLine(clerk, find), "- [find-murder] from Stones at a hanged man [start] to The victim was murdered [murder]. When: its revelation has landed with the player");
