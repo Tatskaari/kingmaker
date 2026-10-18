@@ -23,10 +23,23 @@ import { syncStage } from "../world/stage.ts";
  * promise, a fight's set-up) are recorded, a log line each.
  */
 
+/**
+ * A scene's onStart, as it comes into the story (its row made: waiting as the lead on a map, or
+ * opened at once with none), before it's played: effects as an ending's are, each when its facts
+ * hold (the hanged clerk's quest, started as the game begins, where it was written only at its
+ * endings: QA round qa3-1018). Its log line says what they came to.
+ */
+export function applyOnStart(tx: TxCtx, at: Ending): void {
+  const effects = at.graph.onStart ?? [];
+  if (!effects.length) return;
+  const done = applyEffects(tx, at, effects);
+  tx.log(`[start ${at.scene.sceneKey}] applied: ${done.applied.join("; ") || "nothing"} · recorded: ${done.recorded.join("; ") || "nothing"}${done.notDone.length ? ` · not done: ${done.notDone.join("; ")}` : ""}`);
+}
+
 /** What an ending's effects came to, a few words each: the applied ones, the recorded ones, and the world's operations that couldn't be done (and why). */
 export interface Done { applied: string[]; recorded: string[]; notDone: string[] }
 
-/** The scene ending, as its effects read it: its row, its graph (the cast's names, the facts' sentences), and its bookkeeping (what's established). */
+/** The scene ending (or starting: applyOnStart), as its effects read it: its row, its graph (the cast's names, the facts' sentences), and its bookkeeping (what's established). */
 export interface Ending { scene: SceneRow; graph: Scene; gm: GmState }
 
 export function applyEffects(tx: TxCtx, at: Ending, effects: Effect[]): Done {

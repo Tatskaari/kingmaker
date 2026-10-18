@@ -59,7 +59,10 @@ export function onTop(under: FakeOptions, over: FakeOptions): FakeOptions {
  * the Rat's Hobb talking, the Heron's proof taken out with the true book, the King's justice), so the
  * arc is walked to The End on the fake. The dev stack takes it as KM_AI_FAKE (README.md); the page's
  * ?fake=arc puts it on fake.json's (hosts/web/server-worker.ts). fake.json's own co-GM walks to each
- * scene's first good ending, which these are.
+ * scene's first good ending, which these are. Since QA round qa3-1018's fixes a lead is taken only
+ * once its name has been said: the clerk's Hobb a turn later (the fake's Kell names him when told
+ * to), and the Rat's master not until someone says Sallow, which nothing on the fake does, so there
+ * the player says it, or ends the scene (end --exit hobb-talks, as the arc and the e2e do).
  */
 export function wholeStory(): FakeOptions {
   return { coGm: { endings: ["murder-unknown", "hobb-talks", "proof-taken", "justice"] } };

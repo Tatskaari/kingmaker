@@ -5,7 +5,7 @@ visibility: "public"
 ---
 # The Crake brothers
 
-They aren't a scene cast entry of their own: they come in with Master Sallow (`sallow`), as members of his group ("the talking Crake" and "the silent Crake").
+They aren't a scene cast entry of their own: they come in with Master Sallow (`sallow`), as members of his group ("the first Crake" and "the second Crake": nobody can tell them apart until one of them speaks).
 
 ## Read when relevant
 - [Public profile](public.md) — what anyone on the river could know or see of them

@@ -156,4 +156,7 @@ test('where the scenes played in a place name its things (a path\'s via as words
   assert.deepEqual(uses.castUsesOf(yard,'kell',scenes).map(use=>use.where),[`${clerk.cast.find(member=>member.id==='kell').name} of its cast`]);
   assert.deepEqual(uses.castUsesOf(yard,'player',scenes),[]);
   assert.deepEqual(uses.thingUsesOf(yard,'nothing-here',scenes),[]);
+  // An effect as the scene starts names a thing too (onStart, beside onEnd's and the endings').
+  const given={...clerk,onStart:[...clerk.onStart,{op:'give',what:'satchel',to:'$player'}]};
+  assert.ok(uses.thingUsesOf(yard,'satchel',[{...scenes[0],doc:given}]).some(use=>use.where==='as it starts: effect 2'));
 });

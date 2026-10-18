@@ -84,7 +84,10 @@ const USAGE = `Kingmaker: headless play
                                                 (the AI plays your turn); out once it's over. Each waits for the other
                                                 side's turns after it, and prints what happened
   play journal --session <name>                 the investigator's notebook, the quests, the flags, the attitudes
-  play map --session <name> [--w 100 --h 30]    the scene's place: as the player sees it, then from above with what's what
+  play map --session <name> [--w 100 --h 30] [--full]
+                                                the scene's place: as the player sees it, then from above with what's
+                                                what of it they can see, by the names they know; --full, the QA map:
+                                                everything in the world by its own name, hidden things too
   play report --session <name> <what went wrong>
                                                 report a problem, as the client's b or /report does: what you'd see,
                                                 where you are and the game (yours now, else the latest), saved in
@@ -126,7 +129,7 @@ function argsOf(argv: string[]) {
       backstory: { type: "string" }, "backstory-file": { type: "string" }, "accept-fixes": { type: "boolean" },
       game: { type: "string" }, id: { type: "string" }, exit: { type: "string" }, wait: { type: "string" }, stream: { type: "boolean" }, demo: { type: "boolean" },
       url: { type: "string" }, db: { type: "string" }, stack: { type: "string" }, help: { type: "boolean", short: "h" },
-      w: { type: "string" }, h: { type: "string" }, ring: { type: "string" }, fast: { type: "boolean" },
+      w: { type: "string" }, h: { type: "string" }, full: { type: "boolean" }, ring: { type: "string" }, fast: { type: "boolean" },
       zoo: { type: "string" }, foes: { type: "string" },
     },
   });
@@ -171,7 +174,7 @@ async function run(game: Backend, args: Args): Promise<number> {
     case "end": return await verbs.end(game, args.values.exit, out, waiting);
     case "go": return await verbs.go(game, out, waiting);
     case "journal": return verbs.journal(game, out);
-    case "map": return verbs.map(game, out, { w: cells(args.values.w, 100), h: cells(args.values.h, 30) });
+    case "map": return verbs.map(game, out, { w: cells(args.values.w, 100), h: cells(args.values.h, 30) }, { full: !!args.values.full });
     case "ring": return await verbs.ring(game, ringOf(args.values.ring), out, { ...waiting, fast: args.values.fast ?? false });
     case "report": return await verbs.report(game, args.text, out, reportsFor(args));
     default: console.log(`There's no "${args.verb}" to play.\n\n${USAGE}`); return 1;

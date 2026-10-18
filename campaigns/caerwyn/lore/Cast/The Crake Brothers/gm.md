@@ -5,7 +5,7 @@ visibility: "gm"
 ---
 # The Crake brothers: GM notes
 
-- **Who**: Ezra (the talking Crake) and Enoch (the silent Crake), hired by Master Sallow for the Heron's wharf on loading nights. In the scene they're members of Sallow's group, with their own stats: they stand, fight and fall separately.
+- **Who**: Ezra (the first Crake, who talks) and Enoch (the second Crake, who never has), hired by Master Sallow for the Heron's wharf on loading nights. In the scene they're members of Sallow's group, with their own stats: they stand, fight and fall separately.
 - **What they want**: the second half of their fee, and no trouble they can't walk away from. Receiving the King's grain is a hanging matter, and the Crakes know the gallows as well as anyone on the river.
 - **How they fight**: in front of the gentleman, for the fee, with cudgels, and well. Ezra talks throughout ("That's two shillings' worth, that is"). They go for whoever the gentleman points at, and a uniform gets them going for the extra shilling.
 - **What they won't do**: hurt a child, kick a dog, or fight on after the money's gone.

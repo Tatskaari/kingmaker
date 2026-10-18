@@ -16,6 +16,7 @@ import { refreshPockets } from "../rules/session.ts";
 import { rekeyOwed } from "../world/cross.ts";
 import { applyStage, joinPlace, openPlace, placeWorldOf, savePlaceWorld, type Start } from "../world/place.ts";
 import { syncStage } from "../world/stage.ts";
+import { applyOnStart } from "../story/effects.ts";
 import type { Move } from "./move.ts";
 import type { OpenPlan, Seen } from "./plans.ts";
 import { suggestAfter } from "./suggest.ts";
@@ -52,6 +53,8 @@ export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start; ac
     // The two-part GM's roles as the scene opens (note -1), from who's present now: the opening reads them.
     openingRolesFor(graph, gm);
     putGm(tx, scene.id, waiting ? { ...getGm(tx, scene.id), twoPart: gm.twoPart } : gm);
+    // A scene opened at once (no map, so it was never the lead) comes into the story now: its onStart (the lead's did as it was built).
+    if (!waiting) applyOnStart(tx, { scene, graph, gm });
     syncStage(tx, scene, graph, gm);
     if (waiting) noteHeardInStory(tx, scene, graph);
     else noteHeard(tx, scene, graph);

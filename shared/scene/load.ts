@@ -39,6 +39,7 @@ export function sceneOf(doc: SceneDocument): Scene {
     ...(doc.assumes?.length ? { assumes: [...doc.assumes] } : {}), ...(doc.overtaken ? { overtaken: doc.overtaken } : {}),
     ...(doc.rest ? { rest: doc.rest } : {}), ...(doc.milestone ? { milestone: true } : {}),
     ...(doc.background?.length ? { background: [...doc.background] } : {}),
+    ...(doc.onStart?.length ? { onStart: doc.onStart } : {}),
     ...(doc.onEnd?.length ? { onEnd: doc.onEnd } : {}),
     ...(doc.companion ? { companion: doc.companion } : {}),
     truth: doc.truth,

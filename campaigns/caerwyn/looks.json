@@ -19,6 +19,11 @@
     "glyph": "T",
     "fg": "#6d9eeb"
   },
+  "wat": {
+    "role": "person",
+    "glyph": "W",
+    "fg": "#d6ccae"
+  },
   "hobb": {
     "role": "person",
     "glyph": "H",
