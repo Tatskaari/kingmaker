@@ -12,7 +12,7 @@ import type { CombatAction, CombatDone, CombatFighter, CombatNewcomer, CombatRes
 import { idOf } from "../../../shared/protocol/keys.ts";
 import { blowBetween, bystander, reachOf, rollInitiative, standings, type FightMember, type Standing } from "../../../shared/rules/acts.ts";
 import type { Mechanic, Rules, SceneSession } from "../../../shared/rules/types.ts";
-import { fightsAhead, takeRoute } from "../../../shared/scene/beats.ts";
+import { fightsAhead, storyNeeds, takeRoute } from "../../../shared/scene/beats.ts";
 import { fighterOf, presentCast, presentFighters } from "../../../shared/scene/graph.ts";
 import type { Character } from "../../../shared/scene/types.ts";
 import { applyOps, distance, joinWorld, positionOf, type SceneWorld } from "../../../shared/world/scene-world.ts";
@@ -120,10 +120,7 @@ function runsOff(tx: TxCtx, at: At, n: number, id: string): "away" | "clear" {
  * people: Scrope and the true book), so a fight never takes the story's lead or its proof away.
  */
 function keepers(tx: TxCtx, at: At): Set<string> {
-  const follow = [...(at.graph.onEnd ?? []), ...at.graph.exits.flatMap(e => e.effects ?? [])].flatMap(e => (e.op === "follow" ? [e.who] : []));
-  const reached = new Set(at.gm.reached);
-  const holders = at.graph.beats.filter(b => b.required && !reached.has(b.id)).flatMap(b => (b.paths ?? []).map(p => p.via));
-  return new Set([...companionsHere(tx, at), ...follow, ...holders]);
+  return new Set([...companionsHere(tx, at), ...storyNeeds(at.graph, at.gm)]);
 }
 
 /** Who ran from the fight, in words: those away from the scene, and those keeping clear of it. */

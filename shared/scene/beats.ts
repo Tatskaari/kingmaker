@@ -63,6 +63,21 @@ export function openRoutes(scene: Scene, gm: Where): SceneRoute[] {
   return scene.routes.filter(r => reached.has(r.source) && !reached.has(r.target) && !gm.fought?.includes(r.target) && (r.requires ?? []).every(b => reached.has(b)));
 }
 
+/**
+ * Who the story needs here, so neither a fight nor a reaction to the player's violence takes them
+ * away for good (they keep clear, or cower, and are here after it): whoever this scene's endings have
+ * walk with the player (Kell in the yard), and whoever holds a discovery the scene can't end well
+ * without that the player hasn't made yet, by its paths (Scrope and the true book; QA round
+ * hobo1-1018: a murder hobo's first blow at the Heron's door sent Scrope off, book and all). The
+ * caller adds who already walks with the player.
+ */
+export function storyNeeds(scene: Scene, gm: Where): Set<string> {
+  const follow = [...(scene.onEnd ?? []), ...scene.exits.flatMap(e => e.effects ?? [])].flatMap(e => (e.op === "follow" ? [e.who] : []));
+  const reached = new Set(reachedOf(gm));
+  const holders = scene.beats.filter(b => b.required && !reached.has(b.id)).flatMap(b => (b.paths ?? []).map(p => p.via));
+  return new Set([...follow, ...holders]);
+}
+
 /** An event with a fight (docs/combat-gm.md): reaching it rolls for initiative with its line-up. */
 export type FightBeat = Beat & { fight: NonNullable<Beat["fight"]> };
 

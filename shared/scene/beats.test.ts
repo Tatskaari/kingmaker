@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { initialGm, type GmState } from "../gm/state.ts";
-import { endingNeeds, endingOf, enteringAt, fightsAhead, limitOf, openRoutes, oweName, owedLeads, reachDiscoveries, reachedOf, reachedTurns, stageOf, takeRoute, targetsOf, type Taken } from "./beats.ts";
+import { endingNeeds, endingOf, enteringAt, fightsAhead, limitOf, openRoutes, storyNeeds, oweName, owedLeads, reachDiscoveries, reachedOf, reachedTurns, stageOf, takeRoute, targetsOf, type Taken } from "./beats.ts";
 import type { SceneDocument } from "./document.ts";
 import { presentCast } from "./graph.ts";
 import { sceneOf } from "./load.ts";
@@ -142,6 +142,12 @@ test("a fight already fought isn't offered again: the scene picked up after it c
   assert.ok(!open.includes("to-blows"), "no way back into the fight");
   assert.ok(open.includes("walk-out"), "the other ending is open again");
   assert.match(refused(takeRoute(ring, after, "to-blows", "none", 2)), /^\[to-blows\] isn't open: it goes to .* \[fight\], a fight already fought\./);
+});
+
+test("who the story needs here: whoever the scene's endings have walk with the player, and the holders of a discovery it can't end well without until it's made", () => {
+  assert.deepEqual([...storyNeeds(scene, initialGm(scene))].sort(), ["cob", "kell", "moll", "wat"], "Kell walks with the player; Hobb's lead is held by Cob, Moll, Wat and Kell");
+  const found = took(takeRoute(scene, initialGm(scene), "find-hobb", "none", 1));
+  assert.deepEqual([...storyNeeds(scene, found)], ["kell"], "the lead made, only Kell");
 });
 
 test("the Heron's blades out is an event with a fight (docs/combat-gm.md): on offer once the Master's in, by either route; reached, it's the stage, nothing leads back into it, and the night's endings are open from it", () => {

@@ -13,6 +13,8 @@ import type { CallContext } from "../llm/openrouter.ts";
 import { combatInput, combatMove, fightNote } from "./combat.ts";
 import { CAERWYN, viewAt } from "./fixtures.ts";
 import { fightOf, routeLine, speak, twoPartNow } from "./two-part.ts";
+import { decideReactions } from "./mechanics.ts";
+import { director } from "../service/endpoints/turn.ts";
 import type { TurnView } from "./view.ts";
 
 /**
@@ -204,6 +206,22 @@ test("a route into a fight says who fights in it, for the mouthpiece and the co-
   assert.match(routeLine(heron, cornered), /It's a fight \(roll for initiative\): Master Josiah Sallow \[sallow\], the first Crake \[crake-1\], the second Crake \[crake-2\] against the player, Sergeant Agnes Kell \[kell\] beside them\./);
   const now = twoPartNow(heron, viewAt(heron, "midnight", { turn: 9, reached: ["wharf", "midnight"] }), []);
   assert.match(now, /- \[attack\] from The Master comes \[midnight\] to Blades out \[fight\]\. When: .*It's a fight \(roll for initiative\): Master Josiah Sallow/);
+});
+
+test("the reactions to the player's violence: whoever the story needs here isn't offered leaving the place, and one decided gone anyway cowers (QA round hobo1-1018: Scrope fled the Heron with the true book at the first blow)", async () => {
+  const witnesses = [{ id: "cob", name: "Cob", about: "" }, { id: "moll", name: "Moll", about: "" }, { id: "kell", name: "Kell", about: "" }];
+  const act = { what: "hit Cob", victims: ["cob"], property: [] };
+  // What it's asked: the ones who stay aren't offered leaving (the fake keeps to what's offered).
+  const f = fakeFetch({ choices: { react_cob: "cower", react_moll: "raise_alarm", react_kell: "intervene" } });
+  const offered = await decideReactions(director({ fetch: f.fetch, apiKey: "fake" }), clerk, yard(), "I hit Cob.", act, witnesses, id => id, new Set(["cob", "kell"]));
+  assert.deepEqual(offered.reactions, { cob: "cower", moll: "raise_alarm", kell: "intervene" });
+  const asked = f.sent.find(b => b.questions) as unknown as { questions: Record<string, { instructions: string; criteria: Record<string, string> }> };
+  assert.deepEqual(["flee" in asked.questions.react_cob!.criteria, "raise_alarm" in asked.questions.react_kell!.criteria, "flee" in asked.questions.react_moll!.criteria], [false, false, true]);
+  assert.match(asked.questions.react_cob!.instructions, /Cob stays in this place, whatever happens: hiding, cowering or stepping in, never leaving it\./);
+  // A decider that sends them off anyway: they cower.
+  const anyway = { name: "stub", decide: async () => ({ answers: { react_cob: { choice: "flee" }, react_moll: { choice: "raise_alarm" }, react_kell: { choice: "raise_alarm" } }, latencyMs: 0, costUsd: 0, decider: "stub" }) } as unknown as Parameters<typeof decideReactions>[0];
+  const sent = await decideReactions(anyway, clerk, yard(), "I hit Cob.", act, witnesses, id => id, new Set(["cob", "kell"]));
+  assert.deepEqual(sent.reactions, { cob: "cower", moll: "raise_alarm", kell: "cower" });
 });
 
 test("the fake mouthpiece rolls for initiative on its cue: the reply has the fight, and no check", async () => {

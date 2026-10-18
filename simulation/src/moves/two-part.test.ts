@@ -151,3 +151,15 @@ test("a lead's name the co-GM left owed goes on the path, once, from the stage t
   assert.deepEqual(reply.turn.gm.path.map(p => p.via), ["owed:hobb"], "the reply after it has it");
   assert.deepEqual(again.gm.path.map(p => p.via), ["owed:hobb"], "owed once");
 });
+
+test("the stage manager doesn't make a copy of one of the cast (QA round hobo1-1018: \"Master Sallow\" made as Sallow came in, so the King's morning had two, and the axe went at the copy); someone new is made", async () => {
+  const { castCopy } = await import("./two-part.ts");
+  const { sceneOf } = await import("../../../shared/scene/load.ts");
+  const { readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const king = sceneOf(JSON.parse(readFileSync(join(import.meta.dirname, "..", "..", "..", "campaigns", "caerwyn", "scenes", "kings-morning.kmscene"), "utf8")));
+  const create = (name: string, kind = "person") => ({ op: "create" as const, name, kind });
+  assert.deepEqual(["Master Sallow", "Sallow", "the Marshal Holt", "Sergeant Kell", "King Aldren"].map(n => castCopy(king, create(n))), [true, true, true, true, true]);
+  assert.deepEqual(["a palace guard", "the King's valet", "Master Pennyworth", "a tea tray"].map(n => castCopy(king, create(n, n === "a tea tray" ? "object" : "person"))), [false, false, false, false], "someone new, or a thing");
+  assert.equal(castCopy(king, { op: "note", name: "Sallow", kind: "" }), false, "only a create");
+});

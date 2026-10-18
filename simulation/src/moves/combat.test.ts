@@ -254,3 +254,29 @@ test("a fight that breaks out on the player's own blow (toll1-1018: a rapier run
   const first = asked[0]!;
   assert.ok(first.combat.fighters.find(f => f.id === "player")!.feet.cob! <= 7, "beside Cob as the fight starts");
 });
+
+test("a fight breaking out as the scene closes (QA round hobo1-1018: the Rat closing on the trail gone cold as the player swung at Hobb, no dice and no fight): the blow is the rules', the closing reply's fight reopens the scene, and the co-GM judges its ending again after it", async () => {
+  const { host, wren, scene, script } = await openedGame(7, "fighter", { asIs: true });
+  const settled = (moves: Array<{ route: string; outcome: "none"; why: string }>) => ({ ops: [], coGm: { roles: {}, moves, log: [] }, usage } satisfies SettleResponse);
+  // The first line: the co-GM ends it, the case lost.
+  script.then("reply", { entries: [{ speaker: "gm", kind: "narration", text: "Kell closes her notebook." }], gm: {}, firstTextMs: 3, usage } satisfies ReplyResponse);
+  script.then("settle", settled([{ route: "case-lost", outcome: "none", why: "The player gave the case up." }]));
+  assert.equal(host.as(wren).say({ text: "Suicide. I'm done here." }), undefined);
+  await host.drain();
+  assert.equal(sceneNow(host, scene.id).gm.closing?.exitId, "failed", "closing on the case lost");
+  // The next line is a blow, in the closing reply's turn: the rules resolve it, and the reply calls the fight.
+  script.then("act", { mechanic: { kind: "attack", target: "cob" }, usage });
+  script.then("reactions", { reactions: { cob: "fight" }, usage } satisfies ReactionsResponse);
+  script.then("reply", { entries: [{ speaker: "gm", kind: "narration", text: "Cob comes at you with the boathook. Roll for initiative!" }], gm: {}, firstTextMs: 3, closes: false, initiative: { foes: ["cob"], allies: ["kell"], flee: ["moll"], why: "Cob won't be hit twice" }, usage } satisfies ReplyResponse);
+  const asked: CombatRequest[] = [];
+  for (let i = 0; i < 20; i++) script.then("combat", (request: unknown) => { const r = request as CombatRequest; asked.push(r); return answer(r.combat.pending?.length ? picks(r) : { kind: "end_combat", outcome: "stopped", narration: "Kell gets between you." }); });
+  script.then("settle", settled([]));
+  assert.equal(host.as(wren).say({ text: "(I punch Cob in the ear)" }), undefined);
+  await host.drain();
+  const now = sceneNow(host, scene.id);
+  assert.ok(now.lines.some(l => l.kind === "roll" && /your attack on/.test(l.text)), "the blow went to the rules");
+  assert.ok(now.lines.some(l => l.kind === "system" && l.text.startsWith("Combat! In initiative order: ")), "the fight broke out");
+  assert.ok(now.lines.some(l => l.kind === "system" && l.text === "The fight is over (everyone stopped)."));
+  assert.deepEqual([now.gm.closing, now.gm.reached.includes("failed"), now.scene.status], [undefined, false, "live"], "the scene plays on, its ending undone");
+  assert.equal(script.to("settle").length, 2, "the co-GM settled after the fight, to judge the ending again");
+});
