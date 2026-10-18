@@ -1,4 +1,4 @@
-// Copied from PR #666's src/runtime/two-part.ts at origin/claude/two-part-gm c749270: FORMAT and SCHEMA (the reply format), routeLine, mouthpieceInstructions, characters, mouthpieceInput with gmText, speak, movedDirective, the wind-down's words (twoPartTurn's), the co-GM's tools (UPDATE_ROLE, MOVE_SCENE, CO_GM_TOOLS), coGmInput and coGm, whole but at the seams docs/two-part-design.md names. It reads a TurnView (gm/view.ts) for the session. Where the scene is, is shared/scene/beats.ts's (its stage, the routes open, a route taken) in place of the beat and its transitions; the prep ({{beats}}) is the scene format's, rendered as the design orders it, in place of beatsBlock; {{characters}} has the cards' whyHere and limits too, and the co-GM's each person's role palette and the clues via them. speak doesn't roll: the check comes back with its five outcomes, and the simulation rolls it; the narration streams through the game's markup (who says each line) as it's written. The per-turn note is twoPartNow, nowNote's copy (brief.ts) with the open routes. The co-GM's moves are beats.ts's takeRoute on a copy of the request's bookkeeping, and its answer is the roles it set and the moves it made, for the simulation to make again. The speakers paragraph is gm.md's, appended after the format. QA round qa1-1018 added what's ours after it: written words read untagged, what the player sees and hears (SEEN), the companion, the checks' outcomes following on from their setup, a closing going on from the last reply, and in the per-turn note what's hidden right now, the names not yet heard with what to call them, and what the player did or thought in brackets; and the narration's names the player hasn't heard are swapped for what they'd call them before it's shown or kept (unheard.ts). The co-GM's tools section, its input and its moves' answers have what QA round qa1-1018 showed they needed (docs/migration-log.md, M2's fixes from it): the turns counted, each cue's outer limit and whether it's overdue, what's true at each ending a route goes to, how to take a route, and a move whose own reason denies it refused. Its input also has the GM's notes on each person on stage from play (docs/notes.ts, the memory the user kept from the old pipeline), so a role reflects the story so far.
+// Copied from PR #666's src/runtime/two-part.ts at origin/claude/two-part-gm c749270: FORMAT and SCHEMA (the reply format), routeLine, mouthpieceInstructions, characters, mouthpieceInput with gmText, speak, movedDirective, the wind-down's words (twoPartTurn's), the co-GM's tools (UPDATE_ROLE, MOVE_SCENE, CO_GM_TOOLS), coGmInput and coGm, whole but at the seams docs/two-part-design.md names. It reads a TurnView (gm/view.ts) for the session. Where the scene is, is shared/scene/beats.ts's (its stage, the routes open, a route taken) in place of the beat and its transitions; the prep ({{beats}}) is the scene format's, rendered as the design orders it, in place of beatsBlock; {{characters}} has the cards' whyHere and limits too, and the co-GM's each person's role palette and the clues via them. speak doesn't roll: the check comes back with its five outcomes, and the simulation rolls it; the narration streams through the game's markup (who says each line) as it's written. The per-turn note is twoPartNow, nowNote's copy (brief.ts) with the open routes. The co-GM's moves are beats.ts's takeRoute on a copy of the request's bookkeeping, and its answer is the roles it set and the moves it made, for the simulation to make again. The speakers paragraph is gm.md's, appended after the format. QA round qa1-1018 added what's ours after it: written words read untagged, what the player sees and hears (SEEN), the companion, the checks' outcomes following on from their setup, a closing going on from the last reply, and in the per-turn note what's hidden right now, the names not yet heard with what to call them, and what the player did or thought in brackets; and the narration's names the player hasn't heard are swapped for what they'd call them before it's shown or kept (unheard.ts). The co-GM's tools section, its input and its moves' answers have what QA round qa1-1018 showed they needed (docs/migration-log.md, M2's fixes from it): the turns counted, each cue's outer limit and whether it's overdue, what's true at each ending a route goes to, how to take a route, and a move whose own reason denies it refused. Its input also has the GM's notes on each person on stage from play (docs/notes.ts, the memory the user kept from the old pipeline), so a role reflects the story so far. Since the old pipeline's salvage a talk plays on it too: its reply format has no dice (TALK_FORMAT), the companion's lore is in the people (talk.ts talkLore), and the GM's notes on them are in the per-turn note as well (talkNotes).
 
 import { titleCase } from "../../shared/dice.ts";
 import type { GmState, TwoPartRole } from "../../shared/gm/state.ts";
@@ -19,6 +19,7 @@ import { FIGHT_CLOSE } from "./directives.ts";
 import { nameAsKnown } from "./knowledge.ts";
 import { speechIn } from "./markup.ts";
 import { pronounOf } from "./speakers.ts";
+import { talkLore, talkNotes } from "./talk.ts";
 import type { TurnView } from "./view.ts";
 import { asKnown, unheardOf, type Unheard } from "./unheard.ts";
 import { asWritten, readReply, streamed } from "./voice.ts";
@@ -52,6 +53,16 @@ Reply as JSON with two fields.
   - major_success (beat it by 7 or more): the next step and a little more: the character warms, or a further hook opens.
   Even a major success gives only what the attempt could earn now: the next step for that character, never the whole of a secret.
 - Don't roll or report numbers yourself, and don't ask the player to roll: the check is how you ask.`;
+
+/**
+ * A talk's reply format (town-design §3.6): the narration, and no dice. A talk had none on the old
+ * pipeline (its approach: no considered rolls, no freeform checks), and what the companion tells, and
+ * when, comes of how the player treats them: the co-GM stages it through their role, never a roll.
+ */
+const TALK_FORMAT = `## How to reply
+Reply as JSON with two fields.
+- \`narration\`: what you say to the player this turn, with a blank line between paragraphs as usual.
+- \`check\`: always null. Nothing in a talk is decided by dice: what they tell, and when, comes of how the player treats them.`;
 
 /**
  * The speakers part of the game's markup, word for word from gm.md: the screen gives each person's
@@ -88,8 +99,14 @@ const SCHEMA = {
   },
 };
 
-/** The reply's schema: a closing that may wait once says whether it closed, { closes } beside the reply. */
-export const replySchema = (mayHold: boolean): Record<string, unknown> => (mayHold ? { ...SCHEMA, required: [...SCHEMA.required, "closes"], properties: { ...SCHEMA.properties, closes: { type: "boolean" } } } : SCHEMA);
+/** A talk's: no check (TALK_FORMAT). */
+const NO_DICE = { ...SCHEMA, properties: { ...SCHEMA.properties, check: { type: "null" } } };
+
+/** The reply's schema: a closing that may wait once says whether it closed, { closes } beside the reply; a talk's (`dice` false) has no check. */
+export const replySchema = (mayHold: boolean, dice = true): Record<string, unknown> => {
+  const schema = dice ? SCHEMA : NO_DICE;
+  return mayHold ? { ...schema, required: [...schema.required, "closes"], properties: { ...schema.properties, closes: { type: "boolean" } } } : schema;
+};
 
 // --- The prep as the two parts see it ({{beats}}, {{characters}}) --------------------------------
 
@@ -246,11 +263,13 @@ function owedOf(scene: Scene, view: TurnView): string[] {
  * The people ({{characters}}): each card as the GM's prep has it (castBlock), with why they're here
  * and what never works on them; for the co-GM, each person's role palette (how they're
  * characterised, the inconsistency that invites a question, the hooks they offer) and the clues
- * that are theirs to give (the discoveries' paths via them).
+ * that are theirs to give (the discoveries' paths via them). In a talk, the companion's own lore
+ * after their card (talk.ts talkLore).
  */
 export function charactersOf(scene: Scene, view: TurnView, options: { coGm?: boolean } = {}): string {
   const present = new Set(presentCast(scene, view).map(c => c.id));
-  return scene.cast.map(c => [castBlock(scene, c, present.has(c.id)), ...cardExtras(scene, c, options)].join("\n")).join("\n\n");
+  const lore = talkLore(scene, view);
+  return [...scene.cast.map(c => [castBlock(scene, c, present.has(c.id)), ...cardExtras(scene, c, options)].join("\n")), ...(lore ? [lore] : [])].join("\n\n");
 }
 
 function cardExtras(scene: Scene, c: Character, options: { coGm?: boolean }): string[] {
@@ -289,10 +308,10 @@ function companionNote(scene: Scene, view: TurnView): string | undefined {
     : `${names} ${who.length === 1 ? "goes" : "go"} with the player, and it's the player's case, not theirs: they never make the player's case for them, examine or search anything for them unasked, draw their conclusions, or choose their next step or where they go, or hint at it. They answer when asked, do what they're asked, and test a case once, at its weakest point.`}`;
 }
 
-/** What's ours after the user's prompt: the reply format, who says each line, what the player sees and hears, and the companion. */
+/** What's ours after the user's prompt: the reply format (a talk's has no dice), who says each line, what the player sees and hears, and the companion. */
 export function mouthpieceRules(scene: Scene, view: TurnView): string {
   const companion = companionNote(scene, view);
-  return [FORMAT, SPEAKERS, SEEN, ...(companion ? [companion] : [])].join("\n\n");
+  return [scene.companion ? TALK_FORMAT : FORMAT, SPEAKERS, SEEN, ...(companion ? [companion] : [])].join("\n\n");
 }
 
 export function mouthpieceInstructions(scene: Scene, view: TurnView): string {
@@ -304,9 +323,10 @@ export function mouthpieceInstructions(scene: Scene, view: TurnView): string {
 /**
  * The per-turn note (nowNote's, brief.ts): where the scene is (its stage), the pressure once it has
  * sat there a while (offered once: `offered`), the routes open now (a dice route with its check,
- * which the mouthpiece calls as the route says), what's settled, the player's state, the world,
- * what's hidden from the player right now, the names they haven't heard, what in their turn they
- * did or thought rather than said; the reply's directives last.
+ * which the mouthpiece calls as the route says), what's settled (and in a talk, the GM's notes on
+ * the companion: talk.ts talkNotes), the player's state, the world, what's hidden from the player
+ * right now, the names they haven't heard, what in their turn they did or thought rather than said;
+ * the reply's directives last.
  */
 export function twoPartNow(scene: Scene, view: TurnView, directive: string[]): string {
   const stage = stageOf(scene, view);
@@ -318,6 +338,7 @@ export function twoPartNow(scene: Scene, view: TurnView, directive: string[]): s
     `(The scene has been at this point for ${view.turnsInBeat} exchange${view.turnsInBeat === 1 ? "" : "s"}.)`,
     `## What moves the scene on from here\n${open.length ? open.map(r => routeLine(scene, r)).join("\n") : "- (nothing: the scene is closing)"}${open.some(r => r.skill) ? "\nWhen the player attempts what a route the dice decide describes, call that route's check: its skill and DC." : ""}`,
     ...(view.canon.length || view.established.length ? [`## Details established in play (keep them true)\nWhat has happened and been found, in the order it happened.${view.world ? " Where people are and what they're doing now is the world's, below: a detail here about where someone was or what they were doing was true then, and where the world says otherwise, they've moved on (people who have left don't come back unless the story brings them)." : ""}\n${bullets([...view.established, ...view.canon])}`] : []),
+    ...[talkNotes(scene, view)].filter((m): m is string => !!m),
     ...(playerNow(view) ? [playerNow(view)!] : []),
     ...(view.world ? [`## The world right now\nWhere everyone and everything is, and what state it's in (ids in brackets). Keep to it, since it's updated after every reply: people and things are where it says, and what's destroyed, burning or gone stays that way until the story changes it. Details it doesn't list are yours to invent, consistent with it. It's as things stood before the player's turn: what the player does in it (shutting a book and buttoning it into their coat, picking something up, crossing the room) has happened by your reply, and the world catches up after it. It's the truth behind the screen, not what the player has seen: of what people carry, the player sees what's out in the open (worn, in hand, held up), and of the rest (in a pocket, a fist, a lining, a box) they know only what they've seen or been told.\n${PHYSICS}\n\n${worldView(view.world)}`] : []),
     ...[hiddenNote(scene, view), namesNote(unheardOf(scene, view)), asidesNote(view)].filter((n): n is string => !!n),
@@ -449,7 +470,9 @@ export interface SpeakHow { operation: string; calls: CallContext; byKey(markup:
  * screen would have each. A closing that may wait once says whether it closed.
  */
 export async function speak(scene: Scene, view: TurnView, directive: string[], how: SpeakHow): Promise<Spoke> {
-  const schema = replySchema(!!how.mayHold);
+  // A talk has no dice (TALK_FORMAT): a check written anyway is dropped.
+  const dice = !scene.companion;
+  const schema = replySchema(!!how.mayHold, dice);
   const show = how.onText ? streamed(scene, view, how.onText) : undefined;
   // Names the player hasn't heard come out of the narration before it's shown or kept (unheard.ts).
   const unheard = unheardOf(scene, view);
@@ -466,7 +489,7 @@ export async function speak(scene: Scene, view: TurnView, directive: string[], h
   const narration = asKnown(out.narration, unheard);
   // An outcome follows the narration: a name said aloud there has been heard.
   const after = unheard.filter(u => !narration.heard.includes(u.id));
-  const check = out.check && SKILLS.includes(out.check.skill) && Number.isInteger(out.check.dc) && BANDS.every(b => typeof out.check!.outcomes?.[b] === "string")
+  const check = dice && out.check && SKILLS.includes(out.check.skill) && Number.isInteger(out.check.dc) && BANDS.every(b => typeof out.check!.outcomes?.[b] === "string")
     ? { skill: out.check.skill, dc: out.check.dc, outcomes: Object.fromEntries(BANDS.map(b => [b, said(asKnown(out.check!.outcomes[b], after).text)])) as Record<Band, Reply> }
     : undefined;
   return { narration: said(narration.text), ...(check ? { check } : {}), closes: out.closes !== false, costUsd: result.costUsd, firstTextMs: result.firstTextMs };
@@ -610,7 +633,8 @@ export function coGmInput(scene: Scene, view: TurnView, check: TurnCheck | undef
  * The GM's notes on each person on stage from play (docs/notes.ts: the memory reviews', what each
  * ending and the time between said of them, a talk's), when any have them, so their roles reflect
  * the story so far: a promise kept or owed, how the player character treated them. Kell at the Rat
- * remembers the yard. Only the co-GM reads them: what the mouthpiece plays of them is the roles.
+ * remembers the yard. In a scene only the co-GM reads them: what the mouthpiece plays of them is
+ * the roles (a talk's mouthpiece has the companion's too, in its per-turn note: talk.ts talkNotes).
  */
 export function notesOnPeople(view: TurnView, present: Character[]): string | undefined {
   const noted = present.flatMap(c => { const text = gmNotes(view.id, c.id); return text ? [`## ${c.name} [${c.id}]\n${text}`] : []; });

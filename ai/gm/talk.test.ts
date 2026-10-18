@@ -1,10 +1,10 @@
-// Copied from the prototype's src/runtime/talk.test.ts at 44c6d4a: its cases on the AI service's half, with the usual edits (a TurnView for the session, the scene from the campaign's talk template, gm/director.ts's questions for decideBefore). The waiting scene set aside and put back, and the talk record kept, are the simulation's (its talk is a scene row of its own); new here: the prep as a TalkPrep (prepareTalk), the told memory written once (rememberTold), and the staged secrets asked and read after a reply, and told to the GM.
+// Copied from the prototype's src/runtime/talk.test.ts at 44c6d4a: its cases on the AI service's half, with the usual edits (a TurnView for the session, the scene from the campaign's talk template, gm/director.ts's questions for decideBefore). The waiting scene set aside and put back, and the talk record kept, are the simulation's (its talk is a scene row of its own); new here: the prep as a TalkPrep (prepareTalk), the told memory written once (rememberTold), and the staged secrets asked and read after a reply, and told to the GM. Since a talk plays on the two-part GM: the prep fills the talk's discovery and keeps a secret as the scenes' cards do, with nothing to confide the discovery dropped, toldIt by the discovery reached, and the companion's lore and the GM's notes on them as the two parts read them; the staged secrets' tests stay with the old pipeline's code until it goes.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { readDoc, type Doc } from "../docs/docs.ts";
-import { gmNotes, readNotes } from "../docs/notes.ts";
+import { gmNotes, note, readNotes } from "../docs/notes.ts";
 import type { Decision } from "../llm/decide.ts";
 import { campaigns } from "../service/campaigns.ts";
 import { Failure } from "../service/context.ts";
@@ -16,7 +16,8 @@ import { talkOf, talkSceneId } from "../../shared/scene/talk.ts";
 import type { Scene } from "../../shared/scene/types.ts";
 import { nowNote } from "./brief.ts";
 import { afterQuestions, beforeQuestions, readAfter, talkSettings } from "./director.ts";
-import { confidences, prepareTalk, rememberTold, talkFacts } from "./talk.ts";
+import { confidences, prepareTalk, rememberTold, talkFacts, talkLore, talkNotes, talkOpening, toldIt } from "./talk.ts";
+import { TOLD } from "../../shared/scene/talk.ts";
 import type { TurnView } from "./view.ts";
 
 /**
@@ -108,38 +109,68 @@ test("a talk knows where and when, how often, where the story goes, and what the
 
 const PLAN = {
   told: ["Prout came to her."], standing: "Wary, warming.", willing: "yes" as const, note: `${KELL}/knowledge/Nan Quill.md`, topic: "the door at the Drowned Rat",
-  what: "Nan Quill put her out through the Rat's door twenty years ago.", shows: "going still at the Rat's name.", opens: "asking her about the Rat.", ready: "picked_at" as const,
+  what: "Nan Quill put her out through the Rat's door twenty years ago.", shows: "going still at the Rat's name.", opens: "asking her about the Rat.", first: "“I know that door.”", ready: "picked_at" as const,
   memory: "I told the investigator about the door. They didn't laugh.",
   suggestions: ["How long have you been with the watch?", "“What about the Rat?”", "What did you make of [Cob]?", "how long have you been with the watch?", "Who taught you to watch hands?", "One too many"],
 };
 
-test("the prep as the open's commit keeps it: the facts, the one thing on their card and its route out, how near the surface, the deepest withheld, the opening lines", () => {
+test("the prep as the open's commit keeps it: the facts, the one thing on their card (as the scenes' cards keep a secret) and filling the talk's discovery with the ways it can come out, as readily as a talk from before left it, the deepest withheld, the opening lines", () => {
   const state = talking("talk-prep");
   const cob = readDoc(state.id, `${KELL}/knowledge/Cob.md`) as Doc;
   const prep = prepareTalk(state, kell, opening({ record: { count: 1, told: [], stages: { [`${KELL}/knowledge/Nan Quill.md`]: "stirred" } } }), { prep: PLAN, held: cob });
 
   assert.deepEqual(prep.withheld, [`${KELL}/knowledge/Cob.md`]);
   assert.deepEqual(prep.confide, { note: `${KELL}/knowledge/Nan Quill.md`, topic: "the door at the Drowned Rat", what: PLAN.what, memory: PLAN.memory });
-  assert.deepEqual(prep.patches[0], { turn: 0, why: "What Sergeant Agnes Kell might open up about in this talk: the door at the Drowned Rat.", cast: { id: "kell", secrets: ["Nan Quill put her out through the Rat's door twenty years ago. It shows first as: going still at the Rat's name. What would bring it out: asking her about the Rat."] } });
-  const route = prep.patches[1]!.transition!;
-  assert.equal(route.beat, "talk");
-  assert.deepEqual({ ...route.transition, when: undefined }, { id: "confided", on: "outcome", given: true, to: "told", when: undefined, establishes: ["Sergeant Agnes Kell has told Wren Ashdown about the door at the Drowned Rat."] });
-  assert.match(route.transition.when, /^By now \(in this reply or an earlier one\), Sergeant Agnes Kell has told Wren Ashdown about the door at the Drowned Rat: the heart of it/);
-  assert.deepEqual(prep.guard, { stage: "stirred", turn: 0 }, "as far as an earlier talk brought it, past picked_at's tell");
+  assert.deepEqual(prep.patches[0], { turn: 0, why: "What Sergeant Agnes Kell might open up about in this talk: the door at the Drowned Rat.", cast: { id: "kell", secrets: ["Shows: going still at the Rat's name. Opens: asking her about the Rat. First: 'I know that door.'", "Nan Quill put her out through the Rat's door twenty years ago. They tell it once, in their own words; told is told."] } });
+  assert.deepEqual(prep.patches[1], {
+    turn: 0, why: "the door at the Drowned Rat: what Sergeant Agnes Kell might confide in this talk, and the ways it can come out.",
+    fill: { id: TOLD, revelation: PLAN.what, paths: [
+      { via: "kell", clue: "It shows before it comes out: going still at the Rat's name.", earn: "Free, when the talk comes near it: a tell, never what it's about.", strength: "hook" },
+      // picked_at, but a talk from before (the old pipeline's staged secret) left it stirred: asked twice.
+      { via: "kell", clue: `${PLAN.what} The first of it: 'I know that door.'`, earn: "Asked, they hold back a moment and give only the first of it; asked again, they tell it. What brings it out: asking her about the Rat.", strength: "strong" },
+    ] },
+  });
+  assert.equal(prep.guard, undefined, "no staged secret: the co-GM stages it through their role");
   assert.deepEqual(prep.suggestions, ["How long have you been with the watch?", "What about the Rat?", "Who taught you to watch hands?", "One too many"], "plain, no markup, no repeats, four at most");
   const facts = prep.established.join("\n");
   assert.match(facts, /Of their own story, Sergeant Agnes Kell has already told Wren Ashdown: Prout came to her\./);
   assert.match(facts, /the only part of their own story Sergeant Agnes Kell may open up about is the door at the Drowned Rat/);
   assert.match(facts, /Not in this talk, however it comes up: the deepest of Sergeant Agnes Kell's own story \(their note "Cob"/);
+  // As the plan says, with no talk from before.
+  assert.match(prepareTalk(state, kell, opening(), { prep: PLAN }).patches[1]!.fill!.paths[1]!.earn, /^Only once the player has picked at it a while/);
 
-  // Lines not suggested (the controller's setting), and nothing they'd tell: the facts say so, and nothing goes on their card.
+  // Lines not suggested (the controller's setting), and nothing they'd tell: the facts say so, nothing goes on their card, and the talk's discovery isn't this talk's.
   assert.deepEqual(prepareTalk(state, kell, opening({ suggest: false }), { prep: PLAN }).suggestions, []);
   const unwilling = prepareTalk(state, kell, opening(), { prep: { ...PLAN, willing: "no" } });
-  assert.deepEqual([unwilling.patches, unwilling.guard, unwilling.confide, unwilling.withheld], [[], undefined, undefined, []]);
+  assert.deepEqual([unwilling.patches.map(p => [p.drop, p.cast, p.fill]), unwilling.guard, unwilling.confide, unwilling.withheld], [[[TOLD, undefined, undefined]], undefined, undefined, []]);
   assert.match(unwilling.established.join("\n"), /keeps their own story to themselves/);
   // What they've already told isn't theirs to tell again, whatever the prep says.
   const told = talking("talk-prep-told", kell, { talks: { kell: { count: 2, told: [{ note: `${KELL}/knowledge/Nan Quill.md`, topic: "the door", turn: 3 }] } } });
   assert.equal(prepareTalk(told, kell, opening(), { prep: PLAN }).confide, undefined);
+});
+
+test("it's out once the talk's discovery is reached, or in a talk from before, once its route was taken or its staged secret settled", () => {
+  const state = talking("talk-out");
+  assert.equal(toldIt(state, "kell"), false);
+  assert.equal(toldIt({ ...state, reached: ["talk", TOLD] }, "kell"), true);
+  assert.equal(toldIt({ ...state, path: [{ turn: 2, from: "talk", to: "told", via: "confided", source: "post" }] }, "kell"), true);
+  assert.equal(toldIt({ ...state, guard: { kell: { stage: "settled", turn: 2 } } }, "kell"), true);
+});
+
+test("the two parts' talk: its opening, the companion's lore (theirs, without links nothing opens) and the GM's notes on them; none in a scene of the story", () => {
+  const state = talking("talk-two-part");
+  assert.match(talkOpening(kell), /^Open the talk, as "Where it starts" has it \(as the talk opens\): in a sentence or two, what Sergeant Agnes Kell is doing as the player comes over/);
+  const lore = talkLore(kell, state)!;
+  assert.match(lore, /^### Sergeant Agnes Kell: who they are, in their own lore\nTheir lore is theirs, written to them/);
+  assert.match(lore, /You are Sergeant Agnes Kell of the Caerwyn city watch/);
+  assert.match(lore, /\n#### Voice\n/);
+  assert.doesNotMatch(lore, /Read when relevant|\]\(knowledge\//);
+  assert.match(talkNotes(kell, state)!, /^## The GM's notes on Sergeant Agnes Kell from play \(what's happened with them\)\n.*\n\(nothing yet\)$/);
+  note(state.id, { id: "kell", name: "Sergeant Agnes Kell" }, "seen", "Watched the investigator look at the body first.", { origin: { scene: "hanged-clerk", turn: 2 } });
+  note(state.id, { id: "kell", name: "Sergeant Agnes Kell" }, "did", "The Hanged Clerk, as it ended: signed in as murder.", { origin: { scene: "hanged-clerk", turn: 9 } });
+  assert.match(talkNotes(kell, state)!, /\nSeen the player do:\n- Watched the investigator look at the body first\.\nDid:\n- The Hanged Clerk, as it ended: signed in as murder\.$/);
+  const yard = campaign.scene("hanged-clerk");
+  assert.deepEqual([talkLore(yard, state), talkNotes(yard, state)], [undefined, undefined]);
 });
 
 test("what they're keeping back goes on their card for the talk only (a patch on the talk scene)", () => {

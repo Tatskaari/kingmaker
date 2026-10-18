@@ -32,7 +32,7 @@ export const reply: Handler<ReplyRequest, ReplyResponse> = async (req, ctx) => {
   return { entries: [said], gm: { ...(offered ? { offered } : {}), repeated: view.repeated ?? null }, firstTextMs: sink.firstTextMs(), usage: ctx.usage() };
 };
 
-/** The old pipeline's decision (a talk's): its request has one (requests.ts holds it to that). */
+/** The old pipeline's decision (a campaign that names it: no talk asks it since the old pipeline's salvage): its request has one (requests.ts holds it to that). */
 function decisionOf(req: ReplyRequest): Decision {
   if (!req.decision) throw new Failure(400, "bad_request", "the request is missing decision");
   return req.decision;
@@ -43,14 +43,17 @@ function decisionOf(req: ReplyRequest): Decision {
  * the mouthpiece speaks, its narration streamed to the turn's draft as it's written. Its directives
  * are the rules' from before the player acted and the map's act's (the outcome's, as the simulation
  * resolved them), then, when the co-GM moved the scene on after the last reply, that it shows it; on
- * the wind-down, the closing, which may wait once (closes: false). The answer has the narration, the
+ * the wind-down, the closing, which may wait once (closes: false), but for a talk's (its goodbye
+ * said, which closes it). A talk plays here too, since the old pipeline's salvage (its reply has no
+ * dice: two-part.ts TALK_FORMAT). The answer has the narration, the
  * check it called with its five outcomes (the simulation rolls it), whether a closing closed, and the
  * stage whose pressure the per-turn note offered (the simulation marks it offered: once a stage).
  */
 async function twoPartReply(req: ReplyRequest, ctx: AiContext): Promise<ReplyResponse> {
   const { scene, view, byKey } = sceneAndView(ctx, req.turn.scene.key, turnSource(req));
   const closing = req.outcome.windDown ? exitOf(scene, req.outcome.windDown.exit) : undefined;
-  const mayHold = !!closing && !view.twoPart.held;
+  // A talk's closing is the goodbye said (town-design §3.6): it never waits.
+  const mayHold = !!closing && !view.twoPart.held && !scene.companion;
   const moved = closing ? undefined : movedDirective(scene, view);
   const directives = [...req.outcome.directives, ...(req.outcome.acts ?? []), ...(closing ? [closingDirective(closing, mayHold, saidLast(scene, view))] : moved ? [moved] : [])];
   const offered = closing ? undefined : stagePressure(scene, view);

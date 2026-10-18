@@ -6,7 +6,7 @@ import { coGm } from "../../gm/two-part.ts";
 import { turnSource, type TurnView } from "../../gm/view.ts";
 import type { After, CoGmAnswer, SettleRequest, SettleResponse } from "../../../shared/protocol/ai.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
-import { CONFIDED } from "../../../shared/scene/talk.ts";
+import { CONFIDED, TOLD } from "../../../shared/scene/talk.ts";
 import type { Scene } from "../../../shared/scene/types.ts";
 import { keysFor, opToGame } from "../../../shared/world/rows.ts";
 import type { AiContext, Handler } from "../context.ts";
@@ -22,18 +22,18 @@ import { director, sceneAndView } from "./turn.ts";
  * over them (threat: someone's blow, or a danger and its severity, which lands as their next turn
  * starts; threatRead, the question's raw choice). No reading when this reply closed the scene.
  *
- * A talk's (town-design §3.6, talk.ts talkTurn) has no world to keep in step (a talk has none), and
- * its decision reads staged secrets too (`after.guard`: how far the companion has come towards giving
- * up what they keep back); beside it, when the controller has lines suggested (`talk.suggest`), the
- * next lines (talk.suggest), none when the reply closed the talk. Out is out: once the one thing they
- * were keeping back is told (its route taken, now or before, or their guard settled), their guard is
- * settled and their memory of telling it is written, once.
+ * A talk's (town-design §3.6, talk.ts talkTurn) has no world to keep in step (a talk has none). On
+ * the two-part GM (`twoPart`, every talk since the old pipeline's salvage) it's the co-GM's, as a
+ * scene's, beside the next lines (talk.suggest, when the controller has lines suggested), and once
+ * the one thing they were keeping back is out (the co-GM's move into the talk's discovery, now or
+ * before) a line that they told it goes in the GM's notes on them, once. The old pipeline's talk
+ * settle (no game asks it now) read staged secrets after the reply instead (`after.guard`).
  */
 export const settle: Handler<SettleRequest, SettleResponse> = async (req, ctx) => {
   const { scene, view } = sceneAndView(ctx, req.turn.scene.key, turnSource(req));
   const line = req.turn.line.text;
+  if (req.twoPart) return scene.companion ? twoPartTalkSettle(req, ctx, scene, view) : twoPartSettle(req, ctx, scene, view, line);
   if (scene.companion) return talkSettle(req, ctx, scene, view, line);
-  if (req.twoPart) return twoPartSettle(req, ctx, scene, view, line);
   const world = view.world!;
   const keys = keysFor(req.turn.world.place.key, req.turn.scene.key, req.turn.pc);
 
@@ -64,7 +64,24 @@ async function twoPartSettle(req: SettleRequest, ctx: AiContext, scene: Scene, v
   return { ops: (staged?.ops ?? []).map(op => opToGame(op, world, keys)), coGm: answer, usage: ctx.usage() };
 }
 
-/** A talk's settle: the after-reply decision with staged secrets, and the next lines beside it; once it's told, out is out, and remembered. */
+/**
+ * A talk's settle on the two-part GM: no world, so no stage manager; the co-GM (the companion's role,
+ * the confide staged through it; its move into told once it's out, or into goodbye once the player
+ * has said goodbye in their own words) beside the next lines; once it's out, now or before, a line
+ * in the GM's notes on the companion that they told it, written once.
+ */
+async function twoPartTalkSettle(req: SettleRequest, ctx: AiContext, scene: Scene, view: TurnView): Promise<SettleResponse> {
+  const talk = req.turn.gm.talk;
+  const next = talk && req.talk?.suggest === true ? talkLines(view, scene, talk, ctx.calls).catch(() => undefined) : undefined;
+  const coGming = coGm(scene, view, req.turn.gm, req.check, ctx.calls).catch((error: unknown): CoGmAnswer => ({ roles: {}, moves: [], log: [], error: error instanceof Error ? error.message : String(error) }));
+  const [made, co] = await Promise.all([next, coGming]);
+  const { costUsd: _cost, ...answer } = co as CoGmAnswer & { costUsd?: number };
+  const intoTold = answer.moves.some(m => scene.routes.find(r => r.id === m.route)?.target === TOLD && m.outcome !== "failure");
+  if (talk?.confide && (toldIt(view, talk.with) || intoTold)) rememberTold(view, scene, talk);
+  return { ops: [], coGm: answer, talk: { suggestions: made?.lines ?? [] }, usage: ctx.usage() };
+}
+
+/** The old pipeline's talk settle (no game asks it since the old pipeline's salvage): the after-reply decision with staged secrets, and the next lines beside it; once it's told, out is out, and remembered. */
 async function talkSettle(req: SettleRequest, ctx: AiContext, scene: Scene, view: TurnView, line: string): Promise<SettleResponse> {
   const talk = req.turn.gm.talk;
   const asking = !view.ended && !!talk && req.talk?.suggest === true;

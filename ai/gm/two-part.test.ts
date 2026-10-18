@@ -10,6 +10,9 @@ import type { GmState } from "../../shared/gm/state.ts";
 import { openRoutes, takeRoute } from "../../shared/scene/beats.ts";
 import { effectiveScene } from "../../shared/scene/graph.ts";
 import { loadScene } from "../../shared/scene/load.ts";
+import { parseScene } from "../../shared/scene/document.ts";
+import { CONFIDED, talkSceneId, TOLD } from "../../shared/scene/talk.ts";
+import { talkScene } from "./talk.ts";
 import type { Scene } from "../../shared/scene/types.ts";
 import { fakeFetch, readPrep, walkTo, type FakeOptions } from "../llm/fake-openrouter.ts";
 import type { CallContext } from "../llm/openrouter.ts";
@@ -439,4 +442,32 @@ test("the fake co-GM walks on to the recipe's next ending once a fight is fought
   if ("error" in found) assert.fail(found.error);
   const next = await coGm(heron, { ...view, ...found.gm, turn: 6 } as unknown as TurnView, found.gm, undefined, fake({ coGm: { endings: ["murder-unknown", "fight", "caught-in-the-act"] } }));
   assert.deepEqual(next.moves.map(m => m.route), ["in-the-act"]);
+});
+
+test("a talk on the two-part GM: no dice in its reply (a check written anyway is dropped), the companion's lore among the people and the GM's notes on them in the per-turn note and the co-GM's input; the fake co-GM walks a talk only where its recipe says", async () => {
+  const template = parseScene(readFileSync(join(CAERWYN, "scenes", "talk.kmscene"), "utf8"), "talk.kmscene");
+  const paths = [{ via: "kell", clue: "A pause at the Rat's name.", earn: "Free.", strength: "hook" as const }, { via: "kell", clue: "Nan Quill put her out.", earn: "Asked about it, she tells it.", strength: "strong" as const }];
+  const talk = effectiveScene(talkScene(talkSceneId("kell", 1), template)!, [{ turn: 0, why: "the confide", fill: { id: TOLD, revelation: "Nan Quill put her out through the Rat's door.", paths } }]);
+  const view = viewAt(talk, talk.start, { id: "two-part-talk", turn: 1, turnsInBeat: 0 });
+  delete view.world;
+  view.transcript.push({ turn: 1, scene: talk.id, speaker: "player", kind: "player", text: "What's the Rat to you?" });
+  note(view.id, { id: "kell", name: "Sergeant Agnes Kell" }, "seen", "Watched the investigator look at the body first.", { origin: { scene: "hanged-clerk", turn: 2 } });
+
+  const instructions = mouthpieceInstructions(talk, view);
+  assert.match(instructions, /`check`: always null\. Nothing in a talk is decided by dice/);
+  assert.doesNotMatch(instructions, /call for a skill check instead of deciding it yourself/);
+  assert.match(instructions, /### Sergeant Agnes Kell: who they are, in their own lore\nTheir lore is theirs/);
+  assert.match(instructions, /### Told \[told\]\nThe revelation: Nan Quill put her out through the Rat's door\.[^]*- Via Sergeant Agnes Kell \[kell\] \(hook\): A pause at the Rat's name\. What earns it: Free\./);
+  assert.match(mouthpieceInstructions(clerk, yard()), /call for a skill check instead of deciding it yourself/, "a scene of the story keeps its dice");
+  assert.match(twoPartNow(talk, view, []), /## The GM's notes on Sergeant Agnes Kell from play \(what's happened with them\)\n[^#]*Seen the player do:\n- Watched the investigator look at the body first\./);
+  assert.doesNotMatch(twoPartNow(clerk, yard(), []), /The GM's notes on/, "a scene of the story's note has none (its co-GM reads them)");
+  assert.match(coGmInput(talk, view, undefined)[0]!.content, /# Notes on the people here \(what's happened with them in play\)\n[\s\S]*## Sergeant Agnes Kell \[kell\]\nSeen the player do:\n- Watched the investigator look at the body first\./, "among the notes on the people here, as a scene's co-GM has them");
+  assert.match(coGmInstructions(talk, view), /### Sergeant Agnes Kell: who they are, in their own lore/);
+
+  const spoke = await speak(talk, view, [], { operation: "two-part.reply", calls: fake({ replies: ["Kell's pencil stops."], mouthpiece: { check: { skill: "insight", dc: 12 } } }), byKey: m => m });
+  assert.deepEqual([spoke.narration.text, spoke.check], ["Kell's pencil stops.", undefined], "a talk has no dice: a check written anyway is dropped");
+
+  const gm = { ...view } as unknown as GmState;
+  assert.deepEqual((await coGm(talk, view, gm, undefined, fake())).moves, [], "a talk's ending is the player's to choose, and what she confides hers to give");
+  assert.deepEqual((await coGm(talk, view, gm, undefined, fake({ coGm: { endings: [TOLD] } }))).moves.map(m => m.route), [CONFIDED], "walked to what the recipe names");
 });

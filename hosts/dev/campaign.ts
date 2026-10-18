@@ -3,10 +3,10 @@ import { join, relative, sep } from "node:path";
 import type { CreationWorld } from "../../shared/creation/types.ts";
 import { inBounds, isStructure, mapOf, tileAt, type MapDef } from "../../shared/map/tiles.ts";
 import type { TileMap } from "../../shared/map/types.ts";
-import { isBeat, isDiscovery, isEnding, shapeProblems, type BeatData, type SceneDocument, type SceneNode } from "../../shared/scene/document.ts";
+import { isBeat, isDiscovery, isEnding, isStart, shapeProblems, type BeatData, type SceneDocument, type SceneNode } from "../../shared/scene/document.ts";
 import type { BuildsFile, CampaignPack, Effect, LooksFile, PlaceFile } from "../../shared/scene/files.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
-import { TOLD } from "../../shared/scene/talk.ts";
+import { GOODBYE, TOLD } from "../../shared/scene/talk.ts";
 import { validateScene } from "../../shared/scene/types.ts";
 import { VOCABULARY, vocabularyOf } from "../../ai/gm/story.ts";
 import { packOf, scenePath, type CampaignFiles } from "./pack.ts";
@@ -300,10 +300,12 @@ function namedKeys(op: { what?: string; to?: string }): string[] {
 /**
  * The talk template (campaign.json's `talk`, town-design §3.6), held to the talk's own rules: a scene
  * whose companion is `{companion}`, its first cast entry whoever walks with the player (`{companion}`,
- * named `{name}`), with the event beat the one thing they were keeping back moves the talk to (TOLD),
- * the ending walking on ends it at (goodbye) and no place of its own; and everyone the story has walk
- * with the player (a `follow` effect) has a lore entry to be themselves from (the AI service builds
- * their talks from it: a talk with someone who hasn't is refused).
+ * named `{name}`), its start with their opening role (the co-GM's first note), the discovery each
+ * talk's prep fills with the one thing they might confide (TOLD), the ending saying goodbye or walking
+ * on ends it at (GOODBYE) with a way into it from the start (so it's open all talk long), and no
+ * place of its own; and everyone the story has walk with the player (a `follow` effect) has a lore
+ * entry to be themselves from (the AI service builds their talks from it: a talk with someone who
+ * hasn't is refused).
  */
 function talkProblems(pack: CampaignPack, files: CampaignFiles): string[] {
   const key = pack.campaign.talk;
@@ -314,9 +316,12 @@ function talkProblems(pack: CampaignPack, files: CampaignFiles): string[] {
   if (template.companion !== "{companion}") problems.push(`${at}: the talk template's companion is ${JSON.stringify(template.companion)}, not "{companion}"`);
   const [first] = template.cast;
   if (first?.id !== "{companion}" || first.name !== "{name}") problems.push(`${at}: the talk template's first cast entry isn't the companion's ({companion}, named {name})`);
+  const start = template.nodes.find(isStart);
+  if (start && !start.data.cast?.["{companion}"]?.trim()) problems.push(`${at}: the talk template's start has no role for {companion} (their opening role, the co-GM's first note)`);
   const told = template.nodes.find(n => n.id === TOLD);
-  if (!told || !isBeat(told) || isDiscovery(told)) problems.push(`${at}: the talk template has no event beat ${TOLD} (where the one thing they keep back takes the talk once it's told)`);
-  if (!template.nodes.some(n => n.id === GOODBYE && isEnding(n))) problems.push(`${at}: the talk template has no ending ${GOODBYE} (where walking on ends a talk)`);
+  if (!told || !isDiscovery(told)) problems.push(`${at}: the talk template has no discovery ${TOLD} (the one thing they might confide, which each talk's prep fills in)`);
+  if (!template.nodes.some(n => n.id === GOODBYE && isEnding(n))) problems.push(`${at}: the talk template has no ending ${GOODBYE} (where saying goodbye or walking on ends a talk)`);
+  else if (!template.edges.some(e => e.source === start?.id && e.target === GOODBYE)) problems.push(`${at}: the talk template has no way into ${GOODBYE} from its start (saying goodbye ends a talk wherever it's got to)`);
   if (template.place !== undefined) problems.push(`${at}: the talk template has a place (a talk is wherever the player stopped)`);
   const followers = new Set(pack.scenes.flatMap(scene => [...(scene.onEnd ?? []), ...scene.nodes.filter(isEnding).flatMap(n => n.data.effects ?? [])])
     .flatMap(e => (e.op === "follow" ? [e.who] : [])));
@@ -325,9 +330,6 @@ function talkProblems(pack: CampaignPack, files: CampaignFiles): string[] {
   for (const who of followers) if (!entries.has(who)) problems.push(`${at}: ${who} walks with the player, but has no lore entry to talk from (a private.md with character: ${who})`);
   return problems;
 }
-
-/** The ending a talk ends at when the player walks on (simulation/src/map/talk.ts walkOn). */
-const GOODBYE = "goodbye";
 
 /**
  * The story between scenes (story-design §4.6): where the story goes when a scene is overtaken is a
