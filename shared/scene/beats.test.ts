@@ -62,16 +62,32 @@ test("the cue moves the stage to the event and brings on who enters there; the r
   assert.deepEqual(ids(enteringAt(scene, "cart-arrives")), ["tull"]);
   assert.ok(ids(presentCast(scene, cart)).includes("tull"), "the corporal is here now");
   assert.ok(!ids(presentCast(scene, initialGm(scene))).includes("tull"), "and wasn't before");
-  assert.deepEqual(ids(openRoutes(scene, cart)), ["find-murder", "find-motive", "find-hobb", "case-lost"], "the start's routes stay open; neither signing is, with nothing found");
+  assert.deepEqual(ids(openRoutes(scene, cart)), ["find-murder", "find-motive", "find-hobb", "case-lost", "porters-come"], "the start's routes stay open, and the porters' break opens; neither signing is, with nothing found");
 
   const error = refused(takeRoute(scene, cart, "signed-murder", "none", 3));
   assert.match(error, /^\[signed-murder\] isn't open: it requires The victim was murdered \[murder\] and Hobb was spotted at the scene \[hobb\], not reached yet\. The open routes: \[find-murder\] It was murder \(to The victim was murdered\); /);
-  assert.match(error, /\[case-lost\] Last resort \(to Failed\)\.$/);
+  assert.match(error, /\[case-lost\] Last resort \(to Failed\); \[porters-come\] The porters' break \(to The porters' noon break; a cue\)\.$/);
 
   const hobb = took(takeRoute(scene, cart, "find-hobb", "none", 3));
   assert.deepEqual(ids(openRoutes(scene, hobb)).filter(id => id.startsWith("signed")), ["signed-suicide"], "the lead alone: Kell can only object in writing");
   assert.match(refused(takeRoute(scene, hobb, "signed-murder", "none", 4)), /it requires The victim was murdered \[murder\], not reached yet/);
   assert.equal(stageOf(scene, hobb).id, "cart-arrives", "a discovery doesn't move the stage");
+});
+
+test("the porters' noon break, after the cart: its outer limit is four exchanges from the cart and stops once the lead is reached; it brings Old Wat on, and the signing goes on from the cart (QA round qa3-1018's H6: the clerk's lead never reached two players before their turns ran out)", () => {
+  const porters = scene.routes.find(r => r.id === "porters-come")!;
+  assert.deepEqual(limitOf(porters, initialGm(scene), 20), { counts: [{ exchanges: 4, after: "cart-arrives" }], overdue: false }, "before the cart, it isn't counting");
+  const cart = took(takeRoute(scene, initialGm(scene), "cart-comes", "none", 11));
+  assert.equal(limitOf(porters, cart, 14)!.overdue, false, "the cart shown in reply 12");
+  assert.equal(limitOf(porters, cart, 15)!.overdue, true, "overdue after reply 15, so the porters come in in reply 16");
+  const lead = took(takeRoute(scene, cart, "find-hobb", "none", 13));
+  assert.deepEqual(limitOf(porters, lead, 15), { counts: [{ exchanges: 4, after: "cart-arrives", reachedOn: 11, next: 4, stopped: "hobb" }], overdue: false }, "not once the lead is reached");
+
+  const noon = took(takeRoute(scene, cart, "porters-come", "none", 14));
+  assert.deepEqual([stageOf(scene, noon).id, ids(enteringAt(scene, "porters-break"))], ["porters-break", ["wat"]]);
+  assert.ok(["tull", "wat"].every(id => ids(presentCast(scene, noon)).includes(id)), "Old Wat comes in, and the corporal is still here");
+  const told = took(takeRoute(scene, took(takeRoute(scene, noon, "find-hobb", "none", 15)), "find-murder", "none", 15));
+  assert.ok(ids(openRoutes(scene, told)).includes("signed-murder"), "the signing goes on from the cart, wherever the stage is");
 });
 
 test("an ending reached sets closing; after it nothing is open and no route is taken", () => {

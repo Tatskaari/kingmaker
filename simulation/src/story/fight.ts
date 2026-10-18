@@ -9,11 +9,12 @@ import { updateScene, updateTurn, type SceneRow } from "../rows.ts";
 import { addEntry } from "../transcript.ts";
 import { newTurn } from "../turns.ts";
 import { journal } from "./effects.ts";
-import { FIGHT_NOT_PLAYED, FIGHT_SUMMARY, STANDIN_LINE } from "./words.ts";
+import { FIGHT_NOT_PLAYED, FIGHT_SUMMARY } from "./words.ts";
 
 /**
- * The fight, fought by the stand-in (story-design §4.3): one action resolves it as won. Its line,
- * then "The fight: <how it went>" in the scene's transcript, and the notebook's line that it wasn't
+ * The fight, fought by the stand-in (story-design §4.3): one action resolves it as won. "The fight:
+ * <how it went>" in the scene's transcript, once (QA round qa3-1018's g04 read it twice: the
+ * prototype's act's line, then its result's, in other words), and the notebook's line that it wasn't
  * played. The scene picks up where the fight left it (resumeAfterFight): its combat exit is spent
  * (fought), its ending is undone (ended, closing, pending, the lead towards one, and its node no
  * longer reached, so the scene's routes are open again but the fight's), and "The fight is
@@ -29,7 +30,6 @@ export function fightItOut(tx: TxCtx, scene: SceneRow): void {
   // A turn still holding the scene's lease is done now, so nothing finishing it lets go of the aftermath's.
   if (lease) lease = updateTurn(tx, lease.id, { phase: "done", endedAt: tx.now, note: undefined });
 
-  addEntry(tx, scene, { turn: n, speaker: "system", kind: "system", text: STANDIN_LINE });
   addEntry(tx, scene, { turn: n, speaker: "system", kind: "system", text: `The fight: ${FIGHT_SUMMARY}` });
   journal(tx, scene, FIGHT_NOT_PLAYED);
 

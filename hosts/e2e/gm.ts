@@ -60,8 +60,8 @@ export async function aMemory(stack: Stack, root: string, a: Player, fake: FakeO
  * player's line; and it walks the scene on a route a line, each move taken again on the rows (the
  * path, what's reached): the Hobb lead refused while nobody has said his name, so the name is owed
  * on the rows and the next reply told that Kell names him, which the fake's Kell does, so the lead is
- * taken after it; the dead-cart's arrival moves the stage and brings Tull on with his stage note as
- * his role, and the next reply is told to show it, once.
+ * taken after it; the dead-cart's arrival moves the stage and gives Tull his stage note as his role,
+ * and the next reply is told to show it, once; he's in the world and on stage once it has.
  */
 export async function theCoGmSteers(stack: Stack, root: string, a: Player, game: Game, fake: FakeOptions): Promise<void> {
   step("23. The co-GM steers");
@@ -91,7 +91,7 @@ export async function theCoGmSteers(stack: Stack, root: string, a: Player, game:
   const moved = await gmOf(stack, game);
   check(`the stage moved to ${moved.beat} (${moved.twoPart.moved ? "to show" : "nothing to show"}), Tull brought on: "${moved.twoPart.roles.tull?.conversation_role.slice(0, 40)}…"`,
     moved.path.at(-1)?.via === "cart-comes" && moved.beat === "cart-arrives" && moved.twoPart.moved === "cart-arrives" && /^Helmet off to the dead/.test(moved.twoPart.roles.tull?.conversation_role ?? ""));
-  check("Tull is in the world, and on stage", (await stack.sql(`SELECT * FROM entity WHERE game_id = ${game.id}`)).some(e => e.key === "tull") && a.conn.view()!.present.some(p => p.key === "tull"));
+  check("Tull isn't in the world or on stage until a reply has shown him arriving", !(await stack.sql(`SELECT * FROM entity WHERE game_id = ${game.id}`)).some(e => e.key === "tull") && !a.conn.view()!.present.some(p => p.key === "tull"));
 
   const after = cart + 1;
   check("A says another line", (await a.conn.say("Corporal, a word before you take him.")) === undefined);
@@ -99,6 +99,7 @@ export async function theCoGmSteers(stack: Stack, root: string, a: Player, game:
   const shown = modelInput(root, game, "two-part.reply", keyOf(game, after, "reply"));
   const done = await gmOf(stack, game);
   check("the reply after the move was told to show it, Tull seen arriving; shown, it's done with", /The scene has just moved on to "[^"]+": [\s\S]*comes in now, seen arriving/.test(shown) && done.twoPart.moved === undefined);
+  check("and with it Tull is in the world, and on stage", (await stack.sql(`SELECT * FROM entity WHERE game_id = ${game.id}`)).some(e => e.key === "tull") && a.conn.view()!.present.some(p => p.key === "tull"));
 }
 
 /**

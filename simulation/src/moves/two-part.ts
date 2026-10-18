@@ -98,17 +98,20 @@ export function writeSpoken(tx: TxCtx, scene: SceneRow, n: number, turnId: bigin
 /**
  * After a two-part reply (twoPartTurn's): what it said written, its check rolled and the outcome that
  * came up; the stage whose pressure it offered marked (once a stage), and the move it showed done
- * with. The wind-down's reply closes the scene through the story's end, unless it waited (closes:
- * false, once: twoPart.held), when the scene goes on one more reply; neither has a settle. Any other
- * goes on to the settle (the stage manager and the co-GM), with what it said, its dice and its check;
- * the lines to suggest after it asked for, the box open again.
+ * with, whoever it brought on joining the place and the stage now it has shown them arriving. The
+ * wind-down's reply closes the scene through the story's end, unless it waited (closes: false, once:
+ * twoPart.held), when the scene goes on one more reply; neither has a settle. Any other goes on to
+ * the settle (the stage manager and the co-GM), with what it said, its dice and its check; the lines
+ * to suggest after it asked for, the box open again.
  */
 export function afterTwoPartReply(tx: TxCtx, plan: SayPlan, answer: ReplyResponse): Next<SayPlan> {
   const at = atTurn(tx, plan);
   const turnId = idOf(plan.turn);
   const spoken = writeSpoken(tx, at.scene, plan.n, turnId, answer.entries ?? [], answer.check);
   noteReply(at.gm, answer);
+  const shown = at.gm.twoPart.moved;
   delete at.gm.twoPart.moved;
+  if (shown) arrivalsShown(tx, at, plan.n, turnId);
   noteHeard(tx, at.scene, at.graph);
 
   if (plan.outcome?.windDown) return windDown(tx, at, plan, answer.closes !== false || !!at.gm.twoPart.held);
@@ -135,13 +138,31 @@ function windDown(tx: TxCtx, at: At, plan: SayPlan, closes: boolean): Next<SayPl
 }
 
 /**
+ * Whoever the stage the last settle moved to brings on (Tull and his constables with the dead-cart,
+ * the Master and his Crakes at the midnight bell), into the place's world at the way in and onto the
+ * stage, once the reply that shows them arriving is written (QA round qa3-1018: "Here:" listed the
+ * corporal, and the place drew him, a reply before the narration brought him in); a look asked for
+ * any of them that has none, as the settle asks for what the stage manager makes.
+ */
+function arrivalsShown(tx: TxCtx, at: At, n: number, turnId: bigint): void {
+  const place = placeWorldOf(tx, at.scene);
+  const keys = keysIn(tx, at.scene.placeId);
+  const joined = joinArrivals(place.world, at.graph, at.gm, n);
+  if (joined.length) savePlaceWorld(tx, at.scene, place, at.graph);
+  syncStage(tx, at.scene, at.graph, at.gm);
+  lookForNew(tx, at.scene, n, turnId, keys);
+  if (joined.length) tx.log(`[scene ${at.scene.id} turn ${n}] shown arriving: ${joined.join(", ")}`);
+}
+
+/**
  * After a two-part settle (twoPartTurn's, after the reply): the stage manager's operations through
  * the gate (what the map's spell conjured marked as the spell's); the co-GM's moves taken again with
- * takeRoute on the rows, which are the authority, and the roles it set; whoever an event brought on
- * joined to the world and given a role (the stage's cast note, else their attitude); the co-GM's
- * note for the next turn; the stage's count of exchanges bumped, or, when the stage moved, the move
- * kept for the next reply to show. A route to an ending leaves the scene closing: the next line's
- * reply is the closing. Then the memory review is queued, and the turn is done.
+ * takeRoute on the rows, which are the authority, and the roles it set; the stage's count of
+ * exchanges bumped, or, when the stage moved, the move kept for the next reply to show; whoever an
+ * event brought on given a role (the stage's cast note, else their attitude), and joined to the world
+ * and the stage only once that reply has shown them arriving (afterTwoPartReply); the co-GM's note
+ * for the next turn. A route to an ending leaves the scene closing: the next line's reply is the
+ * closing. Then the memory review is queued, and the turn is done.
  */
 export function afterTwoPartSettle(tx: TxCtx, plan: SayPlan, answer: SettleResponse): Next<SayPlan> {
   const at = atTurn(tx, plan);
@@ -152,14 +173,14 @@ export function afterTwoPartSettle(tx: TxCtx, plan: SayPlan, answer: SettleRespo
   if (plan.forced?.kind === "cast") markConjured(place.world, plan.forced.spell, plan.n);
   const stageBefore = at.gm.beat;
   const moved = coGmTakesEffect(tx, at, plan.n, answer.coGm);
+  const tp = at.gm.twoPart;
+  if (at.gm.beat !== stageBefore) tp.moved = at.gm.beat;
+  else if (!at.gm.closing) at.gm.turnsInBeat++;
 
   carryGearAfter(tx, at.scene, place.world, plan.n);
   joinArrivals(place.world, at.graph, at.gm, plan.n);
-  const tp = at.gm.twoPart;
   for (const c of presentCast(at.graph, at.gm)) tp.roles[c.id] ??= defaultRole(at.graph, at.gm, c);
   tp.notes = [...tp.notes, { turn: plan.n, text: rolesNote(at.graph, tp.roles, plan.n) }];
-  if (at.gm.beat === stageBefore && !at.gm.closing) at.gm.turnsInBeat++;
-  else if (at.gm.beat !== stageBefore) tp.moved = at.gm.beat;
 
   savePlaceWorld(tx, at.scene, place, at.graph);
   refreshPockets(tx, at.scene.controllerId, place.world);

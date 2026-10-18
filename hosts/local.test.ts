@@ -259,12 +259,13 @@ test("the two-part GM on the local host: the campaign's hanged clerk walked to m
   const cart = await line("Is that the dead-cart I hear?");
   assert.deepEqual([cart.gm.path.map(p => p.via), cart.gm.beat, cart.gm.twoPart.moved], [["owed:hobb", "find-hobb", "find-murder", "cart-comes"], "cart-arrives", "cart-arrives"]);
   assert.match(cart.gm.twoPart.roles.tull!.conversation_role, /^Helmet off to the dead/, "Tull's role, his stage note");
-  assert.ok(all(sim.db.entity).some(e => e.key === "tull"), "Tull is in the world");
+  assert.ok(!all(sim.db.entity).some(e => e.key === "tull"), "Tull isn't in the place until a reply has shown him arriving");
 
   const signed = await line("Corporal, Sergeant: write it down as murder.");
   const told = of("two-part.reply", 5, "reply")[0]!.request.input!.at(-2)!.content;
   assert.match(told, /The scene has just moved on to "[^"]+": [\s\S]*comes in now, seen arriving/, "the reply after the move was told to show it");
   assert.doesNotMatch(told, /names him now/, "the name said: no more");
+  assert.ok(all(sim.db.entity).some(e => e.key === "tull"), "and with it he's in the place");
   assert.deepEqual([signed.scene.status, signed.gm.closing?.exitId, signed.gm.twoPart.moved], ["closing", "murder-unknown", undefined]);
 
   const ended = await line("Then we're done here.");

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { bandOf, BANDS, diceLine, type Band } from "../../../shared/gm/two-part.ts";
 import type { CoGmAnswer, OpenRequest, Reply, ReplyRequest, ReplyResponse, SettleRequest, SettleResponse } from "../../../shared/protocol/ai.ts";
 import { keyParts } from "../../../shared/protocol/keys.ts";
-import { all, nextCheck, openedGame, sceneNow } from "../host/testing.ts";
+import { all, held, nextCheck, openedGame, sceneNow, tick } from "../host/testing.ts";
 
 /**
  * The two-part GM's turn in the simulation (docs/two-part-design.md "A turn, step by step"), on the
@@ -75,20 +75,35 @@ test("a line: replied at once, the GM's check rolled through the rules engine fr
   assert.deepEqual(keyParts(reply.key)?.step, "reply");
 });
 
-test("the co-GM moves the stage to an event: whoever it brings joins the world with their stage note as their role, and the next reply is told so, once", async () => {
-  const { host, script, scene, line } = await yard();
+test("the co-GM moves the stage to an event: whoever it brings has their stage note as their role, and the next reply is told so, once; they join the place and the stage as that reply is written, not before (QA round qa3-1018: \"Here:\" had the corporal a reply before the narration brought him in)", async () => {
+  const { host, script, scene, wren, line } = await yard();
   script.then("settle", coGm([{ route: "cart-comes", outcome: "none", why: "The noon bell." }]));
   const moved = await line("Sergeant, what time is it?");
   assert.deepEqual([moved.gm.beat, moved.gm.turnsInBeat, moved.gm.twoPart.moved], ["cart-arrives", 0, "cart-arrives"]);
   assert.match(moved.gm.twoPart.roles.tull!.conversation_role, /^Helmet off to the dead/);
-  assert.ok(all(host.db.entity).some(e => e.key === "tull"), "Tull is in the world");
+  const tull = () => all(host.db.entity).find(e => e.key === "tull");
+  const onStage = () => all(host.db.onStage).filter(s => s.sceneId === scene.id).map(s => s.entityId);
+  assert.equal(tull(), undefined, "not in the place before a reply has shown him arriving");
+  assert.ok(!host.view(wren).myNames().some(n => n.key === "tull"), "nor among who's here");
 
-  const next = await line("Corporal, good morning.");
+  const settling = held<SettleResponse>();
+  script.then("settle", () => settling.promise);
+  assert.equal(host.as(wren).say({ text: "Corporal, good morning." }), undefined);
+  const turn = host.drain();
+  await tick();
   const reply = script.to("reply").at(-1)!.body as ReplyRequest;
   assert.equal(reply.turn.gm.twoPart.moved, "cart-arrives", "the reply's request has the move to show");
+  assert.ok(!reply.turn.world.entity.some(e => e.key === "tull"), "and its world hasn't him yet: he arrives in it");
+  assert.equal(sceneNow(host, scene.id).turns.at(-1)!.phase, "settling", "the reply is written");
+  assert.ok(tull() && onStage().includes(tull()!.id), "he's in the place and on the stage with it");
+  assert.ok(host.view(wren).myNames().some(n => n.key === "tull" && n.name === "the corporal"), "here, by what the player calls him");
+  assert.ok(host.logs.some(l => /shown arriving: Corporal Abner Tull/.test(l)));
+
+  settling.settle(coGm([]));
+  await turn;
+  const next = sceneNow(host, scene.id);
   assert.equal(next.gm.twoPart.moved, undefined, "shown, it's done with");
   assert.equal(next.gm.turnsInBeat, 1);
-  void scene;
 });
 
 test("a route to an ending leaves the scene closing; the next line's reply is the closing, which may wait once, then closes through the story's end", async () => {

@@ -214,16 +214,22 @@ test("not in a game: say and transcript give the simulation's words, then how to
   assert.match(title.printed, /^MODE: title\n\nYou have no games yet\.\n/);
 });
 
-test("map: the scene's place as the player sees it, still, then the world from above with what's what; none until its rows come; refused outside a game", async () => {
+test("map: the scene's place as the player sees it, still, then the world from above with what of it they can see, by the names they know; --full, everything by its own name; none until its rows come; refused outside a game", async () => {
   const out = capture();
   assert.equal(verbs.map(demoBackend({ ms: 1 }), out, { w: 60, h: 20 }), 0);
   const [stage = "", sketch = ""] = out.printed.replace(/^MODE: map\n\n/, "").split("\nThe yard behind the King's Granary\n");
   assert.equal(stage.split("\n").filter(r => r.trim()).length, 20, "the stage: 20 rows");
   assert.match(stage, /@/);
   assert.doesNotMatch(stage, /[^\x00-\x7f]/, "in seven-bit characters");
-  assert.match(sketch, /\n@ Pell Marrow\n/);
+  assert.match(sketch, /\n@ you\n/);
   assert.match(sketch, /\n[A-Z] Sergeant Agnes Kell\n/);
+  assert.match(sketch, /\n[A-Z] the boy in the too-big boots\n[A-Z] the girl in the shawl\n/, "the children by what the player calls them (QA round qa3-1018: the map named them first)");
   assert.match(sketch, /\n[a-z] the loft door \(closed, barred\)\n/);
+  assert.doesNotMatch(sketch, /Cob|Moll|loose board|tally desk|smashed lantern|nest of sacking/, "no name unheard, no way in unfound, nothing behind the shut loft's wall");
+
+  const full = capture();
+  assert.equal(verbs.map(demoBackend({ ms: 1 }), full, { w: 60, h: 20 }, { full: true }), 0);
+  for (const line of ["Pell Marrow", "Cob", "Moll", "a loose board behind the water butt", "the tally desk", "a nest of sacking in the loft"]) assert.match(full.printed, new RegExp(`\\n[a-zA-Z@] ${line}`), `the QA map has ${line}`);
 
   const none = capture();
   assert.equal(verbs.map(stalled(), none), 1);
