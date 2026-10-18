@@ -192,6 +192,14 @@
     "motive-known": "Grain wagons for the King's Road have been written off as 'lost to goblins' and sold off, countersigned 'J. Sallow, for the Royal Purveyor', and Prout had found out.",
     "hobb-at-granary": "Big Hobb Mallory, the Drowned Rat's arm-wrestling champion, was at the granary with the gentleman when Prout died."
   },
+  "onStart": [
+    {
+      "op": "quest",
+      "quest": "hanged-clerk",
+      "do": "start",
+      "text": "King Aldren asked you quietly to see Wendell Prout done right by: the palace clerk found hanged behind the granary this morning, whom the Watch Captain has already called a suicide."
+    }
+  ],
   "onEnd": [
     {
       "op": "follow",

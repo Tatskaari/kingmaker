@@ -215,6 +215,7 @@ function sceneProblems(key: string, doc: SceneDocument, files: CampaignFiles, pa
   // What an effect may name: the cast, the place's areas and things, and the things the story carries between scenes (Prout's page, owed into the Rat in Cob's boot).
   const keys = new Set([...castIds, ...(place ? [...place.areas.map(a => a.id), ...place.things.map(t => t.id)] : []), ...carried]);
   const effects: Array<[string, Effect]> = [
+    ...(doc.onStart ?? []).map(e => ["onStart", e] as [string, Effect]),
     ...(doc.onEnd ?? []).map(e => ["onEnd", e] as [string, Effect]),
     ...doc.nodes.filter(isEnding).flatMap(n => (n.data.effects ?? []).map(e => [`ending ${n.id}`, e] as [string, Effect])),
   ];

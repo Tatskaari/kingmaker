@@ -337,8 +337,9 @@ test("the story goes on: every overtaken is a scene, a scene that can be overtak
   assert.deepEqual(sceneChecks(loose), ["scenes/heron-warehouse.kmscene: it assumes things, but doesn't say where the story goes when play has overtaken them (overtaken)"]);
 });
 
-test("the effects name an op, facts, people, things and quests the story has, onEnd's too", () => {
+test("the effects name an op, facts, people, things and quests the story has, onStart's and onEnd's too", () => {
   const files2 = changed(RAT, s => {
+    s.onStart = [{ op: "quest", quest: "lost-dog", do: "start", text: "x" }];
     s.onEnd = [{ op: "follow", who: "moll" }];
     node(s, "taken-in").effects.push(
       { op: "teleport", what: "hobb" },
@@ -351,6 +352,7 @@ test("the effects name an op, facts, people, things and quests the story has, on
   const fight = changed(HERON, s => { node(s, "fight").effects = [{ op: "startFight", enemies: [{ asset: "bandit", count: 2, leader: "sallow" }], allies: ["kell", "duchess"], at: "the-roof" }]; });
 
   assert.deepEqual(sceneChecks(files2), [
+    "scenes/drowned-rat.kmscene: onStart: quest lost-dog isn't one of campaign.json's quests",
     "scenes/drowned-rat.kmscene: onEnd: follow names unknown moll",
     "scenes/drowned-rat.kmscene: ending taken-in: teleport isn't an effect the story knows",
     "scenes/drowned-rat.kmscene: ending taken-in: quest lost-cat isn't one of campaign.json's quests",

@@ -21,6 +21,7 @@ Write for both. The format is [scene-format.md](scene-format.md); the hanged cle
   - a bad one as a last resort (crimes, abandoning the case).
 
   Put what an ending needs in its routes' `requires`, not only in their prose.
+- **What it starts.** A scene that gives the player a task as it begins (the King's request in the hanged clerk) starts its quest in `onStart`, which takes effects as an ending does, so the player's quests have it from the first moment and the endings complete, advance or fail it.
 
 ## The rules
 

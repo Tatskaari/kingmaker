@@ -48,6 +48,7 @@ test("a file that isn't a scene says why, naming where", () => {
   assert.deepEqual(problemsOf(d => { (d.nodes[1]!.data as { paths: Array<{ strength: string }> }).paths[0]!.strength = "damning"; }), ['nodes[1] (murder): paths[0] has strength "damning", not one of hook, suggestive, strong, proof']);
   assert.deepEqual(problemsOf(d => { (d.nodes[5]!.data as { result: string }).result = "great"; }), ['nodes[5] (murder-unknown): its result "great" isn\'t good, mixed or bad']);
   assert.deepEqual(problemsOf(d => { delete (d.cast[0] as Partial<SceneDocument["cast"][number]>).whyHere; }), ["cast[0] (kell) has no whyHere"]);
+  assert.deepEqual(problemsOf(d => { (d as { onStart: unknown }).onStart = [{ quest: "hanged-clerk" }]; }), ["its onStart isn't a list of { op, … }"]);
 });
 
 test("a cue's outer limit: each count a whole number of exchanges, after and until nodes of the scene; the runtime keeps a cue's, and only a cue's", () => {
@@ -106,6 +107,7 @@ test("the runtime's Scene: the start and the beats with the routes that leave th
   assert.ok(scene.cast.every(c => c.roles?.characterise));
   assert.deepEqual([Object.keys(scene.facts!), scene.truth?.slice(0, 11), scene.clock?.slice(0, 14)], [["killed-not-suicide", "motive-known", "hobb-at-granary"], "Prout found", "The dead-cart "]);
   assert.deepEqual([scene.onEnd, scene.afterwards?.length, scene.limits?.length, scene.fronts], [[{ op: "follow", who: "kell" }], 1, 9, "World/Fronts.md"]);
+  assert.deepEqual(scene.onStart?.map(e => [e.op, (e as { quest?: string }).quest, (e as { do?: string }).do]), [["quest", "hanged-clerk", "start"]], "its quest, started as it comes into the story");
   assert.deepEqual(validateScene(scene), []);
 });
 
