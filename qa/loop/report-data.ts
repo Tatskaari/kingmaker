@@ -71,7 +71,7 @@ export function gameStats(round: Round, id: string, personas: Persona[], inputs:
   };
 }
 
-/** The scene's ending by its title ("Scene ends: …"), with its grade; ungraded when the scene doesn't say. */
+/** The scene's ending by its title ("Scene ends: …"), with its grade (its result); ungraded when the scene's file hasn't got it (the game's own improvised ending). */
 function endingOf(title: string, endings: Ending[]): NonNullable<GameStats["ending"]> {
   const found = endingTitled(endings, title);
   return { title, ...(found ? { exit: found.id } : {}), outcome: found?.grade ?? "ungraded" };
