@@ -7,6 +7,7 @@ import {ArrowRight,Dices,Link,Plus,Trash2} from 'lucide-react';
 import {useScene} from './api.ts';
 import {AddPicker,Checkbox,Chips,ChoiceField,IdField,ItemCard,LoreLinks,NumberField,OptionalSection,SelectField,TextArea,TextField,moved} from './fields.tsx';
 import type {Option} from './fields.tsx';
+import type {Campaign} from './campaign.ts';
 import {EffectsEditor} from './effects.tsx';
 import {FactsField} from './facts.tsx';
 import {EXIT_KINDS,ORDER,SKILLS,addRoute,changeKind,idProblem,isBeat,isDiscovery,isEnding,isStart,kindLosses,moveRoutes,nodeKind,optionalList,removeNodes,removeRoutes,renameNode,renameRoute,retitleNode,setArrival,setNodeField,setRouteField,titleOf,updateNode,updateRoute,withKey} from './model.ts';
@@ -142,17 +143,25 @@ function EventFields({node}:{node:SceneNode<BeatData>}){
 function EndingFields({node}:{node:SceneNode<EndingData>}){
   const {edit,campaign,openScene}=useScene();
   const set=(key:string,value:unknown)=>edit(scene=>setNodeField(scene,node.id,key,value));
-  const scenes:Option[]=[{value:'',label:'Nowhere: the story ends here'},...(campaign?.scenes??[]).filter(scene=>scene.id!==campaign?.talk).map(scene=>({value:scene.id,label:`${scene.title} (${scene.id})`}))];
+  const scenes:Option[]=[{value:'',label:'Nowhere: the story ends here'},...storyScenes(campaign)];
   return <>
     <ChoiceField label="Result" field="result" value={node.data.result} options={RESULT_OPTIONS} onChange={value=>set('result',value)}/>
     <SelectField label="Exit kind" field="exitKind" hint={EXIT_OPTIONS[node.data.exitKind]?.detail} value={node.data.exitKind} options={EXIT_KINDS.map(kind=>({value:kind,label:EXIT_OPTIONS[kind].label}))} onChange={value=>set('exitKind',value)}/>
     <TextArea label="What's true" field="description" rows={4} hint="What is true if the scene ends this way." value={node.data.description} onChange={value=>set('description',value)}/>
     <TextArea label="Closing" field="closing" rows={4} hint="How the GM should close it: the feeling, the last image." value={node.data.closing} onChange={value=>set('closing',value)}/>
-    <SelectField label="Next scene" field="next" hint="The scene the story goes on to: one of the campaign's." value={node.data.next??''} options={scenes} onChange={value=>set('next',value||undefined)}/>
+    <SelectField label="Next scene" field="next" hint="The scene the story goes on to: one of the campaign's, or a scene file it doesn't list yet (the problems say so until campaign.json lists it)." value={node.data.next??''} options={scenes} onChange={value=>set('next',value||undefined)}/>
     {node.data.next&&<button type="button" className="text-button" onClick={()=>openScene(node.data.next!)}>Open {node.data.next} <ArrowRight size={12}/></button>}
     <EffectsEditor label="Effects" field="effects" at={{kind:'node',id:node.id}} hint="What ending this way does to the story and the world, in order, each only when its facts say so."/>
     <WaysIn node={node}/>
   </>;
+}
+
+/** The scenes the story can go on to: campaign.json's (not the talk template), then the scene files it doesn't list yet, which the problems name until it does. */
+export function storyScenes(campaign:Campaign|null,except?:string):Option[]{
+  return [
+    ...(campaign?.scenes??[]).filter(scene=>scene.id!==campaign?.talk&&scene.id!==except).map(scene=>({value:scene.id,label:`${scene.title} (${scene.id})`})),
+    ...(campaign?.unlisted??[]).filter(id=>id!==except).map(id=>({value:id,label:`${id} (a scene file campaign.json doesn't list yet)`})),
+  ];
 }
 
 /** What an ending needs is in its routes' requires: each way in, and the beats it requires. */

@@ -4,6 +4,7 @@ import React from 'react';
 import {useScene} from './api.ts';
 import {Checkbox,Group,IdField,ListField,LoreLinks,SelectField,TextArea,TextField} from './fields.tsx';
 import {EffectsEditor} from './effects.tsx';
+import {storyScenes} from './inspectors.tsx';
 import {SLUG,optionalList,optionalText,setSceneField} from './model.ts';
 
 const TIMES=['morning','afternoon','evening','night','next-morning'];
@@ -13,7 +14,7 @@ export function SceneView(){
   const {doc,edit,campaign,loreNames,openLore,pickLore}=useScene();
   const set=(key:string,value:unknown)=>edit(scene=>setSceneField(scene,key,value));
   const list=(key:'limits'|'known'|'background'|'assumes')=>doc[key]??[];
-  const scenes=(campaign?.scenes??[]).filter(scene=>scene.id!==campaign?.talk&&scene.id!==doc.id).map(scene=>({value:scene.id,label:`${scene.title} (${scene.id})`}));
+  const scenes=storyScenes(campaign,doc.id);
   const places=(campaign?.places??[]).map(place=>({value:place.key,label:`${place.name} (${place.key})`}));
   const linkLore=(path:string)=>edit(scene=>scene.lore.includes(path)?scene:setSceneField(scene,'lore',[...scene.lore,path]));
   const talk=doc.id===campaign?.talk||doc.companion!==undefined;

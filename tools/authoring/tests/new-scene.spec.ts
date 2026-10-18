@@ -246,4 +246,13 @@ test('a new scene written from nothing, every value through a control: the campa
     ['to-hale-blamed','cart-early','hale-blamed','Hale takes the blame',null,''],
     ['to-tam-owns-up','tam-swaps','tam-owns-up','Tam owns up',['tam-swaps'],'persuasion'],
   ]);
+
+  // And the story can be sent to it from another scene before campaign.json lists it: offered, and the problems say it isn't listed yet.
+  await page.getByRole('combobox',{name:'Test file',exact:true}).selectOption('scenes/hanged-clerk.kmscene');
+  await expect(page.locator('.file-path')).toHaveText('scenes/hanged-clerk.kmscene');
+  await select(page,'failed');
+  await inspector(page).getByLabel('Next scene',{exact:true}).selectOption({label:'the-short-weight (a scene file campaign.json doesn\'t list yet)'});
+  await expect.poll(async()=>JSON.parse(await page.evaluate(()=>(window as any).__kingmakerHarness.files['scenes/hanged-clerk.kmscene'])).nodes.find((node:any)=>node.id==='failed').data.next).toBe('the-short-weight');
+  await view(page,'Problems').click();
+  await expect(page.locator('.problems-view .problem')).toHaveText([/ending failed goes on to the-short-weight, which isn't one of the campaign's scenes/]);
 });

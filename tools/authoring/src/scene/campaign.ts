@@ -27,6 +27,8 @@ export type Campaign={
   error?:string;
   /** campaign.json's scenes, in story order, then its talk template. */
   scenes:CampaignScene[];
+  /** The ids of the scene files in its scenes/ that campaign.json doesn't list yet (a scene being written), which an ending may name, and the problems say until it's listed. */
+  unlisted:string[];
   talk?:string;
   places:PlaceFile[];
   quests:Record<string,string>;
@@ -65,7 +67,7 @@ export const lorePathOf=(root:string,path:string):string=>`${root}lore/${path}`;
 export async function readCampaign(path:string,files:VaultFiles,drafts:(path:string)=>SceneDocument|undefined=()=>undefined):Promise<Campaign>{
   const root=campaignRootOf(path);
   const lore=readLore(root,files);
-  const empty:Campaign={root,scenes:[],places:[],quests:{},...lore};
+  const empty:Campaign={root,scenes:[],unlisted:[],places:[],quests:{},...lore};
 
   const campaign=await readJson<CampaignFile>(files,`${root}campaign.json`);
   if(typeof campaign==='string')return {...empty,error:campaign};
@@ -73,7 +75,8 @@ export async function readCampaign(path:string,files:VaultFiles,drafts:(path:str
   const ids=[...(campaign.scenes??[]),...(campaign.talk?[campaign.talk]:[])];
   const scenes=await Promise.all(ids.map(id=>readScene(root,id,files,drafts)));
   const places=await readPlaces(root,campaign.places??[],files);
-  return {...empty,scenes,...(campaign.talk?{talk:campaign.talk}:{}),places,quests:campaign.quests??{}};
+  const unlisted=files.list(`${root}scenes/`).filter(file=>file.slice(root.length+'scenes/'.length).match(/^[^/]+\.kmscene$/i)).map(sceneKeyOf).filter(id=>!ids.includes(id)).sort();
+  return {...empty,scenes,unlisted,...(campaign.talk?{talk:campaign.talk}:{}),places,quests:campaign.quests??{}};
 }
 
 /** The rules' context for the scene `key` in this campaign: everything but the scene itself, whose draft is the editor's. */

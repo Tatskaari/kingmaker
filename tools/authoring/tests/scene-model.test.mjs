@@ -309,6 +309,14 @@ test('the campaign around a scene: its root, its scenes, places and quests, its 
   assert.ok(!campaign.lore.some(note=>/\/(private|gm|index)\.md$|\/knowledge\//.test(note.path)&&note.path.startsWith('Cast/')),'a person\'s public card is offered, not their private notes');
   assert.ok(campaign.lore.some(note=>note.path==='World/Fronts.md'&&note.kind==='world'));
   assert.ok(campaign.lore.some(note=>note.path==='Places/Granary Yard.md'&&note.kind==='place'));
+  // A scene file campaign.json doesn't list yet is one the story can be sent to (the problems say so until it's listed).
+  assert.deepEqual(campaign.unlisted,[]);
+  const files=await campaignFiles();
+  const writing={list:folder=>[...files.list(folder),...('scenes/the-short-weight.kmscene'.startsWith(folder)?['scenes/the-short-weight.kmscene']:[])],read:files.read};
+  const more=await readCampaign('scenes/hanged-clerk.kmscene',writing);
+  assert.deepEqual(more.unlisted,['the-short-weight']);
+  const sent=setNodeField(clerk(),'failed','next','the-short-weight');
+  assert.deepEqual(problemsOf('hanged-clerk',sent,contextOf(more,'hanged-clerk')).map(problem=>problem.message),['ending failed goes on to the-short-weight, which isn\'t one of the campaign\'s scenes']);
 });
 
 test('the problems are the campaign check\'s: none on the real scenes, and one where it is when a scene breaks a rule',async()=>{
