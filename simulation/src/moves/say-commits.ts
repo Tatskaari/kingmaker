@@ -1,5 +1,5 @@
 import type { GmState } from "../../../shared/gm/state.ts";
-import type { Outcome, ReactionsResponse, ReplyResponse } from "../../../shared/protocol/ai.ts";
+import type { ActResponse, Outcome, ReactionsResponse, ReplyResponse, TurnAct } from "../../../shared/protocol/ai.ts";
 import { idOf } from "../../../shared/protocol/keys.ts";
 import { attack, castSpell, dispelConjured, rest, useFeature, wrestle, type RulesOutcome } from "../../../shared/rules/acts.ts";
 import { leap, moveToAct, react, violence } from "../../../shared/rules/scene-acts.ts";
@@ -34,14 +34,30 @@ export const SCENE_ENDED_FIRST = "The scene ended first.";
 export interface At { scene: SceneRow; graph: Scene; gm: GmState }
 
 /**
- * The reactions step's commit (engine.ts:637-656), parked for combat: nothing in a scene asks the
- * reactions since the old pipeline's decide went (docs/migration-log.md, M2's "The old pipeline's
- * salvage"), and the map's act (two-part.ts twoPartStart) goes straight to the reply. Everyone who saw
- * the player's violence (`plan.act`, what takeAct found it to be) reacts as the AI service decided
- * (reactionsTakeEffect: the fleeing leave the place, the cowering cower, a fight starts if anyone
- * wants one, its first fighter's blow left hanging over the player); a fight that broke out this turn
- * is the turn's answer (Outcome.brawl). Then the two-part GM's reply, its directives the act's and
- * the reactions' after the rules'.
+ * The act step's commit: what the rules resolve of the player's line, as the AI service read it
+ * (POST /v1/turns/act: the mechanic question, then the act's details), resolved by the rules on the
+ * scene's world (resolveAct: its dice lines in the transcript before the reply, its directive the
+ * reply's, the world, the character and the sheet written), as the map's act is; nothing, when the
+ * line wasn't an act after all. Then the reactions of whoever saw it, when it was violence, or the
+ * reply.
+ */
+export function afterAct(tx: TxCtx, plan: SayPlan, answer: ActResponse): Next<SayPlan> {
+  const at = atTurn(tx, plan);
+  const outcome: Outcome = { ...needs(plan.outcome, "outcome"), lines: [...plan.lines] };
+  const resolved = answer.mechanic ? resolveAct(tx, at, plan, answer.mechanic, outcome) : undefined;
+  if (!resolved) tx.log(`[scene ${at.scene.id} turn ${plan.n}] the line wasn't an act the rules resolve (${plan.acting ?? "asked"})`);
+
+  putGm(tx, at.scene.id, at.gm);
+  const read = answer.mechanic ? { read: answer.mechanic } : {};
+  return { done: false, plan: beforeReply({ ...plan, ...read, outcome, lines: outcome.lines }, resolved) };
+}
+
+/**
+ * The reactions step's commit (engine.ts:637-656): everyone who saw the player's violence (`plan.act`,
+ * what takeAct found it to be) reacts as the AI service decided (reactionsTakeEffect: the fleeing
+ * leave the place, the cowering cower; someone who'd fight turns on the player, but no fight starts:
+ * that's the scene's routes' and the co-GM's). Then the two-part GM's reply, its directives the act's
+ * and the reactions' after the rules', and the reactions kept for the co-GM with the act's lines.
  */
 export function afterReactions(tx: TxCtx, plan: SayPlan, answer: ReactionsResponse): Next<SayPlan> {
   const at = atTurn(tx, plan);
@@ -53,7 +69,24 @@ export function afterReactions(tx: TxCtx, plan: SayPlan, answer: ReactionsRespon
 
   putGm(tx, at.scene.id, at.gm);
   updateTurn(tx, idOf(plan.turn), { phase: "replying" });
-  return { done: false, plan: { ...plan, step: "reply", outcome, lines: outcome.lines } };
+  const acted = plan.acted && Object.keys(reactions).length ? { acted: { ...plan.acted, reactions } } : {};
+  return { done: false, plan: { ...plan, ...acted, step: "reply", outcome, lines: outcome.lines } };
+}
+
+/** The player's act resolved (takeAct), and what it came to: the violence people react to, if it was, and its dice lines for the co-GM. */
+export interface Resolved { act?: Act; acted: TurnAct }
+
+/** takeAct's act, with the dice lines it wrote (TurnAct: the co-GM is told them). */
+export function resolveAct(tx: TxCtx, at: At, plan: Pick<SayPlan, "n" | "input" | "rulesFirst">, m: Mechanic, outcome: Outcome): Resolved {
+  const before = outcome.lines.length;
+  const act = takeAct(tx, at, plan, m, outcome);
+  return { ...(act ? { act } : {}), acted: { lines: outcome.lines.slice(before) } };
+}
+
+/** What comes before the reply once the act is resolved: the reactions of whoever saw it, when it was violence; else the reply. */
+export function beforeReply(plan: SayPlan, resolved: Resolved | undefined): SayPlan {
+  const acted = resolved ? { acted: resolved.acted } : {};
+  return resolved?.act ? { ...plan, ...acted, step: "reactions", act: resolved.act } : { ...plan, ...acted, step: "reply" };
 }
 
 /**
@@ -100,8 +133,8 @@ function diceEntry(tx: TxCtx, scene: SceneRow, n: number, text: string): string 
  * scene's world, from where they moved to first: a spell, a blow, a grab or a shove, a jump, a class
  * feature, a rest. Its dice lines, its directive (Outcome.acts), its step on the path; the world, the
  * character, the sheet and the pockets written. Then whether it was violence people would react to
- * (not while a fight is on already): the reactions step's act, parked for combat. Not when the blow
- * before their turn put them down (it doesn't happen), nor a Shield already raised against it.
+ * (not while a fight is on already): the reactions step's act. Not when the blow before their turn
+ * put them down (it doesn't happen), nor a Shield already raised against it.
  */
 export function takeAct(tx: TxCtx, at: At, plan: Pick<SayPlan, "n" | "input" | "rulesFirst">, m: Mechanic, outcome: Outcome): Act | undefined {
   const first = plan.rulesFirst;
@@ -144,7 +177,7 @@ export function takeAct(tx: TxCtx, at: At, plan: Pick<SayPlan, "n" | "input" | "
 // ---------------------------------------------------------------------------------------------
 // afterReactions' parts.
 
-/** engine.ts:641-650: the reactions take effect on the world and the GM's bookkeeping (who left the stage), their directive after the act's, their step on the path. */
+/** engine.ts:641-650: the reactions take effect on the world and the GM's bookkeeping (who left the stage; no fight starts), their directive after the act's, their step on the path. */
 export function reactionsTakeEffect(tx: TxCtx, at: At, plan: Pick<SayPlan, "n">, act: Act, reactions: Record<string, Reaction>, directive: string | undefined, outcome: Outcome): void {
   const played = inPlay(tx, at.scene, at.graph, at.gm, plan.n);
   react(at.graph, played.session, act, reactions);

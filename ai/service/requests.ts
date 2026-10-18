@@ -89,6 +89,7 @@ const TALK_OPEN: Need = [
 
 const NEEDS: Record<Step, Need[]> = {
   open: [["scene { key }", r => isText(r, "scene.key")], ...viewNeeds(""), STREAM, TALK_OPEN],
+  act: TURN,
   reactions: [...TURN, ["act { what, victims, property } (what the rules decided the player did)", r => isText(r, "act.what") && isList(r, "act.victims") && isList(r, "act.property")]],
   reply: [
     ...TURN, ["outcome { directives }", r => isList(r, "outcome.directives")], STREAM,

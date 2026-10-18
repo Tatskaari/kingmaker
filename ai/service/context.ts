@@ -1,6 +1,6 @@
 import type { CallContext } from "../llm/openrouter.ts";
 import type {
-  AiErrorCode, BackstoriesRequest, BackstoriesResponse, BoundaryRequest, BoundaryResponse, CharactersRequest, CharactersResponse,
+  ActRequest, ActResponse, AiErrorCode, BackstoriesRequest, BackstoriesResponse, BoundaryRequest, BoundaryResponse, CharactersRequest, CharactersResponse,
   LooksRequest, LooksResponse, OpenRequest, OpenResponse, ReactionsRequest, ReactionsResponse, RememberRequest, RememberResponse,
   ReplyRequest, ReplyResponse, SettleRequest, SettleResponse, SuggestRequest, SuggestResponse, Usage,
 } from "../../shared/protocol/ai.ts";
@@ -31,8 +31,8 @@ export interface AiContext {
 export type Handler<Req, Res> = (req: Req, ctx: AiContext) => Promise<Res>;
 
 /**
- * The thinks: the opening, a turn's own (reply, settle; reactions, parked for combat, on a turn the
- * player's violence drew them: world-bridge-design §3.1),
+ * The thinks: the opening, a turn's own (reply, settle; before them, act on a line that might be one,
+ * and reactions on a turn the player's violence drew them: world-bridge-design §3.1),
  * the one beside a turn once its reply is in (the lines suggested after it: v5-design §3.6; the
  * notes on its marks went in M2), the one in the background once it's over (the memory reviews:
  * full-gm-design §4.1), the boundary once a scene is over (story-design §4.4), the looks of what a
@@ -42,6 +42,8 @@ export type Handler<Req, Res> = (req: Req, ctx: AiContext) => Promise<Res>;
  */
 export interface Endpoints {
   open: Handler<OpenRequest, OpenResponse>;
+  /** What the rules resolve of a line that might be an act (a spell, a blow, a class feature): the mechanic question, then the act's details; none when it isn't one. */
+  act: Handler<ActRequest, ActResponse>;
   /** Everyone who saw the player's violence reacts, each by their own lights, before the reply: none, and no model call, when nobody saw it. */
   reactions: Handler<ReactionsRequest, ReactionsResponse>;
   reply: Handler<ReplyRequest, ReplyResponse>;

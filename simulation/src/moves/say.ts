@@ -1,5 +1,5 @@
 import type { Identity } from "spacetimedb";
-import type { ReactionsResponse, ReplyResponse, SettleResponse } from "../../../shared/protocol/ai.ts";
+import type { ActResponse, ReactionsResponse, ReplyResponse, SettleResponse } from "../../../shared/protocol/ai.ts";
 import { idText, playerSpeaker } from "../../../shared/protocol/keys.ts";
 import { MAX_LINE, refusal, type Refusal } from "../../../shared/protocol/refusals.ts";
 import { actorOf, runMove, type Actor, type TxCtx } from "../context.ts";
@@ -13,7 +13,7 @@ import { newTurn, queuedTurnOf } from "../turns.ts";
 import type { Move } from "./move.ts";
 import { seenOf } from "./open-scene.ts";
 import type { SayPlan } from "./plans.ts";
-import { afterReactions } from "./say-commits.ts";
+import { afterAct, afterReactions } from "./say-commits.ts";
 import { afterTwoPartReply, afterTwoPartSettle, twoPartStart } from "./two-part.ts";
 
 /**
@@ -22,9 +22,11 @@ import { afterTwoPartReply, afterTwoPartSettle, twoPartStart } from "./two-part.
  * they act, world-bridge-design §3.4, and the map's act); then the two-part GM's two thinks, each
  * committed in turn: reply (the mouthpiece, streamed, then the GM's entry, a check it calls rolled
  * here) and settle (the stage manager's world, the co-GM's roles and moves). On the wind-down the
- * reply alone closes the scene. A line said while the last turn settles waits as queued, and starts
- * when that one is done. (The reactions to the player's violence are a step of their own, parked for
- * combat: nothing queues them.)
+ * reply alone closes the scene. Before the reply, a line that might be an act the rules resolve (a
+ * spell, a blow, a class feature) has a think of its own (act: what the rules resolve of it,
+ * resolved on the world before the GM speaks), and an act that was violence another (reactions:
+ * how everyone who saw it takes it). A line said while the last turn settles waits as queued, and
+ * starts when that one is done.
  */
 export const say: Move<{ text: string }, SayPlan> = {
   name: "say",
@@ -51,9 +53,10 @@ export const say: Move<{ text: string }, SayPlan> = {
   think: (tx, plan) => sayCall(tx, plan),
 
   commit(tx, plan, answer) {
+    if (plan.step === "act") return afterAct(tx, plan, answer as ActResponse);
+    if (plan.step === "reactions") return afterReactions(tx, plan, answer as ReactionsResponse);
     if (plan.step === "reply") return afterTwoPartReply(tx, plan, answer as ReplyResponse);
-    if (plan.step === "settle") return afterTwoPartSettle(tx, plan, answer as SettleResponse);
-    return afterReactions(tx, plan, answer as ReactionsResponse);
+    return afterTwoPartSettle(tx, plan, answer as SettleResponse);
   },
 };
 
@@ -64,8 +67,9 @@ export function sayReducer(tx: TxCtx, sender: Identity, args: { text: string }):
 /**
  * A turn's plan as it starts (on both paths a turn starts, a line said now or one that waited):
  * what's settled and whether this is the wind-down, then the two-part GM's start (twoPartStart: a
- * talk's goodbye said, the rules first, the map's act), its reply next. Every scene plays on the
- * two-part GM's steps (docs/two-part-design.md).
+ * talk's goodbye said, the rules first, the player's act), its reply next, or first the act step
+ * (a line that might be an act) or the reactions (the map's act that was violence). Every scene
+ * plays on the two-part GM's steps (docs/two-part-design.md).
  */
 export function startPlan(tx: TxCtx, sceneId: bigint, turn: TurnRow, line: string): SayPlan {
   const scene = sceneRow(tx, sceneId);

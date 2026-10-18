@@ -2,7 +2,7 @@ import type { Asked, Backstory, LoreIssue, Who } from "../creation/types.ts";
 import type { Confide, GmState, OwedRow, ScenePatch, TalkRecord, TwoPartRole } from "../gm/state.ts";
 import type { Band } from "../gm/two-part.ts";
 import type { Markup } from "../markup.ts";
-import type { Act, BuildOption, FeatureRef, Offer, OwnPicks, Reaction, SpellRef, SrdLists, WeaponRef } from "../rules/types.ts";
+import type { Act, BuildOption, FeatureRef, Mechanic, Offer, OwnPicks, Reaction, SpellRef, SrdLists, WeaponRef } from "../rules/types.ts";
 import type { RouteOutcome } from "../scene/beats.ts";
 import type { Skill } from "../scene/types.ts";
 import type { PlaceRows } from "../world/rows.ts";
@@ -12,8 +12,8 @@ import type { CreationStep, Step } from "./keys.ts";
 /**
  * The AI service's HTTP API: what the simulation POSTs for each step of a think, and what comes
  * back (v0-design §5.1-5.2, gm-port §13; the suggested lines, v5-design §3.6;
- * character creation's two, v1-design §3.7; the memory reviews after a turn, full-gm-design §4.1; the rules' act in a turn and the reactions to it,
- * world-bridge-design §3.1; the boundary between scenes and a fight's aftermath, story-design §4.2;
+ * character creation's two, v1-design §3.7; the memory reviews after a turn, full-gm-design §4.1; the rules' act in a turn (what a line asks
+ * of them, read before the reply) and the reactions to it, world-bridge-design §3.1; the boundary between scenes and a fight's aftermath, story-design §4.2;
  * a talk with a companion, the menu's act played as a turn, and the looks of what the story makes,
  * town-design §3.6-3.8).
  * Every request carries its working set, read in the transaction that queued it, and its
@@ -21,24 +21,24 @@ import type { CreationStep, Step } from "./keys.ts";
  */
 
 export type Endpoint =
-  | "/v1/scenes/open" | "/v1/turns/reactions" | "/v1/turns/reply" | "/v1/turns/settle" | "/v1/turns/suggest"
+  | "/v1/scenes/open" | "/v1/turns/act" | "/v1/turns/reactions" | "/v1/turns/reply" | "/v1/turns/settle" | "/v1/turns/suggest"
   | "/v1/turns/remember" | "/v1/scenes/boundary" | "/v1/looks"
   | "/v1/characters" | "/v1/backstories";
 
 /**
  * Each step's endpoint, and how long the simulation waits for it (under the procedures' 180 s cap).
- * The reactions are one decider call (about 0.3 s), waited for 20 s; a memory review's tool loop
- * can take a minute and more; a boundary's three calls at once,
+ * The act is two decider calls at most and the reactions one (about 0.3 s each), each waited for
+ * 20 s; a memory review's tool loop can take a minute and more; a boundary's three calls at once,
  * then presence, about 10 to 20 s on real models; the looks of what a turn made, one small call.
  */
 export const STEP_ENDPOINT: Record<Step | CreationStep, Endpoint> = {
-  open: "/v1/scenes/open", reactions: "/v1/turns/reactions", reply: "/v1/turns/reply", settle: "/v1/turns/settle",
+  open: "/v1/scenes/open", act: "/v1/turns/act", reactions: "/v1/turns/reactions", reply: "/v1/turns/reply", settle: "/v1/turns/settle",
   suggest: "/v1/turns/suggest", remember: "/v1/turns/remember", boundary: "/v1/scenes/boundary", look: "/v1/looks",
   offer: "/v1/characters", pick: "/v1/characters", own: "/v1/characters",
   draft: "/v1/backstories", work: "/v1/backstories", check: "/v1/backstories", traits: "/v1/backstories",
 };
 export const STEP_TIMEOUT_MS: Record<Step | CreationStep, number> = {
-  open: 60_000, reactions: 20_000, reply: 60_000, settle: 60_000, suggest: 30_000, remember: 170_000, boundary: 120_000, look: 30_000,
+  open: 60_000, act: 20_000, reactions: 20_000, reply: 60_000, settle: 60_000, suggest: 30_000, remember: 170_000, boundary: 120_000, look: 30_000,
   offer: 60_000, pick: 60_000, own: 30_000, draft: 60_000, work: 60_000, check: 60_000, traits: 60_000,
 };
 
@@ -186,9 +186,10 @@ export interface TalkPrep {
 }
 
 /**
- * What the turn's commits before the reply did (the rules first, the map's act, and the reactions to
- * it, parked for combat): the reply builds its directives from it. (The move the old pipeline's decide
- * commit took, the ending it held for the player's answer and a considered turn's ruling went with them.)
+ * What the turn's commits before the reply did (the rules first, the player's act, read from their
+ * line or the map's, and the reactions to it): the reply builds its directives from it. (The move the
+ * old pipeline's decide commit took, the ending it held for the player's answer and a considered
+ * turn's ruling went with them.)
  */
 export interface Outcome {
   /** This turn's dice lines. */
@@ -205,9 +206,25 @@ export interface Outcome {
    * in that order (world-bridge-design §3.2): after the rules first's.
    */
   acts?: string[];
-  /** The player's violence started a fight this turn (the parked reactions'): no reply reads it until combat does; the two-part reply plays the fight from the reactions' directive. */
+  /** The player's violence started a fight this turn (parked for combat: a scene's reactions start none, the scene's routes and the co-GM do); no reply reads it. */
   brawl?: boolean;
 }
+
+/**
+ * POST /v1/turns/act (world-bridge-design §3.1): what the rules resolve of the player's line, asked
+ * before the reply only of a line that might be an act (shared/rules/acting.ts mightAct: a spell, a
+ * blow, a shot or a throw, a class feature). turn: the turn's working set, its line the player's.
+ */
+export interface ActRequest extends AiRequest { turn: TurnContext }
+/** The act the rules resolve, with its details (which spell at whom, which blow at what, where from); none when the line isn't one. */
+export interface ActResponse { mechanic?: Mechanic; usage: Usage }
+
+/**
+ * What the rules resolved of the player's act this turn (a line's, or the map's), for the co-GM to
+ * play its fallout: the act's dice lines as the player saw them, and how each witness took it (the
+ * reactions step's, by cast or world id) when it was violence someone saw.
+ */
+export interface TurnAct { lines: string[]; reactions?: Record<string, Reaction> }
 /**
  * The two-part GM's reply (docs/two-part-design.md): the outcome's directives (the rules' from before
  * the player acted, and the map's act's) leading the mouthpiece's, and on the wind-down
@@ -248,9 +265,10 @@ export interface CoGmAnswer {
 /**
  * reply: plain text. talk: a talk's turn, and whether its next lines are asked for (the controller's
  * setting). The stage manager and the two-part GM's co-GM side by side, the co-GM told how this
- * turn's check went (`check`, when the mouthpiece called one).
+ * turn's check went (`check`, when the mouthpiece called one) and what the rules resolved of the
+ * player's act (`act`, when there was one).
  */
-export interface SettleRequest extends AiRequest { turn: TurnContext; reply: string; lines: string[]; settled: string[]; talk?: { suggest: boolean }; check?: TurnCheck }
+export interface SettleRequest extends AiRequest { turn: TurnContext; reply: string; lines: string[]; settled: string[]; talk?: { suggest: boolean }; check?: TurnCheck; act?: TurnAct }
 /**
  * ops: at most 16, by game key (none in a talk, which has no world). talk: a talk's next lines
  * (talk.suggest, beside the co-GM), none when they weren't asked for or the talk ended. coGm: the
@@ -260,9 +278,9 @@ export interface SettleResponse { ops: WorldOp[]; talk?: { suggestions: string[]
 
 /**
  * POST /v1/turns/reactions (world-bridge-design §3.1): everyone who saw the player's violence reacts,
- * each by their own lights, before the GM says a word (the prototype's decideReactions). Parked for
- * combat: nothing queues it since the old pipeline's decide went. turn: the turn's working set as the
- * act left it (the world after it); act: what the rules decided it did (scene-acts.ts violence).
+ * each by their own lights, before the GM says a word (the prototype's decideReactions). turn: the
+ * turn's working set as the act left it (the world after it); act: what the rules decided it did
+ * (scene-acts.ts violence).
  */
 export interface ReactionsRequest extends AiRequest { turn: TurnContext; act: Act }
 /**

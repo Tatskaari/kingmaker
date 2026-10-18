@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fakeFetch, type FakeOptions, type Request } from "../../llm/fake-openrouter.ts";
 import { initialGm, type GmState } from "../../../shared/gm/state.ts";
-import type { Entry, ReactionsRequest, SheetRow } from "../../../shared/protocol/ai.ts";
+import type { ActRequest, Entry, ReactionsRequest, SheetRow } from "../../../shared/protocol/ai.ts";
 import type { Act } from "../../../shared/rules/types.ts";
 import type { PlaceFile } from "../../../shared/scene/files.ts";
 import { loadPlace, placePath } from "../../../shared/scene/scenario.ts";
@@ -26,12 +26,12 @@ import { director, sceneAndView } from "./turn.ts";
 
 /**
  * A turn's thinks with the world bridge (world-bridge-design §3.1, package C), on the stand-in for
- * OpenRouter, for a wizard with her spells, weapons and features on her sheet, both parked for combat
- * (nothing in a scene's play asks them since the old pipeline's decide went): what the rules resolve
- * of her line (which spell at what, the world in the details call), and the reactions of everyone who
- * saw the violence (and none when nobody did). (A route's roll held behind the act, and a roll wanted
- * that the act settles, went with decide's one decision; the threat a reply left hanging, read in the
- * old pipeline's settle, is director.test.ts's now, and the old reply's directives went with it.)
+ * OpenRouter, for a wizard with her spells, weapons and features on her sheet (and the report's rogue,
+ * with none of the first): what the rules resolve of her line (the act step, POST /v1/turns/act:
+ * which spell at what, the world in the details call), and the reactions of everyone who saw the
+ * violence (and none when nobody did). (A route's roll held behind the act, and a roll wanted that the
+ * act settles, went with decide's one decision; the threat a reply left hanging, read in the old
+ * pipeline's settle, is director.test.ts's now, and the old reply's directives went with it.)
  */
 
 const CAERWYN = join(import.meta.dirname, "..", "..", "..", "campaigns", "caerwyn");
@@ -78,6 +78,12 @@ const WIZARD: SheetRow = {
   weapons: [{ id: "quarterstaff", name: "Quarterstaff" }, { id: "dagger", name: "Dagger" }],
   features: [],
 };
+/** The ready-made rogue as the user's report had her (halfling rogue 3, Thief): no spells, her weapons by the engine's instance ids, no feature with uses. */
+const ROGUE: SheetRow = {
+  name: "Wren Ashdown", concept: "a palace inspector with soft shoes, a rapier and a notebook", build: "halfling rogue 3 (Thief), criminal background",
+  skills: { insight: 5, investigation: 5, perception: 3, sleight_of_hand: 5, stealth: 5 }, status: "HP 24/24",
+  spells: [], weapons: [{ id: "01M57EZ9HBNBXZ36Q56XBARSE8", name: "Rapier" }, { id: "01M57EZ9HBF6AE2Z97BJWQY87B", name: "Shortbow" }, { id: "01M57EZ9HB2GJCEJS0342CAZZ6", name: "Dagger" }], features: [],
+};
 const game = { id: GAME, campaign: "caerwyn", version: "0.1.0" };
 const player = { id: "1", name: "Wren Ashdown" };
 const opening: Entry = { turn: 0, speaker: "gm", kind: "narration", text: "Rain on the cobbles. A body hangs from the hoist, and a boy in boots too big for him throws stones at it." };
@@ -90,8 +96,8 @@ function turnOf(n: number, gm: GmState, rows: PlaceRows, transcript: Entry[], pa
 
 /**
  * What the rules resolve of the player's line on the yard's first turn, as the old pipeline's decide
- * asked it of the director (mechanicOf, parked for combat: nothing in play asks it since that decide
- * went), with what rulesOptions offers from the sheet and the world; nothing asked for a sheet with no build.
+ * asked it of the director (mechanicOf, every act offered), with what rulesOptions offers from the
+ * sheet and the world; nothing asked for a sheet with no build.
  */
 async function ruled(options: FakeOptions, line: string, party: SheetRow[] = [WIZARD]) {
   const { fake, contextFor, rows } = await setUp(options);
@@ -103,7 +109,7 @@ async function ruled(options: FakeOptions, line: string, party: SheetRow[] = [WI
   return { mechanic, sent: fake.sent };
 }
 
-test("parked for combat: the rules' act on a scripted cast, at what the player aimed it, its details asked in a second small call with the world", async () => {
+test("the rules' act on a scripted cast, at what the player aimed it, its details asked in a second small call with the world", async () => {
   const { mechanic, sent } = await ruled({ choices: { mechanic: "cast", spell: "magic-missile", aim_thing: "hoist-rope" } }, MISSILE);
 
   assert.deepEqual(mechanic, { kind: "cast", spell: "magic-missile", targets: ["hoist-rope"] });
@@ -122,6 +128,36 @@ test("parked for combat: the rules' act on a scripted cast, at what the player a
   const { build: _, ...plain } = WIZARD;
   const none = await ruled({ choices: { mechanic: "cast" } }, MISSILE, [plain]);
   assert.deepEqual([none.sent.length, none.mechanic], [0, undefined]);
+});
+
+/** The act step's request for a line on the yard's first turn. */
+function actRequest(gm: GmState, rows: PlaceRows, line: string, party: SheetRow[] = [WIZARD]): ActRequest {
+  return { key: `${GAME}:s1:t1:act`, game, player, turn: turnOf(1, gm, rows, [opening, said(1, line)], party) };
+}
+
+test("the act step (POST /v1/turns/act): a spell in a line, read for what the rules resolve, a scene's acts offered and the details asked in a second call; the report's rogue reaching for Fire Bolt, which isn't hers, with no second call; a line that's no act, and a sheet with no build", async () => {
+  const gm = initialGm({ start: "yard" });
+  const { fake, contextFor, rows } = await setUp({ choices: { mechanic: "cast", spell: "magic-missile", aim_thing: "hoist-rope" } });
+  const cast = await pipeline.act(actRequest(gm, rows(gm), MISSILE), contextFor(`${GAME}:s1:t1:act`));
+  assert.deepEqual(cast.mechanic, { kind: "cast", spell: "magic-missile", targets: ["hoist-rope"] });
+  assert.deepEqual(Object.keys(fake.sent[0]!.questions!.mechanic!.criteria), ["cast", "attack", "none"], "a scene's acts, and no feature on her sheet: a grab, a shove, a jump or a rest is the GM's or the map's");
+  assert.deepEqual(Object.keys(cast.usage.byOperation).sort(), ["director.mechanic", "director.rules"]);
+
+  // The user's report, turn 9: a rogue, with no spells, casting Fire Bolt at Cob.
+  const rogue = await setUp({ choices: { mechanic: "cast" } });
+  const firebolt = await pipeline.act(actRequest(gm, rogue.rows(gm), "(I cast firebolt at the boy)", [ROGUE]), rogue.contextFor(`${GAME}:s1:t1:act`));
+  assert.deepEqual(firebolt.mechanic, { kind: "cast", spell: "not_theirs", targets: [] }, "whatever she reaches for isn't hers: the rules say so");
+  assert.equal(rogue.fake.sent.length, 1, "the question alone, with no details call");
+  assert.match(rogue.fake.sent[0]!.questions!.mechanic!.criteria.attack!, /a shot or a thrown weapon/);
+
+  const quiet = await setUp();
+  const none = await pipeline.act(actRequest(gm, quiet.rows(gm), "(I swing the loft door open)"), quiet.contextFor(`${GAME}:s1:t1:act`));
+  assert.deepEqual([none.mechanic, quiet.fake.sent.length], [undefined, 1], "no act: the question, and nothing for the rules");
+
+  const { build: _, ...plain } = WIZARD;
+  const unmade = await setUp({ choices: { mechanic: "cast" } });
+  const nobody = await pipeline.act(actRequest(gm, unmade.rows(gm), MISSILE, [plain]), unmade.contextFor(`${GAME}:s1:t1:act`));
+  assert.deepEqual([nobody.mechanic, unmade.fake.sent.length], [undefined, 0], "a sheet with no build: no rules to ask");
 });
 
 const AT_COB: Act = { what: "cast Magic Missile at the boy in the too-big boots", victims: ["cob"], property: [] };
@@ -143,11 +179,11 @@ test("reactions: everyone who saw it reacts, the hurt first, by the names the pl
   assert.deepEqual([asked.state?.what_the_player_did, asked.state?.hurt_or_caught], [AT_COB.what, ["the boy in the too-big boots"]]);
   assert.equal(answer.usage.byOperation["director.reactions"]?.calls, 1);
 
-  // Anyone fighting: the GM ends on the fight breaking out.
+  // Anyone who'd fight: the reply ends as they turn on the player, before any blow, and starts no fight (that's the scene's).
   const fight = await setUp({ choices: { react_kell: "fight", react_cob: "flee", react_moll: "cower" } });
   const brawl = await pipeline.reactions(reactionsRequest(gm, fight.rows(gm)), fight.contextFor(`${GAME}:s1:t1:reactions`));
   assert.equal(brawl.reactions.kell, "fight");
-  assert.match(brawl.directive ?? "", /Sergeant Agnes Kell fights: goes for the player;.* It's a fight now: end on the moment it breaks out, before anyone's blow lands\.$/);
+  assert.match(brawl.directive ?? "", /Sergeant Agnes Kell turns on the player, ready to fight;.* End on the moment they turn on the player, before anyone's blow lands: whether it comes to a fight is for the story to decide, not this reply\.$/);
 });
 
 test("reactions: nobody to see it, no reactions and no model call", async () => {

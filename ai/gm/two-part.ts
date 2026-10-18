@@ -4,7 +4,7 @@ import { titleCase } from "../../shared/dice.ts";
 import type { GmState, TwoPartRole } from "../../shared/gm/state.ts";
 import { BANDS, type Band } from "../../shared/gm/two-part.ts";
 import type { Markup } from "../../shared/markup.ts";
-import type { CoGmAnswer, Reply, SpokenCheck, TurnCheck } from "../../shared/protocol/ai.ts";
+import type { CoGmAnswer, Reply, SpokenCheck, TurnAct, TurnCheck } from "../../shared/protocol/ai.ts";
 import { endingNeeds, enteringAt, isDiscovery, isEvent, limitOf, openRoutes, owedLeads, reachedOf, reachedTurns, stageOf, takeRoute, targetsOf, type RouteOutcome } from "../../shared/scene/beats.ts";
 import type { Path } from "../../shared/scene/document.ts";
 import { presentCast } from "../../shared/scene/graph.ts";
@@ -18,6 +18,7 @@ import { runTools, type ToolDef } from "../llm/tools.ts";
 import { prompt } from "../prompts/index.ts";
 import { bullets, castBlock, OWED_PLACE, outOfSight, playerNow, sceneBrief, sceneEntries, scriptTranscript } from "./brief.ts";
 import { FIGHT_CLOSE } from "./directives.ts";
+import { REACTION_TEXT } from "./mechanics.ts";
 import { nameAsKnown } from "./knowledge.ts";
 import { speechIn } from "./markup.ts";
 import { pronounOf } from "./speakers.ts";
@@ -822,6 +823,20 @@ function owedLine(who: Character, unsaid: Character[], path: Path): string {
 }
 
 /**
+ * The rules' word on the player's act this turn (a spell, a blow, a class feature, read from their line
+ * by the act step, or the map's), first, then what the rules decided (the act's directive, then the
+ * reactions'): it happened as they say, and the reply plays it so. The user's own game at the hanged
+ * clerk had a rogue's Fire Bolt, which the rogue hasn't got, scorch the stones at Cob's feet with
+ * no rules at all; and the prompt's "default to yes" is for what the GM decides, never for what the
+ * dice have.
+ */
+export function actsDirective(acts: readonly string[]): string[] {
+  return acts.length ? [ACTS_DECIDED, ...acts] : [];
+}
+
+const ACTS_DECIDED = "The game's rules resolved the player's act before this reply, and the player has seen their dice: what they decided, below, is what happened. Play it exactly so and never against it, whatever the player hoped: a miss misses, a blow lands as hard as the rules say, a spell does what they say and no more, and magic the character hasn't got doesn't come. Don't call a check for the act itself (the dice have spoken); one for anything else risky the player attempts in the same turn is still yours.";
+
+/**
  * The wind-down's directive (the co-GM took a route to an ending; this reply answers the player and
  * closes). Once, it may wait: when the player has just started something the ending has to answer
  * (calling the killer down from the loft), that plays first and the scene closes on the next reply.
@@ -903,7 +918,7 @@ const CO_GM_TOOLS = `## Your tools
   - If a reply has already played out what an open route describes (an event a role brought about), take that route now and write the roles from after it.
 Then reply "done".`;
 
-export function coGmInput(scene: Scene, view: TurnView, check: TurnCheck | undefined): Message[] {
+export function coGmInput(scene: Scene, view: TurnView, check: TurnCheck | undefined, act?: TurnAct): Message[] {
   const stage = stageOf(scene, view);
   const present = presentCast(scene, view);
   const open = openRoutes(scene, view);
@@ -915,12 +930,30 @@ export function coGmInput(scene: Scene, view: TurnView, check: TurnCheck | undef
     `# The targets\nThe discoveries not reached yet, each with its paths (your prep has each path's clue and what earns it):\n${targetsOf(scene, view).map(b => targetLine(scene, view, b)).join("\n") || "- (none: every discovery is reached)"}`,
     `# Open routes\n${open.map(r => routeLine(scene, r, { revelation: true, ending: true, now: view })).join("\n") || "- (none)"}`,
     ...(check ? [`# This turn's check\nThe GM called ${titleCase(check.skill)} DC ${check.dc}, and the roll came to ${check.total}: a ${check.success ? "success" : "failure"} (${check.band.replace("_", " ")}).${dice.length ? ` It is the check of ${dice.map(r => `[${r.id}]`).join(" and ")}: take ${dice.length === 1 ? "it" : "the one the player was attempting"} with outcome ${check.success ? "success" : "failure"} if that's what the player was attempting.` : ""}`] : []),
+    ...(act ? [actNote(scene, view, act)] : []),
     ...(view.established.length ? [`# Established in play\n${view.established.map(f => `- ${f}`).join("\n")}`] : []),
     ...[notesOnPeople(view, present)].filter((n): n is string => !!n),
     `# Current character roles\n\n${rolesBody(scene, view.twoPart.roles)}`,
     `# Who's on stage now\n${present.map(c => `- ${c.name} [${c.id}]`).join("\n")}`,
     `The GM's reply to turn ${view.turn} is the latest exchange. Update the roles that need it, and move the scene on if a route's moment has come.`,
   ].join("\n\n") }];
+}
+
+/**
+ * What the rules resolved of the player's act this turn, before the reply (a spell, a blow, a class
+ * feature: the act step's or the map's), for the co-GM to play its fallout: the act's dice lines as
+ * the player saw them, and how each witness took it (the reactions step's), which the reply has
+ * played. It stands; what comes of it is the roles' (who was hurt, who saw it, what each does about
+ * it now), and a fight only a route's that says so.
+ */
+export function actNote(scene: Scene, view: TurnView, act: TurnAct): string {
+  const name = (id: string) => scene.cast.find(c => c.id === id)?.name ?? view.world?.entities[id]?.name ?? id;
+  const reacted = Object.entries(act.reactions ?? {}).filter(([, r]) => r !== "unmoved").map(([id, r]) => `${name(id)} [${id}] ${REACTION_TEXT[r]}`);
+  return [
+    `# The player's act this turn\nThe game's rules resolved it before the GM's reply, and it stands:\n${act.lines.map(l => `- ${l}`).join("\n") || "- (it didn't happen)"}`,
+    ...(reacted.length ? [`Who saw it reacted at once, and the reply played it: ${reacted.join("; ")}.`] : []),
+    "Play its fallout in the roles: whoever it hurt and whoever saw it, and what each of them does about it now, by who they are. A fight starts only by a route that says so.",
+  ].join("\n");
 }
 
 /**
@@ -1091,7 +1124,7 @@ export const CO_GM_DEADLINE_MS = 45_000;
  * and the simulation, taking them again on its rows, gets the same), the leads whose names it left
  * owed, and what it called, in order.
  */
-export async function coGm(scene: Scene, view: TurnView, gm: GmState, check: TurnCheck | undefined, calls: CallContext): Promise<CoGmAnswer & { costUsd: number }> {
+export async function coGm(scene: Scene, view: TurnView, gm: GmState, check: TurnCheck | undefined, calls: CallContext, act?: TurnAct): Promise<CoGmAnswer & { costUsd: number }> {
   let state = structuredClone(gm);
   const roles: Record<string, TwoPartRole> = {};
   const moves: CoGmAnswer["moves"] = [];
@@ -1099,7 +1132,7 @@ export async function coGm(scene: Scene, view: TurnView, gm: GmState, check: Tur
   const owed = new Set<string>();
   // The moves held once this turn for a second look: a cue into a bad ending, a discovery (not a lead) naming someone nobody has said yet.
   const held = new Set<string>();
-  const result = await runTools({ operation: "two-part.co-gm", instructions: coGmInstructions(scene, view), input: coGmInput(scene, view, check), tools: [UPDATE_ROLE, MOVE_SCENE], effort: "low", maxTurns: 16, roundMs: CO_GM_ROUND_MS, deadlineMs: CO_GM_DEADLINE_MS, calls }, async (name, args) => {
+  const result = await runTools({ operation: "two-part.co-gm", instructions: coGmInstructions(scene, view), input: coGmInput(scene, view, check, act), tools: [UPDATE_ROLE, MOVE_SCENE], effort: "low", maxTurns: 16, roundMs: CO_GM_ROUND_MS, deadlineMs: CO_GM_DEADLINE_MS, calls }, async (name, args) => {
     if (name !== "move_scene") return setRole(scene, roles, args);
     const route = String(args.route_id);
     const why = String(args.why ?? "");

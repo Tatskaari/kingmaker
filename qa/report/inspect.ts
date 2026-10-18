@@ -118,8 +118,10 @@ function turnSaid(report: Report, scene: Row, turn: Row): string {
 
 /**
  * A turn in full (`--turn <n>`, or `<scene>:<n>` for another scene than the player's, by its row's id
- * or its key): the player's line and what answered it, the reply as the mouthpiece wrote it, the
- * co-GM's roles and moves, the stage manager's operations, its timing and its calls.
+ * or its key): the player's line and what answered it, what the rules were asked of it (the act
+ * step's mechanic question and details, the reactions: each question's choice), the reply as the
+ * mouthpiece wrote it, the co-GM's roles and moves, the stage manager's operations, its timing and
+ * its calls.
  */
 export function turnDetail(report: Report, which: string): string {
   const [sceneAsked, nAsked] = which.includes(":") ? which.split(":") : [undefined, which];
@@ -133,6 +135,7 @@ export function turnDetail(report: Report, which: string): string {
   return [
     `Turn ${n} of ${String(scene.title)} (scene row ${idOf(scene.id)}, ${String(scene.sceneKey)}) · ${String(turn.phase)}${turn.error ? `: ${String(turn.error)}` : ""}${timing(turn)}`,
     section("What was said and done", linesOf(report, scene, n).join("\n") || "(nothing in the transcript)"),
+    ...calls.filter(c => /^director\./.test(c.call.operation ?? "")).map(c => section(`What the rules were asked (${callTag(c)})`, answersOf(c.call))),
     ...[...of("two-part.reply"), ...of("two-part.closing"), ...of("two-part.opening")].map(c => section(`The reply (${callTag(c)})`, c.call.error ? `failed: ${c.call.error}` : replyOf(c.call))),
     ...of("two-part.co-gm").map(c => section(`The co-GM (${callTag(c)})`, coGmOf(c.call))),
     ...of("world.stage").map(c => section(`The stage manager (${callTag(c)})`, opsOf(c.call))),
@@ -162,6 +165,13 @@ function replyOf(call: Call): string {
   const narration = typeof answer?.narration === "string" ? answer.narration : call.text ?? "";
   const check = answer?.check as { skill?: string; dc?: number } | undefined;
   return `${narration}${check?.skill ? `\n(It called a check: ${check.skill} DC ${check.dc})` : ""}`;
+}
+
+/** A decision's answers (the act step's and the reactions'), each question's choice and how sure: "mechanic: cast (0.96)". */
+function answersOf(call: Call): string {
+  if (call.error) return `failed: ${call.error}`;
+  const sure = (a: { choice: string; probabilities?: Record<string, number> }) => a.probabilities?.[a.choice];
+  return Object.entries(call.answers ?? {}).map(([q, a]) => `  ${q}: ${a.choice}${sure(a) === undefined ? "" : ` (${sure(a)!.toFixed(2)})`}`).join("\n") || "  (no answers)";
 }
 
 /** The co-GM's tool calls: each role it set, and each move it made with what came of it. */

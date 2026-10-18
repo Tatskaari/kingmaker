@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ChoiceQuestion, Decider } from "../llm/decide.ts";
 import { JevDecider } from "../llm/decide.ts";
-import { mechanicOf, mechanicQuestion, readThreat, threatQuestions } from "./director.ts";
+import { EVERY_ACT, mechanicOf, mechanicQuestion, readThreat, SCENE_ACTS, threatQuestions } from "./director.ts";
 import { hangedClerk, viewAt } from "./fixtures.ts";
 import { alsoQuestion, meansQuestion, namedThing, type RulesOptions } from "./mechanics.ts";
 import type { TurnView } from "./view.ts";
@@ -38,13 +38,14 @@ test("a question with one option is answered without asking", async () => {
 });
 
 // ---------------------------------------------------------------------------------------------
-// Parked for combat (world-bridge-design §2.2): what the rules resolve of the player's line, the
-// mechanic question in a call of its own, then the act's details in a second small call (mechanicOf).
+// What the rules resolve of the player's line (world-bridge-design §2.2), the mechanic question in a
+// call of its own, then the act's details in a second small call (mechanicOf): the act step's in a
+// scene, offering a scene's acts.
 
 const rules: RulesOptions = { spells: [], weapons: [{ id: "javelin", name: "Javelin" }], things: [{ id: "hoist-rope", name: "the hoist rope" }] };
 const THROW = "(I throw my javelin at the rope above the corpse to get the body down)";
 
-test("parked for combat: what the rules resolve of a line, the question then the act's details; a rest needs none, and an unsure read is nothing", async () => {
+test("what the rules resolve of a line, the question then the act's details; a rest needs none, and an unsure read is nothing", async () => {
   const decider = scripted({ mechanic: ["attack", 0.9], target: ["hoist-rope", 0.95], weapon: ["javelin", 1] });
   const thrown = await mechanicOf(decider, scene, yard(), THROW, rules);
   assert.deepEqual(thrown.mechanic, { kind: "attack", target: "hoist-rope", weapon: "javelin" });
@@ -58,6 +59,16 @@ test("parked for combat: what the rules resolve of a line, the question then the
   // A class feature is offered only to a character who has one.
   assert.equal(mechanicQuestion(rules).criteria.feature, undefined);
   assert.match(mechanicQuestion({ ...rules, features: [{ id: "second-wind", name: "Second Wind", target: "self" }] }).criteria.feature!, /Second Wind/);
+});
+
+test("in a scene the question offers a spell, a blow and a class feature, and none: a grab, a shove and a jump are the GM's checks, and a rest the map's; every act otherwise, as the old pipeline asked", async () => {
+  const fighter: RulesOptions = { ...rules, features: [{ id: "second-wind", name: "Second Wind", target: "self" }] };
+  assert.deepEqual(Object.keys(mechanicQuestion(fighter, SCENE_ACTS).criteria), ["cast", "attack", "feature", "none"]);
+  assert.deepEqual(Object.keys(mechanicQuestion(rules, SCENE_ACTS).criteria), ["cast", "attack", "none"]);
+  assert.deepEqual(Object.keys(mechanicQuestion(fighter).criteria), [...EVERY_ACT, "none"]);
+  const decider = scripted({ mechanic: ["attack", 0.9], target: ["hoist-rope", 0.95], weapon: ["javelin", 1] });
+  assert.deepEqual((await mechanicOf(decider, scene, yard(), THROW, rules, {}, SCENE_ACTS)).mechanic, { kind: "attack", target: "hoist-rope", weapon: "javelin" });
+  assert.deepEqual(Object.keys(decider.asked[0]!.mechanic!.criteria), ["cast", "attack", "none"]);
 });
 
 test("parked for combat: a route's check the act would hold back, and the act that's only the means to something risky, ride along in the details call", async () => {

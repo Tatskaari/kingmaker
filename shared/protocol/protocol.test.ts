@@ -57,7 +57,7 @@ test("each ask for a reply's lines has a key of its own (v5-design §3.6); the n
 
 test("every step has its endpoint and its timeout: the lines' 30 s", () => {
   assert.deepEqual(STEPS.map(step => STEP_ENDPOINT[step]), [
-    "/v1/scenes/open", "/v1/turns/reactions", "/v1/turns/reply", "/v1/turns/settle", "/v1/turns/suggest", "/v1/turns/remember",
+    "/v1/scenes/open", "/v1/turns/act", "/v1/turns/reactions", "/v1/turns/reply", "/v1/turns/settle", "/v1/turns/suggest", "/v1/turns/remember",
     "/v1/scenes/boundary", "/v1/looks",
   ]);
   assert.equal(STEP_TIMEOUT_MS.suggest, 30_000);
@@ -72,12 +72,14 @@ test("the looks of what a turn made have a key of their own, beside the turn (to
   assert.equal(keyParts("5f0c-uid:c4:look"), undefined, "a turn's step isn't a creation's");
 });
 
-test("the reactions to the player's violence have a key of their own, before the reply, and wait 20 s (world-bridge-design §3.4; parked for combat)", () => {
+test("what the rules resolve of a line, and the reactions to the player's violence, have keys of their own, before the reply, and wait 20 s (world-bridge-design §3.4)", () => {
   const key = idempotencyKey("5f0c-uid", 1n, 3, "reactions");
 
   assert.equal(key, "5f0c-uid:s1:t3:reactions");
   assert.deepEqual(keyParts(key), { game: "5f0c-uid", scene: "1", turn: 3, step: "reactions" });
-  assert.deepEqual(STEPS.slice(1, 4), ["reactions", "reply", "settle"]);
+  assert.deepEqual(keyParts("5f0c-uid:s1:t3:act"), { game: "5f0c-uid", scene: "1", turn: 3, step: "act" });
+  assert.deepEqual(STEPS.slice(1, 5), ["act", "reactions", "reply", "settle"]);
+  assert.deepEqual([STEP_ENDPOINT.act, STEP_TIMEOUT_MS.act], ["/v1/turns/act", 20_000]);
   for (const old of ["decide", "consider"]) assert.equal(keyParts(`5f0c-uid:s1:t3:${old}`), undefined, `the old pipeline's ${old} is no step`);
   assert.deepEqual([STEP_ENDPOINT.reactions, STEP_TIMEOUT_MS.reactions], ["/v1/turns/reactions", 20_000]);
   assert.equal(keyParts("5f0c-uid:c4:reactions"), undefined, "a turn's step isn't a creation's");

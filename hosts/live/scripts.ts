@@ -128,13 +128,14 @@ export const SCRIPTS: Record<string, Script> = {
   world: {
     name: "world",
     title: "The world bridge live run",
-    about: "The world bridge (world-bridge-design §1.2): spells and blows resolved by the rules on the scene's world before the GM speaks, the people who saw them reacting, fire burning on at the next line, and a blow left hanging landing first",
+    about: "The world bridge (world-bridge-design §1.2): spells and blows said in words, read by the act step and resolved by the rules on the scene's world before the GM speaks, the people who saw them reacting (none starting a fight), fire burning on at the next line, and a spell Wren hasn't got refused by the rules",
     who: "Wren Ashdown: an absent-minded hedge-wizard of the Invisible College who has read about fire extensively and is keen to try it",
     build: "wizard",
     // §1.2, rows 3 to 9: a spell at a thing (the rope breaks, Prout falls, the yard reacts), a cone of
-    // fire at the gate, the fire on the next line, a blow at Kell (the yard reacts; a fight may break
-    // out), hands up (a blow left hanging lands first), Fire Bolt at the old elm and the elm burning
-    // on, and a spell Wren hasn't got (the rules' own no).
+    // fire at the gate, the fire on the next line, a blow at Kell (the yard reacts; until the old
+    // pipeline went, a fight might break out and its blow land first on the next line, hands up; a
+    // scene's reactions start none now), Fire Bolt at the old elm and the elm burning on, and a spell
+    // Wren hasn't got (the rules' own no).
     steps: [
       say("(I cast Magic Missile at the hoist rope)"),
       say("(I cast Burning Hands at the yard gate)"),
