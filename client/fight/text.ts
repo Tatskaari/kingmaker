@@ -1,6 +1,7 @@
-// After the prototype's src/game/combat/fights.ts TacticalFight.observe at bc2ab1f (what happened lately, the head line, the grid, who's who, the key) and src/cli/qa.ts's ACTIONS: the fight as the headless client prints it (MODE: fight), from its view: whose turn, the order with everyone's hit points, the board, the last moments with their dice, and the player's actions by id (docs/combat-design.md §7).
+// After the prototype's src/game/combat/fights.ts TacticalFight.observe at bc2ab1f (what happened lately, the head line, the grid, who's who, the key) and src/cli/qa.ts's ACTIONS: the fight as the headless client prints it (MODE: fight), from its view: whose turn, the order with everyone's hit points, the board, the last moments with what the screen plays of each (M6's screen: the same beats, as a line) and their dice, and the player's actions by id (docs/combat-design.md §7).
 import { gridText, KEY, orderLines } from "../../shared/fight/board.ts";
-import type { FightEvent } from "../../shared/fight/types.ts";
+import type { FightBoard, FightEvent } from "../../shared/fight/types.ts";
+import { scriptLine } from "./script.ts";
 import type { FightView } from "./view.ts";
 
 /** How many of the last moments observe shows. */
@@ -14,7 +15,7 @@ export function fightText(view: FightView, recent: FightEvent[] = view.events.sl
     `Order, round ${view.round}:\n${orderLines(view.board, view.status === "on" ? view.turn : "").join("\n")}`,
     gridText(view.board, view.map, options?.moves ?? []),
     KEY,
-    ...(recent.length ? [`What happened:\n${eventLines(recent).join("\n")}`] : []),
+    ...(recent.length ? [`What happened:\n${eventLines(recent, view.board).join("\n")}`] : []),
     ...(view.watching ? [`(You're watching: it's ${view.watching}'s fight.)`] : []),
     ...(view.refusal && !view.watching ? [view.refusal] : []),
   ].join("\n\n");
@@ -32,9 +33,17 @@ function head(view: FightView): string {
   return `${turn ? `${turn.name}'s turn` : "the others' turn"}: the other side acts a turn at a time (observe again in a moment).`;
 }
 
-/** The moments as lines: each caption, its dice and narration under it. */
-export function eventLines(events: FightEvent[]): string[] {
-  return events.flatMap(e => [e.kind === "turn" ? `— ${e.caption}` : e.caption, ...e.detail.lines.filter(l => l !== e.caption).map(l => `    ${l}`)]);
+/**
+ * The moments as lines: each caption; under it, what the screen plays of it (the walk's tiles, the
+ * act, what it did to whom, who fell: client/fight/script.ts, as one ▸ line), then its dice and
+ * narration. Names as the board calls them ("you" for the player).
+ */
+export function eventLines(events: FightEvent[], board?: FightBoard): string[] {
+  const name = (id: string) => (board?.units[id] ? (id === board.pc ? "you" : board.units[id].called) : board?.props[id] ? `the ${board.props[id].name}` : id);
+  return events.flatMap(e => {
+    const played = scriptLine(e, name);
+    return [e.kind === "turn" ? `— ${e.caption}` : e.caption, ...(played ? [`    ${played}`] : []), ...e.detail.lines.filter(l => l !== e.caption).map(l => `    ${l}`)];
+  });
 }
 
 /** The player's actions by id; once it's over, out back to the map. A spectator has none. */
