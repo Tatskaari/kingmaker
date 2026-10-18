@@ -253,7 +253,7 @@ What writing it found, and what changed:
 - **The minimap goes at 1000px and under** (where the inspector beside the graph narrows it to about 670px), not only in the narrowest panes: at that width it covered cards at a fitted graph's edge, and the zoom controls and F remain.
 - **A new rule in the game's shared rules** rather than a warning of the plugin's own: an effect that does nothing is as wrong in a file written by hand, and the campaign check should refuse it too. It's narrow (the world ops' target, a create's name, a flag's name), and every scene of the campaign keeps it.
 - **Unlisted scenes are offered, not hidden,** with the problem saying so, rather than the editor writing campaign.json: campaign.json is the scenario's (M4), and listing a scene installs it in the game, which is the author's call.
-- **Not changed:** the cast's order in the file, the facts' and the lore links' (order, not values: nothing in the game reads them as meaning anything, and the talk template's companion-first is its own rule); a world op in an ending stays a card from the moment it's added (the problems say what it lacks) rather than a draft as afterwards' are, which the format needs there.
+- **Not changed:** the order of the cast, the facts and the lore links in the file, which the editor doesn't offer to change (an order rather than a value: new ones go last, and the talk template's companion-first is its own rule; up and down for people would be the next thing if an author wants the GM to meet them in another order); a world op in an ending stays a card from the moment it's added (the problems say what it lacks) rather than a draft as afterwards' are, which the format needs there.
 
 #### Checked (the author's pass)
 
