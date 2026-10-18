@@ -11,7 +11,7 @@ import type { Scene } from "../../shared/scene/types.ts";
 import { fakeFetch, readPrep, walkTo, type FakeOptions } from "../llm/fake-openrouter.ts";
 import type { CallContext } from "../llm/openrouter.ts";
 import { CAERWYN, viewAt } from "./fixtures.ts";
-import { closingDirective, coGm, coGmInput, coGmInstructions, companionsOf, deniesItself, firstSentence, mouthpieceInput, mouthpieceInstructions, movedDirective, movedText, narrationSoFar, prepOf, pressureOffered, routeLine, saidLast, speak, tellOf, twoPartNow } from "./two-part.ts";
+import { closingDirective, coGm, coGmInput, coGmInstructions, companionsOf, deniesItself, firstSentence, intoBad, intoBetter, mouthpieceInput, mouthpieceInstructions, movedDirective, movedText, narrationSoFar, prepOf, pressureOffered, routeLine, saidLast, speak, tellOf, twoPartNow } from "./two-part.ts";
 import type { TurnView } from "./view.ts";
 
 /**
@@ -234,7 +234,7 @@ test("the co-GM's input counts the turns: the scene's turn, the turn each node w
   const input = (turn: number) => coGmInput(rat, at(turn), undefined)[0]!.content;
   assert.match(input(13), /^# Where the scene is: Arlo's third challenge \[arlos-challenge\]\nIt's turn 13: the scene has had 13 exchanges since the opening \(turn 0\), and it has been at this stage for 6 of them\. Reached so far: \[start\] \(at the opening\), \[arlos-challenge\] \(on turn 6\), \[the-heron\] \(on turn 9\)\.$/m);
   const bell = (turn: number) => input(turn).split("\n").find(l => l.startsWith("- [bell-rings]"))!;
-  assert.match(bell(13), /it rings then, whatever is happening\. Not needed once Hobb has fled\. Its outer limit, whichever runs out first: 15 exchanges into the scene \(the next reply is the 14th\), or 8 after Arlo's third challenge \[arlos-challenge\] \(reached on turn 6: the next reply is the 7th after it\)\.$/);
+  assert.match(bell(13), /it rings then, whatever is happening\. Not needed once Hobb has fled\. Its outer limit, whichever runs out first: 15 exchanges into the scene \(the next reply is the 14th\), or 8 after Arlo's third challenge \[arlos-challenge\] \(reached on turn 6: the next reply is the 7th after it\)\. Due soon: it can be felt coming, once, in someone's role \(a sign of it, never the moment itself\)\.$/, "fifteen into the scene is a reply off");
   assert.match(bell(14), /\(reached on turn 6: the next reply is the 8th after it\)\. Overdue: bring it about now\.$/, "eight after Arlo's challenge: it rings in the next reply");
   const fresh = coGmInput(rat, { ...view, turn: 3 } as TurnView, undefined)[0]!.content.split("\n").find(l => l.startsWith("- [bell-rings]"))!;
   assert.match(fresh, /or 8 after Arlo's third challenge \[arlos-challenge\] \(not reached yet\)\.$/);
@@ -310,6 +310,94 @@ test("a move whose reason says it hasn't happened is refused, a cue's aside (its
   assert.match(answers[0]!, /^error: your reason says this hasn't happened, so \[find-the-page\] stays as it is/);
   assert.match(answers[1]!, /^Reached "Where the grain goes: the Heron": the player has it now\. Open routes now: [a-z, -]+\. Still overdue: \[arlo-calls-him-out\], \[bell-rings\]: bring them about now\.$/);
   assert.doesNotMatch(movedText(rat, gm, "the-heron", 3), /overdue/i, "nothing overdue on turn 3");
+});
+
+/** A view of a scene with its routes taken on their turns (each [turn, route]), so its path has the turns the co-GM counts by, at `turn`. */
+function walked(scene: Scene, moves: Array<[number, string]>, turn: number, extra: Partial<TurnView> = {}): TurnView {
+  const view = viewAt(scene, scene.start, { turnsInBeat: 0, ...extra });
+  delete view.world;
+  let gm = { ...view } as unknown as GmState;
+  for (const [on, route] of moves) {
+    const taken = takeRoute(scene, gm, route, "none", on);
+    if ("error" in taken) assert.fail(taken.error);
+    gm = taken.gm;
+  }
+  return { ...view, ...gm, turn } as unknown as TurnView;
+}
+
+/** A stand-in for the co-GM's model that makes the calls it's given, a round at a time, then says "done" (what each was answered is in coGm's log). */
+function scripted(rounds: Array<Array<[string, Record<string, unknown>]>>): { fetch: typeof fetch } {
+  let round = 0;
+  const f: typeof fetch = async () => {
+    const calls = rounds[round++];
+    if (!calls) return Response.json({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: "done" }] }], usage: { cost: 0 } });
+    return Response.json({ status: "completed", output: calls.map(([name, args], i) => ({ type: "function_call", call_id: `r${round}c${i}`, name, arguments: JSON.stringify(args) })), usage: { cost: 0 } });
+  };
+  return { fetch: f };
+}
+
+const move = (route: string, why = "It happened in the story.") => ["move_scene", { route_id: route, outcome: "none", why }] as [string, Record<string, unknown>];
+
+/** The Heron at the Master's coming (reached on turn 7), the King's grain seen and the proof found: every ending from midnight is open. */
+const heron = sceneFile("heron-warehouse");
+const atMidnight = (turn: number) => walked(heron, [[2, "taken-on"], [4, "find-kings-grain"], [7, "master-comes"], [8, "find-master-due"], [15, "found-the-proof"]], turn, { reached: ["wharf"], beat: "wharf" });
+
+test("endings first: a cue into a bad ending waits on the good and mixed ones, its overdue line saying so; a cue due soon can be felt coming", () => {
+  const second = heron.routes.find(r => r.id === "cast-off")!;
+  assert.deepEqual([intoBad(heron, second), intoBad(heron, heron.routes.find(r => r.id === "master-comes")!), intoBad(heron, heron.routes.find(r => r.id === "give-up")!)], [true, false, false], "a cue into a bad ending; not a cue into an event, nor a way out the player takes");
+  assert.deepEqual(intoBetter(heron, openRoutes(heron, atMidnight(16))).map(r => r.id), ["away-with-book", "in-the-act", "overpowered", "cornered", "attack"]);
+  const line = (turn: number) => coGmInput(heron, atMidnight(turn), undefined)[0]!.content.split("\n").find(l => l.startsWith("- [cast-off]"))!;
+  assert.match(line(12), /8 after The Master comes \[midnight\] \(reached on turn 7: the next reply is the 5th after it\)\. It's a bad ending\./, "nothing to say yet");
+  assert.match(line(13), /\(reached on turn 7: the next reply is the 6th after it\)\. Due soon: it can be felt coming, once, in someone's role \(a sign of it, never the moment itself\)\. It's a bad ending\./);
+  assert.match(line(14), /the next reply is the 7th after it\)\. Due soon:/);
+  assert.match(line(16), /the next reply is the 9th after it\)\. Overdue: bring it about now, unless a good or mixed ending's condition has happened, which is taken instead, or the player is in the middle of bringing one about, which comes first\. It's a bad ending\./);
+  const rat = sceneFile("drowned-rat");
+  const bell = coGmInput(rat, walked(rat, [[6, "arlo-calls-him-out"]], 14), undefined)[0]!.content.split("\n").find(l => l.startsWith("- [bell-rings]"))!;
+  assert.match(bell, /\. Overdue: bring it about now\.$/, "a cue into an event is brought about as before");
+
+  const tools = coGmInstructions(heron, atMidnight(16)).split("## Your tools\n")[1]!;
+  for (const words of [
+    "Endings first: before the rest, read each open route into an ending against the story, its condition as written, all of it. One that has happened is taken now, in this settle, ahead of any cue: an overdue cue never goes before it.",
+    "One that's about to happen (the arrest made but not yet secured, a hand on the cane but no blade out) hasn't yet: the next reply plays it.",
+    "A cue into a bad ending (the time running out on the player) waits on the good and mixed ones: bring it about only when none of their conditions has happened (then take that one instead) and the player isn't in the middle of bringing one about right now",
+  ]) assert.ok(tools.includes(words), words);
+});
+
+test("the co-GM's cue into a bad ending is held once in a turn while a good or mixed ending is open: the ending taken instead, or the cue on a second call; at once with none open; a cue into an event never held", async () => {
+  const view = atMidnight(16);
+  const gm = { ...view } as unknown as GmState;
+
+  // Kell's arrest held and the Crakes standing down: the ending, not the bell.
+  const arrest = scripted([[move("cast-off", "The second bell rings at its outer limit.")], [move("in-the-act", "Kell has him in irons and the Crakes have their hands up.")]]);
+  const caught = await coGm(heron, view, gm, undefined, { fetch: arrest.fetch, apiKey: "test" });
+  assert.deepEqual(caught.moves.map(m => m.route), ["in-the-act"]);
+  const [held, ended] = caught.log.map(c => c.result);
+  assert.match(held!, /^Not taken yet: \[cast-off\] ends the scene badly \(The barge sails\), and a cue into a bad ending waits on the good and mixed endings\. Read these open routes against the story first:\n/);
+  assert.match(held!, /\n- \[in-the-act\] to Caught in the act \(good\): Sallow has been caught at the loading of the King's grain/);
+  assert.match(held!, /\n- \[cornered\] to Roll for initiative \(mixed\): Sallow, exposed with proof/);
+  assert.match(held!, /\nIf one's condition has happened, take it instead\. If the player is in the middle of bringing one about right now \(an arrest made but not yet secured, blades coming out, the proof on its way out of the door\), leave \[cast-off\] this turn: that moment plays out first\. Only if neither, take \[cast-off\] again\.$/);
+  assert.equal(ended, "The scene is ending: Caught in the act. The GM closes it on the next reply.");
+
+  // Nothing better happening: the second call takes it.
+  const sails = scripted([[move("cast-off", "The second bell rings.")], [move("cast-off", "Sallow got clear away and nothing is in hand: the bell rings.")]]);
+  const sailed = await coGm(heron, view, gm, undefined, { fetch: sails.fetch, apiKey: "test" });
+  assert.deepEqual(sailed.moves.map(m => m.route), ["cast-off"]);
+  assert.match(sailed.log[1]!.result, /^The scene is ending: The barge sails\./);
+
+  // With no good or mixed ending open, the bell rings at once.
+  const bare = { ...heron, routes: heron.routes.filter(r => !intoBetter(heron, [r]).length) };
+  const alone = await coGm(bare, view, gm, undefined, { fetch: scripted([[move("cast-off", "The second bell rings.")]]).fetch, apiKey: "test" });
+  assert.deepEqual(alone.moves.map(m => m.route), ["cast-off"]);
+
+  // A cue into an event (the Rat's bell) is never held, whatever endings are open.
+  const rat = sceneFile("drowned-rat");
+  const ratView = walked(rat, [[6, "arlo-calls-him-out"]], 14);
+  const rang = await coGm(rat, ratView, { ...ratView } as unknown as GmState, undefined, { fetch: scripted([[move("bell-rings", "The eleventh bell rings.")]]).fetch, apiKey: "test" });
+  assert.deepEqual(rang.moves.map(m => m.route), ["bell-rings"]);
+
+  // And a move's answer says a cue into a bad ending still overdue waits on the better endings.
+  const found = movedText(heron, { ...atMidnight(16), reached: ["wharf", "floor", "kings-grain", "midnight", "master-due"] } as unknown as GmState, "master-due", 16);
+  assert.match(found, /\. Still overdue, into a bad ending: \[cast-off\]: bring it about now, unless a good or mixed ending's condition has happened, which is taken instead, or the player is in the middle of bringing one about, which comes first\.$/);
 });
 
 test("the narration is read as the reply streams: its escapes undone, an escape cut off part-way held back, nothing before it starts", () => {

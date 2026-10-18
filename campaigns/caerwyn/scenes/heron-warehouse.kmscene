@@ -1369,7 +1369,7 @@
       "type": "smoothstep",
       "label": "The second bell",
       "data": {
-        "condition": "The second bell: the last sacks go down, the hatches go on, and the Patience casts off on the ebb with the King's grain aboard. Bring it on once the Master has been here a good while (six exchanges or so), or the player is hiding or dithering with nothing in hand and nothing they're waiting for. A player waiting for a moment they've named (the Master at the book to initial the page, a chance at the book, the moment to signal Kell) isn't dithering: that moment comes first. A player with the true book in hand and nobody holding them is leaving with it: that's 'Out with the true book', not this. The outer limit: eight exchanges after the Master comes in, the second bell rings, whatever is happening.",
+        "condition": "The second bell: the last sacks go down, the hatches go on, and the Patience casts off on the ebb with the King's grain aboard. Bring it on once the Master has been here a good while (six exchanges or so), or the player is hiding or dithering with nothing in hand and nothing they're waiting for. A player waiting for a moment they've named (the Master at the book to initial the page, a chance at the book, the moment to signal Kell) isn't dithering: that moment comes first. A player with the true book in hand and nobody holding them is leaving with it: that's 'Out with the true book', not this. The outer limit: eight exchanges after the Master comes in, the second bell rings, whatever else is happening; only the Master being caught at it right then comes first (an arrest under way, his Crakes being dealt with, blades out), and the bell waits for that to play out.",
         "phase": "cue",
         "skill": "",
         "dc": 12,

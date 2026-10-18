@@ -1,4 +1,4 @@
-// Copied from PR #666's src/runtime/two-part.ts at origin/claude/two-part-gm c749270: FORMAT and SCHEMA (the reply format), routeLine, mouthpieceInstructions, characters, mouthpieceInput with gmText, speak, movedDirective, the wind-down's words (twoPartTurn's), the co-GM's tools (UPDATE_ROLE, MOVE_SCENE, CO_GM_TOOLS), coGmInput and coGm, whole but at the seams docs/two-part-design.md names. It reads a TurnView (gm/view.ts) for the session. Where the scene is, is shared/scene/beats.ts's (its stage, the routes open, a route taken) in place of the beat and its transitions; the prep ({{beats}}) is the scene format's, rendered as the design orders it, in place of beatsBlock; {{characters}} has the cards' whyHere and limits too, and the co-GM's each person's role palette and the clues via them. speak doesn't roll: the check comes back with its five outcomes, and the simulation rolls it; the narration streams through the game's markup (who says each line) as it's written. The per-turn note is twoPartNow, nowNote's copy (brief.ts) with the open routes. The co-GM's moves are beats.ts's takeRoute on a copy of the request's bookkeeping, and its answer is the roles it set and the moves it made, for the simulation to make again. The speakers paragraph is gm.md's, appended after the format. QA round qa1-1018 added what's ours after it: written words read untagged, what the player sees and hears (SEEN), the companion, the checks' outcomes following on from their setup, a closing going on from the last reply, and in the per-turn note what's hidden right now, the names not yet heard with what to call them, and what the player did or thought in brackets; and the narration's names the player hasn't heard are swapped for what they'd call them before it's shown or kept (unheard.ts). The co-GM's tools section, its input and its moves' answers have what QA round qa1-1018 showed they needed (docs/migration-log.md, M2's fixes from it): the turns counted, each cue's outer limit and whether it's overdue, what's true at each ending a route goes to, how to take a route, and a move whose own reason denies it refused.
+// Copied from PR #666's src/runtime/two-part.ts at origin/claude/two-part-gm c749270: FORMAT and SCHEMA (the reply format), routeLine, mouthpieceInstructions, characters, mouthpieceInput with gmText, speak, movedDirective, the wind-down's words (twoPartTurn's), the co-GM's tools (UPDATE_ROLE, MOVE_SCENE, CO_GM_TOOLS), coGmInput and coGm, whole but at the seams docs/two-part-design.md names. It reads a TurnView (gm/view.ts) for the session. Where the scene is, is shared/scene/beats.ts's (its stage, the routes open, a route taken) in place of the beat and its transitions; the prep ({{beats}}) is the scene format's, rendered as the design orders it, in place of beatsBlock; {{characters}} has the cards' whyHere and limits too, and the co-GM's each person's role palette and the clues via them. speak doesn't roll: the check comes back with its five outcomes, and the simulation rolls it; the narration streams through the game's markup (who says each line) as it's written. The per-turn note is twoPartNow, nowNote's copy (brief.ts) with the open routes. The co-GM's moves are beats.ts's takeRoute on a copy of the request's bookkeeping, and its answer is the roles it set and the moves it made, for the simulation to make again. The speakers paragraph is gm.md's, appended after the format. QA round qa1-1018 added what's ours after it: written words read untagged, what the player sees and hears (SEEN), the companion, the checks' outcomes following on from their setup, a closing going on from the last reply, and in the per-turn note what's hidden right now, the names not yet heard with what to call them, and what the player did or thought in brackets; and the narration's names the player hasn't heard are swapped for what they'd call them before it's shown or kept (unheard.ts). The co-GM's tools section, its input and its moves' answers have what QA round qa1-1018 showed they needed (docs/migration-log.md, M2's fixes from it): the turns counted, each cue's outer limit and whether it's overdue, what's true at each ending a route goes to, how to take a route, and a move whose own reason denies it refused. QA round qa2-1018 added to the co-GM's: endings read first and taken ahead of any cue, a cue into a bad ending waiting on the good and mixed ones (held once in a turn while they're open), and a cue due soon felt coming.
 
 import { titleCase } from "../../shared/dice.ts";
 import type { GmState, TwoPartRole } from "../../shared/gm/state.ts";
@@ -106,7 +106,8 @@ const listed = (scene: Scene, ids: string[]) => ids.map(id => named(scene, id)).
  * and what has to have happened. The fake model reads this line (ai/llm/fake-openrouter.ts). The
  * co-GM's open routes say more after it: into a discovery, its revelation (`revelation`); into an
  * ending, how it went and what's true there (`ending`); and for a cue, how far its outer limit has
- * run after the reply to `now.turn`, and whether it's overdue (`now`: limitOf).
+ * run after the reply to `now.turn`, and whether it's overdue (`now`: limitOf), a cue into a bad
+ * ending waiting on a better one.
  */
 export function routeLine(scene: Scene, r: SceneRoute, options: { revelation?: boolean; ending?: boolean; now?: Where & Pick<GmState, "path"> & { turn: number } } = {}): string {
   const target = scene.beats.find(b => b.id === r.target);
@@ -147,8 +148,22 @@ function limitLine(scene: Scene, r: SceneRoute, now: Where & Pick<GmState, "path
     if (c.next === undefined) return `${what} (not reached yet)`;
     return `${what} (${c.after ? `reached on turn ${c.reachedOn}: the next reply is the ${ordinal(Math.max(1, c.next))} after it` : `the next reply is the ${ordinal(Math.max(1, c.next))}`})`;
   });
-  return `Its outer limit, whichever runs out first: ${counts.join(", or ")}.${limit.overdue ? " Overdue: bring it about now." : ""}`;
+  // Due soon: a count still running whose limit the reply after next, or the one after that, reaches (QA round qa2-1018: the Heron's barge sailed with no sign of the tide all scene).
+  const soon = !limit.overdue && limit.counts.some(c => c.next !== undefined && !c.stopped && c.exchanges - c.next <= 2);
+  return `Its outer limit, whichever runs out first: ${counts.join(", or ")}.${limit.overdue ? ` Overdue: bring it about now${intoBad(scene, r) ? `, ${WAITS_ON_GOOD}` : ""}.` : soon ? " Due soon: it can be felt coming, once, in someone's role (a sign of it, never the moment itself)." : ""}`;
 }
+
+/** What an overdue cue into a bad ending waits on (QA round qa2-1018: the Heron's second bell sailed the barge mid-arrest). */
+const WAITS_ON_GOOD = "unless a good or mixed ending's condition has happened, which is taken instead, or the player is in the middle of bringing one about, which comes first";
+
+/** A route's ending, if it goes to one. */
+const endingAt = (scene: Scene, r: SceneRoute) => scene.exits.find(e => e.id === r.target);
+
+/** A cue into a bad ending: the time running out on the player (the Heron's second bell, the barge sailing). An ending with no result counts as mixed, as routeLine says it. */
+export const intoBad = (scene: Scene, r: SceneRoute) => r.phase === "cue" && endingAt(scene, r)?.result === "bad";
+
+/** The open routes into a good or mixed ending: what a cue into a bad ending waits on. */
+export const intoBetter = (scene: Scene, open: SceneRoute[]) => open.filter(r => { const e = endingAt(scene, r); return !!e && e.result !== "bad"; });
 
 /** The routes into a node, as the prep lists them under it. */
 const routesInto = (scene: Scene, id: string) => scene.routes.filter(r => r.target === id).map(r => routeLine(scene, r));
@@ -580,8 +595,9 @@ const CO_GM_TOOLS = `## Your tools
 - move_scene: when what one of the open routes describes has happened in the story (a discovery's revelation has landed, or a cue's moment has come), take it. Only the routes listed as open can be taken. When the scene moves to a new stage, update the roles for it. Don't hold the scene at a stage the story has already moved past.
   - Take a route only when its condition has happened in the story as written, all of it. A condition about what the player does (makes the case, goes after someone, leaves) needs the player to have done it: someone else doing it for them, someone asking them to, or the player planning it isn't that.
   - Call move_scene only for a route whose moment has come, never to note that one hasn't: a route that hasn't happened needs no call, so don't go through them one by one.
+  - Endings first: before the rest, read each open route into an ending against the story, its condition as written, all of it. One that has happened is taken now, in this settle, ahead of any cue: an overdue cue never goes before it. One that's about to happen (the arrest made but not yet secured, a hand on the cane but no blade out) hasn't yet: the next reply plays it.
   - When more than one open route fits, take the one whose ending matches what the player achieved. Each route into an ending says what's true there: read it against the story so far (a player who got the whole story out of someone has the ending where it was told, even if the way they leave matches another route's words).
-  - Each cue says how far its outer limit has run. An overdue cue is brought about: take its route now, unless its condition says it's no longer needed.
+  - Each cue says how far its outer limit has run. An overdue cue is brought about: take its route now, unless its condition says it's no longer needed. A cue into a bad ending (the time running out on the player) waits on the good and mixed ones: bring it about only when none of their conditions has happened (then take that one instead) and the player isn't in the middle of bringing one about right now (an arrest made but not yet secured, blades coming out, the proof on its way out of the door). That moment plays out first; the cue comes after it, if the scene is still open.
   - If a reply has already played out what an open route describes (an event a role brought about), take that route now and write the roles from after it.
 Then reply "done".`;
 
@@ -646,13 +662,23 @@ export async function coGm(scene: Scene, view: TurnView, gm: GmState, check: Tur
   let state = structuredClone(gm);
   const roles: Record<string, TwoPartRole> = {};
   const moves: CoGmAnswer["moves"] = [];
+  // The cues into a bad ending held once this turn for a second look.
+  const held = new Set<string>();
   const result = await runTools({ operation: "two-part.co-gm", instructions: coGmInstructions(scene, view), input: coGmInput(scene, view, check), tools: [UPDATE_ROLE, MOVE_SCENE], effort: "low", maxTurns: 16, roundMs: CO_GM_ROUND_MS, deadlineMs: CO_GM_DEADLINE_MS, calls }, async (name, args) => {
     if (name === "move_scene") {
       const outcome: RouteOutcome = args.outcome === "success" || args.outcome === "failure" ? args.outcome : "none";
       const route = String(args.route_id);
       const why = String(args.why ?? "");
+      const r = scene.routes.find(x => x.id === route);
       // A cue's move is what brings it about; any other records what has happened, and one whose reason says it hasn't is refused.
-      if (scene.routes.find(r => r.id === route)?.phase !== "cue" && deniesItself(why)) return `error: your reason says this hasn't happened, so [${route}] stays as it is: a move records what has happened in the story. If it has happened, say what happened; if not, leave it.`;
+      if (r?.phase !== "cue" && deniesItself(why)) return `error: your reason says this hasn't happened, so [${route}] stays as it is: a move records what has happened in the story. If it has happened, say what happened; if not, leave it.`;
+      // A cue into a bad ending waits on the good and mixed endings open now: the first time it's taken in a turn, it's held for a second look, and they're put to the co-GM (QA round qa2-1018: the Heron's second bell sailed the barge mid-arrest).
+      const open = openRoutes(scene, state);
+      const better = r && intoBad(scene, r) && open.includes(r) && !held.has(r.id) ? intoBetter(scene, open) : [];
+      if (r && better.length) {
+        held.add(r.id);
+        return heldText(scene, r, better);
+      }
       const taken = takeRoute(scene, state, route, outcome, view.turn);
       if ("error" in taken) return `error: ${taken.error}`;
       state = taken.gm;
@@ -677,7 +703,9 @@ export function movedText(scene: Scene, gm: GmState, reached: string | undefined
   const open = () => {
     const routes = openRoutes(scene, gm);
     const overdue = routes.filter(r => limitOf(r, gm, turn)?.overdue);
-    return `${routes.map(r => r.id).join(", ") || "none"}${overdue.length ? `. Still overdue: ${overdue.map(r => `[${r.id}]`).join(", ")}: bring ${overdue.length === 1 ? "it" : "them"} about now` : ""}`;
+    const listed = (rs: SceneRoute[]) => `${rs.map(r => `[${r.id}]`).join(", ")}: bring ${rs.length === 1 ? "it" : "them"} about now`;
+    const now = overdue.filter(r => !intoBad(scene, r)), waiting = overdue.filter(r => intoBad(scene, r));
+    return `${routes.map(r => r.id).join(", ") || "none"}${now.length ? `. Still overdue: ${listed(now)}` : ""}${waiting.length ? `. Still overdue, into a bad ending: ${listed(waiting)}, ${WAITS_ON_GOOD}` : ""}`;
   };
   const exit = scene.exits.find(e => e.id === reached);
   if (exit) return `The scene is ending: ${exit.title}. The GM closes it on the next reply.`;
@@ -688,6 +716,24 @@ export function movedText(scene: Scene, gm: GmState, reached: string | undefined
   }
   if (beat) return `Reached "${beat.title}": the player has it now. Open routes now: ${open()}.`;
   return `Taken; the scene stays at "${stageOf(scene, gm).title}". Open routes now: ${open()}.`;
+}
+
+/**
+ * A cue into a bad ending held the first time it's taken in a turn: the good and mixed endings open
+ * now, each with its condition, to read against the story. One whose condition has happened is
+ * taken instead; one the player is in the middle of bringing about plays out first; only if neither,
+ * the cue is taken again (and then it is). QA round qa2-1018's H5: Kell had said the words of arrest
+ * over the open book, Sallow and his Crakes not yet held, when the overdue second bell sailed the
+ * barge and closed the Heron on its bad ending.
+ */
+export function heldText(scene: Scene, cue: SceneRoute, better: SceneRoute[]): string {
+  const title = (r: SceneRoute) => endingAt(scene, r)?.title ?? r.target;
+  const how = (r: SceneRoute) => (endingAt(scene, r)?.result === "good" ? "good" : "mixed");
+  return [
+    `Not taken yet: [${cue.id}] ends the scene badly (${title(cue)}), and a cue into a bad ending waits on the good and mixed endings. Read these open routes against the story first:`,
+    ...better.map(r => `- [${r.id}] to ${title(r)} (${how(r)}): ${r.condition.trim() || r.label}`),
+    `If one's condition has happened, take it instead. If the player is in the middle of bringing one about right now (an arrest made but not yet secured, blades coming out, the proof on its way out of the door), leave [${cue.id}] this turn: that moment plays out first. Only if neither, take [${cue.id}] again.`,
+  ].join("\n");
 }
 
 /**

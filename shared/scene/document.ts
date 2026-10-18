@@ -255,11 +255,13 @@ export interface Route {
     /** Fact ids settled when it's taken. */
     establishes?: string[];
     /**
-     * A cue's outer limit: its moment comes by then, whatever is happening. Each count runs from
-     * the scene's start, or from when the beat `after` was reached, and stops once a beat of
+     * A cue's outer limit: its moment comes by then, whatever else is happening. Each count runs
+     * from the scene's start, or from when the beat `after` was reached, and stops once a beat of
      * `until` is reached; the cue is overdue once a count still running has run out, whichever
      * runs out first (the eleventh bell: 15 exchanges into the scene, or 8 after Arlo's
-     * challenge). The co-GM is told how far each has run, and an overdue cue is brought about.
+     * challenge). The co-GM is told how far each has run, and an overdue cue is brought about,
+     * but an ending whose condition has happened comes first, and a cue into a bad ending waits
+     * on a good or mixed one under way.
      */
     limit?: OuterLimit[];
   };
