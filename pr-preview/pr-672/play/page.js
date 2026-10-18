@@ -1,9 +1,9 @@
 // Copied from the prototype's src/web/page/client.js at 44c6d4a, as v2's page (browser-design §2, §5): the workers' transport (transport.js) is the only one, so the socket transport and the server's branches go, and it's imported with the rest; the doors' pictures (doors.js) aren't drawn yet (a follow-up); the key form's other choice is Play with the fake GM (?fake skips the form on it, and the choice puts ?fake in the address, so a reload keeps it; ?fake=arc plays the whole story's recipe); ?zoo and ?zoo=<exhibit> open the zoo (M6), on the fake GM unless ?fake says; a tab told the game is open in another (busy) plays once its server worker has the game (ready); Play again (and Try again) starts the client worker again, the server worker playing on, and Play here instead (the game moved to another tab) loads the page again; km.heard says what the workers said; the server's stats, the report's download and the wait for a closed game's notes go (V16; v2's jobs are the server worker's, and it plays on).
-import { Terminal } from "./vendor/xterm.mjs?v=5511622dcb9d";
-import { FitAddon } from "./vendor/addon-fit.mjs?v=5511622dcb9d";
-import { WebglAddon } from "./vendor/addon-webgl.mjs?v=5511622dcb9d";
-import { Unicode11Addon } from "./vendor/addon-unicode11.mjs?v=5511622dcb9d";
-import { workerTransport } from "./transport.js?v=5511622dcb9d";
+import { Terminal } from "./vendor/xterm.mjs?v=97523f876c68";
+import { FitAddon } from "./vendor/addon-fit.mjs?v=97523f876c68";
+import { WebglAddon } from "./vendor/addon-webgl.mjs?v=97523f876c68";
+import { Unicode11Addon } from "./vendor/addon-unicode11.mjs?v=97523f876c68";
+import { workerTransport } from "./transport.js?v=97523f876c68";
 
 // The page's half of Kingmaker in the browser (browser-design §2): xterm.js draws the game, which runs
 // in two Web Workers on this page, joined by a MessageChannel: the client (v2's screens, on the JS
@@ -64,6 +64,8 @@ const fontSize = Number(params.get("font")) || 15;
 const zoo = params.has("zoo") ? params.get("zoo") ?? "" : undefined;
 // ?fake plays with the fake GM without asking for a key; ?fake=arc with the whole story's recipe (each scene ends in two lines).
 const fake = params.has("fake") ? (params.get("fake") === "arc" ? "arc" : "dev") : zoo !== undefined ? "dev" : undefined;
+// ?seed=7 fixes the dice, a test's way (the browser check's zoo ring): the page host's new games roll from it, the same every time. It's a single player's own game in their own browser; without it the page draws a seed of its own.
+const seed = /^\d+$/.test(params.get("seed") ?? "") ? Number(params.get("seed")) : undefined;
 
 const $ = id => document.getElementById(id);
 const stats = { bytesIn: 0, messagesIn: 0, bytesOut: 0 };
@@ -315,7 +317,7 @@ function connect() {
   };
   // ?glyphs=ascii draws letters, as the smoke test plays.
   transport = workerTransport(handlers, {
-    fake, glyphs: params.get("glyphs") ?? undefined, askForKey,
+    fake, glyphs: params.get("glyphs") ?? undefined, askForKey, seed,
     ...(zoo !== undefined ? { zoo, build: params.get("build") ?? undefined, foes: params.get("foes") ?? undefined } : {}),
     closeKeyForm: () => { keyForm(false); term.focus(); },
   });
