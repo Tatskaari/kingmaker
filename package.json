@@ -25,6 +25,7 @@
     "arc": "node --no-warnings --import tsx hosts/arc.ts",
     "live": "node --no-warnings --import tsx hosts/live-run.ts",
     "loop": "node --no-warnings --import tsx hosts/loop.ts",
+    "report": "node --no-warnings --import tsx hosts/report.ts",
     "client": "node --experimental-ffi --no-warnings --import tsx hosts/client.tsx",
     "zoo": "node --experimental-ffi --no-warnings --import tsx hosts/client.tsx zoo",
     "build:web": "node --no-warnings --import tsx hosts/web/build.ts",
