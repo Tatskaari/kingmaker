@@ -303,7 +303,7 @@
       "type": "story",
       "position": {
         "x": 400,
-        "y": 220
+        "y": 205
       },
       "data": {
         "kind": "beat",
@@ -367,8 +367,8 @@
       "id": "hobb",
       "type": "story",
       "position": {
-        "x": 400,
-        "y": 440
+        "x": 401,
+        "y": 479
       },
       "data": {
         "kind": "beat",
@@ -418,8 +418,8 @@
       "id": "cart-arrives",
       "type": "story",
       "position": {
-        "x": 800,
-        "y": 220
+        "x": 754,
+        "y": 184
       },
       "data": {
         "kind": "beat",
@@ -546,8 +546,8 @@
       "id": "failed",
       "type": "story",
       "position": {
-        "x": 1200,
-        "y": 480
+        "x": 1207,
+        "y": 534
       },
       "data": {
         "kind": "exit",
