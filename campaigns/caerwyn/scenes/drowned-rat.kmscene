@@ -322,8 +322,8 @@
       "id": "start",
       "type": "story",
       "position": {
-        "x": 0,
-        "y": 520
+        "x": -138,
+        "y": 510
       },
       "data": {
         "kind": "start",
@@ -639,8 +639,8 @@
       "id": "arlos-challenge",
       "type": "story",
       "position": {
-        "x": 860,
-        "y": 120
+        "x": 797,
+        "y": 84
       },
       "data": {
         "kind": "beat",
