@@ -55,7 +55,7 @@
         "An arrest inside the palace, or of an officer of the Crown not caught in the act, is the Marshal's to make on the King's word. The Assizes sit after the Assembly."
       ],
       "secrets": [
-        "Shows: he knows a little too much about Prout's last week ('He'd asked to see me, you know'), and stops, and pours tea nobody asked for. Torn: owning up makes him the King who looked away, in front of the people he asked to look for him. Opens: someone else owning up first (Kell, about her own part), or the investigator asking him straight why he chose them. First: 'He wrote to me.'",
+        "Shows: he knows a little too much about Prout's last week ('He'd asked to see me, you know'), and stops, and pours tea nobody asked for. Torn: owning up makes him the King who looked away, in front of the people he asked to look for him. Opens, with no dice: someone else owning up first (Kell, about her own part), or the investigator asking him straight why he chose them. First: 'He wrote to me.'",
         "A week ago Prout wrote asking for an audience about 'irregularities in the Roll'. The King put the letter on the after-the-Assembly pile, where it still is. He's ashamed of it, and it's why he asked for the investigator."
       ],
       "attitude": "Kind, curious and evasive: he hears everything, sympathises sincerely, and looks for a reason to put the hard part off until after the Assembly. What moves him: proof he can hold (the true book, Prout's page, a sworn confession, a sergeant's sworn record), someone willing to stand behind it in public so it isn't his alone, a way to do it that doesn't stop the procession, and being reminded of Prout as a person. Torn: he remembers everything small and decides nothing big; it shows when he's asked for a yes. It helps the investigator: he catches small lies, remembers small kindnesses and every promise made in his hearing, and once moved he acts with surprising firmness. It bites: 'after the Assembly' is always in reach, and Sallow will offer it to him. Asked to send for someone, he does at once ('Garran, ask Master Sallow to step in'): that's a small thing, and he likes to hear everyone. Ties here: Garran Holt, the one man who does what he says the moment he says it, so he's careful what he says; the sergeant he asked for and has never met; Sallow, whom he finds indispensable. He remembers who helped him, and how they take their tea.",
@@ -136,7 +136,7 @@
         "The King signs nothing that might upset anyone, and the feast, the grain and the office's goodwill all run through Sallow this week: he has made himself someone it would upset the King to lose."
       ],
       "secrets": [
-        "Shows: more lavender, more politeness, and 'Majesty' at every turn. Opens: nothing makes him admit the murder; but get his arrangements wrong in front of him ('lost to goblins, was it? Careless of somebody') and he corrects the record before he can stop himself, in front of the King.",
+        "Shows: more lavender, more politeness, and 'Majesty' at every turn. Opens: nothing makes him admit the murder; but get his arrangements wrong in front of him ('lost to goblins, was it? Careless of somebody') and he corrects the record before he can stop himself, in front of the King, with no dice.",
         "Everything about Prout and the Heron. He'll admit nothing; he'll offer to 'look into irregularities' after the Assembly, blame the Saltmere factor, the porter or the Captain, and remind the King who is feeding the Assembly."
       ],
       "attitude": "Here only if he's free this morning: if the night put him in a cell, or he fled, he isn't here at all. If he's free, he's in the gallery outside with the Purveyor's party (and if he knows the true book left the Heron, he's been at the palace since before dawn with the order of sale and a story about intruders), and comes in when sent for, or when he hears his name called: courteous, superior, papers first, then the King's interest, then the Assembly. He talks to the King and the Marshal and never to the investigator or the sergeant, who are furniture. In front of the King and proof, the courtesy cracks; if he's to be taken, he goes politely, asking for his rank to be respected.",
@@ -201,19 +201,19 @@
           {
             "via": "king",
             "clue": "His hesitation, out loud. Asked for a yes, he reaches for 'after the Assembly' and doesn't quite get there; he looks at the Marshal's watch, then at whatever the investigator is holding, and says what he'd need: 'If only there were something one could hold... and someone who'd say so, in front of us.'",
-            "earn": "Free, the first time the player asks him to act, or tells it with nothing to show.",
+            "earn": "No dice: free, the first time the player asks him to act, or tells it with nothing to show.",
             "strength": "strong"
           },
           {
             "via": "holt",
             "clue": "'On whose word, Majesty?', of nobody in particular, when the King wavers. Asked how it could be done: a quiet arrest in the long gallery, before the Purveyor's party goes down, costs four minutes and keeps the procession to time; on the King's word, and not before.",
-            "earn": "The question is free when the King wavers. The four minutes are for anyone who asks the Marshal how it could be done.",
+            "earn": "No dice: the question is free when the King wavers, and the four minutes are for anyone who asks the Marshal how it could be done.",
             "strength": "strong"
           },
           {
             "via": "kell",
             "clue": "What a sergeant's sworn record is: what she saw and heard herself, sworn there and then, is evidence anywhere in the kingdom, and she'll swear to it in front of anyone, the King included. 'I can swear to what I saw and heard, Majesty. Not to what I didn't.'",
-            "earn": "Asking her what would stand up, or what she can swear to; or the King asking who will swear.",
+            "earn": "No dice: asking her what would stand up, or what she can swear to; or the King asking who will swear.",
             "strength": "strong"
           },
           {
@@ -252,7 +252,7 @@
           {
             "via": "king",
             "clue": "'He'd asked to see me, you know.' He stops, and pours tea nobody asked for.",
-            "earn": "Free, once, when Prout's last week comes up.",
+            "earn": "No dice: free, once, when Prout's last week comes up.",
             "strength": "hook"
           },
           {
@@ -268,13 +268,13 @@
           {
             "via": "kell",
             "clue": "Her own part, told to the King once in her own words: three days before he died, Prout came to her desk to ask how a clerk reports false entries in the King's rolls, and whether the watch could arrest a gentleman of the Purveyor's office, and she sent him to the palace, the proper channel. 'I should have listened.' The King puts his cup down.",
-            "earn": "Free: she tells the King at the first moment Prout's last days bear on things (it's what she came to say), or when the investigator gives her the floor. One confession invites another.",
+            "earn": "No dice: she tells the King at the first moment Prout's last days bear on things (it's what she came to say), or when the investigator gives her the floor. One confession invites another.",
             "strength": "strong"
           },
           {
             "via": "king",
             "clue": "'He wrote to me.' A week before he died, asking for an audience about 'irregularities in the Roll'. 'I put it on the pile. I meant to see him after the Assembly.'",
-            "earn": "Asking him straight why he chose the investigator for this, or someone else owning up first (Kell, about sending Prout to the palace).",
+            "earn": "No dice: asking him straight why he chose the investigator for this, or someone else owning up first (Kell, about sending Prout to the palace).",
             "strength": "strong"
           }
         ],
@@ -300,25 +300,25 @@
           {
             "via": "kell",
             "clue": "The law, from her notebook: a man who'd hang alongside the guilty can sometimes swear for the Crown instead; it isn't hers or the investigator's to promise but the King's, at the Assizes, and she'll speak for it. Then what was promised in her hearing, by whom and to whom, in the words of the record. A witness promised to be kept out of it is 'a witness', even to the King: 'Witness: name withheld, as promised.'",
-            "earn": "Free, once, when a promise made in her hearing bears on what the King is deciding, or when anyone asks what was promised.",
+            "earn": "No dice: free, once, when a promise made in her hearing bears on what the King is deciding, or when anyone asks what was promised.",
             "strength": "strong"
           },
           {
             "via": "king",
             "clue": "He asks what the investigator would have him do with the people they've told him of: the big porter who held Wendell's arms, the Heron's people, the granary children (he asks their names: he remembers children by name). He answers each honestly, as a king: yes, no, or not today, and why. What he promises in this room, he keeps.",
-            "earn": "Free when the player speaks for anyone, names a witness, or tells him what they promised.",
+            "earn": "No dice: free when the player speaks for anyone, names a witness, or tells him what they promised.",
             "strength": "strong"
           },
           {
             "via": "sallow",
             "clue": "If a witness is named in his hearing (the big porter, a granary child, the Heron's clerk), he dabs his lavender and looks at the floor a moment, and the Marshal sees it.",
-            "earn": "Free, if he's in the room when a witness is named.",
+            "earn": "No dice: free, if he's in the room when a witness is named.",
             "strength": "suggestive"
           },
           {
             "via": "holt",
             "clue": "How it would be done, in times and quantities: a man who swears for the Crown can be held by the palace guard until the Assizes, out of anyone's reach, and so can anyone he fears for. It costs a sergeant of the guard and an hour, on the King's word.",
-            "earn": "Asking the Marshal how a promise could be kept.",
+            "earn": "No dice: asking the Marshal how a promise could be kept.",
             "strength": "suggestive"
           }
         ],
@@ -393,13 +393,13 @@
           {
             "via": "sallow",
             "clue": "His pride. Get his arrangements wrong to his face ('Lost to goblins, was it? Careless of somebody'; the page in Prout's boot all along; the Heron's count, the true book or the order of procession got wrong) and he corrects the record, in detail, before he can stop himself: 'Nothing has ever been lost on my roads through carelessness. Only through goblins.' If Kell says she sent Prout to the palace, the proper channel, he may answer her, the only time he does: 'And he went through them, Sergeant. I am the proper channels.' He hears himself a moment too late; so does the King.",
-            "earn": "Free, no dice: his pride answers before his sense does.",
+            "earn": "No dice: his pride answers before his sense does.",
             "strength": "strong"
           },
           {
             "via": "sallow",
             "clue": "Offered a way to look competent instead (to assist the inquiry, to expose the Saltmere factor's irregularities), he gives up the factor, the Heron and the Captain in more detail than an honest under-purveyor could know.",
-            "earn": "Free, for an offer that flatters him: he takes it as his due.",
+            "earn": "No dice: free, for an offer that flatters him (he takes it as his due).",
             "strength": "strong"
           },
           {
@@ -425,13 +425,13 @@
           {
             "via": "kell",
             "clue": "Her notebook contradicts him: when he says something an entry contradicts (where he was at noon on the eve, the Captain's order closing Prout 'at the request of Master J. Sallow', the girl and the crown), she says so, once, and reads the entry. And she knows him: the gentleman with the silver-topped cane she saw at the Purveyor's flour wagons at noon on the eve, with a big dock-man nursing a bandaged right hand at his elbow, who called him 'Master'.",
-            "earn": "Free, once, when he says something her notebook contradicts, or when the player asks her whether she knows him.",
+            "earn": "No dice: free, once, when he says something her notebook contradicts, or when the player asks her whether she knows him.",
             "strength": "strong"
           },
           {
             "via": "king",
             "clue": "The King's small exact questions, the ones he asks everyone and already knows the answers to (how many wagons the office lost this quarter, since Wendell brought him the accounts every quarter-day; where the condemned grain was sold; who asked the Captain to close the clerk's death without fuss, once he's been told): Sallow tells a small lie, and the King catches it and puts his cup down.",
-            "earn": "Free when the player leaves the King room to ask, or asks him to.",
+            "earn": "No dice: free when the player leaves the King room to ask, or asks him to.",
             "strength": "strong"
           }
         ],

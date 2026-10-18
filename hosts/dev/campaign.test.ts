@@ -173,6 +173,26 @@ test("the Rat says once, plainly, how Arlo's challenges count and what the third
   for (const c of rat.cast.filter((c: any) => c.id === "arlo")) assert.match(`${c.wants} ${c.whyHere}`, /Hobb is on two/, "his card counts as the prep does");
 });
 
+test("an approach that needs no dice says so up front, in the paths and on the cards (QA round qa2-1018's H4: the promise Cob's card says opens him was rolled for, failed, and lost the scene its lead)", () => {
+  for (const [path, s] of sceneFiles()) {
+    for (const n of s.nodes) (n.data.paths ?? []).forEach((p: any, i: number) => { if (!p.check) assert.match(p.earn, /^No dice: /, `${path}: ${n.id}'s path ${i + 1} has no check`); });
+    for (const c of s.cast ?? []) for (const secret of c.secrets ?? []) if (/\bOpens\b/.test(secret)) assert.match(secret, /no dice/, `${path}: what opens ${c.id} says it needs no dice`);
+  }
+  // The paths with a check whose other approaches need none: the free ones first, then the roll.
+  const mixed: Array<[string, string, number]> = [
+    [SCENE, "murder", 0], [SCENE, "murder", 1], [SCENE, "murder", 4], [SCENE, "motive", 0],
+    [RAT, "the-loft", 4], [RAT, "the-heron", 2], [RAT, "prouts-page", 0], [RAT, "prouts-page", 1],
+    [HERON, "master-due", 1], [HERON, "true-book", 0], [HERON, "true-book", 1], [HERON, "true-book", 3], [HERON, "true-book", 6],
+  ];
+  for (const [path, id, i] of mixed) {
+    const p = node(JSON.parse(files[path]!), id).paths[i];
+    assert.ok(p.check, `${path}: ${id}'s path ${i + 1} has a check`);
+    assert.match(p.earn, /^No dice: /, `${path}: ${id}'s path ${i + 1}`);
+  }
+  assert.match(node(JSON.parse(files[SCENE]!), "motive").paths[0].earn, /^No dice: he holds the left one out himself for someone he trusts, or who promises what answers his fear \(his name kept out of it, nothing to the watch, the men from the loft kept off him\)\. [^]*A polite ask where the boots stay his could go either way \(the check\)/);
+  assert.match(node(JSON.parse(files[SCENE]!), "murder").paths[3].earn, /A real fright works too, on a roll \(Intimidation DC 12\)/, "a fright isn't among what needs no dice");
+});
+
 test("the Heron's bells are felt coming, and Hep's count falls each time she calls it (QA round qa2-1018: 'Forty to the hatch!' five times over, and no word of the tide all scene)", () => {
   const heron = JSON.parse(files[HERON]!);
   const hep = heron.cast.find((c: any) => c.id === "hep");
