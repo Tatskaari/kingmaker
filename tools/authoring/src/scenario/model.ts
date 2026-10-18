@@ -12,9 +12,9 @@ import {asMapFile} from '../../../../shared/scene/scenario.ts';
 import type {Tile2} from '../../../../shared/map/types.ts';
 import {serializeJson,slugOf,withKey} from '../campaign/json.ts';
 import {endingsOf} from '../campaign/files.ts';
-import type {CampaignFile,CampaignFiles,CampaignScene} from '../campaign/files.ts';
+import type {CampaignFile,CampaignFiles,CampaignScene,SceneDocument} from '../campaign/files.ts';
 
-export type {ScenarioDocument};
+export type {ScenarioDocument,Tile2};
 
 export const ORDER={
   scenario:['format','version','kind','id','title','description','campaignVersion','firstScene','startPlace','start','level','rulesPack','scenes','talk','places','maps','startingPurse','creation','quests','layout'],
@@ -206,4 +206,115 @@ export function landingOn(map:MapDocument|undefined,from?:string):Tile2{
     if(d<score){best={x,y};score=d}
   }
   return best??near;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Where the campaign's files name each other: shown both ways (a scene's card says where it's played,
+// a quest's where it's named), each a link there.
+
+/** Where a scene is named: the regions that play it (laying its place or opening it), the endings that go on to it, and whether it's the first lead; and where it goes, by its endings. */
+export type SceneUses={
+  regions:Array<{map:string;mapTitle:string;region:string;name:string;lays:boolean}>;
+  from:Array<{scene:string;sceneTitle:string;ending:string;title:string}>;
+  first:boolean;
+  next:Array<{ending:string;title:string;next?:string}>;
+  place?:string;
+};
+
+export function sceneUsesOf(key:string,doc:ScenarioDocument,campaign:CampaignFiles):SceneUses{
+  const scene=campaign.scenes.find(file=>file.key===key);
+  return {
+    regions:campaign.maps.flatMap(map=>(map.doc?.regions??[]).filter(region=>region.sceneId===key).map(region=>({map:map.key,mapTitle:titleOf(map,map.key),region:region.id,name:region.name||region.id,lays:!!region.worldOrigin}))),
+    from:campaign.scenes.filter(other=>other.key!==key).flatMap(other=>endingsOf(other).filter(ending=>ending.next===key).map(ending=>({scene:other.key,sceneTitle:titleOf(other,other.key),ending:ending.id,title:ending.title}))),
+    first:doc.firstScene===key,
+    next:scene?endingsOf(scene).map(ending=>({ending:ending.id,title:ending.title,...(ending.next?{next:ending.next}:{})})):[],
+    ...(scene?.doc?.place?{place:scene.doc.place}:{}),
+  };
+}
+
+/** Where a map is named: the ways out of it (grouped by where they lead), the ways into it from the others, the regions on it that play a scene, and whether the story starts on it. */
+export type MapUses={
+  out:Array<{to:string;label:string;count:number}>;
+  into:Array<{from:string;fromTitle:string;label:string;count:number}>;
+  plays:Array<{region:string;name:string;scene:string;lays:boolean}>;
+  start:boolean;
+};
+
+export function mapUsesOf(key:string,doc:ScenarioDocument,campaign:CampaignFiles):MapUses{
+  const map=campaign.maps.find(file=>file.key===key)?.doc;
+  const grouped=(exits:Array<{to:{map:string};label:string}>,by:(exit:{to:{map:string};label:string})=>string)=>{const groups=new Map<string,{exit:{to:{map:string};label:string};count:number}>();for(const exit of exits){const id=by(exit);const old=groups.get(id);groups.set(id,{exit,count:(old?.count??0)+1})}return [...groups.values()]};
+  return {
+    out:grouped(map?.exits??[],exit=>JSON.stringify([exit.to.map,exit.label])).map(({exit,count})=>({to:exit.to.map,label:exit.label,count})),
+    into:campaign.maps.filter(other=>other.key!==key).flatMap(other=>grouped((other.doc?.exits??[]).filter(exit=>exit.to.map===key),exit=>exit.label).map(({exit,count})=>({from:other.key,fromTitle:titleOf(other,other.key),label:exit.label,count}))),
+    plays:(map?.regions??[]).filter(region=>region.sceneId!==undefined).map(region=>({region:region.id,name:region.name||region.id,scene:region.sceneId!,lays:!!region.worldOrigin})),
+    start:doc.start.map===key,
+  };
+}
+
+/** Where a place is named: the scenes played in it, the regions that lay it on a map (each scene's), and whether it's the scenario's start place. */
+export type PlaceUses={
+  scenes:Array<{key:string;title:string}>;
+  laid:Array<{map:string;mapTitle:string;region:string;name:string;origin:Tile2;scene:string}>;
+  start:boolean;
+};
+
+export function placeUsesOf(key:string,doc:ScenarioDocument|undefined,campaign:CampaignFiles):PlaceUses{
+  const scenes=campaign.scenes.filter(scene=>scene.doc?.place===key);
+  const names=new Set(scenes.map(scene=>scene.key));
+  return {
+    scenes:scenes.map(scene=>({key:scene.key,title:titleOf(scene,scene.key)})),
+    laid:campaign.maps.flatMap(map=>(map.doc?.regions??[]).filter(region=>region.worldOrigin&&region.sceneId!==undefined&&names.has(region.sceneId)).map(region=>({map:map.key,mapTitle:titleOf(map,map.key),region:region.id,name:region.name||region.id,origin:region.worldOrigin!,scene:region.sceneId!}))),
+    start:doc?.startPlace===key,
+  };
+}
+
+/** An effect of a scene that names a quest: which scene, where (an ending's effects or every ending's, onEnd), its place in that list, and what it does to the quest. */
+export type QuestUse={scene:string;sceneTitle:string;at:{kind:'ending';id:string;title:string}|{kind:'onEnd'};index:number;step?:string};
+
+/** Every effect of the campaign's scenes naming the quest `key`. */
+export function questUsesOf(key:string,campaign:CampaignFiles):QuestUse[]{
+  return campaign.scenes.flatMap(scene=>{
+    const doc=scene.doc;if(!doc)return [];
+    const title=titleOf(scene,scene.key);
+    const named=(effects:readonly unknown[]|undefined)=>(effects??[]).map((effect,index)=>({effect:effect as {op?:unknown;quest?:unknown;do?:unknown},index})).filter(({effect})=>effect.op==='quest'&&effect.quest===key);
+    return [
+      ...named(doc.onEnd).map(({effect,index})=>({scene:scene.key,sceneTitle:title,at:{kind:'onEnd' as const},index,...(typeof effect.do==='string'?{step:effect.do}:{})})),
+      ...doc.nodes.filter(node=>node.data.kind==='exit').flatMap(node=>named((node.data as {effects?:unknown[]}).effects).map(({effect,index})=>({scene:scene.key,sceneTitle:title,at:{kind:'ending' as const,id:node.id,title:node.data.title||node.id},index,...(typeof effect.do==='string'?{step:effect.do}:{})}))),
+    ];
+  });
+}
+
+/** A quest's key renamed in the scenario's quests, where it was (its title kept). */
+export function renameQuest(doc:ScenarioDocument,from:string,to:string):ScenarioDocument{
+  const quests=doc.quests??{};
+  if(!(from in quests)||from===to)return doc;
+  return withKey(doc,'quests',Object.fromEntries(Object.entries(quests).map(([key,title])=>[key===from?to:key,title])),ORDER.scenario);
+}
+
+/** A scene with every effect naming the quest `from` naming `to` (its keys where they were): the same scene when none does. */
+export function renameQuestIn(scene:SceneDocument,from:string,to:string):SceneDocument{
+  const renamed=(effects:unknown[]|undefined)=>{
+    if(!effects)return effects;
+    let changed=false;
+    const next=effects.map(effect=>{const e=effect as {op?:unknown;quest?:unknown};if(e.op!=='quest'||e.quest!==from)return effect;changed=true;return withKey(e as object,'quest',to,['op','quest'])});
+    return changed?next:effects;
+  };
+  let next=scene;
+  const onEnd=renamed(scene.onEnd as unknown[]|undefined);
+  if(onEnd!==scene.onEnd)next={...next,onEnd:onEnd as SceneDocument['onEnd']};
+  const nodes=scene.nodes.map(node=>{
+    if(node.data.kind!=='exit')return node;
+    const data=node.data as {effects?:unknown[]};
+    const effects=renamed(data.effects);
+    return effects===data.effects?node:{...node,data:{...node.data,effects} as typeof node.data};
+  });
+  if(nodes.some((node,i)=>node!==scene.nodes[i]))next={...next,nodes};
+  return next;
+}
+
+/** Why a quest's key can't be `key`: not a slug, or another quest's. */
+export function questKeyProblem(doc:ScenarioDocument,key:string,current?:string):string|undefined{
+  if(!/^[a-z0-9][a-z0-9-]*$/.test(key))return 'A quest\'s key is a slug: lower-case letters, digits and dashes.';
+  if(key!==current&&key in (doc.quests??{}))return `There's a quest ${key} already.`;
+  return undefined;
 }

@@ -12,6 +12,7 @@ const saved=async(page:Page,path:string)=>JSON.parse(await savedText(page,path))
 const files=(page:Page)=>page.evaluate(()=>({...(window as any).__kingmakerHarness.files}) as Record<string,string>);
 const card=(page:Page,id:string)=>page.locator(`.scenario-card[data-card="${id}"]`);
 const inspector=(page:Page)=>page.locator('.scenario-inspector .inspector-body');
+const view=(page:Page,name:string)=>page.getByRole('tablist',{name:'Views of the scenario'}).getByRole('tab',{name:new RegExp(`^${name}`)});
 /** Whether a card is wholly in the diagram's view. */
 const inView=async(page:Page,id:string)=>{const c=await card(page,id).boundingBox(),d=await page.locator('.react-flow').first().boundingBox();return !!c&&!!d&&c.x>=d.x&&c.y>=d.y&&c.x+c.width<=d.x+d.width&&c.y+c.height<=d.y+d.height};
 const openScenario=async(page:Page)=>{
@@ -21,6 +22,12 @@ const openScenario=async(page:Page)=>{
   await expect(page.getByRole('tab',{name:/^Problems \(\d+\)$/})).toBeVisible();
 };
 const node=(scene:any,id:string)=>scene.nodes.find((n:any)=>n.id===id);
+/** Once an element has stopped moving (a diagram drawn again, or moving to a card), five frames alike. */
+const settled=(locator:ReturnType<Page['locator']>)=>locator.evaluate(element=>new Promise<void>(resolve=>{
+  let previous='',stable=0;
+  const sample=()=>{const box=element.getBoundingClientRect(),at=[box.x,box.y,box.width,box.height].join(',');stable=at===previous?stable+1:0;previous=at;if(stable>=5)resolve();else requestAnimationFrame(sample)};
+  sample();
+}));
 
 test.beforeEach(async({page})=>{
   await page.goto('/');
@@ -72,11 +79,11 @@ test('the scenario\'s wiring edited in its owning file: an ending\'s next in its
   await expect.poll(async()=>(await saved(page,'maps/caerwyn.kmmap')).regions.find((r:any)=>r.id==='cart-shed').sceneId).toBe('drowned-rat');
   await expect(page.getByRole('tab',{name:'Problems (1)'})).toBeVisible();
   await page.getByRole('tab',{name:'Problems (1)'}).click();
-  await expect(inspector(page).locator('.problem')).toHaveText([/region cart-shed names the scene drowned-rat, but neither lays its place there \(worldOrigin\) nor opens it \(trigger\).*maps\/caerwyn\.kmmap/]);
+  await expect(page.locator('.problems-view .problem')).toHaveText([/region cart-shed names the scene drowned-rat, but neither lays its place there \(worldOrigin\) nor opens it \(trigger\).*maps\/caerwyn\.kmmap/]);
   map=await saved(page,'maps/caerwyn.kmmap');
   expect(Object.keys(map.regions.find((r:any)=>r.id==='cart-shed'))).toEqual(['id','name','rect','sceneId','description']);
   // A way out selected (its port clicked: its edge is selected too) and deleted takes the destination away in its owner, after asking: the Rat's first ending ends the story.
-  await page.getByRole('tab',{name:/^Selected/}).click();
+  await view(page,'Diagram').click();
   await card(page,'scene:drowned-rat').locator('[data-port="ending:hobb-talks"]').click();
   await expect(card(page,'scene:drowned-rat').locator('[data-port="ending:hobb-talks"]')).toHaveClass(/chosen/);
   await expect(page.locator('.react-flow__edge.selected')).toHaveAttribute('aria-label',/^scene:drowned-rat What Big Hobb knows to scene:wharf-night/);
@@ -97,49 +104,61 @@ test('the scenario\'s wiring edited in its owning file: an ending\'s next in its
 test('the scenario\'s own fields: the start, the story\'s order, a new map made and listed, the purse and a quest; a card dragged keeps its place',async({page})=>{
   await openScenario(page);
   const scenario=await original('caerwyn.kmscenario');
-  await page.getByRole('tab',{name:'Scenario'}).click();
+  await view(page,'Scenario').click();
+  const own=page.locator('.scenario-view');
   // The start: the time of day, and the map it's on (the tile, a standable one just inside the palace's way to the town).
-  await inspector(page).getByLabel('Time',{exact:true}).selectOption('afternoon');
-  await inspector(page).getByLabel('Start map',{exact:true}).selectOption('palace');
+  await own.getByLabel('Time',{exact:true}).selectOption('afternoon');
+  await own.getByLabel('Start map',{exact:true}).selectOption('palace');
   let doc=await saved(page,'caerwyn.kmscenario');
   expect(doc.start.time).toBe('afternoon');
   expect(doc.start.map).toBe('palace');
   expect(Object.keys(doc.start)).toEqual(['day','time','map','at']);
-  await expect(card(page,'start').locator('.scenario-port').first()).toContainText('Starts on The Palace');
   // The story's order: the wharves after dark before the Rat.
-  await inspector(page).getByRole('button',{name:'Move wharf-night up'}).click();
+  await view(page,'Files').click();
+  const listed=page.locator('.files-view');
+  await listed.getByRole('button',{name:'Move Scene wharf-night up'}).click();
   doc=await saved(page,'caerwyn.kmscenario');
   expect(doc.scenes).toEqual(['hanged-clerk','caerwyn-afternoon','wharf-night','drowned-rat','heron-warehouse','kings-morning']);
   // A new map: made in maps/ from the default legend, and listed.
-  const maps=inspector(page).locator('[data-section="maps"]');
-  await maps.getByLabel('New map',{exact:true}).fill('The Cooperage');
-  await maps.getByRole('button',{name:'Create'}).click();
-  await expect(card(page,'map:the-cooperage')).toBeVisible();
+  const maps=listed.locator('[data-section="maps"]');
+  await maps.getByRole('button',{name:'Add map',exact:true}).click();
+  await maps.getByLabel('New map: its title',{exact:true}).fill('The Cooperage');
+  await maps.getByRole('button',{name:'Make the map'}).click();
+  await expect(maps.locator('[data-field="maps.4"]')).toContainText('The Cooperage');
   doc=await saved(page,'caerwyn.kmscenario');
   expect(doc.maps).toEqual([...scenario.maps,'the-cooperage']);
   const made=await saved(page,'maps/the-cooperage.kmmap');
   expect([made.id,made.title,made.grid.length,Object.keys(made.legend).length]).toEqual(['the-cooperage','The Cooperage',24,20]);
   // A new scene: made in scenes/ as the format's skeleton and listed last in the story; its card, at the end of the story's row past the diagram's edge, is brought into view.
-  const scenes=inspector(page).locator('[data-section="scenes"]');
-  await scenes.getByLabel('New scene',{exact:true}).fill('The Lamplighter');
-  await scenes.getByRole('button',{name:'Create'}).click();
-  await expect(card(page,'scene:the-lamplighter')).toBeVisible();
-  expect((await saved(page,'caerwyn.kmscenario')).scenes.at(-1)).toBe('the-lamplighter');
+  const scenes=listed.locator('[data-section="scenes"]');
+  await scenes.getByRole('button',{name:'Add scene',exact:true}).click();
+  await scenes.getByLabel('New scene: its title',{exact:true}).fill('The Lamplighter');
+  await scenes.getByRole('button',{name:'Make the scene'}).click();
+  await expect.poll(async()=>(await saved(page,'caerwyn.kmscenario')).scenes.at(-1)).toBe('the-lamplighter');
   expect((await saved(page,'scenes/the-lamplighter.kmscene')).nodes.map((n:any)=>n.id)).toEqual(['start','discovery','ending']);
+  // Back on the diagram, the new cards are there, the scene's (at the end of the story's row, past the diagram's edge) brought into view.
+  await view(page,'Diagram').click();
+  await expect(card(page,'map:the-cooperage')).toBeVisible();
+  await expect(card(page,'scene:the-lamplighter')).toBeVisible();
   await expect.poll(()=>inView(page,'scene:the-lamplighter')).toBe(true);
+  await expect(card(page,'start').locator('.scenario-port').first()).toContainText('Starts on The Palace');
   // The purse and a quest.
-  const purse=inspector(page).locator('[data-section="startingPurse"]');
-  await purse.locator('summary').click();
+  await view(page,'Scenario').click();
+  const purse=page.locator('.scenario-view [data-section="startingPurse"]');
   await purse.getByLabel('How many',{exact:true}).first().fill('3');
-  const quests=inspector(page).locator('[data-section="quests"]');
-  await quests.locator('summary').click();
+  await view(page,'Quests').click();
+  const quests=page.locator('.quests-view');
+  await quests.getByRole('button',{name:'Add quest',exact:true}).click();
   await quests.getByLabel('New quest\'s title').fill('The Cooper\'s Debt');
   await quests.getByRole('button',{name:'Add quest'}).click();
   doc=await saved(page,'caerwyn.kmscenario');
   expect(doc.startingPurse[0]).toEqual({...scenario.startingPurse[0],quantity:3});
   expect(doc.quests).toEqual({...scenario.quests,'the-coopers-debt':'The Cooper\'s Debt'});
   // A card dragged on the diagram keeps its place, in the scenario's layout.
-  const palace=card(page,'map:palace'),box=(await palace.boundingBox())!;
+  await view(page,'Diagram').click();
+  const palace=card(page,'map:palace');
+  await settled(palace);
+  const box=(await palace.boundingBox())!;
   await page.mouse.move(box.x+box.width/2,box.y+20);await page.mouse.down();await page.mouse.move(box.x+box.width/2+120,box.y+80,{steps:8});await page.mouse.up();
   await expect.poll(async()=>Object.keys((await saved(page,'caerwyn.kmscenario')).layout??{})).toEqual(['maps/palace']);
   doc=await saved(page,'caerwyn.kmscenario');

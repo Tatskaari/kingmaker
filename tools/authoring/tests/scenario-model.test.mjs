@@ -142,3 +142,47 @@ test('a way into a map lands just inside a way back, or nearest the middle, on g
   assert.ok(Math.max(Math.abs(back.x-landing.x),Math.abs(back.y-landing.y))<=1,'beside the way back');
   assert.deepEqual(landingOn(campaign.maps.find(map=>map.key==='heron').doc,'nowhere'),{x:11,y:9});
 });
+
+test('where the campaign\'s files name each other, both ways: a scene\'s regions and endings, a map\'s ways in and out, a place\'s scenes and regions, a quest\'s effects',async()=>{
+  const campaign=await readCampaignFiles('caerwyn.kmscenario',await vault());
+  const doc=campaign.scenario;
+  const clerk=model.sceneUsesOf('hanged-clerk',doc,campaign);
+  assert.deepEqual(clerk.regions.map(r=>[r.map,r.region,r.lays]),[['caerwyn','granary-yard',true],['caerwyn','tally-loft',true]]);
+  assert.equal(clerk.first,true);
+  assert.deepEqual(clerk.from,[]);
+  assert.equal(clerk.place,'granary-yard');
+  assert.deepEqual(clerk.next.map(e=>[e.ending,e.next??null]),[['murder-unknown','caerwyn-afternoon'],['suspicious','caerwyn-afternoon'],['failed',null]]);
+  const afternoon=model.sceneUsesOf('caerwyn-afternoon',doc,campaign);
+  assert.deepEqual(afternoon.from.map(e=>[e.scene,e.ending]),[['hanged-clerk','murder-unknown'],['hanged-clerk','suspicious']]);
+  assert.deepEqual([afternoon.regions,afternoon.first,afternoon.place],[[],false,undefined]);
+  // The Heron's scene is laid by the Heron's map and opened from the town's wharf end.
+  assert.deepEqual(model.sceneUsesOf('heron-warehouse',doc,campaign).regions.map(r=>[r.map,r.region,r.lays]),[['caerwyn','heron-wharf',false],['heron','heron',true]]);
+  const town=model.mapUsesOf('caerwyn',doc,campaign);
+  assert.equal(town.start,true);
+  assert.deepEqual(town.out.map(w=>[w.to,w.label,w.count]),[['palace','Through the palace gate',1],['drowned-rat','The Drowned Rat\'s door',1],['heron','Along the wharf to the Heron',4]]);
+  assert.deepEqual(town.into.map(w=>[w.from,w.label,w.count]),[['drowned-rat','Up the river stairs',4],['drowned-rat','Down to the wharves',2],['heron','Back along the wharves',9],['palace','Down to the palace gate',1]]);
+  assert.deepEqual(town.plays.map(p=>[p.region,p.scene,p.lays]),[['granary-yard','hanged-clerk',true],['tally-loft','hanged-clerk',true],['heron-wharf','heron-warehouse',false]]);
+  const yard=model.placeUsesOf('granary-yard',doc,campaign);
+  assert.deepEqual([yard.scenes.map(s=>s.key),yard.laid.map(l=>[l.map,l.region,l.origin.x,l.origin.y]),yard.start],[['hanged-clerk'],[['caerwyn','granary-yard',40,9],['caerwyn','tally-loft',40,9]],true]);
+  assert.deepEqual(model.questUsesOf('hanged-clerk',campaign).map(u=>[u.scene,u.at.kind==='ending'?u.at.id:'onEnd',u.index,u.step]),[['hanged-clerk','murder-unknown',0,'complete'],['hanged-clerk','suspicious',0,'advance'],['hanged-clerk','failed',0,'fail'],['kings-morning','justice',1,'complete']]);
+});
+
+test('a quest renamed: its key where it was in the scenario, and every scene\'s effect naming it, nothing else of either',async()=>{
+  const campaign=await readCampaignFiles('caerwyn.kmscenario',await vault());
+  const doc=campaign.scenario;
+  const next=model.renameQuest(doc,'hanged-clerk','the-clerk');
+  assert.deepEqual(Object.entries(next.quests),[['the-clerk','The Hanged Clerk'],['purveyors-man','The Purveyor\'s Man'],['heron-ledger','The Heron Ledger']]);
+  assert.equal(serializeScenario(next),scenarioText.replace('"hanged-clerk": "The Hanged Clerk"','"the-clerk": "The Hanged Clerk"'));
+  const changed=[];
+  for(const scene of campaign.scenes){
+    const renamed=model.renameQuestIn(scene.doc,'hanged-clerk','the-clerk');
+    if(renamed===scene.doc)continue;
+    changed.push(scene.key);
+    const text=JSON.stringify(renamed,null,2)+'\n';
+    assert.equal(text.replaceAll('"quest": "the-clerk"','"quest": "hanged-clerk"'),scene.text,scene.key);
+  }
+  assert.deepEqual(changed,['hanged-clerk','kings-morning']);
+  assert.equal(model.questKeyProblem(doc,'purveyors-man','hanged-clerk'),'There\'s a quest purveyors-man already.');
+  assert.match(model.questKeyProblem(doc,'The Clerk'),/a slug/);
+  assert.equal(model.questKeyProblem(doc,'hanged-clerk','hanged-clerk'),undefined);
+});

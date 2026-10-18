@@ -1,37 +1,47 @@
-// The scenario editor: the campaign's .kmscenario as a diagram of its scenes and maps, the story's flow
-// between them drawn from the files that own it (each ending's next, each region's scene, each map's
-// ways out, and the start), and edited there: in the scene's file, the map's, or the scenario's own.
-import React,{useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
+// The scenario editor: the campaign's .kmscenario. Under its title, a bar of views: the Diagram of its
+// scenes and maps (the story's flow between them drawn from the files that own it, each ending's next,
+// each region's scene, each map's ways out, and the start, edited there, with an inspector for what's
+// selected on it), the Scenario's own fields, its Files (the scenes, maps and places it lists), its
+// Quests, and its Problems (the campaign check's, each taking the author to where it is).
+import React,{useEffect,useId,useLayoutEffect,useMemo,useRef,useState} from 'react';
 import {Background,Controls,Handle,MarkerType,MiniMap,Position,ReactFlow,ReactFlowProvider,useNodesInitialized,useReactFlow,useStoreApi} from '@xyflow/react';
-import type {Connection,Edge,Node,NodeChange,NodeProps} from '@xyflow/react';
-import {AlertTriangle,BookOpen,CheckCircle2,ExternalLink,Flag,Info,Map as MapIcon,Maximize,Redo2,Trash2,Undo2,X} from 'lucide-react';
+import type {Connection,Edge,Node,NodeChange,NodeProps,Viewport} from '@xyflow/react';
+import {BookOpen,Eraser,Flag,Map as MapIcon,Maximize,Redo2,Undo2,X} from 'lucide-react';
 import type {FileHost} from '../campaign/host.ts';
 import {useCampaignFiles,useEdits,useWritten} from '../campaign/edits.ts';
 import type {FileChange} from '../campaign/edits.ts';
-import {campaignProblems,endingsOf,pathIn,withDraft} from '../campaign/files.ts';
+import {campaignProblems,pathIn,withDraft} from '../campaign/files.ts';
 import type {CampaignFiles,CampaignProblem} from '../campaign/files.ts';
-import {serializeJson,slugOf} from '../campaign/json.ts';
-import {EditSession,SelectField} from '../scene/fields.tsx';
-import type {Option} from '../scene/fields.tsx';
+import {EditSession} from '../scene/fields.tsx';
 import {ConfirmDialog} from '../ConfirmDialog';
 import {serializeScene,setNodeField,skeletonScene} from '../scene/model.ts';
-import {newMap,removeExits,serializeMap,setExit,setRegionField} from '../map/model.ts';
+import type {SceneDocument} from '../scene/model.ts';
+import {newMap,serializeMap} from '../map/model.ts';
 import type {MapDocument} from '../map/model.ts';
-import {TileFields} from '../map/inspectors.tsx';
 import {newPlace,serializePlace} from '../place/model.ts';
-import {START_CARD,flowOf,landingOn,layoutOf,mapCard,sceneCard,scenarioShapeOf,serializeScenario,setScenarioField,withLayout,withStart} from './model.ts';
-import type {Flow,FlowCard,FlowOwner,FlowPort,ScenarioDocument} from './model.ts';
-import {ScenarioPanel} from './inspectors.tsx';
-import type {ScenarioActions} from './inspectors.tsx';
+import {DocHeading,Inspector,ProblemsList,ViewArea,ViewBar,revealSoon,useFileView} from '../campaign/views.tsx';
+import type {NewKind,ViewTab} from '../campaign/views.tsx';
+import {START_CARD,flowOf,landingOn,layoutOf,mapCard,questUsesOf,renameQuest,renameQuestIn,sceneCard,scenarioShapeOf,serializeScenario,setScenarioField,withLayout} from './model.ts';
+import type {Flow,FlowCard,FlowOwner,ScenarioDocument} from './model.ts';
+import {FilesView,LIST_OF,QuestsView,ScenarioView} from './views.tsx';
+import type {Lists,ScenarioActions} from './views.tsx';
+import {CardInspector,PortInspector,useWiring} from './inspectors.tsx';
 import '@xyflow/react/dist/style.css';
 import '../styles.css';
+import '../campaign/views.css';
 import '../scenario.css';
 
 type CardNode=Node<{card:FlowCard;selectedPort?:string;choosePort:(card:string,port:string)=>void},'card'>;
 type FlowEdgeData=Edge<{owner:FlowOwner}>;
-type Selection={kind:'card';id:string}|{kind:'port';card:string;port:string}|null;
-type Confirmation={title:string;description:string;confirmLabel:string;run:()=>void};
+export type Selection={kind:'card';id:string}|{kind:'port';card:string;port:string}|null;
+export type Confirmation={title:string;description:string;confirmLabel:string;run:()=>void};
+type View='diagram'|'scenario'|'files'|'quests'|'problems';
+const VIEW_IDS:View[]=['diagram','scenario','files','quests','problems'];
 const ICONS={start:Flag,scene:BookOpen,map:MapIcon};
+/** Each file's diagram viewport, remembered while the plugin is loaded (the diagram is drawn again when its view comes back). */
+const viewports=new Map<string,Viewport>();
+/** Where each of the scenario's own fields is edited: its view. */
+const FIELD_VIEWS:Record<string,View>={scenes:'files',maps:'files',places:'files',talk:'files',quests:'quests'};
 
 /** The editor for the scenario file. The host saves what it's handed; the editor's undo lasts while the file is open. */
 export function ScenarioApp({document,host}:{document:ScenarioDocument;host:FileHost<ScenarioDocument>}){
@@ -68,11 +78,17 @@ function ScenarioEditor({initial,host}:{initial:ScenarioDocument;host:FileHost<S
   const {writer,textOf,version}=useWritten(host,campaign);
   const edits=useEdits<ScenarioDocument>({host:writer,initial,shape:scenarioShapeOf,serialize:serializeScenario,onError:setToast});
   const doc=edits.doc;
-  const [selection,setSelection]=useState<Selection>(null),[tab,setTab]=useState<'selected'|'scenario'|'problems'>('scenario');
+  const ids=useId();
+  const [view,setViewState]=useFileView<View>(host.filePath,'diagram',VIEW_IDS);
+  const flowApiRef=useRef<ReturnType<typeof useReactFlow<CardNode,FlowEdgeData>>|null>(null);
+  /** Another view: the diagram's viewport kept for when it's drawn again. */
+  const setView=(next:View)=>{if(view==='diagram'&&flowApiRef.current)viewports.set(host.filePath,flowApiRef.current.getViewport());setViewState(next)};
+  const [selection,setSelection]=useState<Selection>(null);
   const [confirmation,setConfirmation]=useState<Confirmation|null>(null),[dragging,setDragging]=useState<Record<string,{x:number;y:number}>>({});
   const [measured,setMeasured]=useState<Record<string,{width:number;height:number}>>({});
-  const flowApi=useReactFlow<CardNode,FlowEdgeData>(),shell=useRef<HTMLDivElement>(null),fitted=useRef(false);
-  /** A card just made from the Scenario tab (a new scene or map), to bring into view once it's on the diagram. */
+  const flowApi=useReactFlow<CardNode,FlowEdgeData>(),shell=useRef<HTMLDivElement>(null),fitted=useRef(viewports.has(host.filePath));
+  flowApiRef.current=flowApi;
+  /** A card just made (a new scene or map), to bring into view once it's on the diagram. */
   const shown=useRef<string|null>(null);
   useEffect(()=>{if(!toast)return;const timer=setTimeout(()=>setToast(''),6000);return()=>clearTimeout(timer)},[toast]);
 
@@ -89,71 +105,57 @@ function ScenarioEditor({initial,host}:{initial:ScenarioDocument;host:FileHost<S
   const flow=useMemo<Flow>(()=>known?flowOf(doc,known):{cards:[],edges:[]},[doc,known]);
   const positions=useMemo(()=>layoutOf(flow,doc.layout),[flow,doc.layout]);
   const problems=useMemo<CampaignProblem[]>(()=>known?campaignProblems(known):[],[known]);
-  const notes=[...(!campaign?['Reading the campaign…']:[]),...(campaign?.error&&campaign.error!==undefined&&!campaign.scenario?[`The campaign couldn't be read (${campaign.error}).`]:[])];
+  const notes=[...(!campaign?['Reading the campaign…']:[]),...(campaign?.error&&!campaign.scenario?[`The campaign couldn't be read (${campaign.error}).`]:[])];
 
-  // ---- Edits in the files that own them ----
-  const ask=(confirmation:Confirmation)=>setConfirmation(confirmation);
+  // ---- Edits: the scenario's own, and the files a new one makes or an edge's owner ----
+  const ask=(next:Confirmation)=>setConfirmation(next);
   const open=(path:string)=>void host.open(path).catch(error=>setToast(String(error instanceof Error?error.message:error)));
-  const sceneFile=(key:string)=>known?.scenes.find(scene=>scene.key===key);
-  const mapFile=(key:string)=>known?.maps.find(map=>map.key===key);
-  const writeScene=(key:string,change:(scene:NonNullable<ReturnType<typeof sceneFile>>['doc'] & object)=>object)=>{
-    const file=sceneFile(key);
-    if(!file?.doc||file.text===undefined){setToast(`${file?.path??`scenes/${key}.kmscene`} can't be read, so its endings can't be set from here: open it.`);return}
-    const after=serializeScene(change(file.doc) as typeof file.doc);
-    if(after!==file.text)void edits.write([{path:file.path,before:file.text,after}]);
+  /**
+   * A new file of the campaign: made from its skeleton (a scene's, a map of the default legend, a place
+   * of one area), then listed in the scenario (unless it's to be the talk template) with `pick` applied to
+   * it, and `others` written beside it, as one step of undo. The file stays when the step is undone.
+   */
+  const make:ScenarioActions['make']=(kind,title,id,then)=>{
+    if(!known){setToast('Still reading the campaign.');return}
+    const list=LIST_OF[kind];
+    const path=kind==='scene'?pathIn.scene(known.root,id):kind==='map'?pathIn.map(known.root,id):pathIn.place(known.root,id);
+    const text=kind==='scene'?serializeScene(skeletonScene(title,id)):kind==='map'?serializeMap(newMap(title,id)):serializePlace(newPlace(title,id));
+    void host.create(path,text).then(()=>{
+      const base=edits.current.current;
+      const listed=then?.unlisted||base[list].includes(id)?base:setScenarioField(base,list,[...base[list],id]);
+      const next=then?.pick?then.pick(listed):listed;
+      const others=then?.others?.()??[];
+      if(others.length)void edits.write(others,next);else edits.commit(next);
+      if(kind!=='place')shown.current=kind==='scene'?sceneCard(id):mapCard(id);
+      setToast(`Made ${path}${listed===base?'':', and listed it'}. Undo takes back what it changed; the file stays.`);
+    }).catch(error=>setToast(String(error instanceof Error?error.message:error)));
   };
-  const writeMap=(key:string,change:(map:MapDocument)=>MapDocument)=>{
-    const file=mapFile(key);
-    if(!file?.doc||file.text===undefined){setToast(`${file?.path??`maps/${key}.kmmap`} can't be read, so it can't be wired from here: open it.`);return}
-    const after=serializeMap(change(file.doc));
-    if(after!==file.text)void edits.write([{path:file.path,before:file.text,after}]);
-  };
-  const landing=(map:string,from?:string)=>landingOn(mapFile(map)?.doc,from);
-  /** A way out of a card sent to another card (or, with none, its destination taken away). */
-  const aim=(owner:FlowOwner,target:string|undefined)=>{
-    const scene=target?.startsWith('scene:')?target.slice(6):undefined,map=target?.startsWith('map:')?target.slice(4):undefined;
-    if(owner.kind==='ending'){
-      if(target&&!scene){setToast('An ending goes on to a scene.');return}
-      writeScene(owner.scene,s=>setNodeField(s,owner.ending,'next',scene));
-    }else if(owner.kind==='region'){
-      if(!scene){if(target){setToast('A region plays a scene.');return}ask({title:'Stop the region playing its scene?',description:`The region ${owner.region} on ${owner.map} won't play a scene any more; the region stays. You can undo this.`,confirmLabel:'Stop playing it',run:()=>writeMap(owner.map,m=>setRegionField(m,owner.index,'sceneId',undefined))});return}
-      writeMap(owner.map,m=>setRegionField(m,owner.index,'sceneId',scene));
-    }else if(owner.kind==='exits'){
-      if(!map){if(target){setToast('A way out of a map leads to a map.');return}
-        ask({title:`Delete “${owner.label}”?`,description:`The ${owner.indices.length===1?'exit':`${owner.indices.length} exits`} from ${owner.map} to ${owner.to} go. You can undo this.`,confirmLabel:'Delete',run:()=>writeMap(owner.map,m=>removeExits(m,owner.indices))});return}
-      const at=landing(map,owner.map);
-      writeMap(owner.map,m=>owner.indices.reduce((next,i)=>{const exit=next.exits[i];return setExit(next,i,{...exit,to:{map,at:map===exit.to.map?exit.to.at:at}})},m));
-    }else if(owner.kind==='start'){
-      if(map)edits.commit(withStart(doc,map,map===doc.start.map&&doc.start.at?{x:doc.start.at[0],y:doc.start.at[1]}:landing(map)));
-      else if(scene)ask({title:'Start in the scene at once?',description:`The story won't start on a map: ${scene} opens as the game begins. You can undo this.`,confirmLabel:'Start in it',run:()=>edits.commit(setScenarioField(withStart(doc,undefined,undefined),'firstScene',scene))});
-      else ask({title:'Start without a map?',description:'The story won\'t start on a map: its first scene opens as the game begins. You can undo this.',confirmLabel:'No start map',run:()=>edits.commit(withStart(doc,undefined,undefined))});
-    }else if(owner.kind==='lead'){
-      if(!scene){setToast(target?'The first lead is a scene.':'The story needs its first scene.');return}
-      edits.commit(setScenarioField(doc,'firstScene',scene));
-    }
-  };
-  /** A way's destination taken away from the diagram (the Delete key on an edge): asked first, whatever owns it. */
-  const unwire=(owner:FlowOwner)=>{
-    if(owner.kind==='ending')ask({title:'End the story here?',description:`The ending ${owner.ending} of ${owner.scene} won't go on to a scene: the story ends there. You can undo this.`,confirmLabel:'End the story here',run:()=>aim(owner,undefined)});
-    else aim(owner,undefined);
-  };
+  const wiring=useWiring({doc,known,edits,ask,setToast,make});
   const actions:ScenarioActions={
     edit:next=>edits.commit(next,true),
+    make,
     open,
-    landing:map=>landing(map),
-    unlist:(kind,key)=>ask({title:`Take ${key} out of the scenario?`,description:`${key} won't be one of the scenario's ${kind}: the game won't install it. Its file stays. You can undo this.`,confirmLabel:'Take it out',run:()=>edits.commit(setScenarioField(edits.current.current,kind,edits.current.current[kind].filter(k=>k!==key)))}),
-    create:(kind,title)=>{
-      if(!known){setToast('Still reading the campaign.');return}
-      const id=slugOf(title);
-      const path=kind==='scenes'?pathIn.scene(known.root,id):kind==='maps'?pathIn.map(known.root,id):pathIn.place(known.root,id);
-      const text=kind==='scenes'?serializeScene(skeletonScene(title,id)):kind==='maps'?serializeMap(newMap(title,id)):serializePlace(newPlace(title,id));
-      if(edits.current.current[kind].includes(id)){setToast(`The scenario lists ${id} already.`);return}
-      void host.create(path,text).then(()=>{edits.commit(setScenarioField(edits.current.current,kind,[...edits.current.current[kind],id]));if(kind!=='places')shown.current=kind==='scenes'?sceneCard(id):mapCard(id);setToast(`Made ${path}, and listed it. Undo takes it off the list; the file stays.`)}).catch(error=>setToast(String(error instanceof Error?error.message:error)));
+    landing:map=>landingOn(known?.maps.find(file=>file.key===map)?.doc,undefined),
+    unlist:(kind:Lists,key:string)=>ask({title:`Take ${key} out of the scenario?`,description:`${key} won't be one of the scenario's ${kind}: the game won't install it. Its file stays. You can undo this.`,confirmLabel:'Take it out',run:()=>edits.commit(setScenarioField(edits.current.current,kind,edits.current.current[kind].filter(k=>k!==key)))}),
+    renameQuest:(from,to)=>{
+      // The scenario's key, and every scene's effect naming it, in that scene's file: one step.
+      const changes:FileChange[]=(known?.scenes??[]).flatMap(scene=>{
+        if(!scene.doc||scene.text===undefined)return [];
+        const after=serializeScene(renameQuestIn(scene.doc,from,to));
+        return after===scene.text?[]:[{path:scene.path,before:scene.text,after}];
+      });
+      const next=renameQuest(edits.current.current,from,to);
+      if(changes.length)void edits.write(changes,next);else edits.commit(next);
+    },
+    removeQuest:key=>{
+      const uses=known?questUsesOf(key,known):[];
+      ask({title:`Remove the quest ${key}?`,description:`${doc.quests?.[key]||key} won't be one of the scenario's quests.${uses.length?` ${uses.length} effect${uses.length===1?' names':'s name'} it (${[...new Set(uses.map(use=>use.sceneTitle))].join(', ')}): the problems will say so.`:''} You can undo this.`,confirmLabel:'Remove quest',
+        run:()=>{const quests=Object.fromEntries(Object.entries(edits.current.current.quests??{}).filter(([k])=>k!==key));edits.commit(setScenarioField(edits.current.current,'quests',quests))}});
     },
   };
 
   // ---- The diagram ----
-  const choosePort=useMemo(()=>(card:string,port:string)=>{setSelection({kind:'port',card,port});setTab('selected')},[]);
+  const choosePort=useMemo(()=>(card:string,port:string)=>setSelection({kind:'port',card,port}),[]);
   const nodes=useMemo<CardNode[]>(()=>flow.cards.map(card=>({
     id:card.id,type:'card',position:dragging[card.id]??positions.get(card.id)??{x:0,y:0},measured:measured[card.id],deletable:false,
     selected:selection?.kind==='card'&&selection.id===card.id,
@@ -165,9 +167,13 @@ function ScenarioEditor({initial,host}:{initial:ScenarioDocument;host:FileHost<S
       markerEnd:{type:MarkerType.ArrowClosed,color:'#96869f'},style:{strokeWidth:chosen?2.5:1.4,...(edge.dashed?{strokeDasharray:'6 4'}:{})}};
   }),[flow,selection]);
   const initialised=useNodesInitialized();
-  useEffect(()=>{if(!fitted.current&&campaign&&initialised&&flow.cards.length>1){fitted.current=true;void flowApi.fitView({padding:.12})}},[campaign,initialised,flow.cards.length]);
-  // A new scene's card goes at the end of the story's row, a new map's at the end of the maps': often past the diagram's edge, so the view moves to it.
-  useEffect(()=>{const id=shown.current,at=id?positions.get(id):undefined;if(!id||!at)return;shown.current=null;const size=measured[id]??{width:260,height:150};void flowApi.setCenter(at.x+size.width/2,at.y+size.height/2,{zoom:flowApi.getZoom(),duration:200})},[positions]);
+  useEffect(()=>{if(view==='diagram'&&!fitted.current&&campaign&&initialised&&flow.cards.length>1){fitted.current=true;void flowApi.fitView({padding:.12})}},[view,campaign,initialised,flow.cards.length]);
+  // A new scene's card goes at the end of the story's row, a new map's at the end of the maps': often past the diagram's edge, so the view moves to it (when the diagram is shown).
+  useEffect(()=>{
+    const id=shown.current,at=id?positions.get(id):undefined;if(view!=='diagram'||!id||!at||!initialised)return;
+    shown.current=null;const size=measured[id]??{width:260,height:150};
+    void flowApi.setCenter(at.x+size.width/2,at.y+size.height/2,{zoom:flowApi.getZoom(),duration:200});
+  },[positions,view,initialised]);
   const nodeChanges=(changes:NodeChange<CardNode>[])=>{
     const sizes=changes.filter(change=>change.type==='dimensions');
     if(sizes.length)setMeasured(old=>{const next={...old};for(const change of sizes)if(change.type==='dimensions'&&change.dimensions)next[change.id]=change.dimensions;return next});
@@ -182,24 +188,34 @@ function ScenarioEditor({initial,host}:{initial:ScenarioDocument;host:FileHost<S
   const connect=(connection:Connection)=>{
     const card=flow.cards.find(c=>c.id===connection.source),port=card?.ports.find(p=>p.id===connection.sourceHandle);
     if(!port||!connection.target)return;
-    setSelection({kind:'port',card:card!.id,port:port.id});setTab('selected');
-    aim(port.owner,connection.target);
+    setSelection({kind:'port',card:card!.id,port:port.id});
+    wiring.aim(port.owner,connection.target);
   };
+  const fit=()=>void flowApi.fitView({padding:.12,duration:200});
+  const forgetLayout=()=>ask({title:'Forget the layout?',description:`The ${Object.keys(doc.layout??{}).length} cards you've placed go back where the default puts them (the story's scenes along the top, the maps beneath). The game doesn't read the layout. You can undo this.`,confirmLabel:'Forget the layout',run:()=>edits.commit(setScenarioField(edits.current.current,'layout',undefined))});
   const selectedCard=selection?flow.cards.find(card=>card.id===(selection.kind==='card'?selection.id:selection.card)):undefined;
   const selectedPort=selection?.kind==='port'?selectedCard?.ports.find(port=>port.id===selection.port):undefined;
 
-  // ---- Keys ----
+  // ---- Going to a problem: its field in the view that has it, or its file ----
+  const go=(problem:CampaignProblem)=>{
+    if(problem.at.kind!=='scenario'){open(problem.path);return}
+    const field=problem.at.field||'title';
+    setView(FIELD_VIEWS[field.split('.')[0]]??'scenario');
+    revealSoon(shell.current,field);
+  };
+
+  // ---- Keys: scoped to this editor, never while typing; the diagram's only on the diagram ----
   useEffect(()=>{
     const element=shell.current;if(!element)return;
     const key=(event:KeyboardEvent)=>{
       if(confirmation)return;
       const target=event.target as Element|null;if(target?.closest('input,textarea,select,[contenteditable="true"]'))return;
-      const mod=event.ctrlKey||event.metaKey,letter=event.key.toLowerCase();
+      const mod=event.ctrlKey||event.metaKey,letter=event.key.toLowerCase(),diagram=view==='diagram';
       let handled=true;
       if(mod&&letter==='z')void(event.shiftKey?edits.redo():edits.undo());
       else if(mod&&letter==='y')void edits.redo();
-      else if(!mod&&letter==='f')void flowApi.fitView({padding:.12,duration:200});
-      else if((event.key==='Delete'||event.key==='Backspace')&&!target?.closest('.inspector')){if(selectedPort?.target)unwire(selectedPort.owner);else handled=false}
+      else if(diagram&&!mod&&letter==='f')fit();
+      else if(diagram&&(event.key==='Delete'||event.key==='Backspace')&&!target?.closest('.inspector')){if(selectedPort?.target)wiring.unwire(selectedPort.owner);else handled=false}
       else handled=false;
       if(handled){event.preventDefault();event.stopPropagation()}
     };
@@ -207,97 +223,51 @@ function ScenarioEditor({initial,host}:{initial:ScenarioDocument;host:FileHost<S
     return()=>element.removeEventListener('keydown',key);
   });
 
-  // ---- The inspector ----
-  const sceneOptions=(none?:string):Option[]=>[...(none?[{value:'',label:none}]:[]),...doc.scenes.map(key=>({value:sceneCard(key),label:`${sceneFile(key)?.doc?.title??key} (${key})`}))];
-  const mapOptions=(none?:string):Option[]=>[...(none?[{value:'',label:none}]:[]),...doc.maps.map(key=>({value:mapCard(key),label:`${mapFile(key)?.doc?.title??key} (${key})`}))];
-  const portEditor=(port:FlowPort)=>{
-    const owner=port.owner;
-    if(owner.kind==='ending')return <SelectField label={`${port.label}: next scene`} field="next" hint="The scene the story goes on to, in the scene's file." value={port.target??''} options={sceneOptions('Nowhere: the story ends here')} onChange={value=>aim(owner,value||undefined)}/>;
-    if(owner.kind==='region')return <SelectField label={`${port.label}: plays`} field="sceneId" hint="The scene played in this region, in the map's file." value={port.target??''} options={sceneOptions('No scene')} onChange={value=>aim(owner,value||undefined)}/>;
-    if(owner.kind==='exits'){
-      const map=mapFile(owner.map)?.doc,first=map?.exits[owner.indices[0]];
-      return <>
-        <SelectField label={`${port.label}: to`} field="to.map" hint={`Where ${owner.indices.length===1?'this exit leads':`these ${owner.indices.length} exits lead`}, in the map's file.`} value={port.target??mapCard(owner.to)} options={mapOptions()} onChange={value=>aim(owner,value)}/>
-        {first&&owner.indices.length===1&&<TileFields label="Lands at (tile there)" at={first.to.at} onChange={at=>writeMap(owner.map,m=>setExit(m,owner.indices[0],{...m.exits[owner.indices[0]],to:{...m.exits[owner.indices[0]].to,at}}))}/>}
-        {owner.indices.length>1&&<p className="muted">Each lands where it does: {owner.indices.map(i=>{const e=map?.exits[i];return e?`(${e.at.x}, ${e.at.y}) → (${e.to.at.x}, ${e.to.at.y})`:''}).join(', ')}. Open the map to move them.</p>}
-        <button type="button" className="text-button danger" onClick={()=>aim(owner,undefined)}><Trash2 size={13}/>Delete {owner.indices.length===1?'this exit':'these exits'}…</button>
-      </>;
-    }
-    if(owner.kind==='start')return <>
-      <SelectField label="Starts on" field="start.map" hint="The map the player starts walking on, in the scenario." value={doc.start.map?mapCard(doc.start.map):''} options={mapOptions('No map: the first scene opens at once')} onChange={value=>aim(owner,value||undefined)}/>
-      {doc.start.map&&doc.start.at&&<TileFields label="Start tile" at={{x:doc.start.at[0],y:doc.start.at[1]}} onChange={at=>edits.commit(withStart(doc,doc.start.map,at))}/>}
-    </>;
-    return <SelectField label="First lead" field="firstScene" hint="The story's first scene, in the scenario." value={doc.firstScene?sceneCard(doc.firstScene):''} options={sceneOptions()} onChange={value=>aim(owner,value)}/>;
+  // ---- The views ----
+  const tabs:ViewTab<View>[]=[{id:'diagram',label:'Diagram'},{id:'scenario',label:'Scenario'},{id:'files',label:'Files',count:doc.scenes.length+doc.maps.length+doc.places.length},{id:'quests',label:'Quests',count:Object.keys(doc.quests??{}).length},{id:'problems',label:'Problems',...(campaign?{count:problems.length,bad:true}:{})}];
+  const inspectorBody=()=>{
+    if(selectedPort&&selectedCard)return <PortInspector card={selectedCard} port={selectedPort} doc={doc} known={known} wiring={wiring} onAll={()=>setSelection({kind:'card',id:selectedCard.id})} open={open}/>;
+    if(selectedCard)return <CardInspector card={selectedCard} doc={doc} known={known} wiring={wiring} open={open} onPort={port=>setSelection({kind:'port',card:selectedCard.id,port})}/>;
+    return <p className="info-box">Click a scene, a map or the start to wire it here, or drag from one of its ways out (an ending, a region that plays a scene, a way to another map) to where it goes. Each is written in the file that owns it. The scenario's own fields, its files and its quests are views of their own, in the bar above.</p>;
   };
-  const cardInspector=(card:FlowCard)=>{
-    if(card.kind==='start')return <div className="card-inspector"><p className="inspector-kind"><Flag size={13}/>The start</p><p className="muted">Day {doc.start.day}, {doc.start.time.replace('-',' ')}. {doc.start.map?`The player starts walking on ${doc.start.map}${doc.start.at?` at (${doc.start.at[0]}, ${doc.start.at[1]})`:''}, and the first lead is ${doc.firstScene||'not set'}.`:`The first scene, ${doc.firstScene||'not set yet'}, opens at once.`}</p>{card.ports.map(port=><div key={port.id} className="port-editor">{portEditor(port)}</div>)}</div>;
-    return <div className="card-inspector" data-card={card.id}>
-      <p className="inspector-kind">{card.kind==='scene'?<BookOpen size={13}/>:<MapIcon size={13}/>}{card.kind==='scene'?'Scene':'Map'}<code>{card.key}</code></p>
-      <h3 className="inspector-title">{card.title}</h3>
-      <p className="muted">{card.subtitle}</p>
-      {card.path&&<button type="button" className="wide-button" onClick={()=>open(card.path!)}>Open {card.path} <ExternalLink size={13}/></button>}
-      {card.error&&<p className="scenario-warning">{card.error}</p>}
-      {card.kind==='scene'&&<>{!card.ports.length&&<p className="muted">No endings: open the scene to add one.</p>}{card.ports.map(port=><div key={port.id} className="port-editor" data-port={port.id}>{portEditor(port)}</div>)}</>}
-      {card.kind==='map'&&<MapWiring card={card} file={mapFile(card.key!)?.doc} sceneOptions={sceneOptions('No scene')} portEditor={portEditor} onRegion={(index,scene)=>writeMap(card.key!,m=>setRegionField(m,index,'sceneId',scene))}/>}
-    </div>;
-  };
-  const body=()=>{
-    if(tab==='scenario')return <ScenarioPanel doc={doc} campaign={known} actions={actions}/>;
-    if(tab==='problems')return <div className="problems-panel">
-      {notes.map(note=><p className="problems-note" key={note}><Info size={14}/>{note}</p>)}
-      {campaign&&(problems.length?<p className="muted">The campaign check would refuse the campaign for {problems.length===1?'this':`these ${problems.length}`}. Each takes you to its file.</p>:<p className="problems-clear"><CheckCircle2 size={15}/>No problems: the campaign check finds nothing in the scenario, its maps or its places.</p>)}
-      <ol className="problems">{problems.map((problem,i)=><li key={`${i}:${problem.message}`}><button type="button" className="problem" onClick={()=>{if(problem.at.kind==='scenario'){setTab('scenario');requestAnimationFrame(()=>{const field=shell.current?.querySelector<HTMLElement>(`[data-field="${problem.at.kind==='scenario'?problem.at.field:''}"], [data-section="${problem.at.kind==='scenario'?problem.at.field:''}"]`);field?.closest('details')?.setAttribute('open','');field?.scrollIntoView({block:'center'})})}else open(problem.path)}}><AlertTriangle size={14}/><span><b>{problem.message}</b><small>{problem.file}</small></span></button></li>)}</ol>
-    </div>;
-    if(selectedPort&&selectedCard)return <div className="card-inspector"><p className="inspector-kind">{selectedCard.title}</p><div className="port-editor">{portEditor(selectedPort)}</div><button type="button" className="text-button" onClick={()=>setSelection({kind:'card',id:selectedCard.id})}>All of {selectedCard.title}</button></div>;
-    if(selectedCard)return cardInspector(selectedCard);
-    return <p className="info-box">Click a scene or a map to wire it here, or drag from one of its ways out (an ending, a region that plays a scene, a way to another map) to where it goes. Each is written in the file that owns it. The Scenario tab has the scenario's own fields.</p>;
-  };
-  const tabs:[typeof tab,string,number|undefined][]=[['selected','Selected',undefined],['scenario','Scenario',undefined],['problems','Problems',campaign?problems.length:undefined]];
+  const what=selectedPort?<><span className="kind-dot route"/>Way out</>:selectedCard?<><span className={`kind-dot ${selectedCard.kind==='map'?'map':selectedCard.kind==='start'?'start':'scene'}`}/>{selectedCard.kind==='start'?'The start':selectedCard.kind==='scene'?'Scene':'Map'}</>:'Nothing selected';
+  const saved=viewports.get(host.filePath);
   return <EditSession.Provider value={edits.sessionHandlers}>
     <div className="km-workshop km-forms km-scenario" ref={shell} tabIndex={0} onPointerDown={event=>{if(!(event.target as Element).closest('input,textarea,select,button,a'))shell.current?.focus({preventScroll:true})}}>
       <main className="workspace" inert={!!confirmation||undefined}>
         <header className="topbar"><span className="file-path" title={host.filePath}>{host.filePath}</span><span className="save">{edits.busy?'Saving…':'Autosaves to this file and the files it wires'}</span></header>
-        <div className="canvas-heading"><div><div className="eyebrow">KINGMAKER · SCENARIO · <code>{doc.id}</code></div><h1>{doc.title||doc.id}</h1></div></div>
-        <div className="toolbar">
-          <div><button onClick={()=>setTab('problems')} className={problems.length?'has-problems':''}>{campaign?`${problems.length} problem${problems.length===1?'':'s'}`:'Checking…'}</button><span className="scenario-toolbar-hint">The flow is the files': endings, regions and exits</span></div>
-          <div><button title="Undo (Ctrl Z)" aria-label="Undo" disabled={!edits.canUndo||edits.busy} onClick={()=>void edits.undo()}><Undo2 size={16}/></button><button title="Redo (Ctrl Shift Z)" aria-label="Redo" disabled={!edits.canRedo||edits.busy} onClick={()=>void edits.redo()}><Redo2 size={16}/></button><button title="Fit the diagram (F)" aria-label="Fit the diagram" onClick={()=>void flowApi.fitView({padding:.12,duration:200})}><Maximize size={16}/></button></div>
-        </div>
-        <div className="graph-canvas">
-          <ReactFlow<CardNode,FlowEdgeData> nodes={nodes} edges={edges} nodeTypes={nodeTypes} minZoom={.06} maxZoom={1.6} deleteKeyCode={null} panOnDrag={[1,2]} panOnScroll zoomOnDoubleClick={false} colorMode="system" nodesConnectable={!edits.busy} nodesDraggable={!edits.busy}
-            onNodesChange={nodeChanges} onNodeDragStop={dropped} onConnect={connect}
-            onNodeClick={(_,node)=>{setSelection({kind:'card',id:node.id});setTab('selected')}}
-            onNodeDoubleClick={(_,node)=>{const path=node.data.card.path;if(path)open(path)}}
-            onEdgeClick={(_,edge)=>{setSelection({kind:'port',card:edge.source,port:edge.sourceHandle!});setTab('selected')}}
-            onPaneClick={()=>setSelection(null)}>
-            <Background gap={24}/><Controls showInteractive={false}/><MiniMap pannable zoomable nodeColor={node=>(node.data as CardNode['data']).card.kind==='map'?'#5f8f8a':(node.data as CardNode['data']).card.kind==='start'?'#5f8f6a':'#8874ac'}/>
-          </ReactFlow>
-        </div>
-        <footer className="statusbar"><span>{doc.scenes.length} scenes · {doc.maps.length} maps · {doc.places.length} places · {flow.edges.length} ways on{edits.busy?' · Saving…':''}</span><span>Drag from a way out to where it goes · F fits · double-click opens a file</span></footer>
+        <DocHeading kind="scenario" id={doc.id} title={doc.title} problems={problems.length} checking={!campaign} onProblems={()=>setView('problems')}/>
+        <ViewBar ids={ids} label="Views of the scenario" views={tabs} view={view} onView={setView} actions={<>
+          <button type="button" title="Undo (Ctrl Z)" aria-label="Undo" disabled={!edits.canUndo||edits.busy} onClick={()=>void edits.undo()}><Undo2 size={16}/></button>
+          <button type="button" title="Redo (Ctrl Shift Z)" aria-label="Redo" disabled={!edits.canRedo||edits.busy} onClick={()=>void edits.redo()}><Redo2 size={16}/></button>
+          {view==='diagram'&&<button type="button" title="Fit the diagram (F)" aria-label="Fit the diagram" onClick={fit}><Maximize size={16}/></button>}
+          {view==='diagram'&&doc.layout&&<button type="button" title="Forget the layout: every card where the default puts it" aria-label="Forget the layout" onClick={forgetLayout}><Eraser size={16}/></button>}
+        </>}/>
+        <ViewArea ids={ids} view={view}>
+          {view==='diagram'&&<div className="canvas-view">
+            <div className="graph-canvas">
+              <ReactFlow<CardNode,FlowEdgeData> nodes={nodes} edges={edges} nodeTypes={nodeTypes} minZoom={.06} maxZoom={1.6} deleteKeyCode={null} panOnDrag={[1,2]} panOnScroll zoomOnDoubleClick={false} colorMode="system" nodesConnectable={!edits.busy} nodesDraggable={!edits.busy}
+                {...(saved?{defaultViewport:saved}:{})} onMoveEnd={(_,viewport)=>{viewports.set(host.filePath,viewport)}}
+                onNodesChange={nodeChanges} onNodeDragStop={dropped} onConnect={connect}
+                onNodeClick={(_,node)=>setSelection({kind:'card',id:node.id})}
+                onNodeDoubleClick={(_,node)=>{const path=node.data.card.path;if(path)open(path)}}
+                onEdgeClick={(_,edge)=>setSelection({kind:'port',card:edge.source,port:edge.sourceHandle!})}
+                onPaneClick={()=>setSelection(null)}>
+                <Background gap={24}/><Controls showInteractive={false}/><MiniMap pannable zoomable nodeColor={node=>(node.data as CardNode['data']).card.kind==='map'?'#5f8f8a':(node.data as CardNode['data']).card.kind==='start'?'#5f8f6a':'#8874ac'}/>
+              </ReactFlow>
+            </div>
+            <Inspector what={what} empty={!selectedCard} onClose={()=>setSelection(null)} className="scenario-inspector">{inspectorBody()}</Inspector>
+          </div>}
+          {view==='scenario'&&<div className="view-scroll"><ScenarioView doc={doc} campaign={known} actions={actions}/></div>}
+          {view==='files'&&<div className="view-scroll"><FilesView doc={doc} campaign={known} actions={actions}/></div>}
+          {view==='quests'&&<div className="view-scroll"><QuestsView doc={doc} campaign={known} actions={actions}/></div>}
+          {view==='problems'&&<div className="view-scroll"><ProblemsList lede={<>The campaign check's rules for the scenario, its maps and its places (<code>npm run campaign -- check</code>), with every file as it is now. Each takes you to its field here, or opens its file.</>} problems={problems} notes={notes} checking={!campaign} clear="No problems: the campaign check finds nothing in the scenario, its maps or its places." onGo={go}/></div>}
+        </ViewArea>
+        <footer className="statusbar"><span>{doc.scenes.length} scenes · {doc.maps.length} maps · {doc.places.length} places · {flow.edges.length} ways on{edits.busy?' · Saving…':''}</span><span>{view==='diagram'?'Drag from a way out to where it goes · F fits · double-click opens a file':'Each field saves as you type'}</span></footer>
       </main>
-      <aside className="inspector scenario-inspector" inert={!!confirmation||undefined}>
-        <div className="inspector-tabs" role="tablist" aria-label="Inspector">{tabs.map(([id,label,count])=><button key={id} role="tab" aria-selected={tab===id} aria-label={count===undefined?label:`${label} (${count})`} className={tab===id?'active':''} onClick={()=>setTab(id)}>{label}{count!==undefined&&<span className={`count${id==='problems'&&count?' bad':''}`}>{count}</span>}</button>)}</div>
-        <div className="inspector-body" role="tabpanel">{body()}</div>
-      </aside>
       {toast&&<div className="toast" role="status">{toast}<button aria-label="Dismiss" onClick={()=>setToast('')}><X size={12}/></button></div>}
       {confirmation&&<ConfirmDialog title={confirmation.title} description={confirmation.description} confirmLabel={confirmation.confirmLabel} fallbackFocus={shell.current} onCancel={()=>setConfirmation(null)} onConfirm={()=>{const run=confirmation.run;setConfirmation(null);run()}}/>}
     </div>
   </EditSession.Provider>;
 }
 
-/** A map's wiring: its ways out (as on its card), and every region, each able to play a scene. */
-function MapWiring({card,file,sceneOptions,portEditor,onRegion}:{card:FlowCard;file:MapDocument|undefined;sceneOptions:Option[];portEditor:(port:FlowPort)=>React.ReactNode;onRegion:(index:number,scene:string|undefined)=>void}){
-  if(!file)return null;
-  const exits=card.ports.filter(port=>port.owner.kind==='exits');
-  return <>
-    <div className="subheading">Ways out</div>
-    {!exits.length&&<p className="muted">None: add exits on the map.</p>}
-    {exits.map(port=><div key={port.id} className="port-editor" data-port={port.id}>{portEditor(port)}</div>)}
-    <div className="subheading">Regions</div>
-    {file.regions.map((region,index)=><div key={`${region.id}:${index}`} className="port-editor" data-region={region.id}>
-      <SelectField label={`${region.name||region.id}: plays`} value={region.sceneId?sceneCard(region.sceneId):''} options={sceneOptions} onChange={value=>onRegion(index,value?value.slice(6):undefined)}/>
-    </div>)}
-  </>;
-}
-
-export {serializeJson,endingsOf,START_CARD};
-export type {FileChange};

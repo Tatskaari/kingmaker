@@ -1,142 +1,169 @@
-// The scenario editor's inspectors: the scenario's own fields (its start, the story's scenes and the
-// maps and places it lists, the purse, the quests, the world a backstory is written for), and what's
-// selected on the diagram, a card or a way out of one, each edited in the file that owns it.
-import React,{useId,useState} from 'react';
-import {ArrowDown,ArrowUp,ExternalLink,Plus,Trash2} from 'lucide-react';
-import {ListField,NumberField,Section,SelectField,TextArea,TextField} from '../scene/fields.tsx';
+// The scenario diagram's inspector: what's selected on it, a card (the start, a scene, a map) or a way
+// out of one, each wired in the file that owns it: an ending's next in its scene's file, a region's
+// scene and a way out's map in its map's, the start in the scenario's. A destination can be a new
+// scene or map, made, listed and wired in one step.
+import React from 'react';
+import {BookOpen,ExternalLink,Flag,Map as MapIcon,Trash2} from 'lucide-react';
+import {SelectField} from '../scene/fields.tsx';
 import type {Option} from '../scene/fields.tsx';
-import {TIMES} from '../map/model.ts';
-import type {Tile2} from '../map/model.ts';
+import {serializeScene,setNodeField} from '../scene/model.ts';
+import {newMap,removeExits,serializeMap,setExit,setRegionField} from '../map/model.ts';
+import type {MapDocument} from '../map/model.ts';
 import {TileFields} from '../map/inspectors.tsx';
-import {moved,optionalText,slugOf,uniqueId,withKey} from '../campaign/json.ts';
 import type {CampaignFiles} from '../campaign/files.ts';
-import {ORDER,setCreationField,setScenarioField,setStartField,withStart} from './model.ts';
-import type {ScenarioDocument} from './model.ts';
+import type {FileChange} from '../campaign/edits.ts';
+import {NewFile} from '../campaign/views.tsx';
+import {landingOn,mapCard,sceneCard,setScenarioField,withStart} from './model.ts';
+import type {FlowCard,FlowOwner,FlowPort,ScenarioDocument,Tile2} from './model.ts';
+import type {ScenarioActions} from './views.tsx';
 
-type Lists='scenes'|'maps'|'places';
-export type ScenarioActions={
-  /** The scenario changed (its own file). */
-  edit:(next:ScenarioDocument)=>void;
-  /** A new file of the campaign, made and listed: a scene, a map or a place, by its title. */
-  create:(kind:Lists,title:string)=>void;
-  /** Take something out of the scenario's lists, after asking (the file stays). */
-  unlist:(kind:Lists,key:string)=>void;
-  open:(path:string)=>void;
-  landing:(map:string)=>Tile2;
-};
+type Edits={write:(changes:FileChange[],own?:ScenarioDocument,coalesce?:boolean)=>Promise<boolean>;commit:(next:ScenarioDocument,coalesce?:boolean)=>boolean;current:{current:ScenarioDocument}};
+type Confirmation={title:string;description:string;confirmLabel:string;run:()=>void};
 
-/** The scenario's own fields. */
-export function ScenarioPanel({doc,campaign,actions}:{doc:ScenarioDocument;campaign:CampaignFiles|null;actions:ScenarioActions}){
-  const set=(key:string,value:unknown)=>actions.edit(setScenarioField(doc,key,value));
-  const title=(kind:Lists,key:string)=>(kind==='scenes'?campaign?.scenes:kind==='maps'?campaign?.maps:campaign?.places)?.find(file=>file.key===key)?.doc?.title??key;
-  const options=(kind:Lists,none?:string):Option[]=>[...(none?[{value:'',label:none}]:[]),...doc[kind].map(key=>({value:key,label:`${title(kind,key)} (${key})`}))];
-  const lore=(campaign?.lore??[]).filter(path=>path.endsWith('.md'));
-  const loreOptions=(none:string):Option[]=>[{value:'',label:none},...lore.map(path=>({value:path,label:path}))];
-  return <div className="scenario-panel">
-    <p className="inspector-kind"><span className="kind-dot scenario"/>Scenario<code title="The campaign's id: its file's name">{doc.id}</code></p>
-    <Section title="The campaign" field="campaign">
-      <TextField label="Title" field="title" value={doc.title} onChange={value=>set('title',value)}/>
-      <TextArea label="Description" field="description" rows={3} value={doc.description} onChange={value=>set('description',value)}/>
-      <div className="field-row">
-        <TextField label="Campaign version" field="campaignVersion" hint="The campaign's own (installed as id@version)." value={doc.campaignVersion??''} onChange={value=>set('campaignVersion',value)}/>
-        <NumberField label="Level" field="level" min={1} max={20} value={doc.level} onChange={value=>set('level',value)}/>
-      </div>
-      <TextField label="Rules pack" field="rulesPack" hint="The rules engine's content pack (starter-pack@0.1.0)." value={doc.rulesPack} onChange={value=>set('rulesPack',value)}/>
-    </Section>
-    <Section title="The start" field="start">
-      <SelectField label="First scene" field="firstScene" hint="The story's first lead (or, with no start map, the scene it opens in)." value={doc.firstScene} options={options('scenes','None yet')} onChange={value=>set('firstScene',value)}/>
-      <SelectField label="Start place" field="startPlace" hint="The place a scene with none of its own is played in." value={doc.startPlace} options={options('places','None yet')} onChange={value=>set('startPlace',value)}/>
-      <div className="field-row">
-        <NumberField label="Day" field="start.day" min={1} max={999} value={doc.start.day} onChange={value=>actions.edit(setStartField(doc,'day',value))}/>
-        <SelectField label="Time" field="start.time" value={doc.start.time} options={TIMES.map(time=>({value:time,label:time.replace('-',' ')}))} onChange={value=>actions.edit(setStartField(doc,'time',value))}/>
-      </div>
-      <SelectField label="Start map" field="start.map" hint="Where the player starts walking; none, and the first scene opens at once." value={doc.start.map??''} options={options('maps','None: the first scene opens at once')} onChange={value=>actions.edit(withStart(doc,value||undefined,value?(value===doc.start.map&&doc.start.at?{x:doc.start.at[0],y:doc.start.at[1]}:actions.landing(value)):undefined))}/>
-      {doc.start.map&&doc.start.at&&<TileFields label="Start tile" field="start.at" at={{x:doc.start.at[0],y:doc.start.at[1]}} onChange={at=>actions.edit(withStart(doc,doc.start.map,at))}/>}
-      {doc.start.map&&<p className="field-hint">Or move the flag on the map itself.</p>}
-    </Section>
-    <FileList kind="scenes" title="Scenes" hint="The story's scenes, in order. An ending's next goes on to one; a region of a map plays one." doc={doc} campaign={campaign} actions={actions} ordered/>
-    <Section title="Talk template" field="talk">
-      <SelectField label="Talk template" field="talk" hint="A word with whoever walks with the player between scenes: never one of the story's scenes." value={doc.talk??''} options={[{value:'',label:'None'},...(campaign?.present.scenes??[]).filter(key=>!doc.scenes.includes(key)).map(key=>({value:key,label:key}))]} onChange={value=>set('talk',value||undefined)}/>
-    </Section>
-    <FileList kind="maps" title="Maps" hint="The maps walked between scenes (maps/<id>.kmmap)." doc={doc} campaign={campaign} actions={actions}/>
-    <FileList kind="places" title="Places" hint="The scenes' places (places/<id>.kmplace)." doc={doc} campaign={campaign} actions={actions}/>
-    <Purse doc={doc} edit={actions.edit}/>
-    <Quests doc={doc} edit={actions.edit}/>
-    <Section title="The world a backstory is written for" field="creation" open={false}>
-      <TextField label="World" field="creation.name" value={doc.creation.name} onChange={value=>actions.edit(setCreationField(doc,'name',value))}/>
-      <TextArea label="Premise" field="creation.premise" rows={6} hint="The story the backstory leads into: why they took this case, and that the story's people don't know them yet." value={doc.creation.premise} onChange={value=>actions.edit(setCreationField(doc,'premise',value))}/>
-      <SelectField label="Primer" field="creation.primer" hint="The lore doc that tells of the world." value={doc.creation.primer} options={loreOptions('None')} onChange={value=>actions.edit(setCreationField(doc,'primer',value))}/>
-      <ListField label="Not canon" field="creation.notCanon" rows={1} hint="World docs the lore check doesn't read (how the world stands now, its fronts, the index): lore paths." items={doc.creation.notCanon} onChange={items=>actions.edit(setCreationField(doc,'notCanon',items))}/>
-      <CreationPlaces doc={doc} edit={actions.edit} lore={lore}/>
-    </Section>
-    {doc.layout&&<Section title="Layout" field="layout" open={false}><p className="muted">Where {Object.keys(doc.layout).length} cards sit on this diagram (the game doesn't read it).</p><button type="button" className="text-button" onClick={()=>set('layout',undefined)}>Forget the layout</button></Section>}
+/** What the diagram's wiring does: each way's destination set in its owner's file, taken away (after asking), or made new. */
+export type Wiring=ReturnType<typeof useWiring>;
+
+export function useWiring({doc,known,edits,ask,setToast,make}:{doc:ScenarioDocument;known:CampaignFiles|null;edits:Edits;ask:(confirmation:Confirmation)=>void;setToast:(text:string)=>void;make:ScenarioActions['make']}){
+  const sceneFile=(key:string)=>known?.scenes.find(scene=>scene.key===key);
+  const mapFile=(key:string)=>known?.maps.find(map=>map.key===key);
+  /** A scene's file changed by `change`, as a write; refused (with a note) when it can't be read. */
+  const sceneChange=(key:string,change:(scene:NonNullable<ReturnType<typeof sceneFile>>['doc']&object)=>object):FileChange|undefined=>{
+    const file=sceneFile(key);
+    if(!file?.doc||file.text===undefined){setToast(`${file?.path??`scenes/${key}.kmscene`} can't be read, so its endings can't be set from here: open it.`);return undefined}
+    const after=serializeScene(change(file.doc) as typeof file.doc);
+    return after===file.text?undefined:{path:file.path,before:file.text,after};
+  };
+  const mapChange=(key:string,change:(map:MapDocument)=>MapDocument):FileChange|undefined=>{
+    const file=mapFile(key);
+    if(!file?.doc||file.text===undefined){setToast(`${file?.path??`maps/${key}.kmmap`} can't be read, so it can't be wired from here: open it.`);return undefined}
+    const after=serializeMap(change(file.doc));
+    return after===file.text?undefined:{path:file.path,before:file.text,after};
+  };
+  const write=(change:FileChange|undefined)=>{if(change)void edits.write([change])};
+  const landing=(map:string,from?:string)=>landingOn(mapFile(map)?.doc,from);
+  const exitsTo=(owner:Extract<FlowOwner,{kind:'exits'}>,map:string,at:(exit:MapDocument['exits'][number])=>Tile2)=>(m:MapDocument)=>owner.indices.reduce((next,i)=>{const exit=next.exits[i];return setExit(next,i,{...exit,to:{map,at:at(exit)}})},m);
+
+  /** A way out of a card sent to another card (or, with none, its destination taken away). */
+  const aim=(owner:FlowOwner,target:string|undefined)=>{
+    const scene=target?.startsWith('scene:')?target.slice(6):undefined,map=target?.startsWith('map:')?target.slice(4):undefined;
+    if(owner.kind==='ending'){
+      if(target&&!scene){setToast('An ending goes on to a scene.');return}
+      write(sceneChange(owner.scene,s=>setNodeField(s,owner.ending,'next',scene)));
+    }else if(owner.kind==='region'){
+      if(!scene){if(target){setToast('A region plays a scene.');return}ask({title:'Stop the region playing its scene?',description:`The region ${owner.region} on ${owner.map} won't play a scene any more; the region stays. You can undo this.`,confirmLabel:'Stop playing it',run:()=>write(mapChange(owner.map,m=>setRegionField(m,owner.index,'sceneId',undefined)))});return}
+      write(mapChange(owner.map,m=>setRegionField(m,owner.index,'sceneId',scene)));
+    }else if(owner.kind==='exits'){
+      if(!map){if(target){setToast('A way out of a map leads to a map.');return}
+        ask({title:`Delete “${owner.label}”?`,description:`The ${owner.indices.length===1?'exit':`${owner.indices.length} exits`} from ${owner.map} to ${owner.to} go. You can undo this.`,confirmLabel:'Delete',run:()=>write(mapChange(owner.map,m=>removeExits(m,owner.indices)))});return}
+      const at=landing(map,owner.map);
+      write(mapChange(owner.map,exitsTo(owner,map,exit=>map===exit.to.map?exit.to.at:at)));
+    }else if(owner.kind==='start'){
+      if(map)edits.commit(withStart(doc,map,map===doc.start.map&&doc.start.at?{x:doc.start.at[0],y:doc.start.at[1]}:landing(map)));
+      else if(scene)ask({title:'Start in the scene at once?',description:`The story won't start on a map: ${scene} opens as the game begins. You can undo this.`,confirmLabel:'Start in it',run:()=>edits.commit(setScenarioField(withStart(doc,undefined,undefined),'firstScene',scene))});
+      else ask({title:'Start without a map?',description:'The story won\'t start on a map: its first scene opens as the game begins. You can undo this.',confirmLabel:'No start map',run:()=>edits.commit(withStart(doc,undefined,undefined))});
+    }else if(owner.kind==='lead'){
+      if(!scene){setToast(target?'The first lead is a scene.':'The story needs its first scene.');return}
+      edits.commit(setScenarioField(doc,'firstScene',scene));
+    }
+  };
+  /** A way's destination taken away from the diagram (the Delete key on an edge): asked first, whatever owns it. */
+  const unwire=(owner:FlowOwner)=>{
+    if(owner.kind==='ending')ask({title:'End the story here?',description:`The ending ${owner.ending} of ${owner.scene} won't go on to a scene: the story ends there. You can undo this.`,confirmLabel:'End the story here',run:()=>aim(owner,undefined)});
+    else aim(owner,undefined);
+  };
+  /** A new scene (or map) made, listed, and the way's destination: one step. */
+  const makeFor=(owner:FlowOwner,title:string,id:string)=>{
+    const changes=(change:FileChange|undefined)=>()=>change?[change]:[];
+    if(owner.kind==='ending')make('scene',title,id,{others:()=>changes(sceneChange(owner.scene,s=>setNodeField(s,owner.ending,'next',id)))()});
+    else if(owner.kind==='region')make('scene',title,id,{others:()=>changes(mapChange(owner.map,m=>setRegionField(m,owner.index,'sceneId',id)))()});
+    else if(owner.kind==='exits'){const at=landingOn(newMap(title,id));make('map',title,id,{others:()=>changes(mapChange(owner.map,exitsTo(owner,id,()=>at)))()})}
+    else if(owner.kind==='start')make('map',title,id,{pick:next=>withStart(next,id,landingOn(newMap(title,id)))});
+    else make('scene',title,id,{pick:next=>setScenarioField(next,'firstScene',id)});
+  };
+  const exitLanding=(map:string,index:number,at:Tile2)=>write(mapChange(map,m=>setExit(m,index,{...m.exits[index],to:{...m.exits[index].to,at}})));
+  const regionPlays=(map:string,index:number,scene:string|undefined)=>write(mapChange(map,m=>setRegionField(m,index,'sceneId',scene)));
+  const startTile=(at:Tile2)=>edits.commit(withStart(edits.current.current,edits.current.current.start.map,at));
+  return {aim,unwire,makeFor,exitLanding,regionPlays,startTile,landing,sceneFile,mapFile,known};
+}
+
+const sceneOptions=(doc:ScenarioDocument,wiring:Wiring,none?:string):Option[]=>[...(none?[{value:'',label:none}]:[]),...doc.scenes.map(key=>({value:sceneCard(key),label:`${wiring.sceneFile(key)?.doc?.title??key} (${key})`}))];
+const mapOptions=(doc:ScenarioDocument,wiring:Wiring,none?:string):Option[]=>[...(none?[{value:'',label:none}]:[]),...doc.maps.map(key=>({value:mapCard(key),label:`${wiring.mapFile(key)?.doc?.title??key} (${key})`}))];
+
+/** A way out, wired: its destination (one of the scenario's, or a new one), and what else its owner says of it. */
+export function PortEditor({port,doc,wiring}:{port:FlowPort;doc:ScenarioDocument;wiring:Wiring}){
+  const owner=port.owner;
+  const taken=(kind:'scenes'|'maps')=>wiring.known?.present[kind]??[];
+  const newScene=<NewFile kind="scene" label="New scene" taken={taken('scenes')} onCreate={(title,id)=>wiring.makeFor(owner,title,id)}/>;
+  if(owner.kind==='ending')return <>
+    <SelectField label={`${port.label}: next scene`} field="next" hint="The scene the story goes on to, in the scene's file." value={port.target??''} options={sceneOptions(doc,wiring,'Nowhere: the story ends here')} onChange={value=>wiring.aim(owner,value||undefined)}/>
+    {newScene}
+  </>;
+  if(owner.kind==='region')return <>
+    <SelectField label={`${port.label}: plays`} field="sceneId" hint="The scene played in this region, in the map's file." value={port.target??''} options={sceneOptions(doc,wiring,'No scene')} onChange={value=>wiring.aim(owner,value||undefined)}/>
+    {newScene}
+  </>;
+  if(owner.kind==='exits'){
+    const map=wiring.mapFile(owner.map)?.doc,first=map?.exits[owner.indices[0]];
+    return <>
+      <SelectField label={`${port.label}: to`} field="to.map" hint={`Where ${owner.indices.length===1?'this exit leads':`these ${owner.indices.length} exits lead`}, in the map's file.`} value={port.target??mapCard(owner.to)} options={mapOptions(doc,wiring)} onChange={value=>wiring.aim(owner,value)}/>
+      <NewFile kind="map" label="New map" taken={taken('maps')} onCreate={(title,id)=>wiring.makeFor(owner,title,id)}/>
+      {first&&owner.indices.length===1&&<TileFields label="Lands at (tile there)" at={first.to.at} onChange={at=>wiring.exitLanding(owner.map,owner.indices[0],at)}/>}
+      {owner.indices.length>1&&<p className="muted">Each lands where it does: {owner.indices.map(i=>{const e=map?.exits[i];return e?`(${e.at.x}, ${e.at.y}) → (${e.to.at.x}, ${e.to.at.y})`:''}).join(', ')}. Open the map to move them.</p>}
+      <button type="button" className="text-button danger" onClick={()=>wiring.aim(owner,undefined)}><Trash2 size={13}/>Delete {owner.indices.length===1?'this exit':'these exits'}…</button>
+    </>;
+  }
+  if(owner.kind==='start')return <>
+    <SelectField label="Starts on" field="start.map" hint="The map the player starts walking on, in the scenario." value={doc.start.map?mapCard(doc.start.map):''} options={mapOptions(doc,wiring,'No map: the first scene opens at once')} onChange={value=>wiring.aim(owner,value||undefined)}/>
+    <NewFile kind="map" label="New map" taken={taken('maps')} onCreate={(title,id)=>wiring.makeFor(owner,title,id)}/>
+    {doc.start.map&&doc.start.at&&<TileFields label="Start tile" at={{x:doc.start.at[0],y:doc.start.at[1]}} onChange={wiring.startTile}/>}
+  </>;
+  return <>
+    <SelectField label="First lead" field="firstScene" hint="The story's first scene, in the scenario." value={doc.firstScene?sceneCard(doc.firstScene):''} options={sceneOptions(doc,wiring)} onChange={value=>wiring.aim(owner,value)}/>
+    {newScene}
+  </>;
+}
+
+/** A way out selected (its port or its edge): its wiring, and a way back to all of its card's. */
+export function PortInspector({card,port,doc,wiring,onAll}:{card:FlowCard;port:FlowPort;doc:ScenarioDocument;known:CampaignFiles|null;wiring:Wiring;onAll:()=>void;open:(path:string)=>void}){
+  return <div className="card-inspector">
+    <p className="inspector-kind">{card.title}</p>
+    <div className="port-editor" data-port={port.id}><PortEditor port={port} doc={doc} wiring={wiring}/></div>
+    <button type="button" className="text-button" onClick={onAll}>All of {card.title}</button>
   </div>;
 }
 
-/** One of the scenario's lists: what it lists (in order, for scenes), what the folder has that it doesn't, and a new one. */
-function FileList({kind,title,hint,doc,campaign,actions,ordered}:{kind:Lists;title:string;hint:string;doc:ScenarioDocument;campaign:CampaignFiles|null;actions:ScenarioActions;ordered?:boolean}){
-  const [name,setName]=useState(''),id=useId();
-  const files=kind==='scenes'?campaign?.scenes:kind==='maps'?campaign?.maps:campaign?.places;
-  const present=campaign?.present[kind]??[];
-  const unlisted=present.filter(key=>!doc[kind].includes(key)&&!(kind==='scenes'&&key===doc.talk));
-  const folder=kind;
-  return <Section title={title} field={kind} count={doc[kind].length}>
-    <small className="field-hint">{hint}</small>
-    <ol className="file-list">
-      {doc[kind].map((key,index)=>{const file=files?.find(f=>f.key===key);return <li key={key} data-listed={key}>
-        <button type="button" className="file-open" title={`Open ${folder}/${key}`} onClick={()=>file&&actions.open(file.path)}><b>{(file?.doc as {title?:string}|undefined)?.title??key}</b><small>{key}{file&&!file.text?' · no file':file?.error?' · can\'t be read':''}</small></button>
-        {ordered&&<><button type="button" aria-label={`Move ${key} up`} disabled={index===0} onClick={()=>actions.edit(setScenarioField(doc,kind,moved(doc[kind],index,index-1)))}><ArrowUp size={12}/></button><button type="button" aria-label={`Move ${key} down`} disabled={index===doc[kind].length-1} onClick={()=>actions.edit(setScenarioField(doc,kind,moved(doc[kind],index,index+1)))}><ArrowDown size={12}/></button></>}
-        <button type="button" aria-label={`Take ${key} out of the scenario`} title="Take it out of the scenario (the file stays)" onClick={()=>actions.unlist(kind,key)}><Trash2 size={12}/></button>
-      </li>})}
-    </ol>
-    {unlisted.length>0&&<SelectField label={`List one of ${folder}/`} field={`${kind}.add`} value="" options={[{value:'',label:'Choose…'},...unlisted.map(key=>({value:key,label:key}))]} onChange={value=>{if(value)actions.edit(setScenarioField(doc,kind,[...doc[kind],value]))}}/>}
-    <div className="new-file"><label className="field-label" htmlFor={id}>{`New ${kind==='scenes'?'scene':kind==='maps'?'map':'place'}`}</label><div className="new-file-row"><input id={id} value={name} placeholder="Its title" onChange={event=>setName(event.target.value)} onKeyDown={event=>{if(event.key==='Enter'&&slugOf(name)){actions.create(kind,name.trim());setName('')}}}/><button type="button" disabled={!slugOf(name)} onClick={()=>{actions.create(kind,name.trim());setName('')}}><Plus size={13}/>Create</button></div><small className="field-hint">{slugOf(name)?`${folder}/${slugOf(name)}.${kind==='scenes'?'kmscene':kind==='maps'?'kmmap':'kmplace'}, listed here`:'Its file is named for the slug of its title, which is its id.'}</small></div>
-  </Section>;
+/** A card selected: the start's ways, a scene's endings, a map's ways out and every region of it. */
+export function CardInspector({card,doc,wiring,open}:{card:FlowCard;doc:ScenarioDocument;known:CampaignFiles|null;wiring:Wiring;open:(path:string)=>void;onPort:(port:string)=>void}){
+  if(card.kind==='start')return <div className="card-inspector">
+    <p className="inspector-kind"><Flag size={13}/>The start</p>
+    <p className="muted">Day {doc.start.day}, {doc.start.time.replace('-',' ')}. {doc.start.map?`The player starts walking on ${doc.start.map}${doc.start.at?` at (${doc.start.at[0]}, ${doc.start.at[1]})`:''}, and the first lead is ${doc.firstScene||'not set'}.`:`The first scene, ${doc.firstScene||'not set yet'}, opens at once.`} The day and the time are the Scenario view's.</p>
+    {card.ports.map(port=><div key={port.id} className="port-editor" data-port={port.id}><PortEditor port={port} doc={doc} wiring={wiring}/></div>)}
+  </div>;
+  return <div className="card-inspector" data-card={card.id}>
+    <p className="inspector-kind">{card.kind==='scene'?<BookOpen size={13}/>:<MapIcon size={13}/>}{card.kind==='scene'?'Scene':'Map'}<code>{card.key}</code></p>
+    <h3 className="inspector-title">{card.title}</h3>
+    <p className="muted">{card.subtitle}</p>
+    {card.path&&<button type="button" className="wide-button" onClick={()=>open(card.path!)}>Open {card.path} <ExternalLink size={13}/></button>}
+    {card.error&&<p className="scenario-warning">{card.error}</p>}
+    {card.kind==='scene'&&<>{!card.ports.length&&<p className="muted">No endings: open the scene to add one.</p>}{card.ports.map(port=><div key={port.id} className="port-editor" data-port={port.id}><PortEditor port={port} doc={doc} wiring={wiring}/></div>)}</>}
+    {card.kind==='map'&&<MapWiring card={card} doc={doc} wiring={wiring}/>}
+  </div>;
 }
 
-function Purse({doc,edit}:{doc:ScenarioDocument;edit:(next:ScenarioDocument)=>void}){
-  const purse=doc.startingPurse;
-  const setCoin=(index:number,key:string,value:unknown)=>edit(setScenarioField(doc,'startingPurse',purse.map((coin,i)=>i===index?withKey(coin,key,value,ORDER.coin):coin)));
-  return <Section title="Starting purse" field="startingPurse" count={purse.length} open={false}>
-    {purse.map((coin,index)=><div className="purse-row" key={index}>
-      <div className="field-row">
-        <TextField label="Coin" value={coin.name} onChange={value=>setCoin(index,'name',value)}/>
-        <NumberField label="How many" min={0} max={99999} value={coin.quantity} onChange={value=>setCoin(index,'quantity',value)}/>
-        <button type="button" aria-label={`Remove ${coin.name||'the coin'}`} onClick={()=>edit(setScenarioField(doc,'startingPurse',purse.filter((_,i)=>i!==index)))}><Trash2 size={13}/></button>
-      </div>
-      <TextField label="Coin description" value={coin.description} onChange={value=>setCoin(index,'description',value)}/>
+/** A map's wiring: its ways out (as on its card), and every region, each able to play a scene. */
+function MapWiring({card,doc,wiring}:{card:FlowCard;doc:ScenarioDocument;wiring:Wiring}){
+  const file=wiring.mapFile(card.key!)?.doc;
+  if(!file)return null;
+  const exits=card.ports.filter(port=>port.owner.kind==='exits');
+  return <>
+    <div className="subheading">Ways out</div>
+    {!exits.length&&<p className="muted">None: add exits on the map.</p>}
+    {exits.map(port=><div key={port.id} className="port-editor" data-port={port.id}><PortEditor port={port} doc={doc} wiring={wiring}/></div>)}
+    <div className="subheading">Regions</div>
+    {!file.regions.length&&<p className="muted">None: add regions on the map.</p>}
+    {file.regions.map((region,index)=><div key={`${region.id}:${index}`} className="port-editor" data-region={region.id}>
+      <SelectField label={`${region.name||region.id}: plays`} value={region.sceneId?sceneCard(region.sceneId):''} options={sceneOptions(doc,wiring,'No scene')} onChange={value=>wiring.regionPlays(card.key!,index,value?value.slice(6):undefined)}/>
+      <NewFile kind="scene" label="New scene" taken={wiring.known?.present.scenes} onCreate={(title,id)=>wiring.makeFor({kind:'region',map:card.key!,index,region:region.id},title,id)}/>
     </div>)}
-    <button type="button" className="add-item" onClick={()=>edit(setScenarioField(doc,'startingPurse',[...purse,{name:'',quantity:1,description:''}]))}><Plus size={13}/>Add a coin</button>
-  </Section>;
+  </>;
 }
-
-function Quests({doc,edit}:{doc:ScenarioDocument;edit:(next:ScenarioDocument)=>void}){
-  const quests=doc.quests??{};
-  const [name,setName]=useState('');
-  const add=()=>{const key=uniqueId(slugOf(name),Object.keys(quests));edit(setScenarioField(doc,'quests',{...quests,[key]:name.trim()}));setName('')};
-  return <Section title="Quests" field="quests" count={Object.keys(quests).length} open={false}>
-    <small className="field-hint">A quest's key is what the scenes' effects name: it's made once from its title and stays.</small>
-    {Object.entries(quests).map(([key,title])=><div className="field-row quest-row" key={key}>
-      <TextField label={`Quest ${key}`} value={title} onChange={value=>edit(setScenarioField(doc,'quests',{...quests,[key]:value}))}/>
-      <button type="button" aria-label={`Remove the quest ${key}`} onClick={()=>edit(setScenarioField(doc,'quests',Object.fromEntries(Object.entries(quests).filter(([k])=>k!==key))))}><Trash2 size={13}/></button>
-    </div>)}
-    <div className="new-file-row"><input aria-label="New quest's title" value={name} placeholder="The Heron Ledger" onChange={event=>setName(event.target.value)} onKeyDown={event=>{if(event.key==='Enter'&&slugOf(name))add()}}/><button type="button" disabled={!slugOf(name)} onClick={add}><Plus size={13}/>Add quest</button></div>
-  </Section>;
-}
-
-function CreationPlaces({doc,edit,lore}:{doc:ScenarioDocument;edit:(next:ScenarioDocument)=>void;lore:string[]}){
-  const places=doc.creation.places;
-  const set=(index:number,key:string,value:string)=>edit(setCreationField(doc,'places',places.map((place,i)=>i===index?withKey(place,key,value,ORDER.creationPlace):place)));
-  return <fieldset className="creation-places" data-field="creation.places">
-    <legend className="field-label">Places a backstory can call up</legend>
-    {places.map((place,index)=><div className="field-row" key={index}>
-      <SelectField label={`Place doc ${index+1}`} value={place.doc} options={lore.map(path=>({value:path,label:path}))} onChange={value=>set(index,'doc',value)}/>
-      <TextField label={`Words ${index+1}`} value={place.words} onChange={value=>set(index,'words',value)}/>
-      <button type="button" aria-label={`Remove place doc ${index+1}`} onClick={()=>edit(setCreationField(doc,'places',places.filter((_,i)=>i!==index)))}><Trash2 size={13}/></button>
-    </div>)}
-    <button type="button" className="add-item" onClick={()=>edit(setCreationField(doc,'places',[...places,{doc:lore.find(path=>path.startsWith('Places/'))??'',words:''}]))}><Plus size={13}/>Add a place doc</button>
-    <small className="field-hint">A doc of the lore and the words that call it up (a regular expression, read without case).</small>
-  </fieldset>;
-}
-
-export {optionalText,ExternalLink};

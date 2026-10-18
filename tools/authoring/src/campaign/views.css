@@ -1,0 +1,154 @@
+/* The scenario, map and place editors' share of the scene editor's design (M3, scene.css): the title with its
+   problems, the bar of views, the views of the file's own fields, lists beside a card, cards and chips with
+   [+ Add …], and the inspector of what's selected. They're .km-forms: one class lighter than the scene
+   editor's rules, so a map's and a place's own (map.css, which makes them dark) still have the last word.
+   Sizes follow the editor's own width (a container query), since an Obsidian pane is narrower than its window. */
+.km-workshop.km-forms {container:km-forms / inline-size}
+
+/* The title, its problems, and the bar of views. */
+.km-forms .doc-heading {padding:14px 20px 10px;align-items:flex-start;display:flex;justify-content:space-between;gap:16px;flex-shrink:0}
+.km-forms .doc-title {min-width:0}
+.km-forms .doc-title h1 {overflow-wrap:anywhere}
+.km-forms .problems-link {padding:3px 0;margin-top:6px;font-size:11px;color:var(--km-muted);gap:5px}
+.km-forms .problems-link svg {color:var(--km-good,#5f9a68)}
+.km-forms .problems-link.has-problems,.km-forms .problems-link.has-problems svg {color:var(--text-error,#d77d83)}
+.km-forms .view-bar {display:flex;align-items:flex-end;justify-content:space-between;gap:8px;padding:0 10px 0 12px;border-bottom:1px solid var(--km-line);flex-shrink:0;background:var(--km-bg)}
+.km-forms .view-tabs {display:flex;gap:2px;overflow-x:auto;scrollbar-width:thin;min-width:0}
+.km-forms .view-tabs [role=tab] {border-radius:5px 5px 0 0;padding:9px 12px 8px;font-size:12px;color:var(--km-muted);border-bottom:2px solid transparent;gap:6px;white-space:nowrap;flex-shrink:0}
+.km-forms .view-tabs [role=tab].active {color:var(--km-text);border-bottom-color:var(--km-accent);background:transparent;font-weight:600}
+.km-forms .count {font-size:9px;font-weight:500;background:var(--km-panel);border:1px solid var(--km-line);border-radius:8px;padding:0 6px;line-height:15px;color:var(--km-muted)}
+.km-forms .count.bad {background:var(--km-bad,#b25a5a);border-color:var(--km-bad,#b25a5a);color:#fff}
+.km-forms .view-actions {display:flex;align-items:center;gap:1px;padding-bottom:3px;flex-shrink:0}
+.km-forms .view-actions button {color:var(--km-muted);padding:6px;font-size:11px}
+.km-forms .view-actions button[aria-pressed=true] {color:var(--km-text)}
+.km-forms .view-area {flex:1;min-height:0;display:flex;position:relative}
+.km-forms .view-scroll {flex:1;min-width:0;overflow-y:auto}
+.km-forms .canvas-view {flex:1;min-width:0;display:flex;position:relative}
+
+/* The views of the file's own: a readable column, its groups as cards. */
+.km-forms .view-content {max-width:880px;margin:0 auto;padding:18px 24px 56px;width:100%}
+.km-forms .view-header {margin:4px 0 16px}
+.km-forms .view-header h2 {font:22px/1.3 Georgia,serif;margin-bottom:6px}
+.km-forms .view-lede {font-size:12px;line-height:1.65;color:var(--km-muted);max-width:72ch}
+.km-forms .view-lede code {font-size:10px}
+.km-forms .view-index {display:flex;flex-wrap:wrap;gap:4px;position:sticky;top:0;z-index:3;background:var(--km-bg);padding:6px 0 10px;margin-bottom:6px}
+.km-forms .view-index button {font-size:11px;color:var(--km-muted);border:1px solid var(--km-line);padding:4px 9px}
+.km-forms .field-group {background:var(--km-panel);border:1px solid var(--km-line);border-radius:9px;padding:4px 20px 12px;margin:0 0 16px;scroll-margin-top:52px}
+.km-forms .group-title {font:600 11px/1.4 var(--font-interface,system-ui,sans-serif);letter-spacing:1.3px;text-transform:uppercase;color:var(--km-muted);margin:14px 0 2px;display:flex;align-items:center;gap:8px}
+.km-forms .group-hint {font-size:11px;line-height:1.6;color:var(--km-muted);margin:4px 0 0}
+
+/* A list beside the chosen item's card. */
+.km-forms .list-view {max-width:1120px;display:grid;grid-template-columns:240px minmax(0,1fr);gap:22px;align-items:start}
+.km-forms .pick-list {position:sticky;top:0;padding-top:4px;min-width:0}
+.km-forms .pick-list .group-title {margin-top:4px}
+.km-forms .pick-list ul {list-style:none;margin:8px 0;padding:0;display:flex;flex-direction:column;gap:2px;max-height:min(62vh,640px);overflow-y:auto}
+.km-forms .list-pick {width:100%;justify-content:flex-start !important;align-items:flex-start !important;text-align:left;gap:8px !important;padding:7px 9px !important;border:1px solid transparent;border-radius:7px}
+.km-forms .list-pick>span:last-child {display:flex;flex-direction:column;gap:1px;min-width:0}
+.km-forms .list-pick b {font-size:12.5px;font-weight:600;overflow-wrap:anywhere}
+.km-forms .list-pick small {font-size:10px;color:var(--km-muted);overflow-wrap:anywhere}
+.km-forms .list-pick.active {border-color:var(--km-accent);background:var(--km-panel)}
+.km-forms .list-pick .legend-swatch,.km-forms .list-pick .pick-glyph {flex-shrink:0;margin-top:2px}
+.km-forms .pick-glyph {display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;border:1px solid var(--km-line);font:bold 11px ui-monospace,monospace}
+.km-forms .doc-card {background:var(--km-panel);border:1px solid var(--km-line);border-radius:9px;padding:6px 20px 14px;min-width:0}
+.km-forms .doc-card-head {display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:8px 0 4px}
+.km-forms .doc-card-head h2 {font:22px/1.25 Georgia,serif;overflow-wrap:anywhere}
+.km-forms .doc-card-head .inspector-kind {margin:0 0 4px}
+.km-forms .doc-card-actions {display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}
+.km-forms .doc-card-actions button {font-size:11px;border:1px solid var(--km-line);padding:5px 9px}
+.km-forms .hour-filter {margin:6px 0 4px}
+.km-forms .hour-filter .segment {padding:4px 8px;font-size:10.5px}
+
+/* Uses: where something is named, each a link there. */
+.km-forms .uses {margin:12px 0}
+.km-forms .uses ul {list-style:none;margin:6px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:4px}
+.km-forms .use-link,.km-forms .use-text {display:inline-flex;flex-direction:column;align-items:flex-start !important;gap:1px !important;padding:4px 9px !important;border:1px solid var(--km-line);border-radius:5px;font-size:11px;line-height:1.45;text-align:left;max-width:100%}
+.km-forms .use-link small,.km-forms .use-text small {color:var(--km-muted);font-size:10px}
+.km-forms .uses .muted {margin:4px 0}
+
+/* Chips, cards in lists, [+ Add …]. */
+.km-forms .chips {list-style:none;margin:6px 0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.km-forms .chip {display:inline-flex;align-items:center;border:1px solid var(--km-line);background:var(--km-bg);border-radius:14px;font-size:12px;max-width:100%;min-width:0}
+.km-forms .chip>span,.km-forms .chip-open {padding:3px 2px 3px 11px !important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.km-forms .chip-remove {padding:4px 8px !important;color:var(--km-muted);border-radius:0 14px 14px 0 !important;flex-shrink:0}
+.km-forms .word-chips {margin:12px 0;display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.km-forms .chip-new {display:flex;gap:6px;align-items:center;width:100%;max-width:360px}
+.km-forms .chip-new input {flex:1;min-width:0}
+.km-forms .chip-new button:not(.icon-button) {border:1px solid var(--km-line);font-size:11px;padding:6px 10px}
+.km-forms .add-item {border:1px dashed var(--km-line);color:var(--km-muted);font-size:11px;padding:6px 10px;margin-top:6px;align-self:flex-start}
+.km-forms .add-item:hover {color:var(--km-text);border-color:var(--km-accent)}
+.km-forms .add-picker {border:1px solid var(--km-accent);border-radius:7px;background:var(--km-bg);padding:8px 10px 10px;margin:8px 0;box-shadow:0 4px 14px #0002;display:flex;flex-direction:column;gap:5px}
+.km-forms .add-picker>header {display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;margin-bottom:2px}
+.km-forms .add-picker .primary {align-self:flex-start;margin-top:4px}
+.km-forms .pick-search {display:flex;align-items:center;gap:6px;border:1px solid var(--km-line);border-radius:5px;padding:0 8px;margin-bottom:6px;color:var(--km-muted)}
+.km-forms .pick-search input {border:0;padding:6px 0;background:transparent;outline:none !important}
+.km-forms .pick-options {display:flex;flex-direction:column;gap:1px;max-height:280px;overflow-y:auto}
+.km-forms .pick-option {flex-direction:column;align-items:flex-start !important;text-align:left;gap:2px !important;padding:6px 8px !important;width:100%}
+.km-forms .pick-option b {font-weight:550;font-size:12px}
+.km-forms .pick-option small {font-size:10px;color:var(--km-muted);line-height:1.45}
+.km-forms .new-file-button {font-size:11px;gap:4px;margin:-6px 0 6px}
+.km-forms .optional-add {margin:14px 0}
+.km-forms .optional-add .field-hint {margin-top:4px}
+.km-forms .optional-section {border:1px solid var(--km-line);border-radius:7px;padding:8px 12px 10px;margin:14px 0;background:var(--km-bg)}
+.km-forms .optional-section>header {display:flex;align-items:center;justify-content:space-between;gap:8px}
+.km-forms .item-card {background:var(--km-bg);border:1px solid var(--km-line);border-radius:7px;padding:10px 12px;margin:10px 0}
+.km-forms .item-card>header {display:flex;align-items:center;gap:7px;font-size:11px}
+.km-forms .item-card>header b {flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.km-forms .item-number {font-size:10px;background:var(--km-panel);border-radius:4px;min-width:20px;line-height:20px;text-align:center;color:var(--km-muted)}
+.km-forms .item-actions {display:flex;gap:1px;margin-left:auto}
+.km-forms .item-actions button {padding:3px;color:var(--km-muted)}
+.km-forms .item-card .field:first-of-type {margin-top:8px}
+.km-forms .id-field {display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0}
+.km-forms .id-field code {font-size:11px}
+.km-forms .id-field .text-button {padding:2px 0;font-size:10px;gap:4px}
+.km-forms .id-field.editing {display:flex;flex-direction:column;align-items:stretch;gap:5px;padding:8px 10px;border:1px solid var(--km-accent);border-radius:7px;background:var(--km-bg)}
+.km-forms .id-rename {display:flex;gap:6px;align-items:center}
+.km-forms .id-rename input {flex:1;min-width:0;font:12px ui-monospace,monospace}
+.km-forms .id-rename button {white-space:nowrap;font-size:11px;padding:6px 10px}
+.km-forms .json-problem {display:block;color:var(--text-error,#d77d83);font-size:10px;margin-top:4px}
+.km-forms .text-button {gap:5px}
+.km-forms .open-link {gap:4px}
+
+/* One of a few, side by side. */
+.km-forms .choice-field {margin:12px 0}
+.km-forms .segments {display:flex;flex-wrap:wrap;border:1px solid var(--km-line);border-radius:6px;overflow:hidden;width:fit-content;max-width:100%;background:var(--km-bg)}
+.km-forms .segment {position:relative;display:flex;align-items:center;cursor:pointer;font-size:12px;padding:6px 14px;border-right:1px solid var(--km-line);color:var(--km-muted);user-select:none}
+.km-forms .segment:last-child {border-right:0}
+.km-forms .segment input {position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer;padding:0;border:0}
+.km-forms .segment.on {background:var(--km-accent);color:var(--text-on-accent,#fff);font-weight:600}
+.km-forms .segment:has(input:focus-visible) {outline:2px solid var(--km-accent);outline-offset:-2px}
+.km-forms .choice-detail {display:block;font-size:11px;line-height:1.5;color:var(--km-muted);margin-top:6px}
+
+/* The inspector: what's selected on the canvas, and nothing else. */
+.km-forms .inspector.doc-inspector {flex:0 0 360px;width:360px;display:flex;flex-direction:column;overflow:hidden;border-left:1px solid var(--km-line);background:var(--km-panel)}
+.km-forms .inspector.doc-inspector .inspector-top {display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:34px;padding:2px 6px 2px 16px;border-bottom:1px solid var(--km-line);font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--km-muted);flex-shrink:0}
+.km-forms .inspector.doc-inspector .inspector-top button {padding:5px;color:var(--km-muted)}
+.km-forms .inspector.doc-inspector .inspector-what {display:inline-flex;align-items:center;gap:7px;min-width:0}
+.km-forms .inspector.doc-inspector .inspector-body {overflow-y:auto;flex:1;padding:4px 16px 24px}
+.km-forms .inspector.doc-inspector .inspector-actions {flex-wrap:wrap}
+.km-forms .tile-actions {display:flex;flex-direction:column;align-items:stretch;gap:4px;margin:10px 0}
+.km-forms .tile-actions button {justify-content:flex-start;border:1px dashed var(--km-line);font-size:11px;padding:6px 10px;color:var(--km-muted)}
+.km-forms .tile-actions button:hover {color:var(--km-text);border-color:var(--km-accent)}
+.km-forms .tile-here {list-style:none;margin:6px 0;padding:0;display:flex;flex-direction:column;gap:3px}
+.km-forms .tile-here button {width:100%;justify-content:flex-start;text-align:left;border:1px solid var(--km-line);font-size:12px;padding:6px 9px}
+.km-forms .tile-here small {color:var(--km-muted);font-size:10px;margin-left:auto}
+
+/* Narrower panes: a narrower inspector, then one over the canvas, and lists above their cards. */
+@container km-forms (max-width:1000px) {
+  .km-forms .inspector.doc-inspector {flex-basis:310px;width:310px}
+  .km-forms .react-flow__minimap {display:none}
+}
+@container km-forms (max-width:760px) {
+  .km-forms .doc-heading {padding:10px 12px 6px}
+  .km-forms h1 {font-size:20px}
+  .km-forms .topbar .save {display:none}
+  .km-forms .inspector.doc-inspector {position:absolute;top:0;right:0;bottom:0;z-index:12;width:min(340px,92%);flex-basis:auto;box-shadow:-8px 0 24px #0004}
+  .km-forms .inspector.doc-inspector.empty {display:none}
+  .km-forms .view-content {padding:14px 14px 48px}
+  .km-forms .field-group {padding:4px 14px 10px}
+  .km-forms .list-view {grid-template-columns:minmax(0,1fr);gap:8px}
+  .km-forms .pick-list {position:static}
+  .km-forms .pick-list ul {flex-direction:row;flex-wrap:wrap;max-height:220px}
+  .km-forms .pick-list li {flex:1 1 150px;min-width:0}
+  .km-forms .view-tabs [role=tab] {padding:8px 8px 7px}
+  .km-forms .doc-card {padding:6px 14px 12px}
+}

@@ -16,7 +16,6 @@
 .km-scenario .scenario-missing-card .scenario-card-kind {color:var(--text-error,#d77d83)}
 .km-scenario .scenario-missing-card .scenario-card-description {-webkit-line-clamp:5}
 .km-scenario .scenario-card-warning {padding:10px 15px;font-size:10px;color:var(--text-warning,#d5ae6b);line-height:1.5}
-.km-scenario .scenario-inspector {width:330px;flex-basis:330px}
 .km-scenario .scenario-inspector-title {font-size:22px;margin-top:18px;overflow-wrap:anywhere}
 .km-scenario .scenario-source-path {font-size:10px;color:var(--km-muted);overflow-wrap:anywhere;margin:8px 0 16px}
 .km-scenario .scenario-inspector-port {display:flex;flex-direction:column;gap:3px;padding:9px 0;border-bottom:1px solid var(--km-line)}
@@ -39,7 +38,6 @@
 .km-scenario .scenario-file-choice strong {font-size:13px}
 .km-scenario .scenario-file-choice small {font-size:10px;color:var(--km-muted);overflow-wrap:anywhere}
 .km-scenario .scenario-file-choice button {font-size:11px;border:1px solid var(--km-line)}
-@media(max-width:900px){.km-scenario .scenario-toolbar-hint{display:none}.km-scenario .scenario-inspector{width:280px;flex-basis:280px}}
 
 /* M4: the scenario's diagram on the game's files: scenes and maps, each way out a port. */
 .km-scenario .scenario-card {width:280px}
@@ -68,6 +66,14 @@
 .km-scenario .quest-row {align-items:flex-end}
 .km-scenario .creation-places .field-row {align-items:flex-end}
 .km-scenario .toast {position:absolute;bottom:44px;left:50%;transform:translateX(-50%);z-index:20;display:flex;align-items:center;gap:8px;max-width:70%;padding:9px 14px;border-radius:7px;background:var(--km-panel);border:1px solid var(--km-accent);font-size:12px}
-.km-scenario .scenario-inspector {display:flex;flex-direction:column;overflow:hidden;width:360px;flex-basis:360px}
-.km-scenario .scenario-inspector .inspector-body {overflow-y:auto;flex:1;padding:4px 16px 24px}
 .km-scenario .toolbar .has-problems {color:var(--text-error,#d77d83)}
+/* The rework (the author's rules): the views of the scenario's own, and the files it lists as cards with their uses. */
+.km-scenario .graph-canvas {flex:1;min-width:0}
+.km-scenario .file-card>header .file-open {padding:0 !important;font-weight:600;font-size:12.5px;text-align:left;justify-content:flex-start}
+.km-scenario .file-card>header code {font-size:10px;flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.km-scenario .file-uses {display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0 16px}
+.km-scenario .file-uses .uses {margin:8px 0 4px}
+.km-scenario .lore-chips {margin:14px 0}
+.km-scenario .creation-places {margin:14px 0}
+.km-scenario .new-quest input {font-size:12px}
+.km-scenario .card-inspector .port-editor .new-file-button {margin-top:-8px}
