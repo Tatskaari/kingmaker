@@ -45,7 +45,7 @@ const headOf = (called: string): string => shortOf(called).split(/\s+/).at(-1)!.
  * Heron's mastiff, Duchess): what it is, from its description ("A vast, elderly brindle mastiff…"
  * is "the mastiff"), else what kind of thing it is.
  */
-const KINDS = "mastiff|hound|dog|bitch|cur|terrier|lurcher|cat|tom|horse|mare|pony|mule|donkey|goat|pig|sow|boar|ox|cow|bull|rat|raven|crow|magpie|parrot|cockerel|goose|hen|bear|wolf|fox|man|woman|boy|girl|child|lad|lass|gentleman|lady|porter|clerk|watchman|sailor|bargee|soldier";
+const KINDS = "mastiff|hound|dog|cur|terrier|lurcher|cat|horse|mare|pony|mule|donkey|goat|pig|sow|boar|ox|cow|bull|rat|raven|crow|magpie|parrot|cockerel|goose|hen|bear|wolf|fox|man|woman|boy|girl|child|lad|lass|gentleman|lady|porter|clerk|watchman|sailor|bargee|soldier";
 function calledFor(e: Entity): string {
   const first = (e.description ?? "").split(/(?<=[.;:])\s/)[0]!.toLowerCase();
   const kind = new RegExp(`\\b(${KINDS})\\b`).exec(first)?.[1];
