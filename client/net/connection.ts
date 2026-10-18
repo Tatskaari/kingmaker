@@ -283,6 +283,7 @@ export class SpacetimeLink implements Link {
       ["place", t.place], ["entity", t.entity], ["position", t.position], ["area", t.area], ["material", t.material], ["health", t.health],
       ["stack", t.stack], ["surface", t.surface], ["creature", t.creature], ["player_character", t.playerCharacter], ["gear", t.gear],
       ["narrative", t.narrative], ["world_log", t.worldLog], ["map_def", t.mapDef], ["explore", t.explore],
+      ["fight", t.fight], ["fight_event", t.fightEvent],
     ];
     for (const [name, table] of tables) {
       table.onInsert((_ctx, row) => this.event(name, "insert", row));
@@ -339,7 +340,7 @@ function queriesFor({ game, scene, place, campaign, mapPlaces }: WatchKey): stri
   const places = [...new Set([...(place === undefined ? [] : [place]), ...mapPlaces])];
   return [
     `SELECT * FROM game WHERE id = ${game}`,
-    ...["player", "sheet", "scene", "place", "explore", "chapter", "quest", "flag", "journal", "attitude", "follower", "turn"].map(table => `SELECT * FROM ${table} WHERE game_id = ${game}`),
+    ...["player", "sheet", "scene", "place", "explore", "chapter", "quest", "flag", "journal", "attitude", "follower", "turn", "fight", "fight_event"].map(table => `SELECT * FROM ${table} WHERE game_id = ${game}`),
     ...(campaign === undefined ? [] : [`SELECT * FROM map_def WHERE campaign_id = '${campaign.replace(/'/g, "''")}'`]),
     ...(scene === undefined ? [] : ["transcript", "reply_draft", "on_stage", "scene_suggestion"].map(table => `SELECT * FROM ${table} WHERE scene_id = ${scene}`)),
     ...places.flatMap(id => ["look", ...PLACE_TABLES].map(table => `SELECT * FROM ${table} WHERE place_id = ${id}`)),

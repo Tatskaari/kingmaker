@@ -66,6 +66,15 @@ const USAGE = `Kingmaker: headless play
   play go --session <name> [--stream]           on from a scene that's over: to the lead (its scene opens; act --id
                                                 go_to_lead too), the fight, or a story that got stuck tried again
   play act --session <name> --id fight          the fight's stand-in: fought out, and the scene picks up from it
+  play ring --session <name> --ring <ring> [--fast]
+                                                a fight in one of the zoo's rings (practice, wolves, goblins, porters,
+                                                heron): MODE: fight, once the other side's first turns have played;
+                                                --fast plays their turns at once, with no pause for the screen
+  play act --session <name> --id attack@9,3     in a fight, on your turn, its ACTIONS (observe lists them): the map's
+                                                walk@x,y, attack@x,y, cast_<spell>@x,y, cast_<spell>_self, shove@x,y,
+                                                grapple@x,y; and dash, dodge, disengage, end_turn, yield, leave, auto
+                                                (the AI plays your turn); out once it's over. Each waits for the other
+                                                side's turns after it, and prints what happened
   play journal --session <name>                 the investigator's notebook, the quests, the flags, the attitudes
   play map --session <name> [--w 100 --h 30]    the scene's place: as the player sees it, then from above with what's what
 
@@ -105,7 +114,7 @@ function argsOf(argv: string[]) {
       backstory: { type: "string" }, "backstory-file": { type: "string" }, "accept-fixes": { type: "boolean" },
       game: { type: "string" }, id: { type: "string" }, exit: { type: "string" }, wait: { type: "string" }, stream: { type: "boolean" }, demo: { type: "boolean" },
       url: { type: "string" }, db: { type: "string" }, stack: { type: "string" }, help: { type: "boolean", short: "h" },
-      w: { type: "string" }, h: { type: "string" },
+      w: { type: "string" }, h: { type: "string" }, ring: { type: "string" }, fast: { type: "boolean" },
     },
   });
   const [verb, ...words] = positionals;
@@ -150,6 +159,7 @@ async function run(game: Backend, args: Args): Promise<number> {
     case "go": return await verbs.go(game, out, waiting);
     case "journal": return verbs.journal(game, out);
     case "map": return verbs.map(game, out, { w: cells(args.values.w, 100), h: cells(args.values.h, 30) });
+    case "ring": return await verbs.ring(game, ringOf(args.values.ring), out, { ...waiting, fast: args.values.fast ?? false });
     default: console.log(`There's no "${args.verb}" to play.\n\n${USAGE}`); return 1;
   }
 }
@@ -166,6 +176,12 @@ function characterOf(args: Args): verbs.NewCharacter {
 function lineId(id: string | undefined): string {
   if (!id) throw new Error("Which one? act takes --id as ACTIONS: lists them (observe shows them): say_1, say_2… in a scene (in a talk, say_goodbye and walk_on too), go_to_lead, fight or carry_on once it's over, talk_kell, go_to_lead, cast_fire-bolt@25,6, hide… on the map.");
   return id;
+}
+
+/** ring's --ring: which of the zoo's rings. */
+function ringOf(ring: string | undefined): string {
+  if (!ring) throw new Error("Which ring? ring takes --ring practice, wolves, goblins, porters or heron.");
+  return ring;
 }
 
 /** suggestions on, off, or neither (which it is now). */

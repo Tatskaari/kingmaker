@@ -7,7 +7,10 @@ import { asciiMap } from "../shared/world/scene-world.ts";
 import type { BuildOption, Offer } from "../shared/rules/types.ts";
 import { OUT, moveOf, type MapMove } from "../shared/map/moves.ts";
 import { FAREWELL } from "../shared/scene/talk.ts";
-import { exploreWhen, homeWhen, mapMove, viewWhen, type Backend, type CreationRow, type HomeRows, type NewGame, type Rejection } from "./backend.ts";
+import { exploreWhen, fightWhen, homeWhen, mapMove, viewWhen, type Backend, type CreationRow, type HomeRows, type NewGame, type Rejection } from "./backend.ts";
+import { isFightAct } from "../shared/fight/types.ts";
+import { fightText } from "./fight/text.ts";
+import { myTurn, type FightView } from "./fight/view.ts";
 import { timeWords } from "./creation/words.ts";
 import type { ExploreView } from "./explore/rows.ts";
 import { exploreText } from "./explore/text.ts";
@@ -80,6 +83,9 @@ export async function joinGame(game: Backend, id: bigint, out: Out): Promise<num
 export function observe(game: Backend, out: Out): number {
   const rows = game.home();
   if (!rows.seat) return games(game, out);
+  // A fight (M6) is what's on screen while it's on, and its end until the player goes back to the map.
+  const onTheBoard = game.fight?.();
+  if (onTheBoard) { out.print(fightText(onTheBoard)); return 0; }
   if (rows.seat.sceneId === undefined) {
     const map = game.explore();
     if (!map) return created(rows, out);
@@ -178,6 +184,8 @@ export async function say(game: Backend, text: string, out: Out, waiting: Waitin
  * (mapAct): the action menu's too (cast_fire-bolt@25,6, hide, rest_short…).
  */
 export async function act(game: Backend, id: string, out: Out, waiting: Waiting = {}): Promise<number> {
+  const onTheBoard = game.fight?.();
+  if (onTheBoard) return await fightAct(game, onTheBoard, id, out, waiting);
   const talk = game.view();
   if (talk?.talk && !talk.over && (id === "walk_on" || id === "say_goodbye")) {
     if (talk.watching) return said(out, refusal("not_controller", { name: talk.watching }));
@@ -289,6 +297,64 @@ export async function retry(game: Backend, out: Out, waiting: Waiting = {}): Pro
 
   return await answered(game, out, waiting);
 }
+
+// ---------------------------------------------------------------------------------------------
+// A fight (M6, docs/combat-design.md): one of the zoo's rings started, and its actions by id.
+
+/**
+ * A fight in one of the zoo's rings (start_ring): started, then, the other side's turns played up to
+ * the player's (or to its end), the fight as observe prints it, every moment so far with it.
+ * `fast`: the other side's turns follow each other at once.
+ */
+export async function ring(game: Backend, name: string, out: Out, waiting: Waiting & { fast?: boolean } = {}): Promise<number> {
+  if (!game.home().seat) return notInGame(out);
+  const before = game.fight?.()?.id;
+  const refused = await game.act("startRing", { ring: name, fast: waiting.fast ?? false });
+  if (refused) return said(out, refused);
+
+  const view = await fightWhen(game, v => v.id !== before && (myTurn(v) || v.status !== "on"), waiting.ms ?? TURN_MS);
+  out.print(fightText(view, view.events));
+  return 0;
+}
+
+/**
+ * One of the fight's actions (ACTIONS lists them): the map's own on the player's turn (walk@x,y,
+ * attack@x,y, cast_<spell>@x,y, cast_<spell>_self, shove@x,y, grapple@x,y), or the fight's (dash,
+ * dodge, disengage, end_turn, yield, leave, auto); out once it's over, back to the map. Refused in
+ * the game's words (nothing happened); else what came of it, the other side's turns after it played
+ * up to the player's next (or to the end), then the fight as observe prints it.
+ */
+async function fightAct(game: Backend, fight: FightView, id: string, out: Out, waiting: Waiting): Promise<number> {
+  if (fight.watching) return said(out, refusal("not_controller", { name: fight.watching }));
+  if (id === "out") return await outOfTheFight(game, fight, out);
+  const move = isFightAct(id) ? undefined : moveOf(id);
+  if (!isFightAct(id) && !move) {
+    out.print(`(There's no ${id} in the fight: ${fight.status === "on" ? "observe lists the actions (walk@x,y, attack@x,y, cast_<spell>@x,y, dash, end_turn…)" : "it's over, and out goes back to the map"}.)`);
+    return 1;
+  }
+  const seen = fight.events.length ? fight.events[fight.events.length - 1]!.seq : 0;
+  const refused = move ? await mapMove(game, move) : await game.act("fightTurn", { act: id });
+  if (refused) return said(out, refused);
+
+  const after = await fightWhen(game, v => v.id !== fight.id || (lastSeq(v) > seen && (myTurn(v) || v.status !== "on")), waiting.ms ?? TURN_MS)
+    .catch(() => game.fight?.() ?? fight);
+  out.print(fightText(after, after.events.filter(e => e.seq > seen)));
+  return 0;
+}
+
+/** Back to the map from a fight that's over (walk out): the map as observe prints it, with what the fight came to. */
+async function outOfTheFight(game: Backend, fight: FightView, out: Out): Promise<number> {
+  if (fight.status === "on") return said(out, refusal("not_now", { text: "(There's a fight on: see it through first.)" }));
+  const before = game.explore()?.acts;
+  const refused = await game.walk({ toward: OUT });
+  if (refused) return said(out, refused);
+  const map = await exploreWhen(game, v => v.acts !== before, ROWS_MS).catch(() => game.explore());
+  if (map?.said) out.print(`${map.said}\n`);
+  if (map) out.print(exploreText(map));
+  return 0;
+}
+
+const lastSeq = (view: FightView) => (view.events.length ? view.events[view.events.length - 1]!.seq : 0);
 
 // ---------------------------------------------------------------------------------------------
 // Between scenes (story-design §4.5): the testing end, the way on, the fight's stand-in, the notebook.

@@ -3,6 +3,7 @@ import type { MoveWire } from "../../shared/protocol/port.ts";
 import { refusal } from "../../shared/protocol/refusals.ts";
 import type { Backend, HomeRows, MoveName, Moves, NewGame, Rejection } from "../backend.ts";
 import { exploreViewOf, type ExploreRows, type ExploreView, type MapPlaceTables } from "../explore/rows.ts";
+import { fightViewOf, type FightView } from "../fight/view.ts";
 import { keepInvented } from "../look/invented.ts";
 import type { Look, SeatView } from "../module_bindings/types.ts";
 import type { PlaceTables } from "../scene/place-rows.ts";
@@ -132,6 +133,26 @@ export class Replica implements Backend {
     const view = rows && exploreViewOf(rows);
     this.explored = { ...key, view };
     return view;
+  }
+
+  /**
+   * The seat's game's fight (M6, docs/combat-design.md), while it's on or its end is on screen (not
+   * yet done), made from its rows: the fight row, its moments, and the campaign's map it's on when
+   * it's the campaign's. Undefined with none, or before its map has come.
+   */
+  fight(): FightView | undefined {
+    const seat = this.seat();
+    const t = this.link.tables;
+    const game = seat ? t.game.id.find(seat.gameId) : undefined;
+    if (!seat || !game) return undefined;
+    const fight = [...t.fight.iter()].filter(f => f.gameId === game.id).sort((a, b) => (a.id > b.id ? -1 : 1))[0];
+    if (!fight || fight.status === "done") return undefined;
+    const mapId = fight.mapKey === undefined ? undefined : `${game.campaign}@${game.campaignVersion}/${fight.mapKey}`;
+    const mapFile = mapId === undefined ? undefined : [...t.mapDef.iter()].find(m => m.id === mapId)?.json;
+    return fightViewOf({
+      me: seat.playerId, game: game.id, fight, events: [...t.fightEvent.iter()].filter(e => e.fightId === fight.id),
+      ...(mapFile ? { mapFile } : {}), owner: t.player.id.find(fight.playerId)?.name ?? "someone", ...(this.refused ? { refusal: this.refused } : {}),
+    });
   }
 
   /** The scene's place and its world's rows, once its row has come (the world bridge's §3.5). */

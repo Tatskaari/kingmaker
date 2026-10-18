@@ -2,7 +2,7 @@ import type { ClientTable, MoveWire, RowOp } from "../../shared/protocol/port.ts
 import type { Rejection } from "../backend.ts";
 import type { DbConnection } from "../module_bindings/index.ts";
 import type {
-  Area, Attitude, Campaign, Chapter, Creation, Creature, Entity, Explore, Flag, Follower, Game, GameSummary, Gear, Health, Journal, Look, MapDef,
+  Area, Attitude, Campaign, Chapter, Creation, Creature, Entity, Explore, Fight, FightEvent, Flag, Follower, Game, GameSummary, Gear, Health, Journal, Look, MapDef,
   Material, NameView, Narrative, OnStage, Place, Player, PlayerCharacter, Position, Quest, ReplyDraft, Scene, SceneSuggestion, SeatView, Sheet,
   Stack, Surface, Transcript, Turn, WorldLog,
 } from "../module_bindings/types.ts";
@@ -37,6 +37,7 @@ export interface ClientTables {
   entity: Rows<Entity>; position: Rows<Position>; area: Rows<Area>; material: Rows<Material>; health: Rows<Health>; stack: Rows<Stack>;
   surface: Rows<Surface>; creature: Rows<Creature>; playerCharacter: Rows<PlayerCharacter>; gear: Rows<Gear>; narrative: Rows<Narrative>;
   worldLog: Rows<WorldLog>; mapDef: Rows<MapDef>;
+  fight: Rows<Fight>; fightEvent: Rows<FightEvent>;
 }
 
 /** The tables and views a client watches, by their SQL names (shared/protocol/port.ts CLIENT_TABLES). */

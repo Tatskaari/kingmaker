@@ -1,6 +1,7 @@
 import type { InteractArgs, MapMove, TravelArgs, WalkArgs } from "../shared/map/moves.ts";
 import type { Refusal } from "../shared/protocol/refusals.ts";
 import type { ExploreView } from "./explore/rows.ts";
+import type { FightView } from "./fight/view.ts";
 import type { DbConnection } from "./module_bindings/index.ts";
 import type { Campaign, Creation, GameSummary, Player, SeatView, Sheet } from "./module_bindings/types.ts";
 import type { SceneView } from "./scene/view.ts";
@@ -20,6 +21,11 @@ export interface Backend {
    * no one on a map, or its rows haven't come yet.
    */
   explore(): ExploreView | undefined;
+  /**
+   * The seat's game's fight (M6, docs/combat-design.md), while it's on or its end is on screen;
+   * undefined with none. A backend with no fights (the demo, a screen check's stub) hasn't got it.
+   */
+  fight?(): FightView | undefined;
   /** The player's games, the character they're making, the seat and its sheet, the campaigns: what the title and creation read. */
   home(): HomeRows;
   /** Called (once a tick at most) whenever the view or the rows may have changed; returns the unsubscribe. */
@@ -46,14 +52,16 @@ export interface Backend {
  * tried again), fight_it_out (the fight's stand-in), and end_scene, which only the database's owner
  * may make: the connection makes it as the dev stack's owner (net/owner.ts), for testing. And the
  * map's action menu (town-design §3.2): cast, attack, use_feature, leap, hide, rest, use_item, each
- * one of the prototype's menu ids (shared/map/moves.ts moveOf; mapMove sends them here).
+ * one of the prototype's menu ids (shared/map/moves.ts moveOf; mapMove sends them here). And a
+ * fight's (M6): start_ring, a zoo ring's fight started, and fight_turn, the fight's own acts.
  */
 export type MoveName =
   | "startCreation" | "creationBack" | "chooseBuild" | "makeOwn" | "pickOwn" | "takeOwn" | "setBackstory" | "draftBackstory"
   | "workInBackstory" | "takeProposal" | "leaveProposal" | "finishBackstory" | "acceptFix" | "rewriteIssue" | "skipBackstory"
   | "chooseAgain" | "begin" | "continueGame" | "deleteGame"
   | "walk" | "carryOn" | "fightItOut" | "endScene"
-  | "cast" | "attack" | "useFeature" | "leap" | "hide" | "rest" | "useItem";
+  | "cast" | "attack" | "useFeature" | "leap" | "hide" | "rest" | "useItem"
+  | "startRing" | "fightTurn";
 
 /** Each move's arguments, as the bindings have them. */
 export type Moves = { [K in MoveName]: Parameters<DbConnection["reducers"][K]>[0] };
@@ -137,6 +145,11 @@ export function mapMove(game: Pick<Backend, "walk" | "interact" | "travel" | "ac
 /** The map between scenes once it says so (`done`): a new game on its map, a move's row. An error when `ms` pass first. */
 export function exploreWhen(game: Backend, done: (view: ExploreView) => boolean, ms: number): Promise<ExploreView> {
   return when(game, () => game.explore(), done, ms);
+}
+
+/** The game's fight once it says so (`done`): a ring's fight started, the other side's turns played up to the player's. An error when `ms` pass first. */
+export function fightWhen(game: Backend, done: (view: FightView) => boolean, ms: number): Promise<FightView> {
+  return when(game, () => game.fight?.(), done, ms);
 }
 
 /** A new game, as new_game takes it: the campaign's key, the character's name and concept, a ready-made build's id. */
