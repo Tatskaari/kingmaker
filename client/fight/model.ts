@@ -23,6 +23,8 @@ export interface FightActions {
   out(): Promise<Rejection | undefined>;
   /** Back to the title, the game kept. */
   quit(): void;
+  /** Report a problem (M5): the question over the fight (`from`: where it was asked for, b or the menu). */
+  report?(from: string): void;
 }
 
 /** One of the action menu's lines: a name, what it costs and does, and the options it's made of (its targets, aimed on the board; or the one act, done at once). */
@@ -308,6 +310,11 @@ export class FightModel {
   quit(): void {
     this.close();
     this.actions.quit();
+  }
+
+  /** Report a problem (M5: b, whoever's turn it is, or the menu's Report a problem…). */
+  report(from: string): void {
+    this.actions.report?.(from);
   }
 
   closeOverlay(): void {

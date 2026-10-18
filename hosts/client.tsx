@@ -1,4 +1,4 @@
-// Cut from the prototype's src/app/main.tsx at 44c6d4a: the terminal check, the look canvas (the scene's place paints itself), the renderer, the root and the shutdown; the browser overlay and reporting go, the Game is the AppModel over the simulation (or the demo).
+// Cut from the prototype's src/app/main.tsx at 44c6d4a: the terminal check, the look canvas (the scene's place paints itself), the renderer, the root and the shutdown, and reporting (M5: attachReporting, the reports under runs/reports); the browser overlay goes, the Game is the AppModel over the simulation (or the demo).
 import { createCliRenderer, type CliRenderer } from "@opentui/core";
 import { createRoot, type Root } from "@opentui/react";
 import { join } from "node:path";
@@ -7,11 +7,14 @@ import { App } from "../client/app.tsx";
 import { AppModel, type Intent } from "../client/app/model.ts";
 import { newGameOf, type Backend } from "../client/backend.ts";
 import { demoBackend } from "../client/demo.ts";
+import { glyphSet } from "../client/look/glyphs.ts";
 import { registerLookCanvas } from "../client/look/opentui.ts";
+import { attachReporting } from "../client/report/attach.ts";
 import { connect } from "../client/net/connection.ts";
 import { ownerAt, ownerFor } from "../client/net/owner.ts";
 import { keepToken, serverFor, sessionAt } from "../client/net/session.ts";
 import { visit } from "../client/zoo/zoo.ts";
+import { terminalReporting } from "./reports.ts";
 import { configureTerminal } from "./terminal.ts";
 
 /**
@@ -52,8 +55,17 @@ async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<void> {
   const game = await backendFor(args, env);
   const intent = await started(game, args, campaign).catch((error: unknown) => { game.close(); throw error; });
 
-  await play(game, intent, campaign, { zooMenu: args.zoo === "" });
+  await play(game, intent, campaign, { zooMenu: args.zoo === "" }, reportsFor(args, env));
 }
+
+/** Where its reports of a problem go, and the files with the tokens it knows of (the session's, the dev stack's): a session's game; none for the demo. */
+function reportsFor(args: Args, env: NodeJS.ProcessEnv): Reports | undefined {
+  if (args.demo || !args.session) return undefined;
+  const runs = env.KM_RUNS_DIR ?? "runs";
+  return { runs, env, session: sessionAt(runs, args.session).path, stack: args.stack ?? join(runs, "dev") };
+}
+
+type Reports = Pick<Parameters<typeof terminalReporting>[0], "runs" | "env" | "session" | "stack">;
 
 /** Refuses without a terminal on both ends: the headless client is for that. */
 function needTerminal(): void {
@@ -122,21 +134,30 @@ async function started(game: Backend, args: Args, campaign: string): Promise<Int
   return "title";
 }
 
-/** The screens, over the game: the app's model follows the rows and makes the moves, until the player quits (`zooMenu`: the title with the zoo's menu open). */
-async function play(game: Backend, intent: Intent, campaign: string, opening: { zooMenu?: boolean } = {}): Promise<void> {
+/**
+ * The screens, over the game: the app's model follows the rows and makes the moves, until the player
+ * quits (`zooMenu`: the title with the zoo's menu open). A problem reported goes under runs/reports
+ * (`reports`), with the screen as it was, read from the renderer.
+ */
+async function play(game: Backend, intent: Intent, campaign: string, opening: { zooMenu?: boolean } = {}, reports?: Reports): Promise<void> {
   // The scene's place paints itself, live (<lookCanvas>).
   registerLookCanvas();
   const renderer = await createCliRenderer({ exitOnCtrlC: false, autoFocus: false });
   const root = createRoot(renderer);
   const quit = leaving(root, renderer, game);
-  const app = new AppModel(game, { campaign, intent, onQuit: () => quit(0) });
+  const reporting = reports ? terminalReporting({ ...reports, host: "terminal", glyphs: glyphSet, size: () => ({ cols: renderer.width, rows: renderer.height }) }) : undefined;
+  const app = new AppModel(game, { campaign, intent, onQuit: () => quit(0), ...(reporting ? { reporting } : {}) });
+  attachReporting(app, renderer);
 
   process.on("SIGTERM", () => quit(0));
   process.on("SIGHUP", () => quit(0));
-  // What goes wrong goes on the screen's own line, not over the screen.
-  const say = (e: unknown) => app.trouble(`(Something went wrong: ${e instanceof Error ? e.message : String(e)})`);
-  process.on("unhandledRejection", say);
-  process.on("uncaughtException", say);
+  // What goes wrong goes on the screen's own line, not over the screen, and is noted for a report.
+  const say = (where: string) => (e: unknown) => {
+    app.report.noted.error(where, e);
+    app.trouble(`(Something went wrong: ${e instanceof Error ? e.message : String(e)})`);
+  };
+  process.on("unhandledRejection", say("unhandled rejection"));
+  process.on("uncaughtException", say("uncaught exception"));
 
   if (opening.zooMenu) app.title.openZoo();
   root.render(<App app={app} />);

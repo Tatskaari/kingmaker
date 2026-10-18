@@ -78,7 +78,7 @@ export interface Where {
   game?: string;
   watching?: string;
   /** The scene on screen: its row's id, key, title, the turn shown and its phase, and whether it was over. */
-  scene?: { id: string; key: string; title: string; turn: number; phase?: string; over?: boolean; talk?: boolean };
+  scene?: { id?: string; title: string; turn?: number; phase?: string; over?: boolean; talk?: boolean };
   /** On a map: which, and the tile. */
   map?: { key: string; at: { x: number; y: number }; place?: string };
   /** The story's time of day. */
@@ -127,6 +127,29 @@ export interface GameReport {
 
 /** A host's answer for a report's game: the game, or the refusal (not the caller's game, no such game) as the module words it. */
 export type GameAnswer = GameReport | { refusal: { code: string; text: string } };
+
+/**
+ * What the client hands its host to make a report from (client/report/file.ts): the player's words,
+ * where they were, the screens and the errors it noted, and the game to ask the host for (none on
+ * the title with no game played, or making a character).
+ */
+export interface ReportAsk {
+  words: string;
+  where: Where;
+  screens: Report["screens"];
+  errors: NotedError[];
+  game?: bigint;
+}
+
+/** Where a report went, and what the game says of it. */
+export interface Filed {
+  /** The report's file name: what to tell Claude. */
+  file: string;
+  /** What the game says ("Saved runs/reports/<file>: tell Claude 'report <file>'"). */
+  said: string;
+  /** The file on this machine's disk, when it's there (a terminal's). */
+  path?: string;
+}
 
 /** A time as a report's file name has it: 20261018-150233 (UTC). */
 export const stampOf = (iso: string) => iso.replace(/[-:]/g, "").replace(/\..*/, "").replace("T", "-").replace(/Z$/, "");

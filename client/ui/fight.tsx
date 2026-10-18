@@ -22,6 +22,7 @@ import { Picks } from "../map/render.ts";
 import { C } from "../theme.ts";
 import { ActionMenu, menuKey, menuLayout } from "./actions.tsx";
 import { BOLD, Clickable, fit, FPS, isEnter, ITALIC, Keys, SCROLLBAR, useStore, wrap, type KeyHint } from "./common.tsx";
+import { REPORT_HELP } from "./overlay.tsx";
 import { sheetHeight } from "./sheet-layout.ts";
 import { SheetView, type SheetHandle } from "./sheet.tsx";
 import { ZooFoes, zooFoesKey, zooFoesRows, zooFightKey, zooHints, zooPanel } from "./zoo.tsx";
@@ -158,6 +159,8 @@ function fightKey(model: FightModel, key: KeyEvent): void {
   if (key.name === "f" && !model.canAct()) { model.skip(); return; }
   if (key.name === "c") { model.overlay = { kind: "sheet" }; model.emit(); return; }
   if (key.name === "r") { model.overlay = { kind: "log" }; model.emit(); return; }
+  // Reporting a problem (M5): whoever's turn it is, and once it's over.
+  if (key.name === "b") { model.report("b"); return; }
   if (key.sequence === "?" || key.name === "f1") { model.overlay = { kind: "help" }; model.emit(); return; }
   if (key.name === "escape" || key.name === "q") { model.overlay = { kind: "menu", index: 0 }; model.emit(); return; }
   // A zoo fight (M6): n again, o other foes, and once it's over Enter again (client/ui/zoo.tsx).
@@ -359,9 +362,10 @@ function BottomLine({ model, play, width, mine, over, othersPlaying }: { model: 
     if (said) return <text flexShrink={0} height={1} fg={C.title}>{truncate(said, width)}</text>;
   }
   const button = (run: () => void) => run;
-  const hints: KeyHint[] = over ? [...(zooHints(model, true).length ? zooHints(model, true) : [["Enter", "back to the map", button(() => void model.out())] as KeyHint]), ["r", "the log"], ["?", "help"]]
-    : mine ? [["m", "actions", button(() => model.openMenu())], ["click", "walk or act"], ["←↑→↓", "step"], ["e", "end turn", button(() => model.endTurn())], ["c", "sheet"], ["r", "the log"], ["?", "help"], ["Esc", "menu"]]
-    : [["Space", "finish this move", button(() => model.finish())], ...(model.view.watching ? [] : [["F", "skip to your turn", button(() => model.skip())] as KeyHint]), ["r", "the log"], ["?", "help"], ["Esc", "menu"]];
+  const report: KeyHint = ["b", "report a problem", button(() => model.report("b"))];
+  const hints: KeyHint[] = over ? [...(zooHints(model, true).length ? zooHints(model, true) : [["Enter", "back to the map", button(() => void model.out())] as KeyHint]), ["r", "the log"], ["?", "help"], report]
+    : mine ? [["m", "actions", button(() => model.openMenu())], ["click", "walk or act"], ["←↑→↓", "step"], ["e", "end turn", button(() => model.endTurn())], ["c", "sheet"], ["r", "the log"], ["?", "help"], ["Esc", "menu"], report]
+    : [["Space", "finish this move", button(() => model.finish())], ...(model.view.watching ? [] : [["F", "skip to your turn", button(() => model.skip())] as KeyHint]), ["r", "the log"], ["?", "help"], ["Esc", "menu"], report];
   void othersPlaying;
   return <Keys items={fit(hints, width, gap.length)} gap={gap} />;
 }
@@ -419,10 +423,11 @@ const FIGHT_HELP = [
   "On your turn: move up to your speed, a tile at a time (click a blue tile, or the arrows), and take one action, and a bonus action if you have one. A red tile is one a walk to would draw a swing at you, leaving someone's reach: Disengage first and it won't.",
   "m (or Enter) is the action menu, by what each takes: your action (attack, spells, shove, grab, dash, dodge, disengage), your bonus action, your movement, your turn (let the dice decide, yield, end it). A line with ▸ is aimed on the board: its reach and targets lit, Tab between them, Enter or a click does it. A click on someone opens what you can do to them.",
   "e ends your turn; with nothing at all left, it ends by itself and says so. At 0 hit points you make death saves; nobody dies in these fights.",
-  "c your sheet, r the whole log, Esc the menu (reduced motion, back to the title). When it's over, Enter goes back to the map.",
+  "c your sheet, r the whole log, Esc the menu (reduced motion, back to the title, Report a problem…). When it's over, Enter goes back to the map.",
+  REPORT_HELP,
 ];
 
-const FIGHT_MENU = ["Back to the fight", "Motion", "Back to the title (the game is kept)"];
+const FIGHT_MENU = ["Back to the fight", "Motion", "Back to the title (the game is kept)", "Report a problem…"];
 
 /** What's open over the fight: the help, the log in full, the sheet, the menu. */
 function FightOverlay({ model }: { model: FightModel }) {
@@ -498,11 +503,12 @@ function FightOverlay({ model }: { model: FightModel }) {
   </text></Clickable>)}</box>, [["↑↓", "choose"], ["Enter", "select"], ["Esc", "back", close]], FIGHT_MENU.length + 6);
 }
 
-/** The menu's choices: back to the fight, motion full or reduced, or the title. */
+/** The menu's choices: back to the fight, motion full or reduced, the title, or report a problem (over the fight as it was before the menu). */
 function pickFightMenu(model: FightModel, index: number): void {
   if (index === 1) { model.reduced = !model.reduced; model.emit(); return; }
   model.closeOverlay();
   if (index === 2) model.quit();
+  else if (index === 3) model.report("menu");
 }
 
 const OUTCOME: Record<string, string> = { victory: "you won", surrender: "they gave up", defeat: "you lost", fled: "you got away", yielded: "you yielded" };

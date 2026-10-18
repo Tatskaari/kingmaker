@@ -1,4 +1,4 @@
-// Copied from the prototype's src/app/ui/end.tsx at 44c6d4a, whole but for the seams: it reads a SceneModel's epilogue (story/view.ts epilogueOf, from rows) in place of the Game's ending and journal; the zoo's End goes (V19), and so do b (reporting a problem: the prototype's report tool isn't this client's) and q (Ctrl+C quits the client).
+// Copied from the prototype's src/app/ui/end.tsx at 44c6d4a, whole but for the seams: it reads a SceneModel's epilogue (story/view.ts epilogueOf, from rows) in place of the Game's ending and journal; the zoo's End goes (V19), and so does q (Ctrl+C quits the client); b reports a problem (M5: the app's ReportModel, through the scene's).
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import type { SceneModel } from "../scene/model.ts";
 import { C } from "../theme.ts";
@@ -12,6 +12,7 @@ export function EndScreen({ scene }: { scene: SceneModel }) {
   useKeyboard(key => {
     if (scene.overlay || scene.page !== "end" || key.defaultPrevented) return;
     if (isEnter(key) || key.name === "escape") { key.preventDefault(); back(); }
+    else if (key.name === "b") { key.preventDefault(); scene.report("b"); }
   });
   const end = scene.epilogue();
   const w = Math.min(width - 4, 110);
@@ -41,6 +42,6 @@ export function EndScreen({ scene }: { scene: SceneModel }) {
       {tab.map((l, i) => <text key={`t${i}`} fg={C.faint} attributes={ITALIC} flexShrink={0}>{l}</text>)}
     </box>
     {/* A button too: a click goes back to the title. */}
-    <box height={1} marginTop={1} flexShrink={0}><Keys items={[["Enter", "back to the title", back], ["Ctrl+C", "quit"]]} /></box>
+    <box height={1} marginTop={1} flexShrink={0}><Keys items={[["Enter", "back to the title", back], ["b", "report a problem", () => scene.report("b")], ["Ctrl+C", "quit"]]} /></box>
   </box>;
 }

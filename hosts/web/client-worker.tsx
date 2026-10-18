@@ -1,12 +1,15 @@
-// After the prototype's src/web/static/worker.ts at 44c6d4a, its terminal half (write :69-81, scrub :83-94, the messages :275-316), and its game.tsx (startGame, :36-77): the App over an AppModel on the Replica over a port, where the prototype's was over its Game; the key, the saves, the lock, the content, the jobs and the reports are the server worker's, or V16's.
+// After the prototype's src/web/static/worker.ts at 44c6d4a, its terminal half (write :69-81, scrub :83-94, the messages :275-316, and a report's :254-258), and its game.tsx (startGame, :36-77, with its report sink :50-57): the App over an AppModel on the Replica over a port, where the prototype's was over its Game; the key, the saves, the lock, the content and the jobs are the server worker's, and a report goes to the page from here (M5), the game in it the server worker's answer.
 import { App } from "../../client/app.tsx";
 import { AppModel } from "../../client/app/model.ts";
-import { GLYPH_SETS, setGlyphSet, type GlyphSet } from "../../client/look/glyphs.ts";
+import { GLYPH_SETS, glyphSet, setGlyphSet, type GlyphSet } from "../../client/look/glyphs.ts";
 import { setPace } from "../../client/pace.ts";
 import { registerLookCanvas } from "../../client/look/opentui.ts";
 import { portLink, type MessagePortLike } from "../../client/net/port.ts";
 import { Replica } from "../../client/net/replica.ts";
+import { attachReporting } from "../../client/report/attach.ts";
+import type { Reporting } from "../../client/report/file.ts";
 import { visit } from "../../client/zoo/zoo.ts";
+import { stampOf } from "../../shared/report/format.ts";
 import { createRoot, type Root } from "../../web/tui/react.ts";
 import { createCliRenderer, type CliRenderer } from "../../web/tui/renderer.ts";
 
@@ -17,7 +20,8 @@ import { createCliRenderer, type CliRenderer } from "../../web/tui/renderer.ts";
  *
  *   page -> worker   {type: "start", port, cols, rows, glyphs?, reducedMotion?, zoo?, build?, foes?} (the port transferred), then
  *                    {type: "input", data}, {type: "resize", cols, rows}, {type: "redraw"}, {type: "quit"}
- *   worker -> page   {type: "started"}, {type: "output", data}, {type: "exit"}, {type: "error", message}
+ *   worker -> page   {type: "started"}, {type: "output", data}, {type: "exit"}, {type: "error", message},
+ *                    {type: "report", name, data} (a report of a problem, gzipped: the page downloads it)
  *
  * The port is the client's end of the page's MessageChannel: the server worker has the other end.
  * The client never sees the player's key (the server worker holds it), and a key pasted into the
@@ -29,6 +33,9 @@ import { createCliRenderer, type CliRenderer } from "../../web/tui/renderer.ts";
 /** What the worker needs of its global scope (the DOM's types, no WebWorker lib). */
 export interface WorkerScope {
   postMessage(message: unknown): void;
+  /** Where it was loaded from: its ?v= is the build's stamp, for a report. */
+  location: { search: string };
+  navigator: { userAgent: string };
   addEventListener(type: "message", listener: (event: MessageEvent) => void): void;
   addEventListener(type: "error", listener: (event: ErrorEvent) => void): void;
   addEventListener(type: "unhandledrejection", listener: (event: PromiseRejectionEvent) => void): void;
@@ -43,12 +50,13 @@ const scope = self as unknown as WorkerScope;
 interface Start { type: "start"; port: MessagePortLike; cols: number; rows: number; glyphs?: string; reducedMotion?: boolean; zoo?: string; build?: string; foes?: string }
 type PageMessage = Start | { type: "input"; data: Uint8Array | string } | { type: "resize"; cols: number; rows: number } | { type: "redraw" } | { type: "quit" };
 
-/** What the client tells the page: the terminal's bytes, started, exit, or why it couldn't start. */
+/** What the client tells the page: the terminal's bytes, started, exit, why it couldn't start, and a report of a problem to download. */
 interface Page {
   write(data: string): void;
   started(): void;
   exit(): void;
   fail(error: unknown): void;
+  report(name: string, bytes: Uint8Array): void;
 }
 
 /** The client, running: what the page's later messages reach. */
@@ -72,7 +80,8 @@ export async function runClient(start: Start, page: Page): Promise<Running> {
   registerLookCanvas();
   const renderer = await createCliRenderer({ exitOnCtrlC: false, autoFocus: false, width: start.cols, height: start.rows, terminal: { write: page.write } });
   const root = createRoot(renderer);
-  const app = new AppModel(game, { campaign: "caerwyn", intent: start.zoo && !visited ? "game" : "title", surface: "page", onQuit: leaving(root, renderer, game, page) });
+  const app = new AppModel(game, { campaign: "caerwyn", intent: start.zoo && !visited ? "game" : "title", surface: "page", onQuit: leaving(root, renderer, game, page), reporting: pageReporting(start, renderer, page) });
+  attachReporting(app, renderer);
   // ?zoo: the zoo's menu on the title; a visit refused (an exhibit it hasn't got), the menu with why.
   if (start.zoo === "" || visited) app.title.openZoo();
   if (visited) { app.title.zooNote = visited.text; app.emit(); }
@@ -101,11 +110,35 @@ function leaving(root: Root, renderer: CliRenderer, game: Replica, page: Page): 
   };
 }
 
-/** What goes wrong goes on the screen's own line, not over the screen (hosts/client.tsx's, for a worker's events). */
+/** What goes wrong goes on the screen's own line, not over the screen, and is noted for a report (hosts/client.tsx's, for a worker's events). */
 function troubleOnScreen(app: AppModel): void {
-  const say = (e: unknown) => app.trouble(`(Something went wrong: ${e instanceof Error ? e.message : String(e)})`);
-  scope.addEventListener("unhandledrejection", event => { event.preventDefault(); say(event.reason); });
-  scope.addEventListener("error", event => { event.preventDefault(); say(event.error ?? event.message); });
+  const say = (where: string, e: unknown) => {
+    app.report.noted.error(where, e);
+    app.trouble(`(Something went wrong: ${e instanceof Error ? e.message : String(e)})`);
+  };
+  scope.addEventListener("unhandledrejection", event => { event.preventDefault(); say("unhandled rejection", event.reason); });
+  scope.addEventListener("error", event => { event.preventDefault(); say("error", event.error ?? event.message); });
+}
+
+/**
+ * Where the page's reports of a problem go (M5): to the page, which downloads them (what's kept in
+ * the browser is out of reach of whoever investigates it); what it says of itself in one: the build's
+ * stamp and the browser, the glyphs, the terminal's size and reduced motion. It knows no key: the
+ * player's is the server worker's, which takes it out of the game it answers with, and the page
+ * takes it out of anything typed or pasted before it reaches this worker.
+ */
+function pageReporting(start: Start, renderer: CliRenderer, page: Page): Reporting {
+  const stamp = new URLSearchParams(scope.location.search).get("v") ?? "";
+  return {
+    build: () => ({ host: "page", ...(stamp ? { stamp } : {}), userAgent: scope.navigator.userAgent }),
+    settings: () => ({ glyphs: glyphSet(), terminal: { cols: renderer.width, rows: renderer.height }, reducedMotion: start.reducedMotion === true, env: {} }),
+    keys: () => [],
+    keep: async packed => {
+      const file = `kingmaker-report-${stampOf(packed.at)}.json.gz`;
+      page.report(file, packed.bytes);
+      return { file, said: `Downloaded ${file} (your browser's downloads): tell Claude 'report ${file}'` };
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -128,6 +161,7 @@ function pageOf(post: (message: unknown) => void): Page {
     // The screen's last bytes (the terminal given back) go before the word that it's gone.
     exit: () => { flush(); post({ type: "exit" }); },
     fail: error => post({ type: "error", message: error instanceof Error ? error.message : String(error) }),
+    report: (name, bytes) => post({ type: "report", name, data: bytes }),
   };
 }
 

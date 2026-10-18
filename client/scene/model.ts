@@ -37,6 +37,8 @@ export interface SceneActions {
   end?(exit: string): Promise<Rejection | undefined>;
   /** A word with someone who walks with the player (their key), from the card between scenes: talking to them on the map, which walks out first (town-design §3.6). */
   talk?(who: string): Promise<Rejection | undefined>;
+  /** Report a problem (M5: /report, b on The End, the menu's Report a problem…): the question over the scene, sent at once when it came with `words`. */
+  report?(from: string, words?: string): void;
 }
 
 /**
@@ -414,6 +416,8 @@ export class SceneModel {
     switch (commandNamed(typed)) {
       case "sheet": this.overlay = { kind: "sheet" }; break;
       case "help": this.overlay = { kind: "help" }; break;
+      // What went wrong can come with it (/report Kell asked twice): then it goes at once.
+      case "report": this.report("/report", command.trim().slice(typed.length).trim()); return;
       case "journal": this.overlay = { kind: "journal" }; break;
       case "quests": this.overlay = { kind: "quests" }; break;
       // For testing: the scene ends through an exit now, as the dev stack's owner; with none, the endings.
@@ -532,6 +536,11 @@ export class SceneModel {
   closeOverlay(): void {
     this.overlay = undefined;
     this.emit();
+  }
+
+  /** Report a problem (M5: /report, b on The End): the question over the scene; with `words`, sent at once. */
+  report(from: string, words?: string): void {
+    this.actions.report?.(from, words);
   }
 }
 
