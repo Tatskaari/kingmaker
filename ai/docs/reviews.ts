@@ -2,9 +2,9 @@ import { JEV_MODEL, JevDecider, type ChoiceQuestion, type Decider } from "../llm
 import { LUNA, respondJson, type CallContext } from "../llm/openrouter.ts";
 import { runTools, InvalidToolArguments, type ToolDef } from "../llm/tools.ts";
 import { prompt } from "../prompts/index.ts";
-import { characterEntry, createDoc, editDoc, playerDocPath, readDoc, saveMemory, searchDocs, type DocMeta } from "./docs.ts";
+import { characterEntry, createDoc, editDoc, playerDocPath, readDoc, searchDocs, type DocMeta } from "./docs.ts";
 import { isNotesPath, note, NOTE_SECTIONS, notesText, readNotes, SECTIONS, type NoteSection, type Noted } from "./notes.ts";
-import { script, type Ending, type WorkingSet } from "./types.ts";
+import { script, type WorkingSet } from "./types.ts";
 
 /**
  * V1's background memory, rebuilt for scenes and kept as the GM's notes on the people (notes.ts).
@@ -237,16 +237,4 @@ export async function reviewTurn(view: WorkingSet, turn: number, options: { deci
     reviews.push(kind === "notes" ? await reviewNotes(view, turn, flags, effort, options.calls) : await reviewLore(view, turn, flags, effort, options.calls));
   }
   return { flags, reviews };
-}
-
-/**
- * V1's milestone broadcast: when a scene ends, everyone present gets one fixed memory of how it
- * ended (the authored outcome), so the ending itself is never left to chance.
- */
-export function broadcastEnding(view: WorkingSet, exit: Ending): string[] {
-  return view.present.map(c => saveMemory(view.game, { id: c.id, name: c.name }, {
-    title: `${view.scene.title}: how it ended`,
-    context: `I was there when it ended (${exit.title}).`,
-    content: exit.outcome,
-  }, { scene: view.scene.id, turn: view.turn }));
 }

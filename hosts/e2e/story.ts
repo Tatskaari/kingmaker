@@ -72,9 +72,10 @@ export async function theWholeStory(stack: Stack, root: string, lead: Player, b:
     story.quests.some(q => q.key === "hanged-clerk" && q.status === "complete") && story.flags.some(f => f.name === "prout_death" && f.value === "murder")
       && story.followers.some(f => f.castKey === "kell") && story.journal.some(j => j.text === "Wendell Prout didn't hang himself. Big Hobb Mallory, the Drowned Rat's champion, was there: find him at the Rat."));
   const docs = join(root, "ai", "games", game.uid, "docs");
-  const kell = join(docs, "Cast", "Sergeant Agnes Kell", "memories", "index.md");
-  check("the game's docs: the played scene in the story's index, and Kell's memory of how it ended",
-    existsSync(join(docs, "story", "scenes", "hanged-clerk.md")) && existsSync(kell) && readFileSync(kell, "utf8").includes("[The Hanged Clerk: how it ended]"));
+  const kell = join(docs, "Cast", "Sergeant Agnes Kell", "notes.md");
+  const notes = existsSync(kell) ? readFileSync(kell, "utf8") : "";
+  check("the game's docs: the played scene in the story's index, and the GM's notes on Kell with what the ending says of her (her standing, her memory of how it ended)",
+    existsSync(join(docs, "story", "scenes", "hanged-clerk.md")) && notes.includes("## Standing with the player\n- Friendly: The King's investigator made Prout's case properly.") && notes.includes("- The Hanged Clerk, as it ended: The King's investigator proved Prout was murdered"));
   await until(b, "B to see the Rat as the lead", 10_000, r => r.story?.game.leadScene === "drowned-rat" && !r.story.game.onward);
   ok("B sees the story moved on, the yard still on screen");
 

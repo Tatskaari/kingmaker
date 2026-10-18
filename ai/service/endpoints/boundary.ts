@@ -15,9 +15,10 @@ import { director, sceneAndView } from "./turn.ts";
  * ends: …" last, its world after `afterwards`) and the story before it; what's owed, traced in that
  * world; the hand-off, the verdict on the scenes the story could go to and the fronts, at once, each
  * falling back as the prototype's does (a hand-off of the ending alone, the first scene that holds
- * with nothing rewritten, the fronts as they were); the ending's memory for everyone there, the time
- * between in the memories of those it names, and the played scene in the story's index, each written
- * once for the boundary (a rerun after a crash writes none twice); who's absent from the scene
+ * with nothing rewritten, the fronts as they were); what the ending says of each person (its
+ * attitudes, memories and promises, and for everyone there, that they were) and the time between, in
+ * the GM's notes on those it names, and the played scene in the story's index, each written once for
+ * the boundary (a rerun after a crash writes none twice); who's absent from the scene
  * chosen (director.presence, asked only of its people the hand-off or the adjustments name); what's
  * owed brought over into it. The answer has the next scene's handed-on state and what's still owed,
  * its things by their entity keys, for the simulation to keep.

@@ -24,9 +24,9 @@ export type NoteSection = "standing" | "seen" | "learned" | "promises" | "did";
 export const SECTIONS: ReadonlyArray<{ key: NoteSection; heading: string; most: number; about: string }> = [
   { key: "standing", heading: "Standing with the player", most: 1, about: "how they stand with the player character now, and why, in one line (it's rewritten, never added to)" },
   { key: "seen", heading: "Seen the player do", most: 5, about: "what they've seen the player character do that they'd bring up later: a kindness or a cruelty, a threat, a gift, payment or trade, a lie found out, how they treated someone" },
-  { key: "learned", heading: "Learned", most: 5, about: "what they've learned, or seen and heard for themselves, that the story may need from them: an admission, a secret, a name, who came or went and when, something handed over or found" },
+  { key: "learned", heading: "Learned", most: 6, about: "what they've learned, or seen and heard for themselves, that the story may need from them: an admission, a secret, a name, who came or went and when, something handed over or found" },
   { key: "promises", heading: "Promises", most: 4, about: "promises made by them or to them: who promised what to whom, on what terms, and whether it's been kept" },
-  { key: "did", heading: "Did", most: 6, about: "what they did of consequence: told something, lied, gave something up, took a side, left; how each scene ended for them, and the time between" },
+  { key: "did", heading: "Did", most: 8, about: "what they did of consequence: told something, lied, gave something up, took a side, left; how each scene ended for them, and the time between" },
 ];
 
 export const NOTE_SECTIONS = SECTIONS.map(s => s.key);

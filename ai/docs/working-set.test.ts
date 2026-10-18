@@ -6,8 +6,7 @@ import { dirname, join } from "node:path";
 import type { ChoiceQuestion, Decider } from "../llm/decide.ts";
 import { configureDocs } from "./config.ts";
 import { disclose, keepOpened, memoryBrief, withhold } from "./disclosure.ts";
-import { characterEntry, memoryLines } from "./docs.ts";
-import { broadcastEnding } from "./reviews.ts";
+import { characterEntry } from "./docs.ts";
 import type { WorkingSet } from "./types.ts";
 
 /**
@@ -87,10 +86,4 @@ test("the GM's memory block: each person's lore, and the notes open for them", a
   const live = memoryBrief({ ...VIEW, memory }, "live")!;
   assert.match(live, /### Kell: their own memories\n#### Cob\n# Cob\n\nHe found the body at dawn\./);
   assert.match(live, /### The GM's notes\n#### The secret\n# The secret\n\nSallow did it\./);
-});
-
-test("an ending is remembered by everyone present, in the game's own copy", () => {
-  const [path] = broadcastEnding(VIEW, { title: "Case made", outcome: "Kell takes the page to the King." });
-  assert.ok(path && existsSync(join(DIR, "games", "g1", "docs", path)));
-  assert.deepEqual(memoryLines("g1", "kell").map(l => l.replace(/\]\([^)]*\)/, "](…)")), ["- [The Yard: how it ended](…) — I was there when it ended Case made."]);
 });

@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { configureDocs } from "../docs/config.ts";
-import { memoryIndexPath, memoryLines, readDoc } from "../docs/docs.ts";
+import { readNotes } from "../docs/notes.ts";
 import { JevDecider, LUNA_DECISIONS_MODEL } from "../llm/decide.ts";
 import { fakeFetch, type FakeFetch, type FakeOptions } from "../llm/fake-openrouter.ts";
 import type { CallContext } from "../llm/openrouter.ts";
@@ -65,7 +65,7 @@ test("before a scene closes, what it still holds for the player is offered once 
   assert.match(nowNote(rat, state, directives), /The scene is ending: [^\n]*\n\nBefore it closes: the player hasn't come across these/);
 });
 
-test("the lead stays in the story, and what it says someone did in the time between is in their memory (Kell denied the sighting the lead gave her)", async () => {
+test("the lead stays in the story, and what it says someone did in the time between is in the GM's notes on them (Kell denied the sighting the lead gave her); the ending's attitude and memory are in them too", async () => {
   const lead = "As the hours pass, Kell tells you she saw a gentleman with a wheat-ear ring beside the Purveyor's wagons, and followed a big porter with a bandaged hand to the Drowned Rat.";
   const { fake, how } = standIn({ byName: { boundary: {
     scenes: [{ id: "drowned-rat", holds: true, why: "The big man hasn't been questioned." }],
@@ -87,14 +87,15 @@ test("the lead stays in the story, and what it says someone did in the time betw
   assert.match(verdict.instructions!, /What someone tells them doesn't go against what that person said in play: what they found out since is told as new/);
   assert.match(verdict.instructions!, /It's always the story, never a note about it \(what the story does or doesn't say, or that there's no lead\)/);
   assert.match(verdict.input![0]!.content, /Whatever begins with an "if" happens only when play has made the if true/);
-  const line = memoryLines("crossing-between", "kell").find(l => l.includes("Between The Hanged Clerk and The Drowned Rat"));
-  assert.ok(line, "Kell remembers the time between");
-  const path = /\]\(([^)]+)\)/.exec(line!)![1]!;
-  const note = readDoc("crossing-between", `${memoryIndexPath("kell").replace(/index\.md$/, "")}${decodeURIComponent(path)}`)!;
-  assert.match(note.body, /As Caelith Ondraviel heard it in the time between: As the hours pass, Kell tells you she saw a gentleman/);
-  assert.match(note.body, /- Kell has signed Prout in as murdered, over the Captain's order\./);
-  assert.doesNotMatch(note.body, /Nan has the Rat open/, "only what's about her");
-  assert.ok(memoryLines("crossing-between", "nan-quill").some(l => l.includes("Between The Hanged Clerk and The Drowned Rat")), "and Nan, whom an adjustment is about");
+  const kell = readNotes("crossing-between", "kell");
+  assert.deepEqual(kell.did, [
+    "The Hanged Clerk, as it ended: The King's investigator proved Prout was murdered and named Sallow of the Purveyor's office.",
+    `Between The Hanged Clerk and The Drowned Rat, as Caelith heard it: ${lead}`,
+    "Between The Hanged Clerk and The Drowned Rat: Kell has signed Prout in as murdered, over the Captain's order.",
+  ], "how it ended for her, and the time between, and nothing about Nan's Rat");
+  assert.deepEqual(kell.standing, ["Friendly: The King's investigator made Prout's case properly."], "the ending's attitude is her standing");
+  assert.deepEqual(readNotes("crossing-between", "cob").did, ["Was there when The Hanged Clerk ended: The case is made."], "Cob was there, with no memory of the ending's own");
+  assert.deepEqual(readNotes("crossing-between", "nan-quill").did, ["Between The Hanged Clerk and The Drowned Rat: Nan has the Rat open as ever."], "and Nan, whom an adjustment is about");
   assert.equal(crossed.next.lead, lead);
 });
 

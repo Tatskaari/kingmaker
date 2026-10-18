@@ -420,8 +420,8 @@ export interface BoundaryRequest extends AiRequest { turn: SceneContext; exit: s
  * scenes skipped and why, where its prep is out of date, its opening rewritten, the lead, the cast
  * absent, its prep's patches with what's owed brought over, the owed essentials already hinted at);
  * what the story still owes after it, its things by entity key; and what moved in the fronts.
- * The game's docs (the ending's memories, the time between, the played scene, the fronts) are
- * written by then, once per key.
+ * The game's docs (the GM's notes on the people, from the ending and the time between, the played
+ * scene, the fronts) are written by then, once per key.
  */
 export interface BoundaryResponse {
   handOff: string;
