@@ -4,6 +4,9 @@ import {openSceneFile} from './model.ts';
 import type {SceneContext,SceneDocument} from './model.ts';
 import type {PlaceFile} from '../../../../shared/scene/files.ts';
 import {loadPlace,loadScenario,placePath,scenarioPathIn} from '../../../../shared/scene/scenario.ts';
+import {campaignRootOf} from '../campaign/files.ts';
+
+export {campaignRootOf};
 
 /**
  * A scene lives at <campaign>/scenes/<id>.kmscene, beside the campaign's scenario (<id>.kmscenario),
@@ -40,18 +43,8 @@ export type Campaign={
   loreFiles:Set<string>;
 };
 
-/** What the editor needs of a host's files: the paths under a folder, and a file's text (undefined when it isn't there). */
-export type VaultFiles={
-  list:(folder:string)=>string[];
-  read:(path:string)=>Promise<string|undefined>;
-};
-
-/** The campaign folder of a scene file at `path` in the vault: the folder its scenes/ folder is in. */
-export function campaignRootOf(path:string):string{
-  const parts=path.split('/');
-  const at=parts.length>=2&&parts[parts.length-2]==='scenes'?parts.length-2:parts.length-1;
-  return parts.slice(0,at).map(part=>`${part}/`).join('');
-}
+export type {VaultFiles} from '../campaign/files.ts';
+import type {VaultFiles} from '../campaign/files.ts';
 
 /** The scene's id its file's name gives it: scenes/<id>.kmscene. */
 export const sceneKeyOf=(path:string):string=>(path.split('/').at(-1)??path).replace(/\.kmscene$/i,'');
