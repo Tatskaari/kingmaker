@@ -122,6 +122,7 @@ function Uses({member}:{member:CastMember}){
   const paths=doc.nodes.filter(isBeat).flatMap(node=>(node.data.paths??[]).flatMap((path,index)=>path.via===id?[{node:node.id,index}]:[]));
   const names=(effect:Record<string,unknown>)=>['who','by','to','what'].some(key=>effect[key]===id)||(Array.isArray(effect.allies)&&effect.allies.includes(id))||(Array.isArray(effect.enemies)&&effect.enemies.some(enemy=>(enemy as {leader?:unknown})?.leader===id));
   const effects=[
+    ...(doc.onStart??[]).flatMap((effect,index)=>names(effect as Record<string,unknown>)?[{at:'onStart',index}]:[]),
     ...(doc.onEnd??[]).flatMap((effect,index)=>names(effect as Record<string,unknown>)?[{at:'onEnd',index}]:[]),
     ...doc.nodes.filter(isEnding).flatMap(node=>(node.data.effects??[]).flatMap((effect,index)=>names(effect as Record<string,unknown>)?[{at:node.id,index}]:[])),
   ];
@@ -131,7 +132,7 @@ function Uses({member}:{member:CastMember}){
       <li>{member.enters?<>Arrives at <button type="button" className="use-link" onClick={()=>showNode(member.enters!,'arrivals')}>{titleOf(doc,member.enters)}</button></>:'Here from the start.'}</li>
       <li>{roles.length?<>Has a conversation role at {roles.map(node=><button type="button" key={node.id} className="use-link" onClick={()=>showNode(node.id,'cast')}>{titleOf(doc,node.id)}</button>)}</>:'Has no conversation role yet: add one at the start or an event.'}</li>
       {paths.length>0&&<li>Holds {paths.length} path{paths.length===1?'':'s'}: {paths.map(({node,index})=><button type="button" key={`${node}:${index}`} className="use-link" onClick={()=>showNode(node,`paths.${index}`)}>{titleOf(doc,node)} (path {index+1})</button>)}</li>}
-      {effects.length>0&&<li>Named by {effects.length} effect{effects.length===1?'':'s'}: {effects.map(({at,index})=><button type="button" key={`${at}:${index}`} className="use-link" onClick={()=>at==='onEnd'?showScene(`onEnd.${index}`):showNode(at,`effects.${index}`)}>{at==='onEnd'?'every ending':titleOf(doc,at)} (effect {index+1})</button>)}</li>}
+      {effects.length>0&&<li>Named by {effects.length} effect{effects.length===1?'':'s'}: {effects.map(({at,index})=><button type="button" key={`${at}:${index}`} className="use-link" onClick={()=>at==='onStart'||at==='onEnd'?showScene(`${at}.${index}`):showNode(at,`effects.${index}`)}>{at==='onStart'?'as it starts':at==='onEnd'?'every ending':titleOf(doc,at)} (effect {index+1})</button>)}</li>}
     </ul>
   </div>;
 }

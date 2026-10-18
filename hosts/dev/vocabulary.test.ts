@@ -42,7 +42,7 @@ test("an installed scene is read from its file, in an entry's place: what the to
   const entry = entryOf(scene, packOf(files).places[0]);
 
   assert.deepEqual([entry.id, entry.next, entry.prep], ["hanged-clerk", ["caerwyn-afternoon"], prepText(scene)]);
-  assert.deepEqual(entry.cast.map(c => c.called ?? c.name), ["Sergeant Agnes Kell", "the boy in the too-big boots", "the girl in the shawl", "the corporal"]);
+  assert.deepEqual(entry.cast.map(c => c.called ?? c.name), ["Sergeant Agnes Kell", "the boy in the too-big boots", "the girl in the shawl", "the corporal", "the old porter"]);
   assert.ok(entry.worldNames!.includes("the lane"));
 });
 

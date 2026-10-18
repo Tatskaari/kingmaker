@@ -162,8 +162,8 @@ export interface FightView {
 
 /**
  * The stand-in's card (src/game/fight-standin.ts's observe and its one action): Fight it out resolves
- * it as won, and the scene picks up from it, its line ("Steel, dust and lantern light: …") and how it
- * went in the scene's transcript (the simulation writes them).
+ * it as won, and the scene picks up from it, how it went in the scene's transcript ("The fight: …":
+ * the simulation writes it).
  */
 export function fightOf(): FightView {
   return { title: "Roll for initiative!", lines: [STANDIN.observe], go: STANDIN.action.label, hint: "the stand-in resolves it, as won, and the scene picks up from it" };

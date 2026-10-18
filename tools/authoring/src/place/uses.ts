@@ -20,6 +20,7 @@ export function thingUsesOf(place:PlaceDocument,id:string,scenes:CampaignScene[]
     const paths=doc.nodes.flatMap(node=>((node.data as {paths?:Array<{via:string}>}).paths??[]).flatMap((path,i)=>names.has(words(path.via))?[{scene:scene.key,sceneTitle:title,path:scene.path,where:`${node.data.title||node.id}: path ${i+1}`}]:[]));
     const named=(effects:unknown[]|undefined,where:string)=>(effects??[]).flatMap((effect,i)=>TARGETS.some(key=>(effect as Record<string,unknown>)[key]===id)?[{scene:scene.key,sceneTitle:title,path:scene.path,where:`${where}: effect ${i+1}`}]:[]);
     const effects=[
+      ...named(doc.onStart as unknown[]|undefined,'as it starts'),
       ...named(doc.onEnd as unknown[]|undefined,'on every ending'),
       ...named(doc.afterwards as unknown[]|undefined,'afterwards'),
       ...doc.nodes.filter(node=>node.data.kind==='exit').flatMap(node=>named((node.data as {effects?:unknown[]}).effects,node.data.title||node.id)),

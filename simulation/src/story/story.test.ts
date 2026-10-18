@@ -4,8 +4,8 @@ import type { BoundaryRequest, OpenRequest } from "../../../shared/protocol/ai.t
 import { installArgsOf } from "../../../shared/scene/files.ts";
 import { getGm, putGm } from "../gm/rows.ts";
 import type { MemoryHost } from "../host/memory.ts";
-import { all, caerwynPack, crossedTo, http, identity, openedGame, sceneNow } from "../host/testing.ts";
-import { FIGHT_NOT_PLAYED, FIGHT_SUMMARY, STANDIN_LINE } from "./words.ts";
+import { all, caerwynPack, crossedTo, hostWithCampaign, http, identity, openedGame, sceneNow } from "../host/testing.ts";
+import { FIGHT_NOT_PLAYED, FIGHT_SUMMARY } from "./words.ts";
 
 /**
  * The story between scenes (story-design §4.3, package B's done-when), on the memory host with the AI
@@ -38,6 +38,26 @@ const byGame = <T extends { gameId: bigint }>(table: { iter(): Iterable<T> }, ga
 const entityByKey = (host: MemoryHost, gameId: bigint, key: string) => [...host.db.entity.byGameKey.filter([gameId, key])][0];
 const placeKeyOf = (host: MemoryHost, placeId: bigint) => host.db.place.id.find(placeId)!.key;
 const endLine = (host: MemoryHost, exit: string) => host.logs.find(l => l.startsWith(`[end hanged-clerk ${exit}]`));
+
+// ---------------------------------------------------------------------------------------------
+// The scene's start, and what it writes.
+
+test("a scene comes into the story with its onStart: the hanged clerk's quest is active as the game begins, on the map (the yard built as the lead) and off it (opened at once), and once only (QA round qa3-1018's g08: \"Quests: (none yet)\" with the King's request right there)", async () => {
+  const clerk = caerwynPack({ asIs: true }).scenes.find(s => s.id === "hanged-clerk")!;
+  const started = clerk.onStart!.find(e => e.op === "quest")! as { text: string };
+  for (const map of [true, false]) {
+    const { host } = hostWithCampaign(7, { asIs: true, map });
+    const wren = identity(1);
+    assert.equal(host.as(wren).newGame({ campaign: "caerwyn", name: "Wren Ashdown", concept: "a hedge wizard from the fens", build: "ranger" }), undefined);
+    const quests = () => all(host.db.quest).map(q => [q.key, q.title, q.status, q.notes]);
+    assert.deepEqual(quests(), [["hanged-clerk", "The Hanged Clerk", "active", [started.text]]], `${map ? "on" : "off"} the map: the King's request is the player's quest from the start`);
+    assert.equal(all(host.db.scene)[0]!.status, map ? "waiting" : "opening");
+    assert.deepEqual(host.logs.filter(l => l.startsWith("[start hanged-clerk]")), ["[start hanged-clerk] applied: quest hanged-clerk start · recorded: nothing"]);
+    if (map) assert.equal(host.as(wren).walk({ toward: "lead" }), undefined);
+    await host.drain();
+    assert.deepEqual(quests(), [["hanged-clerk", "The Hanged Clerk", "active", [started.text]]], "opening the scene doesn't start it again");
+  }
+});
 
 // ---------------------------------------------------------------------------------------------
 // The scene's end, and what it writes.
@@ -450,7 +470,7 @@ test("the Heron's fight goes fighting, fight_it_out picks it up, its next ending
   assert.equal(host.as(wren).fightItOut(), undefined);
   let now = sceneNow(host, heron.id);
   assert.deepEqual([now.scene.status, now.scene.exitKey, now.scene.turns], ["live", undefined, now.turns.at(-1)!.n]);
-  assert.deepEqual(now.lines.slice(-2).map(l => [l.text, l.kind]), [[STANDIN_LINE, "system"], [`The fight: ${FIGHT_SUMMARY}`, "system"]]);
+  assert.deepEqual(now.lines.slice(-2).map(l => [l.text, l.kind]), [["Scene ends: Roll for initiative", "system"], [`The fight: ${FIGHT_SUMMARY}`, "system"]], "how it went, said once (QA round qa3-1018's g04 read it twice)");
   assert.deepEqual([now.gm.fought, now.gm.ended, now.gm.established.at(-1)], [["fight"], undefined, `The fight is over: ${FIGHT_SUMMARY}`]);
   assert.equal(byGame(host.db.journal, gameId).at(-1)!.text, FIGHT_NOT_PLAYED);
   assert.deepEqual([now.turns.at(-1)!.phase, now.scene.turnId], ["replying", now.turns.at(-1)!.id]);

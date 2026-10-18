@@ -164,7 +164,7 @@ test('where the campaign\'s files name each other, both ways: a scene\'s regions
   assert.deepEqual(town.plays.map(p=>[p.region,p.scene,p.lays]),[['granary-yard','hanged-clerk',true],['tally-loft','hanged-clerk',true],['heron-wharf','heron-warehouse',false]]);
   const yard=model.placeUsesOf('granary-yard',doc,campaign);
   assert.deepEqual([yard.scenes.map(s=>s.key),yard.laid.map(l=>[l.map,l.region,l.origin.x,l.origin.y]),yard.start],[['hanged-clerk'],[['caerwyn','granary-yard',40,9],['caerwyn','tally-loft',40,9]],true]);
-  assert.deepEqual(model.questUsesOf('hanged-clerk',campaign).map(u=>[u.scene,u.at.kind==='ending'?u.at.id:'onEnd',u.index,u.step]),[['hanged-clerk','murder-unknown',0,'complete'],['hanged-clerk','suspicious',0,'advance'],['hanged-clerk','failed',0,'fail'],['kings-morning','justice',1,'complete']]);
+  assert.deepEqual(model.questUsesOf('hanged-clerk',campaign).map(u=>[u.scene,u.at.kind==='ending'?u.at.id:u.at.kind,u.index,u.step]),[['hanged-clerk','onStart',0,'start'],['hanged-clerk','murder-unknown',0,'complete'],['hanged-clerk','suspicious',0,'advance'],['hanged-clerk','failed',0,'fail'],['kings-morning','justice',1,'complete']]);
 });
 
 test('a quest renamed: its key where it was in the scenario, and every scene\'s effect naming it, nothing else of either',async()=>{
@@ -182,6 +182,7 @@ test('a quest renamed: its key where it was in the scenario, and every scene\'s 
     assert.equal(text.replaceAll('"quest": "the-clerk"','"quest": "hanged-clerk"'),scene.text,scene.key);
   }
   assert.deepEqual(changed,['hanged-clerk','kings-morning']);
+  assert.equal(model.renameQuestIn(campaign.scenes.find(scene=>scene.key==='hanged-clerk').doc,'hanged-clerk','the-clerk').onStart[0].quest,'the-clerk','the quest the clerk starts as it comes into the story follows too');
   assert.equal(model.questKeyProblem(doc,'purveyors-man','hanged-clerk'),'There\'s a quest purveyors-man already.');
   assert.match(model.questKeyProblem(doc,'The Clerk'),/a slug/);
   assert.equal(model.questKeyProblem(doc,'hanged-clerk','hanged-clerk'),undefined);

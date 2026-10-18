@@ -2,7 +2,7 @@ import {test,expect,type Page,type Locator} from '@playwright/test';
 
 // A new scene written from nothing in the browser test harness, every value through a control and none
 // by editing the file, as an author writes one: New scene (Obsidian's New Kingmaker scene), the Scene
-// view, the cast, the start and its roles, two discoveries (one required, with three paths and a roll),
+// view (with a journal line as it starts), the cast, the start and its roles, two discoveries (one required, with three paths and a roll),
 // an event someone arrives at with a role, a pressure and a fact, three endings (good, mixed and bad)
 // with effects, one only if a fact is settled, and routes with what they require. The scene it saves
 // has no problems: the campaign check's rules find nothing.
@@ -114,6 +114,10 @@ test('a new scene written from nothing, every value through a control: the campa
   await write(scene,'Truth','Hale is honest. His son Tam swaps the almshouse sacks for short ones at the loading door.');
   await write(scene,'Clock','At noon the almshouse cart collects the sacks.');
   await scene.getByLabel('Time',{exact:true}).selectOption('morning');
+  // What it starts as it comes into the story, before it's played: a line in the player's journal.
+  const starts=scene.locator('[data-field="onStart"]');
+  await pick(starts,'Add effect',/^Journal/);
+  await write(starts.getByRole('article',{name:'As it starts 1'}),'Text','Brother Anselm asked you to find out who is short-weighting the almshouse flour.');
 
   // The cast: three people, each with the words a card must have.
   await view(page,'Cast').click();
@@ -228,6 +232,8 @@ test('a new scene written from nothing, every value through a control: the campa
   // The file, as the game will read it.
   const doc=await saved(page);
   expect(doc.id).toBe('the-short-weight');
+  expect(doc.onStart).toEqual([{op:'journal',text:'Brother Anselm asked you to find out who is short-weighting the almshouse flour.'}]);
+  expect(Object.keys(doc).filter(key=>['cast','facts','onStart','nodes'].includes(key))).toEqual(['cast','facts','onStart','nodes']);
   expect(doc.nodes.map((node:any)=>[node.id,node.data.kind,node.data.result??node.data.revelation!==undefined])).toEqual([
     ['start','start',false],['weights-true','beat',true],['tam-owns-up','exit','good'],['tam-swaps','beat',true],['cart-early','beat',false],['sacks-made-good','exit','mixed'],['hale-blamed','exit','bad'],
   ]);

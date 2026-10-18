@@ -449,27 +449,33 @@ async function linesOffAndOn(stack: Stack, a: Player, game: Game): Promise<void>
 
 /**
  * 14. An ending: the co-GM walks the scene to murder by persons unknown (fake.json's walk: the
- * discovery it needs first, a route a line), each move taken again on the rows; at the ending the
- * scene is closing, the next line's reply (the mouthpiece's closing) winds it down with no settle and
- * asks for no lines, the scene ends, and a further line is refused. (Until M2 the decider took the old
- * clerk's make-case on one line.)
+ * discovery it needs first, a route a line), each move taken again on the rows; the Hobb lead first
+ * refused while nobody has said his name, so the name is owed (its step on the path), and the reply
+ * after it told that Kell names him, which the fake's Kell does, so the lead is taken on the next;
+ * at the ending the scene is closing, the next line's reply (the mouthpiece's closing) winds it down
+ * with no settle and asks for no lines, the scene ends, and a further line is refused. (Until M2 the
+ * decider took the old clerk's make-case on one line.)
  */
 async function anEnding(stack: Stack, a: Player, b: Player, game: Game): Promise<void> {
   step("14. An ending");
   await restartAi(stack, onTop(FAKE, { coGm: { endings: ["murder-unknown"] } }));
-  const lines = ["Cob, who was the big man in the yard last night?", "Sergeant, that's a cord mark, not a rope.", "Is that the dead-cart I hear in the lane?", "Write it down as murder, Sergeant: persons unknown."];
+  const lines = ["Cob, who was the big man in the yard last night?", "Sergeant, do you know a man that size?", "Sergeant, that's a cord mark, not a rope.", "Is that the dead-cart I hear in the lane?", "Write it down as murder, Sergeant: persons unknown."];
   const walked: string[] = [];
+  let owedOn: number | undefined;
   for (const line of lines) {
     const n = nextTurn(a);
     check(`A says "${line}"`, (await a.conn.say(line)) === undefined);
     const rows = await doneTurn(a, n);
     const moves = (await gmOf(stack, game)).path.filter(p => p.turn === n).map(p => p.via);
     walked.push(...moves);
+    if (moves.includes("owed:hobb")) owedOn = n;
     check(`the co-GM's move after turn ${n} is on the rows: ${moves.join(", ") || "none"}`, moves.length === 1);
     if (rows.scene.status === "closing") break;
   }
   const gm = await gmOf(stack, game);
-  check(`the scene is closing on ${gm.closing?.exitId}, walked ${walked.join(", ")}`, a.conn.rows()!.scene.status === "closing" && gm.closing?.exitId === "murder-unknown" && walked.join() === "find-hobb,find-murder,cart-comes,signed-murder");
+  check(`the scene is closing on ${gm.closing?.exitId}, walked ${walked.join(", ")}`, a.conn.rows()!.scene.status === "closing" && gm.closing?.exitId === "murder-unknown" && walked.join() === "owed:hobb,find-hobb,find-murder,cart-comes,signed-murder");
+  const named = owedOn === undefined ? "" : modelInput(game, "two-part.reply", keyOf(game, owedOn + 1, "reply"));
+  check("the reply after the name was owed was told that Kell names him, and the fake's Kell did", named.includes("Sergeant Agnes Kell names him now: Big Hobb Mallory.") && a.conn.rows()!.transcript.some(e => e.text.includes("“Big Hobb Mallory.”")));
 
   const n = nextTurn(a);
   check("A says the wind-down line", (await a.conn.say("*to Kell, at the gate* Coming, Sergeant?")) === undefined);

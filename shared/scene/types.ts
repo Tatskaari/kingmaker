@@ -307,6 +307,8 @@ export interface Scene {
    * Nothing in it moves the story, and the scene the story is heading for waits until it's over.
    */
   companion?: string;
+  /** Effects as the scene comes into the story (the scene format's: its row made, as the lead or opened at once), before it's played. */
+  onStart?: Effect[];
   /** Effects of every ending, before the exit's own (v2's: in the prototype, story code in the map module, src/game/map/explore.ts:100-112). */
   onEnd?: Effect[];
   /** What really happened, behind the screen: it comes out through the beats' paths (the scene format's). */
