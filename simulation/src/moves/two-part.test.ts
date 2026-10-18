@@ -1,7 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { describeRoll } from "../../../shared/dice.ts";
-import { bandOf, BAND_NAME, BANDS, type Band } from "../../../shared/gm/two-part.ts";
+import { bandOf, BANDS, diceLine, type Band } from "../../../shared/gm/two-part.ts";
 import type { CoGmAnswer, OpenRequest, Reply, ReplyRequest, ReplyResponse, SettleRequest, SettleResponse } from "../../../shared/protocol/ai.ts";
 import { keyParts } from "../../../shared/protocol/keys.ts";
 import { all, nextCheck, openedGame, sceneNow } from "../host/testing.ts";
@@ -57,13 +56,13 @@ test("a line: replied with no decide, the GM's check rolled through the rules en
   assert.deepEqual(now.lines.slice(-4).map(l => [l.kind, l.text]), [
     ["player", "(I climb the stair and look at his neck)"],
     ["narration", "You climb the outside stair and get a look at his throat."],
-    ["roll", `${describeRoll(roll)} (${BAND_NAME[band]}).`],
+    ["roll", diceLine(roll)],
     ["narration", `Outcome: ${band}.`],
   ]);
   const settle = script.to("settle")[0]!.body as SettleRequest;
   assert.deepEqual([settle.twoPart, settle.check?.skill, settle.check?.band, settle.check?.success], [true, "medicine", band, roll.success]);
   assert.equal(settle.reply, `You climb the outside stair and get a look at his throat.\n\nOutcome: ${band}.`);
-  assert.deepEqual(settle.lines, [`${describeRoll(roll)} (${BAND_NAME[band]}).`], "the stage manager's dice lines");
+  assert.deepEqual(settle.lines, [diceLine(roll)], "the stage manager's dice lines");
 
   assert.deepEqual(now.gm.reached, ["start", "murder"]);
   assert.ok(now.gm.established.some(f => /strangled/i.test(f)) || now.gm.established.length === 1, "the discovery's fact settled");

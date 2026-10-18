@@ -1,5 +1,5 @@
 // Copied from PR #666's src/runtime/two-part.ts at origin/claude/two-part-gm c749270 (BANDS, BAND_NAME, bandOf, rolesNote and openingRoles' role, whole), for both sides: the simulation rolls a check and picks its outcome by these bands, and writes the co-GM's note for each turn; the AI service reads the same note. The Role is GmState's TwoPartRole; a role's default is a function of the stage (shared/scene/beats.ts stageOf), not the prototype's current beat.
-import type { RollResult } from "../dice.ts";
+import { describeRoll, type RollResult } from "../dice.ts";
 import { stageOf } from "../scene/beats.ts";
 import type { Character, Scene } from "../scene/types.ts";
 import type { GmState, TwoPartRole } from "./state.ts";
@@ -21,6 +21,15 @@ export function bandOf(roll: Pick<RollResult, "total" | "dc" | "critical">): Ban
   if (roll.critical === "success") return "major_success";
   const by = roll.total - roll.dc;
   return by <= -5 ? "major_failure" : by < 0 ? "minor_failure" : by <= 2 ? "barely_passed" : by <= 6 ? "minor_success" : "major_success";
+}
+
+/**
+ * The dice line of a check the mouthpiece called, as the player reads it: the roll against the DC and
+ * how far it made or missed it ("Medicine check: 11 + 2 = 13 vs DC 12: success (only just)."). A
+ * natural 20 or 1 says so once: describeRoll's mark stands for the band's word.
+ */
+export function diceLine(roll: RollResult): string {
+  return `${describeRoll(roll)}${roll.critical ? "" : ` (${BAND_NAME[bandOf(roll)]})`}.`;
 }
 
 /**

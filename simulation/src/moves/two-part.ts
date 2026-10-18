@@ -1,7 +1,6 @@
 // New (M2): the two-part GM's turn in the simulation (docs/two-part-design.md "A turn, step by step"), its commits made after PR #666's twoPartTurn and twoPartOpening (src/runtime/two-part.ts at origin/claude/two-part-gm c749270) as the game's commits: the check rolled here from the game's dice (speak's roll), the co-GM's moves taken again on the rows with shared/scene/beats.ts's takeRoute, the roles and the note for the next turn written to gm_state, the closing ended through the story's own end.
-import { describeRoll } from "../../../shared/dice.ts";
 import type { GmState } from "../../../shared/gm/state.ts";
-import { BAND_NAME, bandOf, defaultRole, openingRoles, rolesNote } from "../../../shared/gm/two-part.ts";
+import { bandOf, defaultRole, diceLine, openingRoles, rolesNote } from "../../../shared/gm/two-part.ts";
 import type { CoGmAnswer, Outcome, Reply, ReplyResponse, SettleResponse, SpokenCheck, TurnCheck } from "../../../shared/protocol/ai.ts";
 import { idOf } from "../../../shared/protocol/keys.ts";
 import type { Mechanic } from "../../../shared/rules/types.ts";
@@ -61,7 +60,7 @@ export function twoPartStart(tx: TxCtx, scene: SceneRow, graph: Scene, gm: GmSta
  * What the mouthpiece said, written (the reply commit, and the opening's): its narration, the draft
  * gone; and when it called a check, the check rolled from the game's dice with the player's own
  * modifiers, through the rules engine as every check is (rollerFor), its dice line with how far it
- * made or missed it, and the outcome that came up. The words as the next steps read them, the dice
+ * made or missed it (diceLine: a natural 20 or 1 says so instead), and the outcome that came up. The words as the next steps read them, the dice
  * line, and the check as rolled.
  */
 export function writeSpoken(tx: TxCtx, scene: SceneRow, n: number, turnId: bigint, narration: Reply[], check: SpokenCheck | undefined): { text: string; lines: string[]; check?: TurnCheck } {
@@ -70,7 +69,7 @@ export function writeSpoken(tx: TxCtx, scene: SceneRow, n: number, turnId: bigin
   if (!check) return { text: said.join("\n\n"), lines: [] };
   const roll = rollerFor(tx, scene)(check.skill, check.dc);
   const band = bandOf(roll);
-  const line = `${describeRoll(roll)} (${BAND_NAME[band]}).`;
+  const line = diceLine(roll);
   addEntry(tx, scene, { turn: n, speaker: "dice", kind: "roll", text: line });
   const outcome = check.outcomes[band];
   addEntry(tx, scene, { turn: n, speaker: "gm", kind: "narration", text: outcome.text, ...(outcome.markup ? { markup: { speech: outcome.markup.speech } } : {}) });

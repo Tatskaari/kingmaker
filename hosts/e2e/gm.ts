@@ -120,7 +120,7 @@ export async function aRiskyCheck(stack: Stack, root: string, a: Player, b: Play
   }
   const lines = linesOf(rows, n);
   const dice = lines.find(l => l.kind === "roll")?.text ?? "";
-  check(`the narration, the dice line ("${dice}"), then the outcome that came up`, lines.map(l => l.kind).join() === "player,narration,roll,narration" && /^Sleight Of Hand .*DC 12.*\((badly|narrowly|only just|cleanly|with room to spare)\)\.$/.test(dice));
+  check(`the narration, the dice line ("${dice}"), then the outcome that came up`, lines.map(l => l.kind).join() === "player,narration,roll,narration" && /^Sleight Of Hand .*DC 12.*\((badly|narrowly|only just|cleanly|with room to spare|natural 20!|natural 1!)\)\.$/.test(dice));
   const told = modelInput(root, game, "two-part.co-gm", keyOf(game, n, "settle"));
   check("the co-GM was told how it went", told.includes("# This turn's check\nThe GM called Sleight Of Hand DC 12, and the roll came to "));
   return game;

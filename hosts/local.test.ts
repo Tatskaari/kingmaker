@@ -370,7 +370,7 @@ test("the two-part GM on the local host: the campaign's hanged clerk walked to m
   const first = await line("(I climb the outside stair and look at his neck)", { mouthpiece: { check: { skill: "medicine", dc: 12 } } });
   assert.deepEqual(first.lines.filter(l => l.turn === 1).map(l => l.kind), ["player", "narration", "roll", "narration"], "the narration, the dice, the outcome that came up");
   const rolled = first.lines.find(l => l.turn === 1 && l.kind === "roll")!.text;
-  assert.match(rolled, /^Medicine .*DC 12.* \((badly|narrowly|only just|cleanly|with room to spare)\)\.$/);
+  assert.match(rolled, /^Medicine .*DC 12.* \((badly|narrowly|only just|cleanly|with room to spare|natural 20!|natural 1!)\)\.$/);
   assert.equal(of("director.before", 1, "decide").length, 0, "no decide");
   assert.match(of("two-part.co-gm", 1, "settle")[0]!.request.input!.map(m => m.content).join("\n"), /# This turn's check\nThe GM called Medicine DC 12, and the roll came to \d+/);
   assert.deepEqual([first.gm.reached, first.gm.path.map(p => p.via)], [["start", "hobb"], ["find-hobb"]], "the required discovery first");
