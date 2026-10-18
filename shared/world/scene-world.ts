@@ -821,8 +821,12 @@ export function worldView(world: SceneWorld, options: { full?: boolean } = {}): 
   return lines.join("\n");
 }
 
-/** A top-down sketch of the place for the terminal: 1 character = 2.5 feet. */
-export function asciiMap(world: SceneWorld): string {
+/**
+ * A top-down sketch of the place for the terminal: 1 character = 2.5 feet. Every entity by its own
+ * name (the prototype's QA map); or, with `shown` and `name`, only what `shown` keeps, by what `name`
+ * calls it (the player's view: the headless map's, client/scene/sight.ts).
+ */
+export function asciiMap(world: SceneWorld, how: { shown?: (e: Entity) => boolean; name?: (e: Entity) => string } = {}): string {
   const root = world.entities[world.root]!;
   const scale = 2.5;
   const w = Math.ceil(root.rect!.w / scale), h = Math.ceil(root.rect!.h / (scale * 2));
@@ -845,10 +849,10 @@ export function asciiMap(world: SceneWorld): string {
   }
   // Things first, then people, then the player on top.
   const order = (x: Entity) => (x.player ? 2 : isBeing(x) ? 1 : 0);
-  for (const e of Object.values(world.entities).filter(x => x.at && present(x) && x.kind !== "area" && x.kind !== "surface").sort((a, b) => order(a) - order(b))) {
+  for (const e of Object.values(world.entities).filter(x => x.at && present(x) && x.kind !== "area" && x.kind !== "surface" && (how.shown?.(x) ?? true)).sort((a, b) => order(a) - order(b))) {
     const ch = e.id === "player" ? "@" : isBeing(e) ? glyphs[i++ % glyphs.length]!.toUpperCase() : e.states.includes("burning") ? "*" : e.states.includes("destroyed") ? "x" : glyphs[i++ % glyphs.length]!;
     put(e.at!, ch);
-    legend.push(`${ch} ${e.name}${e.states.length ? ` (${e.states.join(", ")})` : ""}`);
+    legend.push(`${ch} ${how.name?.(e) ?? e.name}${e.states.length ? ` (${e.states.join(", ")})` : ""}`);
   }
   return `${root.name}\n${grid.map(r => r.join("")).join("\n")}\n\n${legend.join("\n")}`;
 }
