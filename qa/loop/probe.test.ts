@@ -1,13 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { effectiveScene } from "../../shared/scene/graph.ts";
 import { loadScene } from "../../shared/scene/load.ts";
 import { CAMPAIGNS } from "./paths.ts";
 import { mouthpieceRules, twoPartNow } from "../../ai/gm/two-part.ts";
 import { initialGm } from "../../shared/gm/state.ts";
-import { afterReply, asOpen, checkOf, mouthpieceRequest, mouthpieceView, partsOf, probeTurn, rolesAfter, splicedNote, stateBefore, swapped, transcriptOf, wasTaken, type LoggedCall } from "./probe.ts";
+import { afterReply, asOpen, checkOf, mouthpieceRequest, mouthpieceView, partsOf, probeTurn, rolesAfter, splicedNote, stateBefore, storyOf, swapped, transcriptOf, wasTaken, type LoggedCall } from "./probe.ts";
 
 /** The co-GM's probe (qa/loop/probe.ts) on a round's call log, here a made-up one of the campaign's clerk. */
 
@@ -97,6 +97,29 @@ test("a reply asked again: the per-turn note's routes as the rebuilt bookkeeping
   const said = String(coGmAsked!.input[0]!.content);
   assert.match(said, /\n\nNim \(player\): \(I look up\) Who was the big one\?\n\nGM: “Big Hobb Mallory,” Kell says\.\n\n# Where the scene is: Stones at a hanged man \[start\]\nIt's turn 5:/);
   assert.match(said, /Character role for Sergeant Agnes Kell:\nStatus: By the hoist\nMental state: Patient\nConversation role: Names the big man\./);
+});
+
+test("a lead's name owed in the rebuilt bookkeeping (--owe, QA round qa3-1018's fixes): the reply asked again is told who names him, after the round's own directives; the co-GM, asked about that reply, takes the lead once the name is said", async () => {
+  const note = "## Where the scene is now: Stones at a hanged man\nThe yard.\n\n## What moves the scene on from here\n- (nothing)\n\n## For this reply\nThe round's own directive.";
+  assert.match(asOpen(clerk, note, initialGm(clerk), false, ["Mine."]), /\n\n## For this reply\nThe round's own directive\.\n\nMine\.$/, "after the round's");
+  assert.match(asOpen(clerk, note, initialGm(clerk), true, ["Mine."]), /\n\n## For this reply\nMine\.$/, "a closing's left out, ours kept");
+
+  const scenes = readdirSync(join(CAMPAIGNS, "caerwyn", "scenes")).filter(f => f.endsWith(".kmscene")).map(f => effectiveScene(loadScene(readFileSync(join(CAMPAIGNS, "caerwyn", "scenes", f), "utf8")), []));
+  const before = "# The scene so far\n\nGM: The yard.\n\nNim (player): Who else was here?\n\nGM: “The big one was like a door, with a bandage on his right hand.”\n\n# Where the scene is: Stones at a hanged man [start]\nReached so far: [start].\n\n# Current character roles\n\nCharacter role for Sergeant Agnes Kell:\nConversation role: If asked, names him.\n\n# Who's on stage now\n- Sergeant Agnes Kell [kell]";
+  const prior: LoggedCall = { key: key(4, "settle"), operation: "two-part.co-gm", request: { input: [{ role: "user", content: before }] }, calls: [] };
+  const reply: LoggedCall = { key: key(5, "reply"), operation: "two-part.reply", request: { instructions: "Prompt.\n\n# Your prep for this scene: The Hanged Clerk\n\n## Where it starts: Stones at a hanged man [start]\nAnd so on.", input: [{ role: "system", content: "## Where the scene is now: Stones at a hanged man\nThe yard.\n\n## What moves the scene on from here\n- (nothing)" }, { role: "user", content: "Sergeant?" }] } };
+  const sent: Array<{ input: Array<{ role?: string; content?: string; type?: string }>; text?: { format?: unknown } }> = [];
+  const model = (async (_url: unknown, init?: RequestInit) => {
+    const body = JSON.parse(String(init!.body)) as (typeof sent)[number];
+    sent.push(body);
+    if (body.text?.format) return new Response(`data: ${JSON.stringify({ type: "response.completed", response: { status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: JSON.stringify({ narration: "[Sergeant Agnes Kell] “Big Hobb Mallory. Champion at the Drowned Rat.”", check: null }) }] }], usage: { cost: 0.001 } } })}\n\ndata: [DONE]\n\n`, { status: 200, headers: { "content-type": "text/event-stream" } });
+    if (body.input.some(i => i.type === "function_call_output")) return Response.json({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: "done" }] }], usage: { cost: 0 } });
+    return Response.json({ status: "completed", output: [{ type: "function_call", call_id: "c1", name: "move_scene", arguments: JSON.stringify({ route_id: "find-hobb", outcome: "none", why: "Kell named the big man from the description: Big Hobb Mallory of the Drowned Rat." }) }], usage: { cost: 0 } });
+  }) as typeof fetch;
+  const tried = await probeTurn(clerk, [prior, reply], "7", 5, { player: { name: "Nim", concept: "a halfling cutpurse" }, story: storyOf("caerwyn", scenes) }, { fetch: model, apiKey: "test" }, { reply: true, owe: ["hobb"] });
+  assert.equal(tried.error, undefined);
+  assert.match(String(sent[0]!.input.at(-2)?.content), /\n\n## For this reply\nSergeant Agnes Kell names him now: Big Hobb Mallory\. /, "the reply asked again is told");
+  assert.deepEqual([tried.reached, tried.owed], [["hobb"], []], "said in the reply, so taken");
 });
 
 // --- The mouthpiece's probe (QA round qa2-1018's fixes)

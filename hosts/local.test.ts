@@ -222,7 +222,7 @@ const rowsOf = (local: LocalHost) => all(local.sim.db.sceneSuggestion).sort((a, 
  * dead-cart, Tull brought on with his role and the next reply told so, once; then the scene closing,
  * its wind-down by the mouthpiece with no settle, and the story's end crossing to the Rat.
  */
-test("the two-part GM on the local host: the campaign's hanged clerk walked to murder by persons unknown a route a line, then its wind-down and the story on to the Rat", async () => {
+test("the two-part GM on the local host: the campaign's hanged clerk walked to murder by persons unknown a route a line (the Hobb lead's name owed first, said by the fake's Kell in the next reply), then its wind-down and the story on to the Rat", async () => {
   const base = onTop(devFake(), { streamMs: 0, suggestDelayMs: 0 });
   let next: FakeOptions = base;
   const local = await localHost({ seed: 7, fake: () => next });
@@ -249,22 +249,27 @@ test("the two-part GM on the local host: the campaign's hanged clerk walked to m
   const rolled = first.lines.find(l => l.turn === 1 && l.kind === "roll")!.text;
   assert.match(rolled, /^Medicine .*DC 12.* \((badly|narrowly|only just|cleanly|with room to spare|natural 20!|natural 1!)\)\.$/);
   assert.match(of("two-part.co-gm", 1, "settle")[0]!.request.input!.map(m => m.content).join("\n"), /# This turn's check\nThe GM called Medicine DC 12, and the roll came to \d+/);
-  assert.deepEqual([first.gm.reached, first.gm.path.map(p => p.via)], [["start", "hobb"], ["find-hobb"]], "the required discovery first");
+  assert.deepEqual([first.gm.reached, first.gm.path.map(p => p.via)], [["start"], ["owed:hobb"]], "the required discovery first: a lead, refused while nobody has said Big Hobb Mallory, so his name is owed");
 
-  await line("Sergeant, what do you make of the knot?");
+  const named = await line("Sergeant, what do you make of the knot?");
+  assert.match(of("two-part.reply", 2, "reply")[0]!.request.input!.at(-2)!.content, /\n## For this reply\n[\s\S]*Sergeant Agnes Kell names him now: Big Hobb Mallory\. /, "the reply after it told who names him");
+  assert.match(named.lines.filter(l => l.turn === 2 && l.kind === "narration").at(-1)!.text, /“Big Hobb Mallory\.”$/, "the fake's Kell says it");
+  assert.deepEqual(named.gm.path.map(p => p.via), ["owed:hobb", "find-hobb"], "said, so taken");
+  await line("And the mark on his throat?");
   const cart = await line("Is that the dead-cart I hear?");
-  assert.deepEqual([cart.gm.path.map(p => p.via), cart.gm.beat, cart.gm.twoPart.moved], [["find-hobb", "find-murder", "cart-comes"], "cart-arrives", "cart-arrives"]);
+  assert.deepEqual([cart.gm.path.map(p => p.via), cart.gm.beat, cart.gm.twoPart.moved], [["owed:hobb", "find-hobb", "find-murder", "cart-comes"], "cart-arrives", "cart-arrives"]);
   assert.match(cart.gm.twoPart.roles.tull!.conversation_role, /^Helmet off to the dead/, "Tull's role, his stage note");
   assert.ok(all(sim.db.entity).some(e => e.key === "tull"), "Tull is in the world");
 
   const signed = await line("Corporal, Sergeant: write it down as murder.");
-  const told = of("two-part.reply", 4, "reply")[0]!.request.input!.at(-2)!.content;
+  const told = of("two-part.reply", 5, "reply")[0]!.request.input!.at(-2)!.content;
   assert.match(told, /The scene has just moved on to "[^"]+": [\s\S]*arrives now, seen arriving/, "the reply after the move was told to show it");
+  assert.doesNotMatch(told, /names him now/, "the name said: no more");
   assert.deepEqual([signed.scene.status, signed.gm.closing?.exitId, signed.gm.twoPart.moved], ["closing", "murder-unknown", undefined]);
 
   const ended = await line("Then we're done here.");
-  assert.equal(of("two-part.closing", 5, "reply").length, 1, "the wind-down is the mouthpiece's closing");
-  assert.deepEqual([of("world.stage", 5, "settle").length, of("two-part.co-gm", 5, "settle").length], [0, 0], "no settle on the wind-down");
+  assert.equal(of("two-part.closing", 6, "reply").length, 1, "the wind-down is the mouthpiece's closing");
+  assert.deepEqual([of("world.stage", 6, "settle").length, of("two-part.co-gm", 6, "settle").length], [0, 0], "no settle on the wind-down");
   assert.deepEqual([ended.scene.status, ended.scene.exitKey, ended.lines.at(-1)!.text], ["ended", "murder-unknown", "Scene ends: Murder by persons unknown"]);
   assert.match(sim.db.chapter.sceneId.find(scene.id)!.summary, /^Previous scene, "The Hanged Clerk", ended: Murder by persons unknown \(hanged-clerk: murder-unknown\)\.\n/);
   const rat = all(sim.db.scene).find(s => s.sceneKey === "drowned-rat")!;

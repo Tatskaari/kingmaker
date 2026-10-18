@@ -232,12 +232,15 @@ export interface TurnCheck { skill: string; dc: number; total: number; success: 
  * What the two-part GM's co-GM did after a reply (its tools' calls): the roles it set, the latest
  * for each person by cast id; the moves it made, in order, each taken at once with beats.ts's
  * takeRoute on a copy of the bookkeeping (the simulation takes them again on its rows, the
- * authority); and every call it made with what it was told. `error`: why it failed (nothing set or
+ * authority); and every call it made with what it was told. `owed`: the leads whose move was refused
+ * because nobody had said the name they need, so the name is owed (beats.ts oweName, which the
+ * simulation takes on its rows): none when there were none. `error`: why it failed (nothing set or
  * moved then).
  */
 export interface CoGmAnswer {
   roles: Record<string, TwoPartRole>;
   moves: Array<{ route: string; outcome: RouteOutcome; why: string }>;
+  owed?: string[];
   log: Array<{ name: string; args: Record<string, unknown>; result: string }>;
   error?: string;
 }

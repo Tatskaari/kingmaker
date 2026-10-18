@@ -58,7 +58,7 @@ export async function theWholeStory(stack: Stack, root: string, lead: Player, b:
   check(`B's join_game(${game.id}) is made`, (await b.conn.joinGame(game.id)) === undefined);
   await until(b, "B to see the yard", 10_000, r => r.game.id === game.id && r.scene.status === "live");
 
-  const yard = await toTheEnding(lead, ["Cob, who was the big man last night?", "Sergeant, that's a cord mark, not a rope.", "Is that the dead-cart?", "Write him down as murdered, persons unknown."], "Let's go.", "Murder by persons unknown");
+  const yard = await toTheEnding(lead, ["Cob, who was the big man last night?", "Sergeant, do you know a man that size?", "Sergeant, that's a cord mark, not a rope.", "Is that the dead-cart?", "Write him down as murdered, persons unknown."], "Let's go.", "Murder by persons unknown");
   const rat = await waitingLead(lead, "drowned-rat", "The Drowned Rat");
   check(`the game's time is the Rat's: ${String(rat.game.time)}`, rat.game.time === "evening");
   const [chapter] = await stack.sql(`SELECT * FROM chapter WHERE scene_id = ${game.scene}`);
