@@ -1,5 +1,0 @@
-# The AI service's image takes package.json, ai/, shared/, vendor/ and hosts/ai.ts (ai/Containerfile):
-# the dependencies and the run folders stay out of the build context, which is v2/.
-node_modules
-runs
-simulation/dist

@@ -15,7 +15,7 @@ The user's framing: a character is a collection of **motivations, relationships,
 Sources are linked inline and listed at the end. Related notes:
 - [pacing.md](pacing.md) covers how reveals are paced. Its `SecretSpec` is the secret shape used here.
 - [pacing-failures.md](pacing-failures.md) holds the transcript failures cited below as F1–F15.
-- [experiments/absurdity.md](../experiments/absurdity.md) describes the mouthpiece failure.
+- [experiments/absurdity.md](../prototype/experiments/absurdity.md) describes the mouthpiece failure.
 - See also [gm-techniques.md](gm-techniques.md), [dc-guidance.md](dc-guidance.md) and [scene-sources.md](scene-sources.md) §5.6 (Kim Kitsuragi, Kell's model).
 
 ## Summary
@@ -107,7 +107,7 @@ The other sources say the same at different sizes:
 - **A physical habit** done every few replies. Kell watches hands and taps her pencil. Saul answers for his dog.
 - **A form of address.** Kell says "investigator", Sallow says "Clerk" and "Sergeant", Nan says "my duck". It can double as a display of the relationship: Kim Kitsuragi calls Harry "'officer' when he is angry with Harry, and 'detective' when he is not" ([Kim Kitsuragi, wiki.gg](https://discoelysium.wiki.gg/wiki/Kim_Kitsuragi)).
 - **A sample line that does the whole character.** Sallow: "I never threaten anyone. I describe what will happen, in order."
-- **The thing they take entirely seriously.** This is the engine of the house style ("People take themselves, their jobs, their customs and their troubles entirely seriously", [tone-comic.md](../../v2/ai/prompts/tone-comic.md)). Examples: Nan's rules, Tull's written orders, Kell's notebook, Sallow's paper.
+- **The thing they take entirely seriously.** This is the engine of the house style ("People take themselves, their jobs, their customs and their troubles entirely seriously", [tone-comic.md](../../ai/prompts/tone-comic.md)). Examples: Nan's rules, Tull's written orders, Kell's notebook, Sallow's paper.
 - **An entrance that shows them in action.** Weiland calls this the characteristic moment, "his first chance to impress your readers" ([Character Arcs, Pt. 5](https://www.helpingwritersbecomeauthors.com/character-arcs-5/)). Examples: Cob stoning a hanged man he liked; Moll swearing from a wall in two languages.
 - **Detail scaled to the role.** Not everyone needs a lore folder. Everyone who recurs does.
 
@@ -115,7 +115,7 @@ One inference of our own, not from the sources: models drift from their instruct
 
 ### 1.3 The GM's purpose stays behind the screen
 
-This is our hard-won lesson ([absurdity.md](../experiments/absurdity.md): characters recited the co-GM's terms), and the sources name it.
+This is our hard-won lesson ([absurdity.md](../prototype/experiments/absurdity.md): characters recited the co-GM's terms), and the sources name it.
 
 > "If the dragon king exists just to deliver exposition, it isn't really an NPC. It's just a robot. It's basically the RPG equivalent of a dialogue box or an on-screen text scroll. No decisions, no NPC." ([The Angry GM: What Even Is an NPC](https://theangrygm.com/what-even-is-an-npc/))
 
@@ -257,7 +257,7 @@ The sources agree that characters grow from play, not from prep:
 - Memories record events.
 - The improvised-detail reviewer writes new facts into the lore.
 
-What's missing is the *reflection*. When a relationship changes, the change should reach `knowledge/<Other>.md`, so that the next scene opens the relationship as it now stands, not a log of events ([v2/ai/prompts/review/relationship.md](../../v2/ai/prompts/review/relationship.md) currently only saves memories).
+What's missing is the *reflection*. When a relationship changes, the change should reach `knowledge/<Other>.md`, so that the next scene opens the relationship as it now stands, not a log of events ([v2/ai/prompts/review/relationship.md](../../ai/prompts/review/relationship.md) currently only saves memories).
 
 ---
 
@@ -279,7 +279,7 @@ What's missing is the *reflection*. When a relationship changes, the change shou
 | Relationships | Ties to others present, a phrase each, where they matter here | `knowledge/<Other>.md` for each person who matters |
 
 Rules:
-- **The card stands alone.** `v2-nomemory`, and any approach without `memory`, sees only the card. Under `v2`, the GM also gets each present character's `private.md` under "Who these people are (their lore)", and their opened knowledge docs and memories under "What people remember" ([v2/ai/docs/disclosure.ts](../../v2/ai/docs/disclosure.ts)).
+- **The card stands alone.** `v2-nomemory`, and any approach without `memory`, sees only the card. Under `v2`, the GM also gets each present character's `private.md` under "Who these people are (their lore)", and their opened knowledge docs and memories under "What people remember" ([v2/ai/docs/disclosure.ts](../../ai/docs/disclosure.ts)).
 - **The card says what's different about this scene; the lore holds the constants.** They must not disagree. What happened in play (the hand-off, memories) outranks both, as the brief already says.
 - **Recurring characters' cards are neutral to earlier outcomes.** This is current practice, and worth keeping.
 
@@ -385,12 +385,12 @@ Write it in the second person, as belief, not truth, in four to eight bullets:
 Put the trigger nouns in the summary and the link label. Write the other side too, differently.
 
 **The model in our lore: Kell and Cob.** Same incidents, opposite readings, and neither is told the other's.
-- Kell ([knowledge/Cob.md](../../lore/Cast/Sergeant%20Agnes%20Kell/knowledge/Cob.md)): "You've taken him up twice for pilfering, and twice let him go rather than send him to the Mending House." "He's not a bad lad. You've thought for a while he'd be a good one, given boots that fit and a hot dinner."
-- Cob ([knowledge/Kell.md](../../lore/Cast/Cob/knowledge/Kell.md)): "You reckon her notebook is a list of kids for the Mending House." "She's caught you twice and let you go twice. You don't know why, and you don't trust it."
+- Kell ([knowledge/Cob.md](../../campaigns/caerwyn/lore/Cast/Sergeant%20Agnes%20Kell/knowledge/Cob.md)): "You've taken him up twice for pilfering, and twice let him go rather than send him to the Mending House." "He's not a bad lad. You've thought for a while he'd be a good one, given boots that fit and a hot dinner."
+- Cob ([knowledge/Kell.md](../../campaigns/caerwyn/lore/Cast/Cob/knowledge/Kell.md)): "You reckon her notebook is a list of kids for the Mending House." "She's caught you twice and let you go twice. You don't know why, and you don't trust it."
 
 A scene can be built on that pair alone.
 
-**A rewrite: Kell's Nan Quill.** Today the relationship sits inside [knowledge/The Docks.md](../../lore/Cast/Sergeant%20Agnes%20Kell/knowledge/The%20Docks.md): "Twenty years ago, as a constable of nineteen, you tried to arrest a pickpocket in the Rat, and Nan put you out through the door. Through it, not the doorway. You haven't been back. You've been told you owe for the door." It has a great incident, but no want, no lever and no wrong belief, and it only opens when the docks come up. Proposed `knowledge/Nan Quill.md`:
+**A rewrite: Kell's Nan Quill.** Today the relationship sits inside [knowledge/The Docks.md](../../campaigns/caerwyn/lore/Cast/Sergeant%20Agnes%20Kell/knowledge/The%20Docks.md): "Twenty years ago, as a constable of nineteen, you tried to arrest a pickpocket in the Rat, and Nan put you out through the door. Through it, not the doorway. You haven't been back. You've been told you owe for the door." It has a great incident, but no want, no lever and no wrong belief, and it only opens when the docks come up. Proposed `knowledge/Nan Quill.md`:
 
 ```markdown
 ---
@@ -913,5 +913,5 @@ These are small, optional changes; none is needed to use the template.
 
 **Ours**
 - [pacing.md](pacing.md), [pacing-failures.md](pacing-failures.md), [gm-techniques.md](gm-techniques.md), [dc-guidance.md](dc-guidance.md), [scene-sources.md](scene-sources.md)
-- [experiments/absurdity.md](../experiments/absurdity.md), [FINDINGS.md](../FINDINGS.md)
-- [v2/ai/prompts/tone-comic.md](../../v2/ai/prompts/tone-comic.md), [v2/ai/prompts/gm.md](../../v2/ai/prompts/gm.md)
+- [experiments/absurdity.md](../prototype/experiments/absurdity.md), [FINDINGS.md](../prototype/FINDINGS.md)
+- [v2/ai/prompts/tone-comic.md](../../ai/prompts/tone-comic.md), [v2/ai/prompts/gm.md](../../ai/prompts/gm.md)

@@ -1,5 +1,0 @@
-projects:
-  workspace: .
-telemetry: false
-vcs:
-  defaultBranch: main

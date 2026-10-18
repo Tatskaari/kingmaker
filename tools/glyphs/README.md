@@ -1,6 +1,6 @@
 # Kingmaker Glyphs: our own font of pixel-art people and creatures
 
-Part of the [architecture overview](../../ARCHITECTURE.md); the look layer that draws with these is [src/game/look](../../src/game/look/README.md).
+Part of the [architecture overview](../../ARCHITECTURE.md); the look layer that draws with these is the client's, [client/look](../../client/look/).
 
 The game draws its world in a terminal, and a terminal draws characters from a font, so custom art
 for the cast and the monsters means a custom font.
@@ -33,40 +33,36 @@ embolden the Regular one synthetically and smear the pixels.
 | file | what it is |
 |---|---|
 | `assets/glyphs/kingmaker.txt` | The bitmaps, drawn by hand: a header per glyph (name, code point, what it is), then 18 rows of 9, `#` ink and `.` blank. |
-| `tools/glyphs/build.py` | Bitmaps to fonts: traces each glyph's ink into clean outlines and builds Regular and Bold TrueType fonts. Writes `src/game/look/kingmaker-glyphs.ts` (names, code points, pixels). |
-| `assets/fonts/KingmakerGlyphs-{Regular,Bold}.ttf` | The built fonts, committed so the game doesn't need Python. |
+| `tools/glyphs/build.py` | Bitmaps to fonts: traces each glyph's ink into clean outlines and builds Regular and Bold TrueType fonts. Writes `client/look/kingmaker-glyphs.ts` (names, code points, pixels). |
+| `web/fonts/KingmakerGlyphs-{Regular,Bold}.ttf` | The built fonts, committed so the game doesn't need Python; the page serves them. |
 | `tools/glyphs/sheet.py` | Contact sheets in `runs/glyphs/`: the bitmaps big; the font at the real cell size and 3x, with names in Adwaita Mono beside them; and text through Pango with GTK 4's font rendering, as VTE draws it. |
 | `tools/glyphs/vte.py` | Every sprite drawn by a real VTE terminal (the widget Ptyxis is built on) in a private headless compositor, and checked pixel by pixel against the bitmaps. |
-| `tools/glyphs/frame.py` | Draws `dump.ts --json` frames as the terminal would (Pango, fallback and all), as PNGs. |
-| `src/game/look/kingmaker.ts` | The glyph set's rules: which sprite a being gets, and how it lies down. |
-| `src/game/look/kingmaker-check.tsx` | Draws sprites on the map and in the gallery through OpenTUI's headless renderer, and checks every row lines up. |
+| `tools/glyphs/frame.py` | Draws `dump.ts --json` frames as the terminal would (Pango, fallback and all), as PNGs. The dump was the prototype's (`src/game/look/dump.ts`, in git history at `bc2ab1f`): the game has none yet. |
+| `client/look/kingmaker.ts` | The glyph set's rules: which sprite a being gets, and how it lies down. |
 
 ## Use it
 
 ```sh
 npm run glyphs              # build the fonts and install them (~/.local/share/fonts/kingmaker), then fc-cache -f
-node --experimental-ffi --no-warnings --import tsx src/game/look/gallery.tsx sprites --glyphs kingmaker
-npm run game                # draws with them once they're installed here (KM_GLYPHS=ascii for letters)
-KM_GLYPHS=kingmaker npm run game   # over SSH, with the font installed where your terminal is
+npm run client              # (a stack running: npm run dev) draws with them once they're installed here (KM_GLYPHS=ascii for letters)
+KM_GLYPHS=kingmaker npm run client   # over SSH, with the font installed where your terminal is
 npm run glyphs:uninstall    # remove the installed fonts (and fc-cache -f)
 ```
 
-The gallery shows the sprites at once. The game draws them wherever it draws a being: on the map
+The game draws them wherever it draws a being: on the map
 (the map renderer draws its actors through the look layer's `actorLook`), on a scene's place from
 above, and in fights. With the font installed in `~/.local/share/fonts/kingmaker` and the terminal
-local, the game picks the set by itself (`detectGlyphSet` in `src/game/look/glyphs.ts`). Over SSH it
+local, the game picks the set by itself (`detectGlyphSet` in `client/look/glyphs.ts`, asked by `hosts/terminal.ts`). Over SSH it
 can't tell what fonts your terminal has, so it draws letters unless `KM_GLYPHS=kingmaker` says
 otherwise.
 
-The browser needs no install: the server build and the static build both serve the two fonts in
-`assets/fonts/` with the page (`/fonts.css`, made by `src/web/fonts.ts`). The static build draws
-with them by default; the server build's game decides as a terminal game does, on the server
-(src/web/README.md).
+The browser needs no install: the page's build serves the two fonts in `web/fonts/` with the page
+(`fonts.css`, made by `web/fonts/fonts.ts`), and the page draws with them by default.
 
 Building needs fontTools (`pip install fonttools`, or the `python3-fonttools` package). Installing
 doesn't: without fontTools, `npm run glyphs` installs the committed fonts as they are, and says so.
 The font must be installed on the machine whose terminal draws the game, so install it locally even
-when the game runs over SSH. Without the repository there, copy the two files in `assets/fonts/` to
+when the game runs over SSH. Without the repository there, copy the two files in `web/fonts/` to
 `~/.local/share/fonts/` and run `fc-cache -f`. To check that fontconfig will use it:
 
 ```sh
@@ -92,11 +88,13 @@ it (the metrics are constants at the top of `build.py`; `--metrics` compares the
 2. `npm run glyphs` builds, installs and regenerates `kingmaker-glyphs.ts`. `npm run glyphs:sheet`
    draws the sheets: look at `runs/glyphs/pango-3x.png`, the real rendering three times up, and
    `npm run glyphs:vte` has a real terminal draw them.
-3. For it to appear in the game, map words to it in `src/game/look/kingmaker.ts` (`PEOPLE`,
+3. For it to appear in the game, map words to it in `client/look/kingmaker.ts` (`PEOPLE`,
    `CREATURES`, or `ROLES` by role id), or give a cast member it as their `km` in the cast table
-   (`CAST` in `src/game/map/looks.ts`, which `src/game/look/people.ts` reads).
-4. `node --no-warnings --test src/game/look/*.test.ts` checks the fonts and the code were rebuilt from
-   the bitmaps as they are, and that OpenTUI measures every sprite as one cell.
+   (`CAST` in `client/look/cast.ts`, which `client/look/people.ts` reads).
+4. The prototype's tests checked that the fonts and the code were rebuilt from the bitmaps as they
+   are, and that OpenTUI measures every sprite as one cell (`src/game/look/kingmaker.test.ts`, in git
+   history at `bc2ab1f`); the game hasn't those tests yet, so check by eye on the sheets and with
+   `npm run screens`.
 
 Tips for a readable sprite. Each design pixel is one screen pixel at Adwaita Mono 11, so a pixel
 shows. A sprite reads by its outline, because it's all one colour: give each one a shape of its own

@@ -8,18 +8,18 @@ An Obsidian community plugin for editing real `.kmscene`, `.kmmap` and `.kmscena
 cd tools/authoring
 npm ci
 npm run build
-npm run install:vault -- /home/jon/git/kingmaker/lore
+npm run install:vault -- <your lore vault>
 ```
 
-The target must already contain `.obsidian/`. Installation copies `main.js`, `styles.css` and `manifest.json` into `.obsidian/plugins/kingmaker-authoring/`, adds this plugin to the enabled list without removing other plugins, and adds example files only if their names do not already exist. Existing plugin files are backed up under `dist/install-backups/`. Existing scene files and notes are never overwritten by the installer.
+The target must already contain `.obsidian/`. The repo's own vault, the prototype's root `lore/`, went with the prototype (M1, [docs/migration-log.md](../../docs/migration-log.md)); the game's lore is [campaigns/caerwyn/lore](../../campaigns/caerwyn/lore/index.md), which the next milestones bring the plugin to. Don't install into that folder meanwhile: every `.md` in it is the game's lore, and the installer adds the example notes. Installation copies `main.js`, `styles.css` and `manifest.json` into `.obsidian/plugins/kingmaker-authoring/`, adds this plugin to the enabled list without removing other plugins, and adds example files only if their names do not already exist. Existing plugin files are backed up under `dist/install-backups/`. Existing scene files and notes are never overwritten by the installer.
 
-Reload Obsidian. If Restricted mode is on, allow community plugins in Settings → Community plugins, then enable **Kingmaker Authoring**. Open **Scenarios/Caerwyn.kmscenario** or **Scenes/The Hanged Clerk.kmscene** from the main lore vault. The ribbon icon and **Kingmaker Authoring: Open scene, map or scenario** command also find these files.
+Reload Obsidian. If Restricted mode is on, allow community plugins in Settings → Community plugins, then enable **Kingmaker Authoring**. Open **Scenarios/Caerwyn.kmscenario** or **Scenes/The Hanged Clerk.kmscene** (the installer adds them from `examples/`). The ribbon icon and **Kingmaker Authoring: Open scene, map or scenario** command also find these files.
 
 Right-click any folder in Obsidian's file explorer for **New Kingmaker scene**, **New Kingmaker map** or **New Kingmaker scenario**. You can also use the corresponding command-palette commands. Creation asks for a filename and opens the new file, with no seeded content. Existing names are rejected. Maps open in the isometric editor with **Paint** and **Game preview** views; right-click tiles to add spawn points and interactions. Their named flow ports are wired on the scenario graph. Existing port data is preserved; there is no separate map Ports tab.
 
 ## Isometric map PoC
 
-Open **Maps/Harbour study.kmmap** in the main lore vault, or create a new map. The harbour study is explicitly a hand-authored editor example, not an imported campaign map. Existing port-only maps open on an unsaved blank 32 × 24 grass grid: merely opening a file does not add terrain or overwrite any metadata.
+Open **Maps/Harbour study.kmmap** (an example too), or create a new map. The harbour study is explicitly a hand-authored editor example, not an imported campaign map. Existing port-only maps open on an unsaved blank 32 × 24 grass grid: merely opening a file does not add terrain or overwrite any metadata.
 
 - **Paint:** an isometric authoring view with readable material colours and footprint symbols. Choose grass, dirt, cobbles, boards, water, deep water, bridges, stone/timber walls, doors, windows, roofed floor, trees, fences or stairs. There is no new procedural region-generation system.
 - **Clutter accordion:** paint lamps, signs, crates, barrels or benches on a separate layer above the terrain (one object per tile). Selecting an item activates clutter painting. Brush, rectangle, fill and sampling work on this layer; **E** or **Ctrl/Cmd-drag** removes clutter without touching terrain. Selecting a terrain material switches back to terrain. Clutter also appears in Game preview.
@@ -29,7 +29,7 @@ Open **Maps/Harbour study.kmmap** in the main lore vault, or create a new map. T
 - **B** brush, **R** rectangle, **G** connected fill, **E** eraser, **I** eyedropper (or Alt-click, sampling into the selected swatch), **H** pan. **[ / ]** change brush size. A drag is one undo step; Escape cancels an unfinished stroke.
 - **S / Resize** shows four isometric edge handles. Drag N/E/S/W outward to add grass tiles, or inward to crop. The dimensions preview live; release applies one undoable change. Cropping asks for confirmation before removing tiles, clutter and any spatial placements outside the new boundary. Escape or a cancelled drag leaves the file unchanged. North/west growth shifts terrain, clutter, placements and camera together. A focused handle also accepts **+ / −** for one-tile adjustments. Use **F / Fit** if an edge is off screen. Dimensions are limited to 4–64 tiles per side. Non-spatial legacy ports and other document metadata are preserved.
 - Middle-drag (or **H** and drag) pans, wheel zooms, **F** fits. Right-clicking a tile or placement marker opens the same tile authoring menu: add spawn points/interactions, edit or delete each existing placement, and delete clutter if present. Deletions require confirmation and support undo; other contents of the tile are preserved. Left-clicking a marker still opens its editor. Views keep the same map-centre camera, with projection-specific scale. **Tab while the canvas is focused** switches between Paint and Game preview; ordinary Tab navigation still works on toolbar/form controls. The visible view buttons work without shortcuts.
-- **Game preview** uses `src/game/map/render.ts` from this checkout, not a lookalike. Terrain materials, structure heights, roofs and the renderer's textures/lighting are shown using its ASCII glyph mode. Night and Lift roofs are view-only settings. This is a still terrain preview, without live scene actors/effects or the browser's pixel door/lamp overlays. It does not run the game.
+- **Game preview** uses the game's own renderer, `client/map/render.ts` from this checkout, not a lookalike. Terrain materials, structure heights, roofs and the renderer's textures/lighting are shown using its ASCII glyph mode. Night and Lift roofs are view-only settings. This is a still terrain preview, without live scene actors/effects or the browser's pixel door/lamp overlays. It does not run the game.
 - Ctrl/Cmd-Z and Ctrl/Cmd-Shift-Z (or Ctrl/Cmd-Y) undo/redo. History is bounded to 100 edits and lasts while the file view is open. There are no bulk Clear terrain or Load example actions in the palette.
 
 The optional `terrain` field contains `{version: 1, width, height, tiles, clutter?}`. Tiles are a row-major array of stable palette IDs (`tiles[y * width + x]`), one 5-foot tile each. The optional clutter array has the same length, with an object palette ID or `null` per tile. Spatial features are ordinary document nodes with `mapFeature: "spawn" | "interaction"` and `mapAt: {x, y}` in their data. Spawns are `start` nodes; interactions are `beat` nodes or `exit` nodes when `exitPort` is nonempty. Interaction data also stores `eventMessage` and `script` (inert notes). This reuses stable node IDs and existing scenario destination ownership, not a second routing graph. Maps start at 32 × 24 tiles and can be resized to 4–64 tiles per side. Game-format terrain and clutter actors are derived for preview, not written back. Invalid terrain/clutter/placements are rejected rather than silently replaced. Game loading/export, freeform per-tile attributes, trigger volumes and elevation editing remain future work.
@@ -71,14 +71,14 @@ The existing Caerwyn scenario preserves its earlier Granary Yard/Hanged Clerk sk
 To regenerate the examples from another checkout:
 
 ```sh
-node scripts/import-hanged-clerk.mjs /path/to/kingmaker-v0/v2/campaigns/caerwyn
+node scripts/import-hanged-clerk.mjs ../../campaigns/caerwyn
 ```
 
-The rest of the Caerwyn arc is authored in the main game's `scenes/*.ts`, not the v2 single-scene campaign. Import its five continuation scenes with Node 26 (or a Node version that supports TypeScript type stripping):
+The rest of the Caerwyn arc was authored in the prototype's `scenes/*.ts`, which went with it: they're in git history at `bc2ab1f` (the game's campaign has those scenes too, converted to its own format). The importer reads them from a checkout that has them, with Node 26 (or a Node version that supports TypeScript type stripping); `git worktree add --detach <folder> bc2ab1f` makes one, and the tests take them out of history themselves ([tests/prototype-game.mjs](tests/prototype-game.mjs)):
 
 ```sh
-node scripts/import-main-campaign.mjs /home/jon/git/kingmaker /home/jon/git/kingmaker/lore
-node scripts/import-main-campaign.mjs /home/jon/git/kingmaker /home/jon/git/kingmaker/lore --write
+node scripts/import-main-campaign.mjs <the prototype's checkout> <your lore vault>
+node scripts/import-main-campaign.mjs <the prototype's checkout> <your lore vault> --write
 ```
 
 The first command previews the import. `--write` exclusively creates missing scene files; it never overwrites existing scenes, scenarios or lore notes. The report identifies existing exits whose destination input still needs linking. Imported starts retain the authored opening beat's ID. Both interludes remain scenes: they represent downtime that the playable game's map normally replaces, not invented spatial maps. Original TypeScript, complete scene data, world data and exit scripts are preserved as inert source snapshots, with source hashes; scripts are not run and the import is not an executable game export. Runtime-generated companion talks, improvised endings, zoo scenes and repair experiments are excluded.
@@ -91,7 +91,7 @@ All three extensions contain readable JSON with `format: "kingmaker"`, `version:
 
 The current scenario diagram follows the scene harness's authored `exit.next` chain. **It is not the playable game's scene-to-map routing.** In the playable game, scenes return to map exploration; the map supplies the intervening travel and replaces the two downtime interludes. Importing those interludes preserves the source material, but does not implement those maps or their spatial transitions.
 
-The editable checkpoint is in the repository's `lore/Scenes`, `lore/Scenarios` and `lore/Objects` directories, copied from the main lore vault without replacing its content. `examples/` remains a separate, reproducible test/install fixture, not the latest edited vault state.
+The editable checkpoint was in the repository's `lore/Scenes`, `lore/Scenarios` and `lore/Objects` directories, copied from the main lore vault without replacing its content; it went with the prototype's `lore/` in M1 (in git history at `bc2ab1f`), superseded by the scenes the next milestone re-authors. `examples/` remains a separate, reproducible test/install fixture, not the latest edited vault state.
 
 The map editor paints terrain and clutter and previews them with the actual game renderer. Named spawn points and tile interactions expose scenario ports. Next: import actual campaign maps without dropping custom attributes/decor, support trigger areas and integrate the authored placements/actions into runtime. Do not silently reinterpret the current imported scene chain as spatial routing.
 
@@ -108,4 +108,4 @@ npm test
 npm run build
 ```
 
-`test:host` uses a mocked public Obsidian API to test extension registration, file lifecycle and corruption safeguards. Playwright exercises the shared editor and a per-file harness. These are not a claim of native desktop UI verification. On a fresh machine, install the test browser with `npx playwright install chromium`.
+`test:host` uses a mocked public Obsidian API to test extension registration, file lifecycle and corruption safeguards. The importer's tests, here and in the Playwright suite, read the prototype's scenes from git history at `bc2ab1f` (or from the checkout `KINGMAKER_IMPORT_TEST_GAME` names), and the browser fixtures' lore is the game's, `campaigns/caerwyn/lore` (`KINGMAKER_LORE_ROOT` names another). Playwright exercises the shared editor and a per-file harness. These are not a claim of native desktop UI verification. On a fresh machine, install the test browser with `npx playwright install chromium`.

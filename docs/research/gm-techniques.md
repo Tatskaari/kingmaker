@@ -1,10 +1,10 @@
 # GM techniques for play that leaves the prep: test design
 
-These are the design notes for twelve eval cases in [`src/eval/cases/techniques.ts`](../../src/eval/cases/techniques.ts), plus briefs for blind QA. The six techniques are the user's summary of GM advice articles, listed below with their sources.
+These are the design notes for twelve eval cases in [`src/eval/cases/techniques.ts`](https://github.com/Tatskaari/kingmaker/blob/bc2ab1f/src/eval/cases/techniques.ts), plus briefs for blind QA. The six techniques are the user's summary of GM advice articles, listed below with their sources.
 
 **Status.** The cases typecheck and pass an offline structural check: fixtures build, and every expected route, ending and approach exists. They haven't been run, and they aren't in `CASES` yet (see [Running](#running)).
 
-The deviation experiment ([deviation-repair.md](../experiments/deviation-repair.md)) asked whether a scene still ends the right way when play leaves the graph. These cases ask a narrower question for each technique. At the moment the technique is needed, does the GM use it, and does it avoid the matching anti-pattern?
+The deviation experiment ([deviation-repair.md](../prototype/experiments/deviation-repair.md)) asked whether a scene still ends the right way when play leaves the graph. These cases ask a narrower question for each technique. At the moment the technique is needed, does the GM use it, and does it avoid the matching anti-pattern?
 
 ## Sources
 

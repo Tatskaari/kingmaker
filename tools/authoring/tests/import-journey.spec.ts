@@ -5,9 +5,11 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {entryPorts,groupConnections,serializeDocument,type GraphDocument} from '../src/model';
+import {prototypeGame} from './prototype-game.mjs';
 
 const scenePath='Scenes/The Hanged Clerk.kmscene',scenarioPath='Scenarios/Caerwyn.kmscenario';
 let directory:string;
+let prototype:{game:string;done:()=>void}|undefined;
 let files:Record<string,string>;
 let scenes:{file:string;document:GraphDocument}[];
 
@@ -15,8 +17,9 @@ test.beforeAll(async()=>{
   directory=await mkdtemp(path.join(tmpdir(),'kingmaker-import-journey-'));
   const vault=path.join(directory,'vault');
   await cp(fileURLToPath(new URL('../examples/',import.meta.url)),vault,{recursive:true});
-  const game=process.env.KINGMAKER_IMPORT_TEST_GAME??fileURLToPath(new URL('../../../',import.meta.url));
-  const result=spawnSync(process.execPath,[fileURLToPath(new URL('../scripts/import-main-campaign.mjs',import.meta.url)),game,vault,'--write'],{encoding:'utf8',timeout:30000});
+  // The retired prototype's scenes: a checkout of them, or by default its last commit out of git history.
+  prototype=prototypeGame();
+  const result=spawnSync(process.execPath,[fileURLToPath(new URL('../scripts/import-main-campaign.mjs',import.meta.url)),prototype.game,vault,'--write'],{encoding:'utf8',timeout:30000});
   expect(result.status,result.stderr).toBe(0);
   const report=JSON.parse(result.stdout);
   scenes=await Promise.all([scenePath,...report.scenes.map((scene:{file:string})=>scene.file)].map(async(file:string)=>({file,document:JSON.parse(await readFile(path.join(vault,file),'utf8'))})));
@@ -29,7 +32,7 @@ test.beforeAll(async()=>{
   const scenario:GraphDocument={format:'kingmaker',version:1,kind:'scenario',id:'import-smoke',title:'Caerwyn — complete authored sequence',description:'File-backed import verification',nodes:[],edges:[],lore:[],scenario:{files:[scenePath],entry:{file:scenePath,entry:'yard'}}};
   files=Object.fromEntries([...scenes.map(scene=>[scene.file,serializeDocument(scene.document)]),[scenarioPath,serializeDocument(scenario)]]);
 });
-test.afterAll(async()=>{if(directory)await rm(directory,{recursive:true,force:true})});
+test.afterAll(async()=>{prototype?.done();if(directory)await rm(directory,{recursive:true,force:true})});
 
 test('an imported two-node interlude renders its transition on direct open',async({page})=>{
   const scene=scenes.find(scene=>scene.document.id==='caerwyn-afternoon')!;
