@@ -349,10 +349,10 @@ From tools/authoring, after a fresh `npm ci`: `npm run typecheck`; `npm run test
 ### Open
 
 - **Obsidian itself wasn't run.** The host tests and the bundle check stand in for its API; the first time in the desktop app is the user's.
-- **The scenario and map editors are version 1's** until M4: they don't read version 2 scenes, and a scene the scenario editor creates is one it can't wire.
+- **The scenario and map editors are version 1's** until M4: they don't read version 2 scenes, and a scene the scenario editor creates is one it can't wire. *Done in M4: the scenario, map and place editors are the game's files' (below).*
 - **Attachments.** Obsidian puts a pasted image in the vault, which is the campaign folder, and the campaign tools read every file of it as text (`readCampaignFiles`, so the install would carry it). Either the vault's `app.json` sets an attachment folder the tools skip, or the tools learn to skip what isn't a campaign file; left for the user's call.
 - **Lore renames.** Obsidian doesn't rewrite the lore paths in a scene's JSON when a note is renamed or moved: the problems panel names each broken one, and the author re-links it.
-- **A new scene isn't listed in campaign.json** by the plugin (the panel says so); listing it is the author's, or M4's scenario.
+- **A new scene isn't listed in campaign.json** by the plugin (the panel says so); listing it is the author's, or M4's scenario. *M4: the scenario (`caerwyn.kmscenario`) is the list now, and the scenario editor's Scenario tab lists a scene or makes one listed.*
 - **The user's old vault** (their checkout's `lore/`) is untouched; the README says how to move.
 
 ### Fixes from the user's first try
@@ -432,7 +432,7 @@ From tools/authoring: `npm run typecheck`; `npm run test:host` (95 of 95: new fo
 #### Open (after the author's pass)
 
 - **Obsidian itself** still hasn't been run; the harness and the bundle check stand in for it.
-- **campaign.json isn't the plugin's to edit** until M4: a new scene is listed there by hand for the game to install it (the problems say until it is).
+- **campaign.json isn't the plugin's to edit** until M4: a new scene is listed there by hand for the game to install it (the problems say until it is). *Done in M4: the Scenario tab lists it (below); the scene editor still only says so.*
 - **Renames stay in the file,** as above.
 
 ### On M2's engine and loop (the restack merge)
@@ -571,7 +571,7 @@ Checked again after the fixes: from tools/authoring, a fresh `npm ci`, the type 
 Open:
 
 - **This branch is behind M3.** claude/v2-authoring has 19 commits after `a0acbdc`, where this branch began (M3's author's pass, 2026-10-18: the scene editor's views and facts, problems by field, ids renamed, an ending going on to a scene not yet listed, …), and they read campaign.json, which this branch replaced with `caerwyn.kmscenario`. A trial merge (`git merge-tree`, which writes nothing) conflicts in 13 files: campaigns/README.md, docs/migration-log.md, docs/scene-format.md, shared/scene/rules.ts, tools/authoring/README.md, src/browser.tsx, and in src/scene ProblemsPanel.tsx, SceneEditor.tsx, ScenePanel.tsx, campaign.ts, inspectors.tsx, scene.css, with tests/scene-model.test.mjs. M3 replaced ProblemsPanel and ScenePanel with ProblemsView and SceneView, which M4's `f866a98` (a scene's campaign read from the scenario and the places) and `261be9d` (vias picked from the place's things, the warnings apart from the problems) changed: those come back on M3's views, and M3's reads of campaign.json move to the scenario, when this branch is restacked on M3. *Done: restacked on M3's author's pass and M2's engine and loop (below).*
-- **The e2e's step 14** is M2's engine work.
+- **The e2e's step 14** is M2's engine work. *Done: on the restack the e2e is M2's, on the two-part GM, and passes every step (below).*
 - **Noted, not changed:** shrinking a map from the keyboard asks to crop at each press (a drag asks once); a place's header says "Laid on chandler-row at chandler-row (2, 5)" when the map and its region share an id; a place's things show their names on its grid only on hover; a region made to lay its scene's place while it's selected shows the place only when asked.
 - **Still standing:** Obsidian itself not run; attachments in the vault; lore renames; the places code (a scene put on a new map passes the check and the game's loaders, but who waits there, its lead marker and where the player comes out after aren't in the files).
 
@@ -594,3 +594,9 @@ This branch had begun from M3 at `a0acbdc`, before M3's author's pass and before
 #### Checked (the merge)
 
 From the root: `npm run typecheck` clean; `npm test` 1008 of 1008 (M3 and M2's 997 and this branch's 11); `npm run campaign -- check campaigns/caerwyn` no problems (the same line). From tools/authoring: the type check, `test:host` 75 of 75 (the version 1 model and editors' tests this branch removed are gone, M3's scene model tests are kept), the build, and Playwright 38 of 38 (M3's 23 scene journeys, the new scene and the bundle check, this branch's 8 map, 3 scenario and place journeys, and the via journey on M3's views), on a port of its own.
+
+#### Checked (the battery, on the restacked branch)
+
+- **From the root:** `npm run check`: the type checks clean, 1008 tests of 1008, the screens PASS 685 (M2's count: its notes' screens went). `npm run campaign -- check campaigns/caerwyn`: "6 scenes (27 beats, 64 routes, 20 endings), a talk template, 4 places, 4 maps, 154 lore docs, 5 builds, 14 looks, the vocabulary of 19 scenes (44c6d4a); no problems". `npm run e2e -- --port 3510 --ai-port 9010` (namespace mode, ports of its own): PASS, every step, 345 checks in 391.3 s; its first step installs the scenario's campaign in both services, and step 14, "An ending", where this branch's e2e had stopped on the old clerk's `make-case`, passes on M2's co-GM walking the yard to murder by persons unknown (find-hobb, find-murder, cart-comes, signed-murder); step 19's replies, while another game played, came with a longest gap of 1281 ms. `npm run arc -- --port 3520 --ai-port 9020`: PASS, 15 of 16 checks on (12, V12's, off), from the lane through the Rat, the Heron's fight and its stand-in to The End. `npm run build:web` then `npm run web:check`: PASS, 80 checks (the page installs the build's campaign, 174 files with its scenario, maps, places and scenes and no campaign.json, and the yard is played on the fake). `npm run build:site`: 28 files.
+- **A loop round on the fake** (`KM_LOOP_DIR=runs/loop-restack`, `stack up --fake --root runs/loop-restack-stack --port 3530 --ai-port 9030`, round `rs1`: the hanged clerk and the Heron, three lines each): the clerk's game started in 5.0 s and the Heron's in 13.2 s, through the yard's and the Rat's real boundaries, each ended thorough on its first good ending (the notebook has both, and what each handed on); every line took about 4.5 s, and the Heron ended on its third ("Out with the true book"), the fake co-GM's walk. `review-pack` built both packs (the clerk's 575 lines, the Heron's 759) from the stack's installed copy of the campaign, read by its scenario, with the truth sheets, the prep and what the story handed on. The stack brought down after.
+- **The plugin:** the type check, `test:host` 75 of 75, the build and Playwright 38 of 38; and the same on a `git archive` export of the branch with no root packages, as CI's job runs them.
