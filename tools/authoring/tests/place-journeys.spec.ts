@@ -57,6 +57,10 @@ test('a place on its own grid: its things where they stand, one moved, one added
   await inspector.getByLabel('States 1',{exact:true}).fill('leaning');
   doc=await saved(page,path);
   expect(doc.things.at(-1)).toEqual({id:'a-ladder',name:'a ladder',kind:'object',in:'yard',at:[6,20],size:'large',material:'wood',states:['leaning'],description:'A ladder long enough for the hoist beam.'});
+  // The lane dragged five feet south takes its elm with it.
+  await drag(page,await feet(page,4,4),await feet(page,4,9));
+  await expect.poll(async()=>(await saved(page,path)).areas.find((a:any)=>a.id==='lane').rect).toEqual({x:0,y:5,w:40,h:8});
+  expect(thing(await saved(page,path),'elm').at).toEqual([34,8]);
   // What's in a thing is its contents: the beam holds the rope, the rope the body.
   await page.locator('.place-thing[data-thing="hoist-beam"]').click();
   await expect(page.locator('.place-inspector[data-place-part="thing:hoist-beam"] [data-field="contents"]')).toContainText('the hoist rope');

@@ -44,7 +44,7 @@ test('the scenario\'s wiring edited in its owning file: an ending\'s next in its
   await openScenario(page);
   const clerk=await original('scenes/hanged-clerk.kmscene'),town=await original('maps/caerwyn.kmmap');
   // The clerk's failed ending goes on to the Drowned Rat: set in the scene's file, where the ending is.
-  await card(page,'scene:hanged-clerk').click();
+  await card(page,'scene:hanged-clerk').locator('h3').click();
   await inspector(page).getByLabel('Failed: next scene',{exact:true}).selectOption('scene:drowned-rat');
   await expect.poll(async()=>node(await saved(page,'scenes/hanged-clerk.kmscene'),'failed').data.next).toBe('drowned-rat');
   const scene=await saved(page,'scenes/hanged-clerk.kmscene');
@@ -58,7 +58,7 @@ test('the scenario\'s wiring edited in its owning file: an ending\'s next in its
   await page.mouse.move(a.x+a.width/2,a.y+a.height/2);await page.mouse.down();await page.mouse.move(b.x+b.width/2,b.y+b.height/2,{steps:12});await page.mouse.up();
   await expect.poll(async()=>node(await saved(page,'scenes/hanged-clerk.kmscene'),'failed').data.next).toBe('wharf-night');
   // The town's palace gate leads to the Heron, landing just inside its way back to the town.
-  await card(page,'map:caerwyn').click();
+  await card(page,'map:caerwyn').locator('h3').click();
   await inspector(page).getByLabel('Through the palace gate: to',{exact:true}).selectOption('map:heron');
   await expect.poll(async()=>(await saved(page,'maps/caerwyn.kmmap')).exits[0].to.map).toBe('heron');
   let map=await saved(page,'maps/caerwyn.kmmap');
@@ -73,8 +73,19 @@ test('the scenario\'s wiring edited in its owning file: an ending\'s next in its
   await expect(inspector(page).locator('.problem')).toHaveText([/region cart-shed names the scene drowned-rat, but neither lays its place there \(worldOrigin\) nor opens it \(trigger\).*maps\/caerwyn\.kmmap/]);
   map=await saved(page,'maps/caerwyn.kmmap');
   expect(Object.keys(map.regions.find((r:any)=>r.id==='cart-shed'))).toEqual(['id','name','rect','sceneId','description']);
+  // A way out selected (its port clicked: its edge is selected too) and deleted takes the destination away in its owner, after asking: the Rat's first ending ends the story.
+  await page.getByRole('tab',{name:/^Selected/}).click();
+  await card(page,'scene:drowned-rat').locator('[data-port="ending:hobb-talks"]').click();
+  await expect(card(page,'scene:drowned-rat').locator('[data-port="ending:hobb-talks"]')).toHaveClass(/chosen/);
+  await expect(page.locator('.react-flow__edge.selected')).toHaveAttribute('aria-label',/^scene:drowned-rat What Big Hobb knows to scene:wharf-night/);
+  await expect(inspector(page).getByLabel('What Big Hobb knows: next scene',{exact:true})).toHaveValue('scene:wharf-night');
+  await page.keyboard.press('Delete');
+  await expect(page.getByRole('alertdialog')).toContainText('won\'t go on to a scene');
+  await page.getByRole('button',{name:'End the story here'}).click();
+  await expect.poll(async()=>node(await saved(page,'scenes/drowned-rat.kmscene'),'hobb-talks').data.next).toBeUndefined();
   // Undo, a step at a time, puts each file back as it was, byte for byte.
-  for(let i=0;i<4;i++)await page.getByRole('button',{name:'Undo',exact:true}).click();
+  for(let i=0;i<5;i++)await page.getByRole('button',{name:'Undo',exact:true}).click();
+  await expect.poll(()=>savedText(page,'scenes/drowned-rat.kmscene')).toBe(await text('scenes/drowned-rat.kmscene'));
   await expect.poll(()=>savedText(page,'scenes/hanged-clerk.kmscene')).toBe(await text('scenes/hanged-clerk.kmscene'));
   await expect.poll(()=>savedText(page,'maps/caerwyn.kmmap')).toBe(await text('maps/caerwyn.kmmap'));
   await expect(page.getByRole('tab',{name:'Problems (0)'})).toBeVisible();

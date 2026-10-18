@@ -27,7 +27,8 @@ export function PlaceApp({document:initial,host}:{document:PlaceDocument;host:Fi
   const doc=edits.doc;
   const [selected,setSelected]=useState<PlacePart|null>(null),[tab,setTab]=useState<'selected'|'place'|'problems'>('place');
   const [menu,setMenu]=useState<{at:Feet;x:number;y:number}|null>(null),[dialog,setDialog]=useState<DialogState>(null),[confirmation,setConfirmation]=useState<Confirmation|null>(null);
-  const [drag,setDrag]=useState<{part:PlacePart;from:Feet;at:Feet;moved:boolean}|null>(null);
+  /** A part being dragged: where it was (its spot, or an area's corner), where the pointer took hold of it, and where the pointer is. */
+  const [drag,setDrag]=useState<{part:PlacePart;base:Feet;grab:Feet;at:Feet;moved:boolean}|null>(null);
   const svg=useRef<SVGSVGElement>(null),stage=useRef<HTMLDivElement>(null);
 
   // Its scene (the one whose place it is), that scene's cast, and the regions that lay it on a map.
@@ -56,18 +57,19 @@ export function PlaceApp({document:initial,host}:{document:PlaceDocument;host:Fi
     const p=m?point.matrixTransform(m):{x:0,y:0};
     return [Math.round(p.x),Math.round(p.y)];
   };
-  const startDrag=(e:React.PointerEvent,part:PlacePart,from:Feet)=>{if(e.button!==0)return;e.stopPropagation();(e.currentTarget as Element).setPointerCapture(e.pointerId);setDrag({part,from,at:from,moved:false})};
+  const startDrag=(e:React.PointerEvent,part:PlacePart,base:Feet)=>{if(e.button!==0)return;e.stopPropagation();(e.currentTarget as Element).setPointerCapture(e.pointerId);const grab=feetAt(e);setDrag({part,base,grab,at:grab,moved:false})};
   const moveDrag=(e:React.PointerEvent)=>{if(!drag)return;const at=feetAt(e);if(at[0]!==drag.at[0]||at[1]!==drag.at[1])setDrag({...drag,at,moved:true})};
+  /** Where a dragged part is now: where it was, moved as far as the pointer has. */
+  const dropped=(d:NonNullable<typeof drag>):Feet=>[d.base[0]+d.at[0]-d.grab[0],d.base[1]+d.at[1]-d.grab[1]];
   const endDrag=()=>{
     if(!drag)return;
-    const {part,from,at,moved}=drag;setDrag(null);
+    const {part,moved}=drag,to=dropped(drag);setDrag(null);
     if(!moved){select(part);return}
-    const dx=at[0]-from[0],dy=at[1]-from[1];
-    if(part.kind==='thing')change(moveThing(edits.current.current,part.id,at));
-    else if(part.kind==='person')change(movePerson(edits.current.current,part.id,at));
-    else{const area=edits.current.current.areas.find(a=>a.id===part.id);if(area)change(moveArea(edits.current.current,part.id,area.rect.x+dx,area.rect.y+dy))}
+    if(part.kind==='thing')change(moveThing(edits.current.current,part.id,to));
+    else if(part.kind==='person')change(movePerson(edits.current.current,part.id,to));
+    else change(moveArea(edits.current.current,part.id,to[0],to[1]));
   };
-  const shift=(part:PlacePart,base:Feet):Feet=>drag&&drag.part.kind===part.kind&&drag.part.id===part.id?[base[0]+drag.at[0]-drag.from[0],base[1]+drag.at[1]-drag.from[1]]:base;
+  const shift=(part:PlacePart,base:Feet):Feet=>drag&&drag.part.kind===part.kind&&drag.part.id===part.id?dropped({...drag,base}):base;
   const chosen=(kind:PlacePart['kind'],id:string)=>selected?.kind===kind&&selected.id===id;
   const pad=FEET_PER_TILE*2,view=`${-pad} ${-pad} ${doc.size.w+pad*2} ${doc.size.h+pad*2}`;
   const lines:React.ReactNode[]=[];

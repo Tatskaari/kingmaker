@@ -27,7 +27,7 @@ import '@xyflow/react/dist/style.css';
 import '../styles.css';
 import '../scenario.css';
 
-type CardNode=Node<{card:FlowCard;selectedPort?:string},'card'>;
+type CardNode=Node<{card:FlowCard;selectedPort?:string;choosePort:(card:string,port:string)=>void},'card'>;
 type FlowEdgeData=Edge<{owner:FlowOwner}>;
 type Selection={kind:'card';id:string}|{kind:'port';card:string;port:string}|null;
 type Confirmation={title:string;description:string;confirmLabel:string;run:()=>void};
@@ -53,7 +53,7 @@ function ScenarioCard({id,data,selected}:NodeProps<CardNode>){
     <h3>{card.title}</h3>
     <p className="scenario-card-description">{card.subtitle}</p>
     {card.error&&<p className="scenario-card-warning">{card.error}</p>}
-    {card.ports.map(port=><div key={port.id} className={`scenario-port${data.selectedPort===port.id?' chosen':''}${port.target?'':' loose'}`} data-port={port.id}>
+    {card.ports.map(port=><div key={port.id} className={`scenario-port${data.selectedPort===port.id?' chosen':''}${port.target?'':' loose'}`} data-port={port.id} title="Click to wire it in the inspector, or drag from its handle" onClick={event=>{event.stopPropagation();data.choosePort(card.id,port.id)}}>
       <span>{port.label}</span>{port.detail&&<small>{port.detail}</small>}
       <Handle type="source" position={Position.Right} id={port.id}/>
     </div>)}
@@ -130,6 +130,11 @@ function ScenarioEditor({initial,host}:{initial:ScenarioDocument;host:FileHost<S
       edits.commit(setScenarioField(doc,'firstScene',scene));
     }
   };
+  /** A way's destination taken away from the diagram (the Delete key on an edge): asked first, whatever owns it. */
+  const unwire=(owner:FlowOwner)=>{
+    if(owner.kind==='ending')ask({title:'End the story here?',description:`The ending ${owner.ending} of ${owner.scene} won't go on to a scene: the story ends there. You can undo this.`,confirmLabel:'End the story here',run:()=>aim(owner,undefined)});
+    else aim(owner,undefined);
+  };
   const actions:ScenarioActions={
     edit:next=>edits.commit(next,true),
     open,
@@ -146,10 +151,11 @@ function ScenarioEditor({initial,host}:{initial:ScenarioDocument;host:FileHost<S
   };
 
   // ---- The diagram ----
+  const choosePort=useMemo(()=>(card:string,port:string)=>{setSelection({kind:'port',card,port});setTab('selected')},[]);
   const nodes=useMemo<CardNode[]>(()=>flow.cards.map(card=>({
     id:card.id,type:'card',position:dragging[card.id]??positions.get(card.id)??{x:0,y:0},measured:measured[card.id],deletable:false,
     selected:selection?.kind==='card'&&selection.id===card.id,
-    data:{card,...(selection?.kind==='port'&&selection.card===card.id?{selectedPort:selection.port}:{})},
+    data:{card,choosePort,...(selection?.kind==='port'&&selection.card===card.id?{selectedPort:selection.port}:{})},
   })),[flow,positions,dragging,measured,selection]);
   const edges=useMemo<FlowEdgeData[]>(()=>flow.edges.map(edge=>{
     const chosen=selection?.kind==='port'&&selection.card===edge.source&&selection.port===edge.sourceHandle;
@@ -189,7 +195,7 @@ function ScenarioEditor({initial,host}:{initial:ScenarioDocument;host:FileHost<S
       if(mod&&letter==='z')void(event.shiftKey?edits.redo():edits.undo());
       else if(mod&&letter==='y')void edits.redo();
       else if(!mod&&letter==='f')void flowApi.fitView({padding:.12,duration:200});
-      else if((event.key==='Delete'||event.key==='Backspace')&&!target?.closest('.inspector')){if(selectedPort?.target)aim(selectedPort.owner,undefined);else handled=false}
+      else if((event.key==='Delete'||event.key==='Backspace')&&!target?.closest('.inspector')){if(selectedPort?.target)unwire(selectedPort.owner);else handled=false}
       else handled=false;
       if(handled){event.preventDefault();event.stopPropagation()}
     };
