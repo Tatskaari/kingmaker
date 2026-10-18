@@ -12,7 +12,7 @@ The investigator works for **King Aldren**, with **Sergeant Agnes Kell** lent to
 | 2 | caerwyn-afternoon (interlude) | Downtime; Kell turns the lead into "the Rat, tonight" | none (the story skips interludes) | onward → drowned-rat |
 | 3 | drowned-rat | Find Hobb in the Rat and get what he knows: who he works for and where | **Hobb's master is Sallow, and the grain goes through the Heron** (with the way in) | good: Hobb talks / taken in · mixed: Hobb runs / thrown out / gone to work, each with a way to the Heron still found → wharf-night |
 | 4 | wharf-night (interlude) | Downtime on the river stairs; the barge loads tonight | none | onward → heron-warehouse |
-| 5 | heron-warehouse | Proof: the King's grain re-sacked and the true book; Sallow comes at midnight | **The true book** (or another proof the King can hold) | good: out with the true book / caught in the act · mixed: caught · bad: up in smoke / the barge sails · combat: a fight (the stand-in fights it out until combat is built) → kings-morning |
+| 5 | heron-warehouse | Proof: the King's grain re-sacked and the true book; Sallow comes at midnight | **The true book** (or another proof the King can hold) | good: out with the true book / caught in the act · mixed: caught · bad: up in smoke / the barge sails; the fight (blades out, Sallow and the Crakes against the player and Kell) is an event played in the conversation, the scene going on to one of those after it → kings-morning |
 | 6 | kings-morning | Report to the King before the Assembly; Sallow face to face | none: the end | good: done right by · mixed: after the Assembly · the story ends |
 
 ## Threads

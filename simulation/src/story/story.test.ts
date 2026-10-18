@@ -4,14 +4,17 @@ import type { BoundaryRequest, OpenRequest } from "../../../shared/protocol/ai.t
 import { installArgsOf } from "../../../shared/scene/files.ts";
 import { getGm, putGm } from "../gm/rows.ts";
 import type { MemoryHost } from "../host/memory.ts";
-import { all, caerwynPack, crossedTo, hostWithCampaign, http, identity, openedGame, sceneNow } from "../host/testing.ts";
-import { FIGHT_NOT_PLAYED, FIGHT_SUMMARY } from "./words.ts";
+import { all, caerwynPack, crossedTo, hostWithCampaign, http, identity, openedGame, sceneNow, type PackOptions } from "../host/testing.ts";
+import type { FightBoard, FightResult } from "../../../shared/fight/types.ts";
+import { OUT } from "../../../shared/map/moves.ts";
+import { fightOf } from "../fight/rows.ts";
+import { FIGHT_NOT_PLAYED } from "./words.ts";
 
 /**
  * The story between scenes (story-design §4.3, package B's done-when), on the memory host with the AI
  * service scripted: a scene's end through any exit and what it writes; the boundary crossed, the next
  * scene waiting with what was handed on; Go on into it with the player, what they carry, Kell and
- * what's owed; the Heron's fight and its stand-in; the King's morning as a summons; The End; and the
+ * what's owed; the Heron's fight, on the board; the King's morning as a summons; The End; and the
  * owner's end_scene and carry_on.
  */
 
@@ -20,8 +23,8 @@ const HANGED_CLERK = caerwynPack().scenes.find(s => s.id === "hanged-clerk")!;
 const fact = (id: string) => HANGED_CLERK.facts![id]!;
 
 /** A new game in the yard, its opening in; `end` ends the scene being played through an exit, as the owner. */
-async function game(seed = 7) {
-  const opened = await openedGame(seed);
+async function game(seed = 7, options: PackOptions = {}) {
+  const opened = await openedGame(seed, "ranger", options);
   const { host } = opened;
   const gameId = opened.scene.gameId;
   return {
@@ -446,8 +449,22 @@ test("a thorough end (the GM loop's, for a scene it skips) takes what each disco
 // ---------------------------------------------------------------------------------------------
 // On through the arc: the Heron's fight, the King's summons, The End.
 
-test("the Heron's fight goes fighting, fight_it_out picks it up, its next ending crosses to the King's morning, which opens at once; the King's ending is The End", async () => {
-  const { host, script, wren, player, gameId, end, gameRow, sceneOf } = await game();
+/**
+ * A scene with a combat exit (no story scene has one now: the Heron's fight is played in the
+ * conversation, docs/combat-gm.md), for the stand-in: the Heron with a brawl that ends it in a fight.
+ */
+const WITH_A_BRAWL: PackOptions = {
+  edit: {
+    "heron-warehouse": doc => ({
+      ...doc,
+      nodes: [...doc.nodes, { id: "brawl", type: "story", position: { x: 0, y: 0 }, data: { kind: "exit", title: "Roll for initiative", description: "A brawl on the floor.", closing: "End with 'Roll for initiative!'", result: "mixed", exitKind: "combat", next: "kings-morning", lore: [] } }],
+      edges: [...doc.edges, { id: "brawl", source: "midnight", target: "brawl", type: "smoothstep", label: "A brawl", data: { condition: "A brawl breaks out.", phase: "outcome", skill: "", dc: 12 } }],
+    }),
+  },
+};
+
+test("the Heron's fight goes fighting, fight_it_out sets it out on the board, out picks the scene up after it; its next ending crosses to the King's morning, which opens at once; the King's ending is The End", async () => {
+  const { host, script, wren, player, gameId, end, gameRow, sceneOf } = await game(7, WITH_A_BRAWL);
   const go = async () => { assert.equal(host.as(wren).walk({ toward: "lead" }), undefined); await host.drain(); };
 
   end("open-case");
@@ -462,25 +479,55 @@ test("the Heron's fight goes fighting, fight_it_out picks it up, its next ending
 
   const heron = sceneOf("heron-warehouse")!;
   assert.equal(heron.status, "live");
-  assert.equal(host.as(host.owner).endScene({ game: gameId, exit: "fight" }), undefined);
+  assert.equal(host.as(host.owner).endScene({ game: gameId, exit: "brawl" }), undefined);
   assert.equal(sceneOf("heron-warehouse")!.status, "fighting");
   assert.ok(!host.db.chapter.sceneId.find(heron.id), "no chapter");
   assert.equal(host.as(identity(9)).fightItOut()?.code, "not_in_game");
 
+  // On to the fight: on the Heron's own map, kept, everyone here in it (the combat exit's: Kell beside the player, the rest against them).
   assert.equal(host.as(wren).fightItOut(), undefined);
+  const fight = () => host.transact(tx => fightOf(tx, gameId))!;
+  const board = JSON.parse(fight().board) as FightBoard;
+  assert.deepEqual([fight().status, fight().mapKey, board.scene, board.keep], ["on", "heron", String(heron.id), true]);
+  assert.equal(board.units["kell"]?.side, "ally");
+  assert.ok(Object.values(board.units).some(u => u.side === "enemy"), "someone against the player");
+  const spots = Object.values(board.units).map(u => `${u.at.x},${u.at.y}`);
+  assert.equal(new Set(spots).size, spots.length, "nobody shares a tile");
+  assert.equal(sceneOf("heron-warehouse")!.status, "fighting", "the scene waits for its fight");
+  assert.equal(host.as(wren).fightItOut()?.code, "not_now", "it's on already");
+  assert.equal(host.as(wren).say({ text: "Who's hurt?" })?.code, "not_now", "no words while it's fought");
+
+  // Fought to its end, the player's turns played by the AI too; then out, back to the scene.
+  for (let i = 0; i < 600 && fight().status === "on"; i++) {
+    if (fight().options) assert.equal(host.as(wren).fightTurn({ act: "auto" }), undefined);
+    else { host.advance(5000); host.fightSteps(); }
+  }
+  assert.equal(fight().status, "over");
+  const result = JSON.parse(fight().result!) as FightResult;
+  const ended = JSON.parse(fight().board) as FightBoard;
+  assert.equal(host.as(wren).walk({ toward: OUT }), undefined);
+  assert.equal(fight().status, "done");
+
   let now = sceneNow(host, heron.id);
   assert.deepEqual([now.scene.status, now.scene.exitKey, now.scene.turns], ["live", undefined, now.turns.at(-1)!.n]);
-  assert.deepEqual(now.lines.slice(-2).map(l => [l.text, l.kind]), [["Scene ends: Roll for initiative", "system"], [`The fight: ${FIGHT_SUMMARY}`, "system"]], "how it went, said once (QA round qa3-1018's g04 read it twice)");
-  assert.deepEqual([now.gm.fought, now.gm.ended, now.gm.established.at(-1)], [["fight"], undefined, `The fight is over: ${FIGHT_SUMMARY}`]);
-  assert.equal(byGame(host.db.journal, gameId).at(-1)!.text, FIGHT_NOT_PLAYED);
+  assert.deepEqual(now.lines.slice(-2).map(l => [l.text, l.kind]), [["Scene ends: Roll for initiative", "system"], [`The fight: ${result.told}`, "system"]], "how it went, said once (QA round qa3-1018's g04 read it twice)");
+  assert.deepEqual([now.gm.fought, now.gm.ended, now.gm.fight, now.gm.established.at(-1)], [["brawl"], undefined, undefined, `The fight is over: ${result.summary}`]);
+  assert.equal(byGame(host.db.journal, gameId).at(-1)!.text, `${fight().title}: ${result.told}`);
+  // The world as the fight left it: whoever went down is down in the place, whoever ran off the board gone from it.
+  const world = new Map(all(host.db.entity).filter(e => e.placeId === now.scene.placeId).map(e => [e.key.split("/").pop()!, host.db.narrative.entityId.find(e.id)?.states ?? []]));
+  for (const u of Object.values(ended.units).filter(u => u.id !== ended.pc && u.castId)) {
+    const states = world.get(u.castId!) ?? [];
+    if (u.state === "down") assert.ok(states.includes("down"), `${u.castId} down in the world: ${states.join(", ")}`);
+    if (u.state === "fled" && u.castId !== "kell" && u.castId !== "scrope") assert.ok(now.gm.absent.includes(u.castId!), `${u.castId} gone from the scene`);
+  }
   assert.deepEqual([now.turns.at(-1)!.phase, now.scene.turnId], ["replying", now.turns.at(-1)!.id]);
   assert.equal(host.as(wren).say({ text: "Who's hurt?" })?.code, "turn_in_flight");
   assert.equal(host.as(wren).fightItOut()?.code, "no_fight");
 
   await host.drain();
   const aftermath = script.to("open").at(-1)!.body as OpenRequest;
-  assert.deepEqual([aftermath.scene.key, aftermath.aftermath, aftermath.key.endsWith(`:t${now.turns.at(-1)!.n}:open`)], ["heron-warehouse", { summary: FIGHT_SUMMARY }, true]);
-  assert.equal(aftermath.transcript!.at(-1)!.text, `The fight: ${FIGHT_SUMMARY}`);
+  assert.deepEqual([aftermath.scene.key, aftermath.aftermath, aftermath.key.endsWith(`:t${now.turns.at(-1)!.n}:open`)], ["heron-warehouse", { summary: result.summary }, true]);
+  assert.equal(aftermath.transcript!.at(-1)!.text, `The fight: ${result.told}`);
   now = sceneNow(host, heron.id);
   assert.deepEqual([now.scene.status, now.turns.at(-1)!.phase, now.lines.at(-1)!.turn], ["live", "done", now.turns.at(-1)!.n]);
 
@@ -494,7 +541,7 @@ test("the Heron's fight goes fighting, fight_it_out picks it up, its next ending
   assert.equal(entityByKey(host, gameId, `pc:${player.id}`)!.placeId, king.placeId);
   const history = (script.to("open").at(-1)!.body as OpenRequest).story.history!;
   assert.deepEqual(history.map(h => h.sceneId), ["hanged-clerk", "drowned-rat", "heron-warehouse"]);
-  assert.ok(!history.flatMap(h => h.journal ?? []).includes(FIGHT_NOT_PLAYED), "the stand-in's word on the fight isn't the story's");
+  assert.ok(!history.flatMap(h => h.journal ?? []).includes(FIGHT_NOT_PLAYED), "no stand-in's word on the fight");
 
   // The King's ending goes nowhere: The End.
   assert.equal(end("justice"), undefined);

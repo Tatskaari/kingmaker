@@ -1,7 +1,7 @@
 import type { Backstory } from "../../../shared/creation/types.ts";
 import {
   STEP_ENDPOINT, STEP_TIMEOUT_MS, type ActRequest, type AiRequest, type BoundaryRequest, type Chapter, type Entry, type LooksRequest, type OpenRequest, type ReactionsRequest,
-  type RememberRequest, type ReplyRequest, type SceneContext, type SettleRequest, type SheetRow, type Story, type SuggestRequest, type TalkOpen, type TurnContext,
+  type RememberRequest, type ReplyRequest, type SceneContext, type SettleRequest, type SheetRow, type SidesRequest, type BoardMoment, type BoardOption, type BoardTurnRequest, type BoardView, type NarrateRequest, type Story, type SuggestRequest, type TalkOpen, type TurnContext,
 } from "../../../shared/protocol/ai.ts";
 import type { GuardStage, TalkRecord } from "../../../shared/gm/state.ts";
 import { talkOf } from "../../../shared/scene/talk.ts";
@@ -12,7 +12,7 @@ import type { Skill } from "../../../shared/scene/types.ts";
 import { pcKey } from "../../../shared/world/rows.ts";
 import type { TxCtx } from "../context.ts";
 import type { AiCall } from "../moves/move.ts";
-import type { BoundaryPlan, LookPlan, OpenPlan, RememberPlan, SayPlan, SuggestPlan } from "../moves/plans.ts";
+import type { BoardTurnPlan, BoundaryPlan, LookPlan, NarratePlan, OpenPlan, RememberPlan, SayPlan, SuggestPlan } from "../moves/plans.ts";
 import { gameRow, playerRow, sceneRow, sheetRow, turnRow, type GameRow, type PlayerRow, type RowOf, type SceneRow } from "../rows.ts";
 import { sceneGraph } from "../scenes.ts";
 import { FIGHT_NOT_PLAYED } from "../story/words.ts";
@@ -65,6 +65,31 @@ export function sayCall(tx: TxCtx, plan: SayPlan): AiCall {
   const key = idempotencyKey(at.game.uid, at.scene.id, plan.n, plan.step);
   const base = { ...aiRequest(key, at), turn: turnContext(tx, plan, at) };
   return { endpoint: STEP_ENDPOINT[plan.step], key, timeoutMs: STEP_TIMEOUT_MS[plan.step], request: stepRequest(plan, base, at.controller.suggestions) };
+}
+
+/**
+ * A turn the board played, told (docs/combat-gm.md): POST /v1/fights/narrate, key
+ * <uid>:s<scene>:t<n>:narrate-<to>, the scene's working set at the turn the fight broke out on, the
+ * board as the GM sees it, and the turn's moments.
+ */
+export function narrateCall(tx: TxCtx, plan: NarratePlan, fight: BoardView, moments: BoardMoment[], before: BoardMoment[] = []): AiCall {
+  const at = whereOf(tx, plan.scene);
+  const key = idempotencyKey(at.game.uid, at.scene.id, plan.n, "narrate", plan.to);
+  const request: NarrateRequest = { ...aiRequest(key, at), turn: sceneContext(tx, at, plan.n), fight, whose: plan.whose, moments, ...(before.length ? { before } : {}) };
+  return { endpoint: STEP_ENDPOINT.narrate, key, timeoutMs: STEP_TIMEOUT_MS.narrate, request };
+}
+
+/**
+ * A step of the player's typed turn on the board (docs/combat-gm.md): POST /v1/fights/turn, key
+ * <uid>:s<scene>:t<n>:fight-<at * 100 + step>, the scene's working set with the player's line, the
+ * board as the GM sees it, what they can do now, and what's been done of it so far.
+ */
+export function boardTurnCall(tx: TxCtx, plan: BoardTurnPlan, fight: BoardView, options: BoardOption[], movement: number): AiCall {
+  const at = whereOf(tx, plan.scene);
+  const key = idempotencyKey(at.game.uid, at.scene.id, plan.n, "fight", plan.at * 100 + plan.done.length + 1);
+  const turn: TurnContext = { ...sceneContext(tx, at, plan.n), line: { speaker: playerSpeaker(at.controller.id), text: plan.line } };
+  const request: BoardTurnRequest = { ...aiRequest(key, at), turn, fight, options, movement, done: plan.done };
+  return { endpoint: STEP_ENDPOINT.fight, key, timeoutMs: STEP_TIMEOUT_MS.fight, request };
 }
 
 /**
@@ -137,8 +162,10 @@ function aiRequest(key: string, at: Where): AiRequest {
  * what the rules' act did (takeAct), which everyone who saw it reacts to (the turn's working set is
  * the world after it).
  */
-function stepRequest(plan: SayPlan, base: AiRequest & { turn: TurnContext }, suggest: boolean): ActRequest | ReactionsRequest | ReplyRequest | SettleRequest {
+function stepRequest(plan: SayPlan, base: AiRequest & { turn: TurnContext }, suggest: boolean): ActRequest | ReactionsRequest | ReplyRequest | SettleRequest | SidesRequest {
   if (plan.step === "act") return base;
+  // A fight breaking out (docs/combat-gm.md): who's on which side, and who's the GM's to place.
+  if (plan.step === "sides") return { ...base, sides: needs(plan.sides, "sides", "sides") };
   if (plan.step === "reactions") return { ...base, act: needs(plan.act, "act", "reactions") };
   // The two-part GM's reply: the outcome's directives are the rules' and the player's act's (docs/two-part-design.md).
   if (plan.step === "reply") return { ...base, outcome: needs(plan.outcome, "outcome", "reply"), stream: { turn: plan.turn } };

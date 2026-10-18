@@ -61,7 +61,7 @@ export type Shuffle = <T>(xs: readonly T[]) => T[];
 /** "hanged-clerk:3,drowned-rat:2": each scene, and how many games of it. A scene without a number gets every persona on every arm. */
 export function parseScenes(text: string): SceneAsk[] {
   return text.split(",").map(s => s.trim()).filter(Boolean).map(s => {
-    const m = /^([a-z0-9][a-z0-9-]*)(?::(\d+))?$/.exec(s);
+    const m = /^((?:zoo\/)?[a-z0-9][a-z0-9-]*)(?::(\d+))?$/.exec(s);
     if (!m || m[2] === "0") throw new Error(`"${s}" isn't a scene, or a scene and how many games of it (hanged-clerk:3).`);
     return { scene: m[1]!, ...(m[2] ? { games: Number(m[2]) } : {}) };
   });

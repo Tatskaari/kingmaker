@@ -20,9 +20,11 @@ export function captionOf(m: Omit<FightEvent, "seq">, G: FightBoard): string {
     case "dodge": return `${c.Who} ${c.s("dodge")}: attacks on ${c.them} have disadvantage until ${c.their} next turn.`;
     case "disengage": return `${c.Who} ${c.s("disengage")}: no swings as ${c.they} ${c.s("move")} away.`;
     case "wrestle": return c.wrestle();
+    case "feature": return c.feature();
+    case "arrive": return c.arrive();
     case "use": return `${c.Who} ${/brazier/i.test(m.detail.with ?? "") ? `${c.s("kick")} over` : `${c.s("bring")} down`} the ${m.detail.with ?? "thing"}.${c.lit()}`;
     case "yield": return c.you ? "You put your hands up." : `${c.Who} puts ${c.their} hands up.`;
-    case "flee": return `${c.Who} ${c.s("go", "goes")} out through ${m.detail.with ?? "the way out"} and ${c.s("are", "is")} gone.`;
+    case "flee": return `${c.Who} ${c.s("go", "goes")} ${/^the way out of /i.test(m.detail.with ?? "") ? m.detail.with!.replace(/^the way /i, "") : `out through ${m.detail.with ?? "the way out"}`} and ${c.s("are", "is")} gone.`;
     case "walk-off": return m.detail.lines[0] ?? `${c.Who} walks off: nobody's paying for the rest of this.`;
     case "arrest": return `${c.Who} ${c.s("put")} the irons on ${c.name(m.target)}.`;
     case "over": return c.over();
@@ -63,9 +65,9 @@ class Caption {
   get they(): string { return this.you ? "you" : "they"; }
   get their(): string { return this.you ? "your" : "their"; }
   /** A verb agreeing with the actor: "you swing", "the wolf swings". */
-  s(base: string, third = `${base}s`): string { return this.you ? base : third; }
+  s(base: string, third = `${base}s`): string { return this.you || this.actor?.plural ? base : third; }
   /** The same for anyone. */
-  private sFor(id: string, base: string, third = `${base}s`): string { return id === this.G.pc ? base : third; }
+  private sFor(id: string, base: string, third = `${base}s`): string { return id === this.G.pc || this.G.units[id]?.plural ? base : third; }
 
   start(): string {
     const order = (this.m.detail.initiative ?? []).map(r => this.name(r.unit));
@@ -87,14 +89,17 @@ class Caption {
     const to = path[path.length - 1];
     const feet = path.length * 5;
     if (!to || !from || !this.actor) return `${this.Who} ${this.s("stay")} put.`;
-    const foes = Object.values(this.G.units).filter(v => v.state === "fighting" && this.hostile(this.actor!, v));
-    const near = (at: { x: number; y: number }) => foes.filter(v => steps(v.at, at) <= 1);
+    const actor = this.actor;
+    const foes = Object.values(this.G.units).filter(v => v.state === "fighting" && this.hostile(actor, v));
+    // The player can turn on those on no side too (Skirmish.targetable): closing in on one is closing in (smoke4-1018: "You back off" as Krug went for Cob).
+    const marks = actor.id === this.G.pc ? Object.values(this.G.units).filter(v => v.state === "fighting" && v.id !== actor.id && this.team(v) === 0) : [];
+    const near = (who: Unit[], at: { x: number; y: number }) => who.filter(v => steps(v.at, at) <= 1);
     const exit = this.G.exits.find(e => e.at.x === to.x && e.at.y === to.y);
     if (exit) return `${this.Who} ${this.s("make")} for ${exit.label}, ${feet} ft.`;
-    const now = near(to), was = near(from);
-    const closed = listing(now.filter(v => !was.includes(v)).map(v => this.name(v.id)));
+    const was = near([...foes, ...marks], from);
+    const closed = listing(near([...foes, ...marks], to).filter(v => !was.includes(v)).map(v => this.name(v.id)));
     if (closed) return feet <= 10 ? `${this.Who} ${this.s("step")} in on ${closed}.` : `${this.Who} ${this.s("close")} in on ${closed}, ${feet} ft.`;
-    if (was.length && !now.length) return `${this.Who} ${this.s("back")} off ${feet} ft.`;
+    if (near(foes, from).length && !near(foes, to).length) return `${this.Who} ${this.s("back")} off ${feet} ft.`;
     return `${this.Who} ${this.s("move")} ${feet} ft.`;
   }
 
@@ -159,6 +164,25 @@ class Caption {
     return `${cast} at ${them}: ${total(hit)}${type ? ` ${type}` : ""} damage${saved}.${this.fall(hit)}${this.woke(hit)}${this.lit()}`;
   }
 
+  /** Who came in, and where: "The granary porters and Old Wat come in through the yard gate." */
+  arrive(): string {
+    const came = this.m.detail.hits.filter(h => h.was?.state === "coming").map(h => this.name(h.unit));
+    // A way of the place's own ("the yard gate") is come in through; the board's edge ("Out of the yard…", fight/scene.ts waysOut) into the place.
+    const w = this.m.detail.with;
+    const way = !w ? "in" : /^(the way )?out of /i.test(w) ? `into ${w.replace(/^(the way )?out of /i, "")}` : `in through ${w}`;
+    return `${cap(listing(came.length ? came : ["someone"]))} ${came.length === 1 ? "comes" : "come"} ${way}.`;
+  }
+
+  /** A class feature used: who, which, on whom, and what it did (hit points back, a condition taken up, a dash's feet). "You use Second Wind: 11 hit points back." */
+  feature(): string {
+    const m = this.m;
+    const on = m.target ? ` on ${this.name(m.target)}` : "";
+    const healed = m.detail.hits.find(h => h.healed > 0);
+    const gained = m.detail.hits.flatMap(h => h.gained.map(c => (h.unit === this.G.pc ? `you're ${c}` : `${this.name(h.unit)} is ${c}`)));
+    const what = healed ? `: ${healed.healed} hit point${healed.healed === 1 ? "" : "s"} back${healed.unit === m.actor ? "" : ` for ${this.name(healed.unit)}`}` : gained.length ? `: ${listing(gained)}` : "";
+    return `${this.Who} ${this.s("use")} ${m.detail.with ?? "a feature"}${on}${what}.`;
+  }
+
   wrestle(): string {
     const target = this.m.target;
     const them = this.name(target);
@@ -204,10 +228,8 @@ class Caption {
     return this.m.detail.hits.find(h => h.unit === id);
   }
 
-  private hostile(a: Unit, b: Unit): boolean {
-    const team = (u: Unit) => (u.side === "player" || u.side === "ally" ? 1 : u.side === "enemy" ? 2 : 0);
-    return team(a) !== 0 && team(b) !== 0 && team(a) !== team(b);
-  }
+  private team(u: Unit): number { return u.side === "player" || u.side === "ally" ? 1 : u.side === "enemy" ? 2 : 0; }
+  private hostile(a: Unit, b: Unit): boolean { return this.team(a) !== 0 && this.team(b) !== 0 && this.team(a) !== this.team(b); }
 }
 
 /** What a spell's conditions do to someone, in a word for a caption ("asleep"): the ones a caption names. */

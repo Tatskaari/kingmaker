@@ -17,7 +17,7 @@ export interface Content {
   prompts: Record<string, string>;
   /** hosts/dev/fake.json as it is (its `about` too): what Play with the fake GM plays, as devFake() has it. */
   fake: FakeOptions;
-  /** campaigns/zoo's files by their path in it (M6): the zoo, installed in the simulation beside the campaign (no GM plays it, so the AI service never has it). */
+  /** campaigns/zoo's files by their path in it (M6): the zoo, installed beside the campaign (its scenes played by the GM since docs/combat-gm.md, so the AI service has it too). */
   zoo?: Record<string, string>;
 }
 
@@ -34,22 +34,23 @@ export async function loadContent(url: URL | string, fetchContent: typeof fetch 
 }
 
 /**
- * The AI service's campaigns, from the build's content (stores.ts's CampaignStore): its one version
- * (its scenario's id and campaign version), read from content.json's files and never written. The
- * install's PUT of that version has nothing to keep; a PUT of another is refused, since only the
- * build's is here.
+ * The AI service's campaigns, from the build's content (stores.ts's CampaignStore): each version it
+ * ships (the campaign's, and the zoo's: each by its scenario's id and campaign version), read from
+ * content.json's files and never written. The install's PUT of one of them has nothing to keep; a PUT
+ * of another is refused, since only the build's are here.
  */
-export function contentCampaigns(files: Record<string, string>): CampaignStore {
-  const scenario = scenarioPathIn(Object.keys(files));
-  const { id, version } = scenario === undefined ? { id: undefined, version: undefined } : loadScenario(files[scenario]!, scenario);
-  const served = `${id}@${version}`;
-  const reader = { read: (path: string) => files[path], paths: () => Object.keys(files) };
+export function contentCampaigns(...sets: Array<Record<string, string> | undefined>): CampaignStore {
+  const served = new Map(sets.filter((files): files is Record<string, string> => !!files).map(files => {
+    const scenario = scenarioPathIn(Object.keys(files));
+    const { id, version } = scenario === undefined ? { id: undefined, version: undefined } : loadScenario(files[scenario]!, scenario);
+    return [`${id}@${version}`, { read: (path: string) => files[path], paths: () => Object.keys(files) }] as const;
+  }));
   return {
     async put(campaign, putVersion) {
-      if (`${campaign}@${putVersion}` !== served) throw new Error(`this page serves its build's campaign, ${served}, not ${campaign}@${putVersion}`);
+      if (!served.has(`${campaign}@${putVersion}`)) throw new Error(`this page serves its build's campaigns, ${[...served.keys()].join(" and ")}, not ${campaign}@${putVersion}`);
     },
-    files: (campaign, wanted) => (`${campaign}@${wanted}` === served ? reader : undefined),
-    list: () => [served],
+    files: (campaign, wanted) => served.get(`${campaign}@${wanted}`),
+    list: () => [...served.keys()],
   };
 }
 

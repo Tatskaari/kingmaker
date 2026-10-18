@@ -93,7 +93,7 @@ test('the flow is drawn from the files that own it: the start, each ending\'s ne
   const heron=flow.cards.find(card=>card.id===mapCard('caerwyn')).ports.find(port=>port.target===mapCard('heron'));
   assert.deepEqual(heron.owner,{kind:'exits',map:'caerwyn',indices:[2,3,4,5],label:'Along the wharf to the Heron',to:'heron'});
   assert.equal(heron.detail,'4 tiles');
-  assert.equal(flow.edges.length,31,'the start\'s 2, the endings\' 16, the regions\' 6 and the ways between maps\' 7');
+  assert.equal(flow.edges.length,30,'the start\'s 2, the endings\' 15, the regions\' 6 and the ways between maps\' 7');
   // Every edge is its owner's: the story's flow is in the scenes' endings and the maps, nothing stored.
   const nexts=campaign.scenes.flatMap(scene=>endingsOf(scene).filter(e=>e.next).map(e=>[scene.key,e.id,e.next]));
   assert.deepEqual(flow.edges.filter(e=>e.owner.kind==='ending').map(e=>[e.owner.scene,e.owner.ending,e.target.slice(6)]),nexts);

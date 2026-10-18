@@ -341,14 +341,18 @@ test('the clerk\'s porters\' noon break, its cue and Old Wat are the model\'s as
   assert.equal(renamed.cast.at(-1).enters,'porters-break');
   assert.deepEqual(Object.keys(nodeOf(renamed,'porters-break').data.cast),['old-wat','kell','tull','cob','moll']);
   assert.deepEqual(nodeOf(renamed,'hobb').data.paths.map(path=>path.via),['cob','moll','old-wat','kell']);
+  assert.deepEqual(renamed.reinforcements.map(item=>item.id),['porters','old-wat'],'who comes to a fight follows him too');
   assert.deepEqual(shapeOf(renamed),[]);
   const campaign=await readCampaign('scenes/hanged-clerk.kmscene',await campaignFiles());
   const context=contextOf(campaign,'hanged-clerk');
   assert.deepEqual(problemsOf('hanged-clerk',renamed,context),[]);
-  // Taken out of the cast: his role goes with him, and the path via him is a problem where it is.
+  // Taken out of the cast: his role goes with him, and the path via him and his coming to a fight are problems where they are.
   const gone=removeCast(doc,'wat');
   assert.deepEqual(Object.keys(nodeOf(gone,'porters-break').data.cast),['kell','tull','cob','moll']);
-  assert.deepEqual(problemsOf('hanged-clerk',gone,context),[{message:'discovery hobb\'s path 3 is via wat, who isn\'t in the cast',at:{kind:'node',id:'hobb',field:'paths.2.via'}}]);
+  assert.deepEqual(problemsOf('hanged-clerk',gone,context),[
+    {message:'discovery hobb\'s path 3 is via wat, who isn\'t in the cast',at:{kind:'node',id:'hobb',field:'paths.2.via'}},
+    {message:'reinforcement wat isn\'t in the cast, so needs a name and a statblock of their own',at:{kind:'scene',field:'reinforcements.1'}},
+  ]);
   // The event taken out: its cue goes, and Old Wat is here from the start.
   const noBreak=removeNodes(doc,['porters-break']);
   assert.equal(noBreak.edges.find(route=>route.id==='porters-come'),undefined);

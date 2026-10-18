@@ -20,6 +20,7 @@ import * as acts from "../map/acts.ts";
 import * as map from "../map/moves.ts";
 import { tickPlace } from "../map/tick.ts";
 import { fightTurnReducer } from "../fight/moves.ts";
+import { fightSayReducer } from "../fight/gm.ts";
 import { fightStep } from "../fight/step.ts";
 import { startRingReducer } from "../zoo/moves.ts";
 import { openExhibitReducer, visitZooReducer } from "../zoo/exhibits.ts";
@@ -154,7 +155,7 @@ const MOVES = {
   walk: map.walkReducer, interact: map.interactReducer, travel: map.travelReducer,
   cast: acts.castReducer, attack: acts.attackReducer, useFeature: acts.useFeatureReducer, leap: acts.leapReducer, hide: acts.hideReducer, rest: acts.restReducer, useItem: acts.useItemReducer,
   carryOn: story.carryOnReducer, fightItOut: story.fightItOutReducer, endScene: story.endSceneReducer,
-  startRing: startRingReducer, fightTurn: fightTurnReducer,
+  startRing: startRingReducer, fightTurn: fightTurnReducer, fightSay: fightSayReducer,
   visitZoo: visitZooReducer, openExhibit: openExhibitReducer,
   restoreGame: restoreGameReducer,
 };

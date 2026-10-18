@@ -1,7 +1,7 @@
 // The plugin's model of a scene file: the game's own format (docs/scene-format.md, .kmscene version 2),
 // read with the game's parse and held to the game's rules (shared/scene), edited as the plain JSON it is.
 import {EXIT_KINDS,RESULTS,STRENGTHS,isBeat,isDiscovery,isEnding,isStart,parseScene,shapeProblems} from '../../../../shared/scene/document.ts';
-import type {BeatData,CastMember,EndingData,NodeData,OuterLimit,Path,Route,SceneDocument,SceneNode,StartData} from '../../../../shared/scene/document.ts';
+import type {BeatData,CastMember,EndingData,NodeData,OuterLimit,Path,Reinforcement,Route,SceneDocument,SceneNode,StartData} from '../../../../shared/scene/document.ts';
 import {SKILLS} from '../../../../shared/scene/types.ts';
 import type {Skill} from '../../../../shared/scene/types.ts';
 import {SLUG,sceneRuleProblems,sceneStoryProblems,talkTemplateProblems} from '../../../../shared/scene/rules.ts';
@@ -10,7 +10,7 @@ import {optionalList,optionalText,slugOf,uniqueId,withKey} from '../campaign/jso
 import type {PlaceFile} from '../../../../shared/scene/files.ts';
 
 export {EXIT_KINDS,RESULTS,SKILLS,STRENGTHS,SLUG,isBeat,isDiscovery,isEnding,isStart,optionalList,optionalText,slugOf,uniqueId,withKey};
-export type {BeatData,CastMember,EndingData,NodeData,OuterLimit,Path,ProblemAt,Route,SceneContext,SceneDocument,SceneNode,SceneProblem,Skill,StartData};
+export type {BeatData,CastMember,EndingData,NodeData,OuterLimit,Path,ProblemAt,Reinforcement,Route,SceneContext,SceneDocument,SceneNode,SceneProblem,Skill,StartData};
 
 /**
  * A scene file is the game's: the plugin opens it with the game's parse (shared/scene/document.ts),
@@ -51,10 +51,12 @@ export const shapeOf=(doc:SceneDocument):string[]=>shapeProblems(doc);
 
 /** Each object's keys in the order the format and the campaign's files have them. A key added goes where this puts it. */
 export const ORDER={
-  scene:['format','version','kind','id','title','description','lore','time','place','interlude','rest','milestone','hook','setting','premise','truth','clock','limits','known','cast','facts','background','assumes','overtaken','onStart','onEnd','afterwards','fronts','companion','nodes','edges'],
+  scene:['format','version','kind','id','title','description','lore','time','place','interlude','rest','milestone','hook','setting','premise','truth','clock','limits','known','cast','facts','background','assumes','overtaken','onStart','onEnd','afterwards','reinforcements','fronts','companion','nodes','edges'],
   cast:['id','name','called','aka','lore','look','voice','wants','fears','whyHere','knows','secrets','attitude','limits','roles','enters','group','statblock','weapon','members'],
   start:['kind','title','description','cast','lore'],
-  beat:['kind','title','description','revelation','paths','required','cast','pressure','establishes','carry','lore'],
+  beat:['kind','title','description','revelation','paths','required','cast','pressure','fight','establishes','carry','lore'],
+  fight:['foes','allies'],
+  reinforcement:['id','name','statblock','weapon','look','after','why'],
   exit:['kind','title','description','closing','result','exitKind','next','effects','lore'],
   route:['condition','phase','requires','skill','dc','onFailure','establishes','limit'],
   limit:['exchanges','after','until'],
@@ -146,6 +148,25 @@ export function setCastField(doc:SceneDocument,id:string,key:string,value:unknow
 
 /** What a new node is: a discovery, an event or an ending. */
 export type NewNodeKind='discovery'|'event'|'ending';
+
+/** Who can be on a side in a fight (an event's fight): the cast, and their groups' members, each with who they're with. */
+export function fighters(doc:SceneDocument):Array<{id:string;name:string;with?:string}>{
+  return doc.cast.flatMap(member=>[{id:member.id,name:member.name||member.id},...(member.members??[]).map(m=>({id:m.id,name:m.name||m.id,with:member.name||member.id}))]);
+}
+
+/** An event's fight with one side's people changed: the foes always there (none yet is a problem until there are), the allies only when there are some. */
+export function setFightSide(doc:SceneDocument,id:string,side:'foes'|'allies',ids:string[]):SceneDocument{
+  const node=doc.nodes.find(other=>other.id===id);
+  if(!node||!isBeat(node))return doc;
+  const now=node.data.fight??{foes:[]};
+  const next={...now,[side]:ids};
+  return setNodeField(doc,id,'fight',{foes:next.foes,...(next.allies?.length?{allies:next.allies}:{})});
+}
+
+/** Who comes when a fight breaks out, changed: none left takes the field out. */
+export function setReinforcements(doc:SceneDocument,items:Reinforcement[]):SceneDocument{
+  return setSceneField(doc,'reinforcements',items.length?items.map(item=>Object.fromEntries(ORDER.reinforcement.filter(key=>(item as unknown as Record<string,unknown>)[key]!==undefined).map(key=>[key,(item as unknown as Record<string,unknown>)[key]]))):undefined);
+}
 
 /** A new node's data: the fields its kind must have, empty for the author to write. */
 export function newNodeData(kind:NewNodeKind,title:string):NodeData{
@@ -260,7 +281,7 @@ export function addCast(doc:SceneDocument,name:string,id?:string):{doc:SceneDocu
   return {doc:{...doc,cast:[...doc.cast,member]},id:free};
 }
 
-/** A person taken out of the cast, with the notes the start and the events kept for them. What else names them (a path's via, an effect) stays, for the problems to say. */
+/** A person taken out of the cast, with the notes the start and the events kept for them. What else names them (a path's via, an effect, an event's fight, who comes to a fight) stays, for the problems to say. */
 export function removeCast(doc:SceneDocument,id:string):SceneDocument{
   const nodes=doc.nodes.map(node=>{
     const notes='cast' in node.data?node.data.cast:undefined;
@@ -464,9 +485,10 @@ export function renameRoute(doc:SceneDocument,from:string,to:string):SceneDocume
 
 /**
  * A person's id changed, and everything in the file naming them: the start's and events' notes for
- * them (in their place), the paths via them, the effects naming them (who, a promise's by and to, a
- * fight's allies and leaders, a world op's what and to, in onStart, onEnd, the endings' effects and afterwards)
- * and the talk template's companion. Files outside the scene that name them (the place's people,
+ * them (in their place), the paths via them, the events' fights (either side), the effects naming
+ * them (who, a promise's by and to, a fight's allies and leaders, a world op's what and to, in
+ * onStart, onEnd, the endings' effects and afterwards), who comes when a fight breaks out, and the
+ * talk template's companion. Files outside the scene that name them (the place's people,
  * looks.json) are the campaign's: the problems say where.
  */
 export function renameCast(doc:SceneDocument,from:string,to:string):SceneDocument{
@@ -477,6 +499,11 @@ export function renameCast(doc:SceneDocument,from:string,to:string):SceneDocumen
     const notes='cast' in data?data.cast:undefined;
     if(notes&&from in notes)data=withKey(data,'cast',Object.fromEntries(Object.entries(notes).map(([who,note])=>[who===from?to:who,note])),ORDER[data.kind]);
     if(isBeat(node)&&node.data.paths?.some(path=>path.via===from))data=withKey(data,'paths',node.data.paths.map(path=>path.via===from?withKey(path,'via',to,ORDER.path):path),ORDER.beat);
+    const fight=isBeat(node)?node.data.fight:undefined;
+    if(fight&&[...fight.foes,...(fight.allies??[])].includes(from)){
+      const swap=(ids:string[])=>ids.map(id=>id===from?to:id);
+      data=withKey(data,'fight',{foes:swap(fight.foes),...(fight.allies?{allies:swap(fight.allies)}:{})},ORDER.beat);
+    }
     if(isEnding(node)&&node.data.effects){
       const effects=node.data.effects.map(effect=>effectRenamingPerson(effect as EffectLike,from,to));
       if(effects.some((effect,i)=>effect!==node.data.effects![i]))data=withKey(data,'effects',effects,ORDER.exit);
@@ -491,6 +518,7 @@ export function renameCast(doc:SceneDocument,from:string,to:string):SceneDocumen
     if(changed.some((effect,i)=>effect!==list[i]))next=setSceneField(next,key,changed);
   }
   if(doc.companion===from)next=setSceneField(next,'companion',to);
+  if(doc.reinforcements?.some(item=>item.id===from))next=setReinforcements(next,doc.reinforcements.map(item=>item.id===from?{...item,id:to}:item));
   return next;
 }
 
@@ -518,20 +546,20 @@ export function makeEvent(doc:SceneDocument,id:string):SceneDocument{
   });
 }
 
-/** A beat made a discovery: an empty revelation and no paths yet; an event's pressure and conversation roles go, and whoever arrived there is here from the start. */
+/** A beat made a discovery: an empty revelation and no paths yet; an event's pressure, conversation roles and fight go, and whoever arrived there is here from the start. */
 export function makeDiscovery(doc:SceneDocument,id:string):SceneDocument{
   const node=doc.nodes.find(other=>other.id===id);
   if(!node||!isBeat(node)||isDiscovery(node))return doc;
   const next=updateNode(doc,id,data=>{
     let beat:NodeData=withKey(withKey(data,'revelation','',ORDER.beat),'paths',(data as BeatData).paths??[],ORDER.beat);
-    for(const key of ['pressure','cast'])beat=withKey(beat,key,undefined,ORDER.beat);
+    for(const key of ['pressure','cast','fight'])beat=withKey(beat,key,undefined,ORDER.beat);
     return beat;
   });
   return {...next,cast:next.cast.map(member=>member.enters===id?withKey(member,'enters',undefined,ORDER.cast):member)};
 }
 
 /** What only a beat has, and what only an ending has: each goes when the node becomes the other. */
-const BEAT_ONLY=['revelation','paths','required','cast','pressure','establishes','carry'];
+const BEAT_ONLY=['revelation','paths','required','cast','pressure','fight','establishes','carry'];
 const ENDING_ONLY=['closing','result','exitKind','next','effects'];
 
 /**
@@ -596,7 +624,7 @@ export function kindLosses(doc:SceneDocument,id:string,kind:NewNodeKind):string[
   }
   const d=(node as SceneNode<BeatData>).data;
   const revelation=[d.revelation?.trim()?'its revelation':'',d.paths?.length?`its ${count(d.paths.length,'path')}`:'',d.required?'its required mark':''];
-  const stage=[d.pressure!==undefined?'its pressure':'',Object.keys(d.cast??{}).length?`its ${count(Object.keys(d.cast??{}).length,'conversation role')}`:''];
+  const stage=[d.pressure!==undefined?'its pressure':'',d.fight?'its fight':'',Object.keys(d.cast??{}).length?`its ${count(Object.keys(d.cast??{}).length,'conversation role')}`:''];
   const arriving=doc.cast.filter(member=>member.enters===id).length;
   const arrivals=arriving?`its ${count(arriving,'arrival')} (they're here from the start instead)`:'';
   if(kind==='event')return revelation.filter(Boolean);

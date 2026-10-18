@@ -1,4 +1,4 @@
-// After the prototype's src/game/combat/setup.ts at bc2ab1f: calledName and defaultRole as they are, and initialState as boardOf, at its seams: it's handed the move's Table over the player's own campaign (rules_state's) and their engine id, everyone the setup names is made afresh from their statblock (the scenes' people aren't the same people here yet: their statblocks are the ring's), the player can start rested (fresh: a long rest on the fight's copy), looks come from the campaign's looks.json where the cast has one (GLYPHS and COLOURS for the rest), and the start's dice and lines are the fight's first moment (fight/start.ts).
+// After the prototype's src/game/combat/setup.ts at bc2ab1f: calledName and defaultRole as they are, and initialState as boardOf, at its seams: it's handed the move's Table over the player's own campaign (rules_state's) and their engine id, everyone the setup names is made afresh from their statblock, but a scene's people the rules have made already, who fight as themselves (CombatantSetup.engine: hurt as they are), the player can start rested (fresh: a long rest on the fight's copy), looks come from the campaign's looks.json where the cast has one (GLYPHS and COLOURS for the rest), and the start's dice and lines are the fight's first moment (fight/start.ts).
 import type * as Dnd from "../../../vendor/dnd-srd-engine/dnd-srd-engine.module.js";
 import { key, solid, toFeet } from "../../../shared/fight/grid.ts";
 import type { FightBoard, FightSetup, Prop, Role, Unit } from "../../../shared/fight/types.ts";
@@ -65,6 +65,11 @@ export function boardOf(t: Table, setup: FightSetup, map: TileMap, pc: { engineI
       const owned = me.inventory.filter(i => !gone.has(i) && content.items.get(t.state.itemInstances[i]?.definitionId ?? "")?.itemKind === "weapon");
       const real = owned.filter(i => t.state.itemInstances[i]?.definitionId !== "unarmed-strike");
       weapons = (real.length ? real : owned).sort((a, b) => Number(b === me.equipped.mainHand) - Number(a === me.equipped.mainHand));
+    } else if (c.engine && t.char(c.engine.id)) {
+      // One of the scene's people the rules have made already (docs/combat-gm.md): the same person, as hurt as they are.
+      const me = t.char(c.engine.id)!;
+      engineId = c.engine.id;
+      weapons = [me.inventory.includes(c.engine.weapon) ? c.engine.weapon : me.equipped.mainHand ?? c.engine.weapon].filter((w): w is string => !!w);
     } else {
       const sb = statblockFor(c.statblock, c.weapon, content);
       const made = createNpc(t, c.name, sb);
@@ -80,7 +85,8 @@ export function boardOf(t: Table, setup: FightSetup, map: TileMap, pc: { engineI
     units[c.id] = {
       id: c.id, name: c.name, called: c.side === "player" ? "you" : calledName(c.name), side: c.side, role: defaultRole(c), engineId, weapons,
       ...(weaponName ? { weaponName } : {}), at: { ...c.at }, hp: Math.max(0, ch.hp.current), maxHp: ch.hp.max, ac: sheet.ac.total, speed: speed ?? sheet.speeds["walk"] ?? 30,
-      initiative: 0, state: ch.hp.current > 0 ? "fighting" : "down", conditions: ch.appliedConditions.map(a => a.conditionId),
+      initiative: 0, state: c.due ? "coming" : ch.hp.current > 0 ? "fighting" : "down", conditions: ch.appliedConditions.map(a => a.conditionId),
+      ...(c.due ? { due: c.due, ...(c.why ? { why: c.why } : {}) } : {}), ...(c.stays ? { stays: true } : {}), ...(c.plural ? { plural: true } : {}),
       ...(parry ? { parry: { bonus: parry, ready: true } } : {}),
       glyph: c.glyph ?? look?.glyph ?? GLYPHS[c.castId ?? c.id] ?? (c.side === "player" ? "@" : letter(c)),
       color: look?.fg ?? COLOURS[c.castId ?? c.id] ?? COLOURS[c.side]!, ...(c.castId ? { castId: c.castId } : {}),
@@ -88,8 +94,9 @@ export function boardOf(t: Table, setup: FightSetup, map: TileMap, pc: { engineI
   }
   if (!player) throw new Error("A fight needs the player in it.");
   // The encounter: everyone on the grid (5 ft a tile), initiative by the engine.
+  // Who's coming (the scene's reinforcements) is in the encounter from the start, off the board until their round.
   const created = (t.kit.plan["createEncounter"] as unknown as (s: Dnd.CampaignState, i: Record<string, unknown>) => { events: Dnd.EngineEvent[]; encounterId: string })(t.state, {
-    name: setup.title, combatants: Object.values(units).map(u => ({ characterId: u.engineId, position: toFeet(u.at) })),
+    name: setup.title, combatants: Object.values(units).map((u, i) => ({ characterId: u.engineId, position: u.state === "coming" ? { x: -9000 - i * 10, y: -9000 } : toFeet(u.at) })),
   });
   t.apply(created.events);
   const encounterId = created.encounterId;
@@ -113,11 +120,12 @@ export function boardOf(t: Table, setup: FightSetup, map: TileMap, pc: { engineI
   const raw = (rolls[0]?.["rolls"] ?? []) as Array<{ combatantId: string; d20: number; modifier: number; total: number }>;
   const rolled = [...raw].sort((a, b) => order.indexOf(byEngine(a.combatantId).id) - order.indexOf(byEngine(b.combatantId).id))
     .map(r => ({ unit: byEngine(r.combatantId).id, d20: r.d20, modifier: r.modifier, total: r.total }));
-  const exits = map.exits.filter(e => !solid(map, e.at)).map(e => ({ at: { ...e.at }, label: e.label }));
+  const exits = (setup.exits ?? map.exits).filter(e => !solid(map, e.at)).map(e => ({ at: { ...e.at }, label: e.label }));
   const board: FightBoard = {
     encounterId, units, order, active: enc.activeIndex, round: enc.round || 1,
     dust: (setup.dust ?? []).map(key), fire: [], fuel: (setup.fuel ?? []).map(key), props, exits, pc: player, flags: {}, place: setup.place,
     ...(setup.keep ? { keep: true } : {}), ...(setup.fast ? { fast: true } : {}), ...(setup.zoo ? { zoo: { ...setup.zoo } } : {}), ...(setup.time ? { time: setup.time } : {}),
+    ...(setup.scene ? { scene: setup.scene } : {}), ...(setup.town ? { town: true } : {}), ...(setup.area ? { area: { ...setup.area } } : {}),
   };
   return { board, rolled };
 }

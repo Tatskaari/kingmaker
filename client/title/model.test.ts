@@ -34,7 +34,7 @@ test("the zoo's menu: z opens its exhibits, an exhibit opens who to be, Esc goes
   const app = new AppModel(new StubBackend({ campaigns: [CAERWYN, ZOO_ROW] }), { campaign: "caerwyn" });
   app.title.openZoo();
   assert.deepEqual([app.title.zooMenu, app.title.zooNote], [{ step: "exhibits" }, undefined]);
-  assert.deepEqual(app.title.zoo?.exhibits.map(e => e.id), ["ring"]);
+  assert.deepEqual(app.title.zoo?.exhibits.map(e => e.id), ["ring", "toll"]);
   app.title.pickExhibit("ring");
   assert.deepEqual(app.title.zooMenu, { step: "builds", exhibit: "ring" });
   app.title.zooBack();

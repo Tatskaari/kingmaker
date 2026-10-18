@@ -335,6 +335,8 @@ tr.best td { background: var(--accent-soft); }
 .finding.good { border-color: var(--good); }
 .turn { display: grid; gap: 8px; padding-block: 14px; border-block-end: 1px solid var(--rule); }
 .turn.flagged { border-inline-start: 4px solid var(--s4); padding-inline-start: 12px; }
+details.fightlog { display: grid; gap: 6px; padding: 6px 12px; border-inline-start: 3px solid var(--accent); background: var(--accent-soft); border-radius: 4px; }
+details.fightlog > summary { cursor: pointer; font-weight: 600; }
 .tn { font-family: var(--display); font-weight: 700; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; }
 .facts { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); display: grid; gap: 2px; }
 .t { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: 10px; align-items: start; }

@@ -136,11 +136,11 @@ test("a route into a bad or mixed ending that could be true at the same moment a
   const giveWay: Record<string, Record<string, string[]>> = {
     [SCENE]: { "signed-suicide": ["signed-murder"], "case-lost": ["signed-murder"] },
     [RAT]: { "after-him": ["let-him-go"], "wait-for-him": ["let-him-go"], manners: ["let-him-go", "their-man-inside"] },
-    [HERON]: { "cast-off": ["in-the-act", "away-with-book"], "give-up": ["away-with-book"], overpowered: ["in-the-act"], attack: ["in-the-act"], ablaze: ["away-with-book", "in-the-act"], sunk: ["away-with-book", "in-the-act"] },
+    [HERON]: { "cast-off": ["in-the-act", "away-with-book"], "give-up": ["away-with-book"], overpowered: ["in-the-act"], ablaze: ["away-with-book", "in-the-act"], sunk: ["away-with-book", "in-the-act"] },
     [KING]: { "put-off": ["king-acts"], "thrown-away": ["king-acts"] },
   };
-  // And those that can't be true with a good one at once: Hobb bolted to his master, the trail lost without the Heron, the Master's sword drawn.
-  const apart: Record<string, string[]> = { [RAT]: ["got-away", "trail-goes-cold"], [HERON]: ["cornered"] };
+  // And those that can't be true with a good one at once: Hobb bolted to his master, the trail lost without the Heron. (The Heron's fight is an event now, played in the conversation: its routes go to no ending.)
+  const apart: Record<string, string[]> = { [RAT]: ["got-away", "trail-goes-cold"] };
   const result = (s: any, id: string) => node(s, route(s, id).target).result;
   for (const [path, s] of sceneFiles()) {
     const worse = (s.edges as any[]).filter(e => node(s, e.target).kind === "exit" && node(s, e.target).result !== "good").map(e => e.id);
@@ -369,7 +369,7 @@ test("the effects name an op, facts, people, things and quests the story has, on
       { op: "journal", text: "x", if: { established: ["hobb-talked", "nope"] } },
     );
   });
-  const fight = changed(HERON, s => { node(s, "fight").effects = [{ op: "startFight", enemies: [{ asset: "bandit", count: 2, leader: "sallow" }], allies: ["kell", "duchess"], at: "the-roof" }]; });
+  const fight = changed(HERON, s => { node(s, "caught").effects = [{ op: "startFight", enemies: [{ asset: "bandit", count: 2, leader: "sallow" }], allies: ["kell", "duchess"], at: "the-roof" }]; });
 
   assert.deepEqual(sceneChecks(files2), [
     "scenes/drowned-rat.kmscene: onStart: quest lost-dog isn't one of the scenario's quests",
@@ -380,7 +380,7 @@ test("the effects name an op, facts, people, things and quests the story has, on
     "scenes/drowned-rat.kmscene: ending taken-in: promise names unknown sallow",
     "scenes/drowned-rat.kmscene: ending taken-in: condition on unknown fact nope",
   ]);
-  assert.deepEqual(sceneChecks(fight), ["scenes/heron-warehouse.kmscene: ending fight: startFight names unknown duchess", "scenes/heron-warehouse.kmscene: ending fight: startFight is at unknown the-roof"]);
+  assert.deepEqual(sceneChecks(fight), ["scenes/heron-warehouse.kmscene: ending caught: startFight names unknown duchess", "scenes/heron-warehouse.kmscene: ending caught: startFight is at unknown the-roof"]);
 });
 
 test("the Rat may give the player Prout's page, which isn't its own but the granary's motive carries into it", () => {

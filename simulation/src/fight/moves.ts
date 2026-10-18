@@ -1,7 +1,7 @@
 // New (M6, docs/combat-design.md §1): the player's moves in a fight. The map's own (walk, attack, cast: shared/map/moves.ts's ids) are fight moves on their turn, routed here by the map's reducers; fight_turn has the fight's own acts (dash, dodge, disengage, end_turn, yield, leave, auto) and hurry, the screen's skip to their turn; and walk out, once it's over, goes back to the map. The prototype's TacticalFight.act and parse (src/game/combat/fights.ts at bc2ab1f), as moves.
 import type { Identity } from "spacetimedb";
-import { isFightAct, type FightResult } from "../../../shared/fight/types.ts";
-import { OUT, type MenuMove, type WalkArgs } from "../../../shared/map/moves.ts";
+import { isFightAct, type FightAct, type FightResult } from "../../../shared/fight/types.ts";
+import { isMenuMove, moveOf, OUT, type MenuMove, type WalkArgs } from "../../../shared/map/moves.ts";
 import { exploreRowOf, exploreOf, LOG_LINES } from "../../../shared/map/rows.ts";
 import type { Tile2 } from "../../../shared/map/types.ts";
 import { refusal } from "../../../shared/protocol/refusals.ts";
@@ -9,14 +9,16 @@ import { actorOf, Refused, type Actor, type TxCtx } from "../context.ts";
 import { gameRow, playerRow, type PlayerRow } from "../rows.ts";
 import { mapRowsOf, walkerOf, writeExplore } from "../map/rows.ts";
 import { nothingLeft } from "./options.ts";
-import { liveFightOf, play, type FightRow } from "./rows.ts";
+import { boardOfRow, liveFightOf, play, type FightRow } from "./rows.ts";
+import { pickUpAfterFight } from "../story/fight.ts";
+import { townFightOver } from "../map/fight.ts";
 import type { Skirmish } from "./skirmish.ts";
 import { afterAct, autoTurn, endTurn, playersTurn, step } from "./turns.ts";
 
 /** What the map's other moves are refused with while a fight is on: it's the fight first. */
 export const FIGHT_ON = "(There's a fight on: see it through first.)";
-/** And once it's over, until the player goes back to the map. */
-export const FIGHT_OVER = "(The fight's over: out goes back to the map.)";
+/** And once it's over, until the player goes back (to the scene it broke out in, or to the map). */
+export const FIGHT_OVER = "(The fight's over: out goes back.)";
 /** hurry on the player's own turn. */
 export const HURRY_MINE = "(It's your turn already: there's nothing to hurry.)";
 
@@ -38,16 +40,34 @@ export function fightTurnReducer(tx: TxCtx, sender: Identity, args: { act: strin
   if (!isFightAct(act)) throw new Refused(refusal("unavailable"));
   const actor = actorOf(tx, sender);
   if (act === "hurry") return hurry(tx, theirFight(tx, actor));
-  onTheirTurn(tx, theirFight(tx, actor), s => {
-    const pc = s.pc();
-    switch (act) {
-      case "dash": case "dodge": case "disengage": return s.simple(pc, act);
-      case "leave": return s.leave(pc);
-      case "yield": return s.yieldFight(pc);
-      case "end_turn": endTurn(s); return undefined;
-      case "auto": autoTurn(s); return undefined;
-    }
-  });
+  onTheirTurn(tx, theirFight(tx, actor), s => turnAct(s, act));
+}
+
+/** One of the fight's own acts on the player's turn (hurry aside): dash, dodge, disengage, leave, yield, end_turn, auto. Why not, in the rules' words. */
+function turnAct(s: Skirmish, act: Exclude<FightAct, "hurry">): string | undefined {
+  const pc = s.pc();
+  switch (act) {
+    case "dash": case "dodge": case "disengage": return s.simple(pc, act);
+    case "leave": return s.leave(pc);
+    case "yield": return s.yieldFight(pc);
+    case "end_turn": endTurn(s); return undefined;
+    case "auto": autoTurn(s); return undefined;
+  }
+}
+
+/**
+ * One of the player's options by its id, as the board lists them (walk@x,y, attack@x,y,
+ * cast_<spell>@x,y, cast_<spell>_self, shove@x,y, grapple@x,y, feature_<id>, dash, dodge, disengage,
+ * leave, yield, end_turn), done on the Skirmish as the menu does it: the GM's act on a typed turn
+ * (fight/gm.ts). Why not, in the rules' words; undefined when it was done.
+ */
+export function optionAct(s: Skirmish, id: string): string | undefined {
+  if (isFightAct(id)) return id === "hurry" ? "That isn't something to do on your turn." : turnAct(s, id);
+  const move = moveOf(id);
+  if (!move) return `There's no ${id} on the board.`;
+  if (move.move === "walk") return move.args.to ? s.move(s.pc(), tile(move.args.to)) : "In a fight you walk to a tile.";
+  if (!isMenuMove(move)) return "That isn't something to do in a fight.";
+  return notInAFight(move) ?? menuAct(s, move);
 }
 
 /**
@@ -75,30 +95,35 @@ export function fightWalk(tx: TxCtx, actor: Actor, fight: FightRow, args: WalkAr
 }
 
 /**
- * The action menu's acts in a fight (cast and attack: town-design §3.2's ids), on the player's turn:
- * a spell at whoever or whatever is at the tile (an area's spot, if nobody is), or on themselves; a
- * blow at whoever's there (or a lantern); a shove over, or a grab; a brazier or a lantern beside
- * them knocked over with a shove. The rest of the menu isn't a fight's yet, and says so.
+ * The action menu's acts in a fight (cast, attack and useFeature: town-design §3.2's ids), on the
+ * player's turn: a spell at whoever or whatever is at the tile (an area's spot, if nobody is), or on
+ * themselves; a blow at whoever's there (or a lantern); a shove over, or a grab; a brazier or a
+ * lantern beside them knocked over with a shove; a class feature (Second Wind), on whoever's at the
+ * tile when it's used on someone. The rest of the menu isn't a fight's yet, and says so.
  */
 export function fightMenuMove(tx: TxCtx, actor: Actor, fight: FightRow, move: MenuMove): void {
   const why = notInAFight(move);
   if (why) throw new Refused(refusal("not_now", { text: why }));
-  onTheirTurn(tx, theirFight(tx, actor), s => {
-    const pc = s.pc();
-    if (move.move === "cast") {
-      if (move.args.self || !move.args.at) return s.cast(pc, move.args.spell, move.args.self ? pc.id : undefined);
-      const at = tile(move.args.at);
-      return s.cast(pc, move.args.spell, whoAt(s, at), at);
-    }
-    if (move.move !== "attack") return "That isn't something to do in a fight.";
+  onTheirTurn(tx, theirFight(tx, actor), s => menuAct(s, move));
+}
+
+/** One of the action menu's acts on the Skirmish, on the player's turn. Why not, in the rules' words. */
+function menuAct(s: Skirmish, move: MenuMove): string | undefined {
+  const pc = s.pc();
+  if (move.move === "cast") {
+    if (move.args.self || !move.args.at) return s.cast(pc, move.args.spell, move.args.self ? pc.id : undefined);
     const at = tile(move.args.at);
-    const who = whoAt(s, at);
-    // attack@x,y is the attack the options listed: the first weapon that reaches them (a bow across the room), else the one in hand, to say why not.
-    if (move.args.how === "attack") return who ? s.attack(pc, who, pc.weapons.find(w => !s.attackCheck(pc, { at, id: who }, w).error)) : "There's nobody there to attack.";
-    if (who && s.G.props[who]) return move.args.how === "shove" ? s.use(pc, who) : `You can't get hold of the ${s.G.props[who]!.name}.`;
-    if (!who) return "There's nobody there to get hold of.";
-    return s.wrestle(pc, who, move.args.how === "grapple" ? "grapple" : "prone");
-  });
+    return s.cast(pc, move.args.spell, whoAt(s, at), at);
+  }
+  if (move.move === "useFeature") return s.feature(pc, move.args.feature, move.args.self ? pc.id : move.args.at ? whoAt(s, tile(move.args.at)) : undefined);
+  if (move.move !== "attack") return "That isn't something to do in a fight.";
+  const at = tile(move.args.at);
+  const who = whoAt(s, at);
+  // attack@x,y is the attack the options listed: the first weapon that reaches them (a bow across the room), else the one in hand, to say why not.
+  if (move.args.how === "attack") return who ? s.attack(pc, who, pc.weapons.find(w => !s.attackCheck(pc, { at, id: who }, w).error)) : "There's nobody there to attack.";
+  if (who && s.G.props[who]) return move.args.how === "shove" ? s.use(pc, who) : `You can't get hold of the ${s.G.props[who]!.name}.`;
+  if (!who) return "There's nobody there to get hold of.";
+  return s.wrestle(pc, who, move.args.how === "grapple" ? "grapple" : "prone");
 }
 
 /** Why one of the action menu's acts isn't a fight move yet (as the prototype's fights refused them), or nothing when it is. */
@@ -106,7 +131,6 @@ function notInAFight(move: MenuMove): string | undefined {
   switch (move.move) {
     case "cast": return undefined;
     case "attack": return move.args.how === "throw" ? "(Throwing isn't part of a fight yet: attack with what's in your hand.)" : move.args.how === "lift" ? "(Picking pockets isn't part of a fight.)" : undefined;
-    case "useFeature": return "(Class features aren't part of a fight yet: attack, cast, dash, dodge or disengage.)";
     case "leap": return "(Jumping isn't part of a fight yet: walk there.)";
     case "hide": return "(Hiding isn't part of a fight yet: dodge, or get out of their sight.)";
     case "rest": return "(There's no resting in a fight.)";
@@ -124,8 +148,12 @@ function theirFight(tx: TxCtx, actor: Actor): FightRow {
   if (!fight) throw new Refused(refusal("no_fight"));
   if (fight.playerId !== player.id) throw new Refused(refusal("not_controller", { name: playerRow(tx, fight.playerId).name }));
   if (fight.status !== "on") throw new Refused(refusal("not_now", { text: FIGHT_OVER }));
+  if (boardOfRow(fight).thinking) throw new Refused(refusal("not_now", { text: GM_PLAYING }));
   return fight;
 }
+
+/** What the player's other moves are refused with while the GM plays their typed turn (fight/gm.ts). */
+export const GM_PLAYING = "(The GM is playing what you said: a moment.)";
 
 /**
  * One of the player's acts on their turn: refused when it isn't their turn, or when the rules say no
@@ -142,8 +170,9 @@ function onTheirTurn(tx: TxCtx, fight: FightRow, act: (s: Skirmish) => string | 
 }
 
 /**
- * Out, once the fight's over: it's done, and the player is back on the map where they were, the
- * fight's end what the map last said (and in its log), as a scene's end is.
+ * Out, once the fight's over: it's done. A scene's fight goes back to its scene, which picks up from
+ * how it went (story/fight.ts); one that broke out on the map leaves its people as it left them; and
+ * the player is back on the map, the fight's end what the map last said (and in its log).
  */
 function goBack(tx: TxCtx, actor: Actor, fight: FightRow): void {
   const player = actor.id === undefined ? undefined : (tx.db.player.id.find(actor.id) ?? undefined);
@@ -151,7 +180,14 @@ function goBack(tx: TxCtx, actor: Actor, fight: FightRow): void {
   if (fight.playerId !== player.id) throw new Refused(refusal("not_controller", { name: playerRow(tx, fight.playerId).name }));
   if (fight.status === "on") throw new Refused(refusal("not_now", { text: FIGHT_ON }));
   tx.db.fight.id.update({ ...fight, status: "done", rev: fight.rev + 1 });
-  tellTheMap(tx, player, fight);
+  const board = boardOfRow(fight);
+  if (board.scene) {
+    pickUpAfterFight(tx, fight);
+    tx.log(`[fight] game ${fight.gameId}: ${fight.title} done (${fight.outcome ?? "?"}), back to the scene`);
+    return;
+  }
+  if (board.town) townFightOver(tx, player, fight);
+  else tellTheMap(tx, player, fight);
   tx.log(`[fight] game ${fight.gameId}: ${fight.title} done (${fight.outcome ?? "?"}), back to the map`);
 }
 

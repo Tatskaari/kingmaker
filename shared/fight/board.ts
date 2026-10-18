@@ -51,7 +51,7 @@ const SIDE: Record<Unit["side"], string> = { player: "", ally: "ally", enemy: "f
 
 /** Who's who, in initiative order: whose turn (▶), initiative, letter, name, whose side, hit points, how they are (asleep, prone, dodging...). */
 export function orderLines(G: FightBoard, active: string): string[] {
-  return G.order.map(id => {
+  return G.order.filter(id => G.units[id]?.state !== "coming").map(id => {
     const u = G.units[id]!;
     const name = u.id === G.pc ? `you (${u.name})` : u.name;
     const how = u.state === "fighting" ? `${u.hp}/${u.maxHp} HP` : u.state === "surrendered" ? "gave up" : u.state === "fled" ? (G.flags[`walked:${u.id}`] ? "walked off" : "gone") : u.state === "dead" ? "dead" : `down (${u.hp}/${u.maxHp} HP)`;

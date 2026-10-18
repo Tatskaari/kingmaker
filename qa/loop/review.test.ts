@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { CAMPAIGNS, TRUTH, type LoopConfig } from "./paths.ts";
-import { newRecord, type Entry, type GameRecord } from "./record.ts";
+import { newRecord, type Entry, type FightLog, type GameRecord } from "./record.ts";
 import { checkReview, locate, packText, quoted, rubricChecks, type Review } from "./review.ts";
 import { campaignAt, playable, sceneOf } from "./scenes.ts";
 
@@ -18,7 +18,7 @@ const BASE: Review = { game: "g01", summary: "Fine.", ratings: { pacing: 3, agen
 
 test("the rubric's checks are its #### `id` headings", () => {
   const checks = rubricChecks();
-  for (const id of ["knows", "player-words", "dump", "withheld", "roll-failure", "broken", "mouthpiece"]) assert.ok(checks.includes(id), id);
+  for (const id of ["knows", "player-words", "dump", "withheld", "roll-failure", "broken", "mouthpiece", "fight-start", "fight-telling", "fight-turn"]) assert.ok(checks.includes(id), id);
   assert.equal(new Set(checks).size, checks.length, "no check twice");
 });
 
@@ -87,6 +87,27 @@ test("the pack: the brief with the check's command, where the review goes, the r
   assert.match(later, /\*\*Where the prep no longer matched the story \(the GM was told\):\*\*\n- Sallow has been named\./);
   assert.match(later, /Their notebook of the story so far:\n\nThe Hanged Clerk: The case is made\n· Wendell Prout didn't hang himself\./);
   assert.match(later, /— The scene ended \(What Big Hobb knows\)\. —$/);
+});
+
+test("a fight on the board: in the pack under the turn it broke out on, its log as the player read it; a quote from it counts as that turn's", () => {
+  const config: LoopConfig = { rounds: mkdtempSync(join(tmpdir(), "km-loop-")), command: "npm run -s loop --" };
+  const fight: FightLog = {
+    id: "3", turn: 1, title: "A fight in the yard", moves: 2, rounds: 2, over: "You won: Cob is down.",
+    events: [
+      { seq: 1, kind: "turn", actor: "player", caption: "Your turn.", lines: [] },
+      { seq: 2, kind: "say", actor: "player", caption: "I swing at the boy.", lines: [] },
+      { seq: 3, kind: "attack", actor: "player", caption: "You hit the boy with your shortsword.", lines: ["🎲 d20 15 + 5 = 20 vs AC 12: a hit, 6 piercing."] },
+      { seq: 4, kind: "gm", caption: "Your blade catches the boy across the arm.", lines: [] },
+    ],
+  };
+  const record: GameRecord = { ...newRecord({ round: "r1", game: "g01", scene: "hanged-clerk", stack: "runs/loop-stack" }), sceneRow: "7", entries: ENTRIES, fights: [fight] };
+  const text = packText({ config, round: "r1", record, prep: "# The prep" });
+  assert.match(text, /## Turn 1\n\n[\s\S]*\n\n### The fight on the board: A fight in the yard\n\n— Your turn\.\n> I swing at the boy\.\nYou hit the boy with your shortsword\.\n    🎲 d20 15[^\n]*\nGM: Your blade catches the boy across the arm\.\n\n\(How it went: You won: Cob is down\. 2 rounds\.\)\n\n— The game stopped here/);
+  const finding = { turn: 1, check: "fight-telling", severity: 3, quote: "Your blade catches the boy across the arm", why: "The board's hit was on the leg." };
+  assert.deepEqual(checkReview({ ...BASE, findings: [finding] }, record), [], "the GM's telling is the turn's");
+  assert.deepEqual(checkReview({ ...BASE, findings: [{ ...finding, quote: "You hit the boy with your shortsword" }] }, record), [], "and the board's lines");
+  assert.equal(checkReview({ ...BASE, findings: [{ ...finding, turn: 0 }] }, record).length, 1, "on the turn it broke out on, not another");
+  assert.equal(checkReview({ ...BASE, findings: [{ ...finding, quote: "I swing at the boy" }] }, record).length, 1, "the player's own words aren't the GM's");
 });
 
 test("every scene a round can play has a truth sheet, in step with the scene: each of its discoveries named by its id", async () => {

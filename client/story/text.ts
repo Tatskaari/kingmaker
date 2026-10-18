@@ -52,7 +52,7 @@ function betweenText(view: SceneView, story: StoryView): string {
   ].join("\n\n");
 }
 
-/** The fight's stand-in: what it says of itself, and Fight it out (the one who has the lead's to take). */
+/** A scene at its fight: what the card says, and To the fight (the one who has the lead's to take). */
 function fightText(view: SceneView, way: WayOn): string {
   const fight = fightOf();
   return [

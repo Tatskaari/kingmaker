@@ -20,8 +20,10 @@ export interface FightActions {
   move(m: MapMove): Promise<Rejection | undefined>;
   /** One of the fight's own acts (fight_turn): dash, dodge, disengage, end_turn, yield, leave, auto, hurry. */
   turn(act: FightAct): Promise<Rejection | undefined>;
-  /** Back to the map, once it's over (walk out). */
+  /** Back, once it's over (walk out): to the scene it broke out in, or to the map. */
   out(): Promise<Rejection | undefined>;
+  /** The player's turn in their own words (fight_say), the GM's to play on the board: a scene's fight only (docs/combat-gm.md). */
+  say?(text: string): Promise<Rejection | undefined>;
   /** Back to the title, the game kept. */
   quit(): void;
   /** Report a problem (M5): the question over the fight (`from`: where it was asked for, b or the menu). */
@@ -148,7 +150,7 @@ export class FightModel {
    * acting finishes them first.
    */
   canAct(): boolean {
-    if (!myTurn(this.view) || this.player.skippingOn) return false;
+    if (!myTurn(this.view) || this.player.skippingOn || this.view.board.thinking) return false;
     const f = this.player.frame(this.now());
     return f.turn === this.view.board.pc;
   }
@@ -304,7 +306,54 @@ export class FightModel {
     void this.act("end_turn");
   }
 
-  /** Back to the map, once it's over and played. */
+  // -------------------------------------------------------------------------------------------
+  // Saying what you do (docs/combat-gm.md; the user: "if I click on it, I can still narrate what I
+  // do"): in a scene's fight, on the player's turn, a click on the log (or t) opens a line; what's
+  // said there is the GM's to play on the board, the menu waiting meanwhile.
+
+  /** What the player is typing, while the line's open. */
+  typing?: string;
+
+  /** Whether a line can be opened now: a scene's fight, the player's turn, the GM not playing one already. */
+  canType(): boolean {
+    return !!this.view.board.scene && !!this.actions.say && this.canAct();
+  }
+
+  /** The line opened (or, when it can't be, why not). */
+  startTyping(): void {
+    if (!this.canType()) { this.say(this.view.board.scene ? this.notYet() : "(Saying what you do is for a scene's fights: here, the menu has your moves.)"); return; }
+    this.menu = undefined;
+    this.aim = undefined;
+    this.typing = "";
+    this.emit();
+  }
+
+  /** The line put away, nothing said. */
+  stopTyping(): void {
+    this.typing = undefined;
+    this.emit();
+  }
+
+  /** What they typed, said (fight_say): the line closed, and the GM's to play; refused, its words on the status line. */
+  async sayTurn(text: string): Promise<void> {
+    const line = text.trim();
+    this.typing = undefined;
+    if (!line) { this.emit(); return; }
+    if (!this.canType()) { this.say(this.notYet()); return; }
+    this.status = undefined;
+    this.sending = true;
+    this.emit();
+    let refused: Rejection | undefined;
+    try {
+      refused = await this.actions.say!(line);
+    } finally {
+      this.sending = false;
+    }
+    if (refused) this.status = refused.text;
+    this.emit();
+  }
+
+  /** Back, once it's over and played: to the scene it broke out in, or to the map. */
   async out(): Promise<void> {
     if (this.view.status === "on" || this.view.watching) return;
     const refused = await this.actions.out();

@@ -1,13 +1,15 @@
 // New (M2): the two-part GM's turn in the simulation (docs/two-part-design.md "A turn, step by step"), its commits made after PR #666's twoPartTurn and twoPartOpening (src/runtime/two-part.ts at origin/claude/two-part-gm c749270) as the game's commits: the check rolled here from the game's dice (speak's roll), the co-GM's moves taken again on the rows with shared/scene/beats.ts's takeRoute, the roles and the note for the next turn written to gm_state, the closing ended through the story's own end. Since the old pipeline's salvage a talk plays on these steps too (docs/migration-log.md): its goodbye said in so many words is taken as its turn starts, so the reply to it is the talk's closing; its settle has no world, its lines are its own (the settle's, not the suggest job's), and the co-GM's move into its goodbye ends it at once.
 import type { GmState } from "../../../shared/gm/state.ts";
 import { bandOf, defaultRole, diceLine, openingRoles, rolesNote } from "../../../shared/gm/two-part.ts";
-import type { CoGmAnswer, Outcome, Reply, ReplyResponse, SettleResponse, SpokenCheck, TurnCheck } from "../../../shared/protocol/ai.ts";
+import type { CoGmAnswer, Initiative, Outcome, Reply, ReplyResponse, SettleResponse, SpokenCheck, TurnCheck } from "../../../shared/protocol/ai.ts";
 import { idOf } from "../../../shared/protocol/keys.ts";
 import type { Mechanic } from "../../../shared/rules/types.ts";
-import { openRoutes, oweName, takeRoute } from "../../../shared/scene/beats.ts";
+import { fightsAhead, openRoutes, oweName, takeRoute } from "../../../shared/scene/beats.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import { GOODBYE, isFarewell } from "../../../shared/scene/talk.ts";
 import type { Scene } from "../../../shared/scene/types.ts";
+import type { SceneWorld, WorldOp } from "../../../shared/world/scene-world.ts";
+import { kindIn } from "../../../shared/scene/names.ts";
 import type { TxCtx } from "../context.ts";
 import { rollerFor } from "../dice-row.ts";
 import { afterTurn } from "../gm/background.ts";
@@ -26,6 +28,7 @@ import { syncStage } from "../world/stage.ts";
 import { keysIn, lookForNew } from "./looks.ts";
 import type { Next } from "./move.ts";
 import type { SayPlan } from "./plans.ts";
+import { breakOut, companionsHere } from "./fight.ts";
 import { atTurn, beforeReply, endScene, noteReply, resolveAct, type At } from "./say-commits.ts";
 import { suggestAfter } from "./suggest.ts";
 
@@ -57,9 +60,10 @@ export function twoPartStart(tx: TxCtx, scene: SceneRow, graph: Scene, gm: GmSta
     ...(gm.closing ? { windDown: { exit: gm.closing.exitId } } : {}),
   };
   const rules = first?.directives.length ? { rulesFirst: { directives: first.directives, down: first.down, shielded: first.shielded } } : {};
-  const forced = turn.mechanic && !gm.closing ? JSON.parse(turn.mechanic) as Mechanic : undefined;
+  // An act is the rules' even as the scene closes (QA round hobo1-1018: a greataxe brought down on Hobb in the Rat's closing reply, told with no dice).
+  const forced = turn.mechanic ? JSON.parse(turn.mechanic) as Mechanic : undefined;
   const resolved = forced ? resolveAct(tx, { scene, graph, gm }, { n: turn.n, input: line, ...rules }, forced, outcome) : undefined;
-  const acting = forced || gm.closing ? undefined : actingIn(tx, scene, line);
+  const acting = forced ? undefined : actingIn(tx, scene, line);
   putGm(tx, scene.id, gm);
 
   const plan: SayPlan = { ...base, ...rules, step: "reply", windDown: !!gm.closing, outcome, lines: outcome.lines, ...(forced ? { forced } : {}) };
@@ -133,13 +137,63 @@ export function afterTwoPartReply(tx: TxCtx, plan: SayPlan, answer: ReplyRespons
   if (shown) arrivalsShown(tx, at, plan.n, turnId);
   noteHeard(tx, at.scene, at.graph);
 
+  // The reply rolled for initiative (docs/combat-gm.md): everyone takes a side, and the scene is at its fight, fought on the board.
+  // One that breaks out as the scene closes (its closing reply) reopens it: the fight is fought, and the co-GM judges the ending again after it.
+  const fights = answer.initiative && (!answer.initiative.on?.length || (!!spoken.check && answer.initiative.on.includes(spoken.check.band)));
+  const called = !answer.initiative && at.scene.kind !== "talk" ? calledInWords(tx, at, spoken.text) : undefined;
+  if ((answer.initiative && fights) || called) {
+    const closing = plan.outcome?.windDown ? reopen(tx, at, plan.n) : undefined;
+    const fighting: SayPlan = closing ? { ...plan, windDown: false, outcome: { ...plan.outcome!, windDown: undefined } } : plan;
+    const started = breakOut(tx, at, { ...fighting, lines: [...plan.lines, ...spoken.lines] }, called ?? answer.initiative!, "reply");
+    if (started) return started;
+    if (closing) closeAgain(tx, at, closing);
+  }
   if (plan.outcome?.windDown) return windDown(tx, at, plan, answer.closes !== false || !!at.gm.twoPart.held);
+  if (answer.initiative && !fights) tx.log(`[scene ${at.scene.id} turn ${plan.n}] no fight: the check came up ${spoken.check?.band}, not ${answer.initiative.on?.join(" or ")}`);
 
   // A talk's lines to choose come with its settle (talk.suggest: town-design §3.6), not the suggest job.
   if (at.scene.kind !== "talk") suggestAfter(tx, at.scene, turnId);
   putGm(tx, at.scene.id, at.gm);
   updateTurn(tx, turnId, { phase: "settling" });
   return { done: false, plan: { ...plan, step: "settle", reply: spoken.text, lines: [...plan.lines, ...spoken.lines], ...(spoken.check ? { check: spoken.check } : {}) } };
+}
+
+/**
+ * A reply whose words (or the check's outcome that came up) end on "Roll for initiative!" with no
+ * roll_for_initiative set (QA round toll2-1018: a badly failed Intimidation's outcome called for it,
+ * and nothing started, twice in two rounds): the fight it called. One of the scene's prep on offer
+ * (fightsAhead) is that one, its line-up the sides; otherwise nobody's side is known, and the GM picks
+ * everyone's before it's fought (pick_sides), the companion beside the player.
+ */
+function calledInWords(tx: TxCtx, at: At, text: string): Initiative | undefined {
+  if (!/roll for initiative!?\W*$/i.test(text.trim())) return undefined;
+  const ahead = fightsAhead(at.graph, at.gm)[0];
+  if (ahead) return { foes: [...ahead.beat.fight.foes], allies: [...(ahead.beat.fight.allies ?? [])], why: `called in the narration: ${ahead.beat.title}` };
+  return { foes: [], allies: companionsHere(tx, at), why: "called in the narration" };
+}
+
+/**
+ * A fight breaking out in the closing reply (QA round hobo1-1018: the Rat closing on the trail gone
+ * cold as the player swung at Hobb, "Roll for initiative!" and no fight): the scene isn't closing any
+ * more. Its ending is undone (no longer reached, so its routes are open again, as the stand-in's
+ * fight did), and it's live; what it was closing on, to put back if no fight starts after all.
+ */
+function reopen(tx: TxCtx, at: At, n: number): NonNullable<GmState["closing"]> | undefined {
+  const closing = at.gm.closing;
+  if (!closing) return undefined;
+  delete at.gm.closing;
+  delete at.gm.twoPart.held;
+  at.gm.reached = at.gm.reached.filter(id => id !== closing.exitId);
+  updateScene(tx, at.scene.id, { status: "live" });
+  tx.log(`[scene ${at.scene.id} turn ${n}] a fight broke out as the scene closed on ${closing.exitId}: it plays on, its ending undone`);
+  return closing;
+}
+
+/** The closing put back: no fight started after all. */
+function closeAgain(tx: TxCtx, at: At, closing: NonNullable<GmState["closing"]>): void {
+  at.gm.closing = closing;
+  at.gm.reached = [...at.gm.reached, closing.exitId];
+  updateScene(tx, at.scene.id, { status: "closing" });
 }
 
 /** The closing reply: it closed the scene (the story's end: the ending's effects, onEnd, afterwards, then the boundary), or waited once. No settle either way: the turn's last commit. */
@@ -188,7 +242,13 @@ export function afterTwoPartSettle(tx: TxCtx, plan: SayPlan, answer: SettleRespo
   if (at.scene.kind === "talk") return talkSettled(tx, at, plan, answer);
   const place = placeWorldOf(tx, at.scene);
   const keys = keysIn(tx, at.scene.placeId);
-  const staged = applyStage(place, answer.ops ?? [], plan.n);
+  // A create of one of the scene's people isn't made: they come back if they'd gone (QA round hobo2-1018: Saul and the mastiff, who ran for help, made again as "old watchman" and "mastiff", and the copies fought).
+  const copies = (answer.ops ?? []).map(op => ({ op, of: copyOf(at.graph, place.world, op) })).filter((c): c is { op: WorldOp; of: string } => !!c.of);
+  for (const { op, of } of copies) {
+    const back = comesBack(at, place.world, of);
+    tx.log(`[scene ${at.scene.id} turn ${plan.n}] the stage manager's create of "${op.name}" not done: it's ${of}${back ? ", who comes back" : ", here already"}`);
+  }
+  const staged = applyStage(place, (answer.ops ?? []).filter(op => !copies.some(c => c.op === op)), plan.n);
   const cast = plan.forced ?? plan.read;
   if (cast?.kind === "cast") markConjured(place.world, cast.spell, plan.n);
   const stageBefore = at.gm.beat;
@@ -211,9 +271,71 @@ export function afterTwoPartSettle(tx: TxCtx, plan: SayPlan, answer: SettleRespo
   noteHeard(tx, at.scene, at.graph);
   tx.log(`[scene ${at.scene.id} turn ${plan.n}] settled: ${staged.changes.length} changed, ${staged.problems.length} not done; the co-GM ${moved}${at.gm.closing ? `; closing on ${at.gm.closing.exitId}` : ""}`);
 
+  // The co-GM took the scene into an event with a fight (the Heron's blades out) the reply didn't
+  // start: it breaks out now, with the event's line-up (docs/combat-gm.md).
+  const fight = tp.moved && !at.gm.closing && !at.gm.fight ? at.graph.beats.find(b => b.id === tp.moved && b.fight) : undefined;
+  if (fight) {
+    delete tp.moved;
+    const started = breakOut(tx, at, plan, { foes: [], allies: [], why: fight.title }, "settle");
+    if (started) return started;
+    putGm(tx, at.scene.id, at.gm);
+  }
+
   afterTurn(tx, plan);
   finishTurn(tx, at.scene.id, idOf(plan.turn));
   return { done: true };
+}
+
+/** A name without its article, as two of the same person's compare: "the old watchman" is "old watchman". */
+const bare = (name: string) => name.trim().toLowerCase().replace(/^(the|a|an)\s+/, "");
+
+/**
+ * Who the stage manager's create would make again: one of the cast (castCopy, or by what their card
+ * calls them: "old watchman" for Saul), one of the place's beings with a name of their own, by it or
+ * by what they are ("mastiff" for Duchess), or one with no name of their own come back after they'd
+ * gone (the re-sacking gang, back at work). Their id; none for someone new (another swan).
+ */
+export function copyOf(graph: Scene, world: SceneWorld, op: Pick<WorldOp, "op" | "name" | "kind">): string | undefined {
+  if (op.op !== "create" || (op.kind && op.kind !== "person" && op.kind !== "creature")) return undefined;
+  const name = bare(op.name ?? "");
+  if (!name) return undefined;
+  const card = graph.cast.find(c => castCopy({ ...graph, cast: [c] }, op) || (c.called && bare(c.called) === name) || bare(c.name) === name);
+  if (card) return card.id;
+  const named = (e: { name: string }) => /^\p{Lu}/u.test(e.name) && !/^(the|a|an)\s/i.test(e.name);
+  const being = Object.values(world.entities).find(e => (e.kind === "person" || e.kind === "creature") && !e.player && !e.cast
+    && (named(e) ? bare(e.name) === name || kindIn(e.description) === name : e.states.includes("gone") && bare(e.name) === name));
+  return being?.id;
+}
+
+/** One of the scene's people the story brings back after they'd gone (out of the place, away): here again. Whether they came back. */
+function comesBack(at: At, world: SceneWorld, id: string): boolean {
+  const e = world.entities[id];
+  const away = at.gm.absent.includes(id) || !!e?.states.includes("gone");
+  if (!away) return false;
+  at.gm.absent = at.gm.absent.filter(x => x !== id);
+  if (e) e.states = e.states.filter(s => s !== "gone");
+  return true;
+}
+
+/** Words of a name that aren't anyone's own: titles and what people are called by their looks or their age. */
+const TITLES = new Set(["the", "a", "an", "master", "mister", "mistress", "mr", "mrs", "miss", "sergeant", "corporal", "captain", "marshal", "king", "queen", "lady", "lord", "sir", "dame", "old", "big", "little", "young"]);
+
+/**
+ * A person the stage manager would make who is one of the scene's cast (or a group's member), by a
+ * name of theirs: a capitalised word of what it's called that's a word of their name or another of
+ * theirs ("Master Sallow" for Master Josiah Sallow; QA round hobo1-1018: made as the reply showed
+ * Sallow coming in, a reply before he joined the world, so the King's morning had two Sallows, and
+ * the player's axe went at the copy). The cast join the world as the story brings them on.
+ */
+export function castCopy(graph: Scene, op: Pick<WorldOp, "op" | "name" | "kind">): boolean {
+  if (op.op !== "create" || (op.kind && op.kind !== "person" && op.kind !== "creature")) return false;
+  const proper = (op.name ?? "").split(/[^\p{L}'’-]+/u).filter(w => /^\p{Lu}/u.test(w) && !TITLES.has(w.toLowerCase())).map(w => w.toLowerCase());
+  if (!proper.length) return false;
+  const people = graph.cast.flatMap(c => [c, ...(c.members ?? [])]) as Array<{ name: string; aka?: string[] }>;
+  return people.some(p => {
+    const words = new Set([p.name, ...(p.aka ?? [])].flatMap(n => n.toLowerCase().split(/[^\p{L}'’-]+/u)).filter(w => w && !TITLES.has(w)));
+    return proper.some(w => words.has(w));
+  });
 }
 
 /**

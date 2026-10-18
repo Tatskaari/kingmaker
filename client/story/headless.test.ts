@@ -79,7 +79,7 @@ test("observe once the scene is over: still moving on, stuck (carry_on), the fig
 
   const fight = capture();
   verbs.observe(showing({ ...yardOver(heronFought()), title: "The Heron Warehouse", over: false, fighting: true }), fight);
-  assert.equal(fight.printed, `MODE: fight\n\n[The Heron Warehouse] Roll for initiative!\n\n${STANDIN.observe}\n\nACTIONS:\n- fight: Fight it out\n\nPHASE: fight (Use: act --id fight)\n`);
+  assert.equal(fight.printed, `MODE: fight\n\n[The Heron Warehouse] Roll for initiative!\n\n${STANDIN.observe}\n\nACTIONS:\n- fight: To the fight\n\nPHASE: fight (Use: act --id fight)\n`);
 
   const end = capture();
   verbs.observe(showing(yardOver(storyOver(), { title: "The King's Morning", sceneId: "11" })), end);

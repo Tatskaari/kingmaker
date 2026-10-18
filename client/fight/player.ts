@@ -11,8 +11,8 @@ import { myTurn, type FightView } from "./view.ts";
 /** A moment on the playback's clock: its script, when it starts and ends (the clock's ms), and whether it has begun (logged, its effects spawned). */
 interface Slot { event: FightEvent; script: Script; start: number; end: number; entered: boolean }
 
-/** A line of the fight's log: a moment that has begun playing, its caption, and its dice and words under it. */
-export interface LogEntry { seq: number; kind: FightEvent["kind"]; actor?: string; caption: string; lines: string[] }
+/** A line of the fight's log: a moment that has begun playing, its caption, and its dice and words under it; the GM's words, the moment they follow (`after`). */
+export interface LogEntry { seq: number; kind: FightEvent["kind"]; actor?: string; caption: string; lines: string[]; after?: number }
 
 /** What the screen draws at an instant of the playback. */
 export interface PlayFrame {
@@ -93,9 +93,26 @@ export class FightPlayer {
       this.caption = last?.caption ?? "";
       this.captionBy = last?.actor;
       this.seen = last?.seq ?? 0;
-      for (const e of view.events) this.log.push(entryOf(e));
+      for (const e of view.events) { if (e.kind === "gm") this.placeWords(e); else this.log.push(entryOf(e)); }
     }
   }
+
+  /** The GM's words waiting for the moment they follow to be in the log (docs/combat-gm.md: a telling can come after the next turn's moments). */
+  private words: FightEvent[] = [];
+
+  /**
+   * The GM's words in the log, after the moment they follow (the turn they tell's last), however late
+   * they came; held until that moment has played, when it hasn't yet. They play nothing on the board.
+   */
+  private placeWords(e: FightEvent): void {
+    const after = e.detail.after ?? e.seq - 1;
+    if (!this.log.some(l => l.kind !== "gm" && l.seq >= after)) { this.words.push(e); return; }
+    // Back from the newest, past what comes after it (the board's later moments, the GM's words for later turns), then in.
+    let i = this.log.length - 1;
+    while (i >= 0 && (this.log[i]!.kind === "gm" ? (this.log[i]!.after ?? 0) > after : this.log[i]!.seq > after)) i--;
+    this.log.splice(i + 1, 0, { ...entryOf(e), after });
+  }
+
 
   /** The rows moved on: their new moments scheduled, each to start once the one before has played. */
   see(view: FightView, now: number): void {
@@ -226,6 +243,8 @@ export class FightPlayer {
     let at = Math.max(now, this.slots.length ? this.slots[this.slots.length - 1]!.end : now);
     for (const e of [...events].sort((a, b) => a.seq - b.seq)) {
       if (e.seq <= this.seen && this.seen > 0) continue;
+      // The GM's words play nothing: into the log, after what they tell.
+      if (e.kind === "gm") { this.seen = Math.max(this.seen, e.seq); this.placeWords(e); continue; }
       const script = scriptOf(e);
       const ms = this.skipping ? 0 : this.reduced() ? PACE.caption : script.ms;
       this.slots.push({ event: e, script, start: at, end: at + ms, entered: false });
@@ -241,6 +260,8 @@ export class FightPlayer {
   private enter(slot: Slot, now: number): void {
     slot.entered = true;
     this.log.push(entryOf(slot.event));
+    const due = this.words.filter(w => (w.detail.after ?? w.seq - 1) <= slot.event.seq);
+    if (due.length) { this.words = this.words.filter(w => !due.includes(w)); for (const w of due) this.placeWords(w); }
     if (slot.end <= slot.start) return;
     if (this.reduced()) { fightSounds(slot.script.beats.filter(b => b.kind === "order" || b.kind === "turn"), this.units, () => 0); return; }
     fightSounds(slot.script.beats, this.units, b => slot.start + b.t - now);

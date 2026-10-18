@@ -9,7 +9,7 @@ import { readStackFile } from "./dev/stack-file.ts";
  * for a campaign changed while the stack runs. The stack is found through <root>/stack.json.
  *
  *   npm run install-campaign -- campaigns/caerwyn [--root runs/dev]
- *   npm run install-campaign -- campaigns/zoo      (no GM plays it: the module alone)
+ *   npm run install-campaign -- campaigns/zoo      (the zoo: its scenes are played by the GM, docs/combat-gm.md)
  */
 
 const V2 = resolve(import.meta.dirname, "..");

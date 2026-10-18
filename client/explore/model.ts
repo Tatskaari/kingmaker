@@ -457,7 +457,7 @@ export class ExploreModel {
     return this.view.fight;
   }
 
-  /** Fight it out (fight_it_out: the stand-in tells it as won); what it said comes back as the explore row's words. Why not, in What happens. */
+  /** To the fight (fight_it_out: set out on the board, the town as it left them after). Why not, in What happens. */
   async fightItOut(): Promise<void> {
     if (!this.view.fight || this.idle()) return;
     const refused = await (this.actions.fightItOut?.() ?? Promise.resolve({ code: "error" as const, text: "(There's no fighting it out from here.)" }));

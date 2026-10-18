@@ -10,6 +10,7 @@ import { RINGS } from "../../../shared/zoo/rings.ts";
 import { orderLines } from "../../../shared/fight/board.ts";
 import { steps } from "../../../shared/fight/grid.ts";
 import { decide, freshMemo } from "./ai.ts";
+import { optionsOf } from "./options.ts";
 import { boardOfRow, eventsOf, fightOf, peek, type FightRow } from "./rows.ts";
 import { startFight } from "./start.ts";
 
@@ -69,6 +70,36 @@ function toPlayer(host: MemoryHost, gameId: bigint): void {
   }
   assert.fail("the turn never came round to the player");
 }
+
+test("the player can turn on anyone on the board (smoke4-1018: Cob kept clear of the fight Krug started by swinging at him, and the board had no blow at him): a blow, a shove or a grab at one keeping out of it or running from it, on their menu; one keeping out of it they strike is in it now, against them", () => {
+  const { host, wren, playerId, game } = onMap();
+  started(host, playerId, room([
+    { id: "bandit", name: "a bandit", at: { x: 9, y: 5 }, role: "bruiser" },
+    { id: "cob", name: "Cob", statblock: "commoner", side: "neutral", role: "bystander", at: { x: 3, y: 3 } },
+    { id: "boy", name: "the lantern-boy", statblock: "lantern-boy", side: "neutral", role: "coward", at: { x: 2, y: 4 } },
+  ], { x: 2, y: 3 }));
+  toPlayer(host, game.id);
+  // The menu with the boy beside the player (he runs on his own turns): on a copy of the board.
+  const row = fightNow(host, game.id);
+  const menu = host.transact(tx => peek(tx, row, s => {
+    const boy = s.unit("boy")!;
+    boy.state = "fighting";
+    boy.at = [{ x: 2, y: 4 }, { x: 1, y: 3 }, { x: 2, y: 2 }, { x: 1, y: 4 }, { x: 1, y: 2 }].find(t => !s.occupant(t, "boy"))!;
+    return { options: optionsOf(s), boy: `${boy.at.x},${boy.at.y}` };
+  }));
+  const label = (id: string) => menu.options.actions.find(a => a.id === id)?.label ?? "";
+  assert.match(label("attack@3,3"), /^Attack Cob \(.+; keeping out of it, 5 ft\)$/, menu.options.actions.map(a => a.id).join(" "));
+  assert.match(label(`attack@${menu.boy}`), /^Attack the lantern-boy \(.+; running from it, /);
+  assert.ok(label("shove@3,3") && label("grapple@3,3"), "a shove or a grab at him too");
+  // The AI's still never goes for a child running for the door.
+  assert.equal(host.transact(tx => peek(tx, row, s => s.targetable(s.unit("bandit")!, { ...s.unit("boy")!, state: "fighting" }))), false);
+
+  assert.equal(host.as(wren).attack({ how: "attack", at: { x: 3, y: 3 } }), undefined);
+  const cob = board(host, game.id).units["cob"]!;
+  assert.deepEqual([cob.side, cob.role], ["enemy", "brawler"], "in it now, against the player");
+  const blow = events(host, fightNow(host, game.id)).filter(e => e.kind === "attack" && e.actor === "player").at(-1)!;
+  assert.ok(blow.detail.lines.includes("Cob isn't keeping out of it any more."), blow.detail.lines.join(" | "));
+});
 
 test("the turn order is the engine's initiative, the start and the first turn its first moments, held round after round", () => {
   const { host, playerId, game } = onMap();
@@ -328,7 +359,7 @@ test("a fight's end: the last of them down is a victory, its moment and how it w
   assert.match(result.summary, /^A bandit went down\. The player ended the fight on \d+ of \d+ hit points\. It took 1 round\./);
   assert.match(result.told ?? "", /^A bandit went down\. You ended the fight on \d+ of \d+ hit points\. It took 1 round\./, "and told to the player as theirs");
   // The map's moves wait for out; out goes back to the map, the fight done and its end the map's words.
-  assert.match(host.as(wren).interact({ verb: "look" })?.text ?? "", /The fight's over: out goes back to the map/);
+  assert.match(host.as(wren).interact({ verb: "look" })?.text ?? "", /The fight's over: out goes back\./);
   assert.equal(host.as(wren).walk({ toward: "out" }), undefined);
   assert.equal(fightNow(host, game.id).status, "done");
   assert.match(host.db.explore.playerId.find(playerId)!.said, /^A test: A bandit went down\. You ended the fight/);
@@ -545,4 +576,41 @@ test("Sleep: its caption says who it put to sleep, a sleeper's turn says they're
   const turn = events(host, fightNow(host, game.id)).find(e => e.kind === "turn" && e.actor === "bandit-1" && e.seq > seen);
   assert.ok(turn, "the sleeper's turn came round");
   assert.match(turn.caption, /^Round \d+: a bandit's turn, and they're asleep\.$/);
+});
+
+test("class features on the player's turn (the user: \"how do I use a bonus action? I think I have second wind\"): Second Wind is the fighter's bonus action, and heals; then it's spent; Cunning Action dashes the rogue", () => {
+  const { host, playerId, game, wren } = onMap("fighter");
+  started(host, playerId, room([{ id: "bandit", at: { x: 10, y: 6 } }], { x: 1, y: 3 }));
+  toPlayer(host, game.id);
+  // Hurt first, as a blow would leave them (set on the fight's own campaign).
+  host.transact(tx => {
+    const fight = fightOf(tx, game.id)!;
+    const rules = tx.db.fightRules.fightId.find(fight.id)!;
+    const b = boardOfRow(fight);
+    const campaign = JSON.parse(rules.campaign) as { events: Array<Record<string, unknown>> };
+    const last = campaign.events[campaign.events.length - 1]!;
+    campaign.events.push({ ...last, id: "01K0000000000000000000ZZZY", type: "DamageApplied", targetId: b.units["player"]!.engineId, components: [{ amount: 9, type: "slashing" }], source: "test" });
+    tx.db.fightRules.fightId.update({ ...rules, campaign: JSON.stringify(campaign) });
+  });
+  const wind = options(host, game.id)!.actions.find(a => a.id === "feature_second-wind");
+  assert.deepEqual([wind?.kind, wind?.cost, wind?.name], ["feature", "bonus", "Second Wind"], JSON.stringify(options(host, game.id)!.actions.map(a => a.id)));
+  const seen = fightNow(host, game.id).seq;
+  assert.equal(host.as(wren).useFeature({ feature: "second-wind" }), undefined);
+  const used = events(host, fightNow(host, game.id)).filter(e => e.seq > seen && e.kind === "feature")[0]!;
+  const healed = used.detail.hits.find(h => h.unit === "player")?.healed ?? 0;
+  assert.ok(healed > 0, `healed: ${used.detail.lines.join(" / ")}`);
+  assert.equal(used.caption, `You use Second Wind: ${healed} hit point${healed === 1 ? "" : "s"} back.`);
+  assert.equal(options(host, game.id)!.bonusActionUsed, true);
+  assert.equal(options(host, game.id)!.actions.some(a => a.id === "feature_second-wind"), false, "spent this turn");
+  assert.match(host.as(wren).useFeature({ feature: "second-wind" })?.text ?? "", /used your bonus action this turn/);
+
+  const rogue = onMap("rogue");
+  started(rogue.host, rogue.playerId, room([{ id: "bandit", at: { x: 10, y: 6 } }], { x: 1, y: 3 }));
+  toPlayer(rogue.host, rogue.game.id);
+  const ids = options(rogue.host, rogue.game.id)!.actions.map(a => a.id);
+  assert.ok(ids.includes("feature_cunning-action-dash") && ids.includes("feature_cunning-action-disengage") && !ids.includes("feature_cunning-action-hide"), ids.join(", "));
+  const left = options(rogue.host, rogue.game.id)!.movementLeft;
+  assert.equal(rogue.host.as(rogue.wren).useFeature({ feature: "cunning-action-dash" }), undefined);
+  const now = options(rogue.host, rogue.game.id)!;
+  assert.deepEqual([now.bonusActionUsed, now.actionUsed, now.movementLeft > left], [true, false, true], "a dash for the bonus action, the action still free");
 });

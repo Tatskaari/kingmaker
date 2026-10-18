@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { initialGm, type GmState } from "../gm/state.ts";
-import { endingNeeds, endingOf, enteringAt, limitOf, openRoutes, oweName, owedLeads, reachDiscoveries, reachedOf, reachedTurns, stageOf, takeRoute, targetsOf, type Taken } from "./beats.ts";
+import { endingNeeds, endingOf, enteringAt, fightsAhead, limitOf, openRoutes, storyNeeds, oweName, owedLeads, reachDiscoveries, reachedOf, reachedTurns, stageOf, takeRoute, targetsOf, type Taken } from "./beats.ts";
 import type { SceneDocument } from "./document.ts";
 import { presentCast } from "./graph.ts";
 import { sceneOf } from "./load.ts";
@@ -131,18 +131,39 @@ test("a dice route: it refuses none; success goes to its target, settling its fa
 });
 
 test("a fight already fought isn't offered again: the scene picked up after it can end another way", () => {
-  // The Heron's fight, fought by the stand-in (story/fight.ts): its ending no longer reached, and spent.
-  const heron = sceneOf(JSON.parse(readFileSync(join(import.meta.dirname, "..", "..", "campaigns", "caerwyn", "scenes", "heron-warehouse.kmscene"), "utf8")) as SceneDocument);
-  let gm = took(takeRoute(heron, initialGm(heron), "master-comes", "none", 1));
-  gm = took(takeRoute(heron, gm, "cornered", "none", 2));
+  // The zoo ring's combat exit, fought (story/fight.ts's stand-in, the board's fight): its ending no longer reached, and spent.
+  const ring = sceneOf(JSON.parse(readFileSync(join(import.meta.dirname, "..", "..", "campaigns", "zoo", "scenes", "ring.kmscene"), "utf8")) as SceneDocument);
+  const gm = took(takeRoute(ring, initialGm(ring), "to-blows", "none", 1));
   assert.equal(gm.closing?.exitId, "fight");
   const after: GmState = { ...gm, reached: gm.reached.filter(id => id !== "fight"), fought: ["fight"] };
   delete after.closing;
 
-  const open = ids(openRoutes(heron, after));
-  assert.ok(!open.includes("cornered") && !open.includes("attack"), "no way back into the fight");
-  assert.ok(open.includes("overpowered") || open.includes("cast-off"), "the night's other endings are open again");
-  assert.match(refused(takeRoute(heron, after, "attack", "none", 3)), /^\[attack\] isn't open: it goes to Roll for initiative \[fight\], a fight already fought\./);
+  const open = ids(openRoutes(ring, after));
+  assert.ok(!open.includes("to-blows"), "no way back into the fight");
+  assert.ok(open.includes("walk-out"), "the other ending is open again");
+  assert.match(refused(takeRoute(ring, after, "to-blows", "none", 2)), /^\[to-blows\] isn't open: it goes to .* \[fight\], a fight already fought\./);
+});
+
+test("who the story needs here: whoever the scene's endings have walk with the player, and the holders of a discovery it can't end well without until it's made", () => {
+  assert.deepEqual([...storyNeeds(scene, initialGm(scene))].sort(), ["cob", "kell", "moll", "wat"], "Kell walks with the player; Hobb's lead is held by Cob, Moll, Wat and Kell");
+  const found = took(takeRoute(scene, initialGm(scene), "find-hobb", "none", 1));
+  assert.deepEqual([...storyNeeds(scene, found)], ["kell"], "the lead made, only Kell");
+});
+
+test("the Heron's blades out is an event with a fight (docs/combat-gm.md): on offer once the Master's in, by either route; reached, it's the stage, nothing leads back into it, and the night's endings are open from it", () => {
+  const heron = sceneOf(JSON.parse(readFileSync(join(import.meta.dirname, "..", "..", "campaigns", "caerwyn", "scenes", "heron-warehouse.kmscene"), "utf8")) as SceneDocument);
+  const blades = heron.beats.find(b => b.id === "fight")!;
+  assert.deepEqual(blades.fight, { foes: ["sallow", "crake-1", "crake-2"], allies: ["kell"] });
+  assert.deepEqual(fightsAhead(heron, initialGm(heron)), [], "nothing before the Master comes");
+  const midnight = took(takeRoute(heron, initialGm(heron), "master-comes", "none", 1));
+  assert.deepEqual(fightsAhead(heron, midnight).map(f => [f.route.id, f.beat.id]), [["cornered", "fight"], ["attack", "fight"]]);
+
+  const fought = took(takeRoute(heron, midnight, "cornered", "none", 2));
+  assert.deepEqual([fought.beat, fought.closing, stageOf(heron, fought).title], ["fight", undefined, "Blades out"], "an event: the scene's stage, not its end");
+  assert.deepEqual(fightsAhead(heron, fought), [], "no way back into it");
+  const open = ids(openRoutes(heron, fought));
+  assert.ok(!open.includes("cornered") && !open.includes("attack"));
+  assert.ok(["cast-off", "book-destroyed"].every(id => open.includes(id)), "the night plays on from it (the endings needing the grain or the book once they're found)");
 });
 
 test("a thorough end's discoveries: each the scene can reach taken through its open route in the scene's order, its facts settled and a carried one landed; the stage stays; a dice route on its success", () => {

@@ -205,6 +205,8 @@ export function flowProblems(c: ScenarioCampaign): ScenarioProblem[] {
   }
   const reached = new Set<string>(start.map === undefined ? [c.scenario.firstScene] : []);
   for (const id of walked) for (const r of (byId.get(id) as TileMap).regions) if (r.sceneId) reached.add(r.sceneId);
+  // A zoo's exhibits open their scenes themselves (shared/zoo/exhibits.ts).
+  for (const e of (c.scenario as { exhibits?: Array<{ scene?: unknown }> }).exhibits ?? []) if (typeof e.scene === "string") reached.add(e.scene);
   // And the story's flow from what's reached: each ending's next.
   const nexts = new Map(c.scenes.map(scene => [scene.key, nextsOf(scene.doc)]));
   for (let grew = true; grew; ) {

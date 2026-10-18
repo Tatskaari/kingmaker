@@ -94,6 +94,15 @@ export interface CombatantSetup {
   role?: string;
   /** Their letter on the battlefield, when the name's first letter won't tell them apart (two palace guards: G and g). */
   glyph?: string;
+  /** The rules' own character for them, and their weapon in hand (a scene's people, made when the rules first needed them): they fight as that, hurt as they are. */
+  engine?: { id: string; weapon: string };
+  /** One of the scene's reinforcements (docs/combat-gm.md): not on the board until the top of this round, when they come in at `at` (the way in); and why they come. */
+  due?: number;
+  why?: string;
+  /** Running from it but never out of the place (one the story needs): they hide from it on the board instead. */
+  stays?: boolean;
+  /** A group fought as one (the granary porters). */
+  plural?: boolean;
 }
 
 export interface CombatSetup {

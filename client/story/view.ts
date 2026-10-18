@@ -155,18 +155,18 @@ export interface FightView {
   title: string;
   /** What the stand-in says. */
   lines: string[];
-  /** Where Enter goes: Fight it out. */
+  /** Where Enter goes: To the fight. */
   go: string;
   hint: string;
 }
 
 /**
- * The stand-in's card (src/game/fight-standin.ts's observe and its one action): Fight it out resolves
- * it as won, and the scene picks up from it, how it went in the scene's transcript ("The fight: …":
- * the simulation writes it).
+ * The card of a scene at its fight (docs/combat-gm.md): on to it (fight_it_out) sets it out on the
+ * board, and the scene picks up from how it went once the player is out of it ("The fight: …" in its
+ * transcript: the simulation writes it).
  */
 export function fightOf(): FightView {
-  return { title: "Roll for initiative!", lines: [STANDIN.observe], go: STANDIN.action.label, hint: "the stand-in resolves it, as won, and the scene picks up from it" };
+  return { title: "Roll for initiative!", lines: [STANDIN.observe], go: STANDIN.action.label, hint: "on to the board, and the scene picks up from how it went" };
 }
 
 /** The End: the last scene's closing, how each scene ended with its notebook lines, and the GM's bar tab (the prototype's epilogue). */

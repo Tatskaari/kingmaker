@@ -99,8 +99,8 @@ test("between: Kell's talk (her three lines), the card, the button; no way to dr
   assert.equal(betweenOf(storyOf(clerkEnded()), "7"), undefined, "no lead yet");
 });
 
-test("the fight's card: the stand-in's word on itself, and Fight it out", () => {
-  assert.deepEqual([fightOf().title, fightOf().lines, fightOf().go], ["Roll for initiative!", [STANDIN.observe], "Fight it out"]);
+test("the fight's card: its word on what comes, and To the fight", () => {
+  assert.deepEqual([fightOf().title, fightOf().lines, fightOf().go], ["Roll for initiative!", [STANDIN.observe], "To the fight"]);
 });
 
 test("The End: the closing is the last narration, each chapter with its notebook lines, and the GM's bar tab", () => {

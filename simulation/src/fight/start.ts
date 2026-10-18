@@ -57,8 +57,9 @@ export function startFight(tx: TxCtx, player: PlayerRow, setup: FightSetup): Fig
   return written;
 }
 
-/** The start's moment (initiative, the opening lines), then the first turn's. */
-function begin(s: Skirmish, setup: FightSetup, map: TileMap, rolled: ReturnType<typeof boardOf>["rolled"]): void {
+/** The start's moment (initiative, the opening lines; whoever's coming later isn't in them: they're the fight's surprise), then the first turn's. */
+function begin(s: Skirmish, setup: FightSetup, map: TileMap, all: ReturnType<typeof boardOf>["rolled"]): void {
+  const rolled = all.filter(r => s.G.units[r.unit]?.state !== "coming");
   s.moment("start", undefined, { initiative: rolled });
   s.log("system", "Roll for initiative!");
   s.log("dice", initiativeLine(rolled, s.G));

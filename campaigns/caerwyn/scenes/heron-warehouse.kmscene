@@ -807,49 +807,27 @@
         "y": 540
       },
       "data": {
-        "kind": "exit",
-        "title": "Roll for initiative",
-        "description": "A fight breaks out in the Heron between the player (and Kell, if she's with them) and Master Sallow with his sword-cane and the Crakes, in the grain dust and the swinging lantern light. Until fights are built, the story's stand-in fights it out (the Crakes go down and Sallow surrenders, very politely), and the scene picks up after it: held and surrendered, he's Kell's to arrest.",
-        "closing": "Close on the moment the fight breaks out: Sallow's cane slides apart into a thin bright sword and the Crakes roll their shoulders; the dust in the lantern light, the lanterns swinging dangerously close to it, and anyone with any sense stepping smartly out of the way. End with 'Roll for initiative!'",
-        "result": "mixed",
-        "exitKind": "combat",
-        "next": "kings-morning",
-        "effects": [
-          {
-            "op": "startFight",
-            "enemies": [
-              {
-                "asset": "bandit",
-                "count": 2,
-                "leader": "sallow"
-              }
-            ],
-            "allies": [
-              "kell"
-            ],
-            "at": "floor",
-            "if": {
-              "established": "master-here"
-            }
-          },
-          {
-            "op": "startFight",
-            "enemies": [
-              {
-                "asset": "bandit",
-                "count": 6,
-                "leader": "hep"
-              }
-            ],
-            "allies": [
-              "kell"
-            ],
-            "at": "floor",
-            "unless": {
-              "established": "master-here"
-            }
-          }
-        ],
+        "kind": "beat",
+        "title": "Blades out",
+        "description": "The fight in the Heron, in the grain dust and the swinging lantern light: Master Sallow has drawn the thin bright sword from his cane and set the Crakes on whoever holds the proof, or the player has gone for him, the Crakes or anyone on the floor with the Master here. It's played in the conversation, a turn each in initiative order, the dice deciding what lands: Sallow and both Crakes against the player, Kell beside them, and everyone else on the floor picking a side or running as who they are would. Sallow fights from behind his Crakes, a fencer's lunge past a Crake's shoulder at whoever is busy with the Crake, never a fair fight if he can help it. The Crakes stop the moment the fight is lost or he's down, held or surrendering (nobody pays the second half on a lost fight). If his Crakes go down and the land door is clear, he remembers an urgent appointment and runs for it; cornered, or with a blade at his throat, he drops the sword and asks very politely to surrender, and starts at once on terms. The lanterns swing dangerously close to the dust all the while. Once it's over the scene plays on from how it went: Sallow held or surrendered before witnesses is Kell's to arrest ([in-the-act]), the player beaten down is the Crakes' to deal with ([overpowered]), and the player away with the book is [away-with-book]; the barge can go in the background.",
+        "cast": {
+          "sallow": "Fights from behind the Crakes with his sword-cane: a lunge past a Crake's shoulder at whoever is busy with one, and polite remarks between. If the Crakes go down and the land door is clear, he runs for it; cornered or at sword's point, he drops the blade and asks to surrender, very politely, starting at once on terms. The first Crake goes for whoever he points at, cudgel up and still talking prices; the second comes in beside his brother on the same target, saying nothing; both stop the moment the fight is lost or the Master is down, held or surrendering. The lantern-boy wants to be anywhere else.",
+          "kell": "Beside the player: truncheon out, she takes the nearest Crake and calls on Sallow to yield in the King's name, every chance she gets.",
+          "hep": "Fights only for her gang: anyone who comes at one of them gets her knife and the gang behind her. Otherwise she keeps them back against the sacks and lets the gentlemen settle it.",
+          "scrope": "Clutches the true book to his chest and backs into the counting-box; he'll fight for the book, and for nothing else.",
+          "hobb": "Goes very still, and can't look at anyone. Cornered, he's a door falling on someone. If the Crakes come for him, he doesn't fight them.",
+          "saul": "Holds the wicket and watches the wharf, as he's paid to: he doesn't come in unless someone makes for his door."
+        },
+        "fight": {
+          "foes": [
+            "sallow",
+            "crake-1",
+            "crake-2"
+          ],
+          "allies": [
+            "kell"
+          ]
+        },
         "lore": []
       }
     },
@@ -1327,7 +1305,7 @@
       "type": "smoothstep",
       "label": "Caught",
       "data": {
-        "condition": "The player has been overpowered and thrown in the river, or shut up somewhere in the Heron, by the Crakes or the gang on the Master's word, and nobody has got them out. (Once Kell has the Master held, his people stand down: that's [in-the-act], not this.)",
+        "condition": "The player has been overpowered (beaten down in the fight, or held by the gang) and thrown in the river, or shut up somewhere in the Heron, by the Crakes or the gang on the Master's word, and nobody has got them out. (Once Kell has the Master held, his people stand down: that's [in-the-act], not this.)",
         "phase": "outcome",
         "requires": [
           "kings-grain"

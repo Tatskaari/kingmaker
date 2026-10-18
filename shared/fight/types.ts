@@ -1,5 +1,6 @@
 // After the prototype's src/game/combat/model.ts at bc2ab1f: Side, Role, UnitState, Unit, Prop and LogLine as they are (LogLine's "said" kind is a typed line's, V13's, and goes); CombatG as FightBoard (the engine's campaign, its rng and the map are kept apart: fight_rules has the campaign, the fight row the map), with the setup's flags it plays by. New (M6, docs/combat-design.md): the fight's setup, its events (each one moment the screen plays, with its caption) and the player's options as the fight row carries them.
 import type { CombatantSetup, MapActor, Tile2 } from "../map/types.ts";
+import type { Speech } from "../markup.ts";
 import type { MapFile } from "../map/tiles.ts";
 import type { TimeOfDay } from "../scene/files.ts";
 
@@ -15,9 +16,11 @@ export type Side = "player" | "ally" | "enemy" | "neutral";
 export type Role = "player" | "ally" | "bruiser" | "villain" | "coward" | "brawler" | "archer" | "bystander";
 /**
  * fighting: in it. down: at 0 hit points (the player rolls death saves; others are out cold).
- * dead: killed outright. fled: off the map. surrendered: hands up. The arrested flag is separate.
+ * dead: killed outright. fled: off the map. surrendered: hands up. coming: not here yet (one of the
+ * scene's reinforcements, in at the way in when their round comes: docs/combat-gm.md). The arrested
+ * flag is separate.
  */
-export type UnitState = "fighting" | "down" | "dead" | "fled" | "surrendered";
+export type UnitState = "fighting" | "down" | "dead" | "fled" | "surrendered" | "coming";
 
 export interface Unit {
   id: string;
@@ -50,6 +53,13 @@ export interface Unit {
   castId?: string;
   /** Hurt at least once (for the summary). */
   wounded?: boolean;
+  /** One of the scene's reinforcements (coming): the round they come in at the way in, and why they come. */
+  due?: number;
+  why?: string;
+  /** Running from it but never out of the place (one the story needs): they hide from it on the board. */
+  stays?: boolean;
+  /** A group fought as one (the granary porters): its captions say "the porters swing". */
+  plural?: boolean;
 }
 
 export interface Prop {
@@ -124,6 +134,21 @@ export interface FightBoard {
   zoo?: ZooFight;
   /** The setup's: when it happens, for the board's light (the zoo's ring in the afternoon); none, and a screen goes by its lights. */
   time?: TimeOfDay;
+  /** The setup's: the scene it broke out in (its row's id), which picks up from how it went once the player is out (docs/combat-gm.md). */
+  scene?: string;
+  /** The setup's: a fight that broke out on the town's map, whose people take how it went once the player is out. */
+  town?: boolean;
+  /** The setup's: the place's own tiles, when it's a region of a bigger map (the granary yard on the town's): the fight is fought in it, its ways out at its edge. */
+  area?: { x: number; y: number; w: number; h: number };
+  // The GM on the board (a scene's fight, docs/combat-gm.md):
+  /** The last moment the GM has told (or that a typed turn's own words covered). */
+  told?: number;
+  /** A turn's telling the board waits on before the next of the other side's turns: its last moment, and since when (ms since the epoch). */
+  telling?: { to: number; since: number };
+  /** The player's turn in their own words: its line's moment. Its moments are the GM's told already. */
+  typed?: { at: number };
+  /** The GM is playing the player's typed turn: the menu waits. */
+  thinking?: boolean;
 }
 
 /** Which of the zoo's exhibits a fight was set out from, and with which line-up of foes (shared/zoo/exhibits.ts). */
@@ -160,6 +185,14 @@ export interface FightSetup {
   zoo?: ZooFight;
   /** When it happens (its scene's time of day), for the board's light. */
   time?: TimeOfDay;
+  /** The ways out, when they aren't the map's own exits (a place that's a region of a bigger map is left by its doorways: the granary yard's gate). */
+  exits?: Array<{ at: Tile2; label: string }>;
+  /** The scene it broke out in (its row's id): out goes back to it, and it picks up from how the fight went (docs/combat-gm.md). */
+  scene?: string;
+  /** It broke out on the town's map: out goes back to the map, its people as the fight left them. */
+  town?: boolean;
+  /** The place's own tiles, when it's a region of a bigger map: nobody goes beyond them but out by a way out (smoke7-1018: Old Wat, come in when the gate was taken, stood in the lane out of reach). */
+  area?: { x: number; y: number; w: number; h: number };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -173,8 +206,8 @@ export interface FightSetup {
  * the fight's end.
  */
 export type FightEventKind =
-  | "start" | "turn" | "move" | "attack" | "cast" | "dash" | "dodge" | "disengage" | "wrestle" | "use"
-  | "say" | "nerve" | "yield" | "flee" | "walk-off" | "arrest" | "hazard" | "pass" | "over";
+  | "start" | "turn" | "move" | "attack" | "cast" | "dash" | "dodge" | "disengage" | "wrestle" | "use" | "feature"
+  | "say" | "nerve" | "yield" | "flee" | "walk-off" | "arrest" | "hazard" | "pass" | "over" | "gm" | "arrive";
 
 /** An attack roll, as the engine rolled it: who at whom with what, the d20s, the bonus, the total against the armour class. */
 export interface FightRoll {
@@ -242,6 +275,9 @@ export interface FightEventDetail {
   /** The end's. */
   outcome?: FightOutcome;
   summary?: string;
+  /** The GM's words (a "gm" moment, docs/combat-gm.md): the moment they follow in the log, the turn they tell's last; and who says each part, as a reply's markup has it. */
+  after?: number;
+  speech?: Speech[];
 }
 
 /** One moment, as fight_event has it: its number in the fight, the round and whose turn, its kind, who did it, the caption and the details. */
@@ -270,7 +306,7 @@ export interface FightEvent {
 export interface FightAction {
   id: string;
   label: string;
-  kind: "move" | "attack" | "cast" | "turn";
+  kind: "move" | "attack" | "cast" | "turn" | "feature";
   /** What it is, for the menu's line: "Attack", "Fire Bolt", "Shove", "Grab", "Dash"; a named move's own words ("Close in on a grey wolf"). */
   name?: string;
   /** What it spends of the turn: the action, the bonus action, movement, or nothing. */

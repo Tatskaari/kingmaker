@@ -8,7 +8,7 @@ import { keepToken, serverFor, sessionAt } from "../client/net/session.ts";
 import { apiKey } from "../ai/llm/openrouter.ts";
 import { keptCalls, readCalls } from "../qa/loop/calls.ts";
 import { callsPath, CAMPAIGNS, recordPath, REPO, reviewPath, roundDir, shortPath, type LoopConfig } from "../qa/loop/paths.ts";
-import { brief, look, say, start, transcript, type PlayDeps, type Played } from "../qa/loop/play.ts";
+import { act, brief, look, say, start, transcript, type PlayDeps, type Played } from "../qa/loop/play.ts";
 import { probeMouthpiece, probeTurn, storyOf, type LoggedCall, type MouthpieceTry, type ProbeTry } from "../qa/loop/probe.ts";
 import { BANDS, type Band } from "../shared/gm/two-part.ts";
 import { readRecord, turnsTaken, type GameRecord } from "../qa/loop/record.ts";
@@ -47,7 +47,11 @@ Rounds: blind testers play scenes, blind reviewers judge them, a report shows it
   loop games <round>                           the games, for handing out (no arms shown)
   loop brief <round> <game>                    a tester's brief: their character, how to play, the commands
   loop start <round> <game>                    make the character, take the story to the game's scene, print its opening
-  loop say <round> <game> <what you say or do> take a turn: what answered it, as the player sees it
+  loop say <round> <game> <what you say or do> take a turn: what answered it, as the player sees it (in a fight on the
+                                               board, your turn in your own words, the GM's to play)
+  loop act <round> <game> <id>                 in a fight on the board, one of its ACTIONS by its id (attack@x,y,
+                                               walk@x,y, feature_second-wind, dash, end_turn, auto…); out, once it's
+                                               over, back to the scene
   loop transcript|sheet|journal|map <round> <game>
                                                the scene so far, the character sheet, the notebook, the place (no turn)
   loop review-pack <round> [<game>...]         what a blind reviewer reads: reviews/<game>.pack.md
@@ -92,6 +96,7 @@ async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<number> {
     case "games": return games(config, need(pos[0]));
     case "brief": return shown({ code: 0, text: brief(config, need(pos[0]), need(pos[1])) });
     case "start": return shown(await start(config, need(pos[0]), need(pos[1]), deps));
+    case "act": return shown(await act(config, need(pos[0]), need(pos[1]), need(pos[2]), deps));
     case "transcript": return shown(await transcript(config, need(pos[0]), need(pos[1]), deps));
     case "sheet": case "journal": case "map": return shown(await look(config, need(pos[0]), need(pos[1]), command, deps));
     case "review-pack": return await packs(config, need(pos[0]), pos.slice(1), deps);
@@ -124,6 +129,14 @@ async function stack(what: string | undefined, flags: Flags): Promise<number> {
   return shown({ code: 0, text: await stackUp(ask, REPO) });
 }
 
+/** The zoo's scene exhibits a round can play, as zoo/<exhibit> (docs/combat-gm.md: the Crakes' toll, zoo/toll). */
+function zooScenes(): string[] {
+  const path = join(CAMPAIGNS, "zoo", scenarioPath("zoo"));
+  if (!existsSync(path)) return [];
+  const file = JSON.parse(readFileSync(path, "utf8")) as { exhibits?: Array<{ id: string; fight?: unknown }> };
+  return (file.exhibits ?? []).filter(e => !e.fight).map(e => `zoo/${e.id}`);
+}
+
 async function round(config: LoopConfig, name: string, flags: Flags): Promise<number> {
   const loaded = await campaignAt(join(CAMPAIGNS, "caerwyn"));
   const made = newRound(config, name, {
@@ -133,7 +146,7 @@ async function round(config: LoopConfig, name: string, flags: Flags): Promise<nu
     ...(flags.repeat ? { repeat: Number(flags.repeat) } : {}),
     ...(flags["max-turns"] ? { maxTurns: Number(flags["max-turns"]) } : {}),
     ...(flags.goal ? { goal: flags.goal } : {}),
-  }, { personas: personas(), scenes: playable(loaded), build: build(), now: new Date().toISOString() });
+  }, { personas: personas(), scenes: [...playable(loaded), ...zooScenes()], build: build(), now: new Date().toISOString() });
 
   const n = Object.keys(made.games).length;
   console.log(`Round ${name}: ${n} game${n === 1 ? "" : "s"} (${made.scenes.map(s => `${s.scene} ${s.games}`).join(", ")}) in ${shortPath(roundDir(config, name))}`);

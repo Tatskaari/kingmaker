@@ -30,6 +30,8 @@ export interface Doc { path: string; meta: DocMeta; body: string }
 export interface DocLink { path: string; from: string; title: string; summary: string; label: string }
 
 const lore = () => docsConfig().lore;
+/** The authored lore of a game's own campaign. */
+const loreOf = (sessionId: string) => docsConfig().loreOf(sessionId);
 const overlay = (sessionId: string) => docsConfig().overlay(sessionId);
 
 /** A doc's path, made normal, in its volume: never from the root, never climbing out of it. */
@@ -60,7 +62,7 @@ export function parseDoc(path: string, text: string): Doc {
 }
 
 export function readDoc(sessionId: string, path: string): Doc | undefined {
-  for (const volume of [overlay(sessionId), lore()]) {
+  for (const volume of [overlay(sessionId), loreOf(sessionId)]) {
     const text = volume.read(inside(path));
     if (text !== undefined) return parseDoc(path, text);
   }
@@ -78,7 +80,7 @@ export function writeDoc(sessionId: string, doc: Doc): void {
 }
 
 export function listDocs(sessionId: string, options: { sessionOnly?: boolean } = {}): string[] {
-  return [...new Set([...overlay(sessionId).list(), ...(options.sessionOnly ? [] : lore().list())])].sort();
+  return [...new Set([...overlay(sessionId).list(), ...(options.sessionOnly ? [] : loreOf(sessionId).list())])].sort();
 }
 
 /** The authored lore's docs, by path, before any session has a copy of them (character creation reads the world from these). */

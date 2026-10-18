@@ -1,4 +1,5 @@
 import { creationSteps } from "../creation/steps.ts";
+import { fightSay, narrateFight } from "../fight/gm.ts";
 import type { JobPlan } from "../jobs.ts";
 import { crossBoundary } from "../story/boundary.ts";
 import type { Move } from "./move.ts";
@@ -16,7 +17,7 @@ import { suggest } from "./suggest.ts";
  * from before it doesn't migrate).
  */
 export function moveNamed(name: string): Move<unknown, JobPlan> {
-  const moves = [say, openScene, suggest, creationSteps, remember, crossBoundary, inventLook] as Array<Move<unknown, JobPlan>>;
+  const moves = [say, openScene, suggest, creationSteps, remember, crossBoundary, inventLook, narrateFight, fightSay] as Array<Move<unknown, JobPlan>>;
   const move = moves.find(m => m.name === name);
   if (!move) throw new Error(`no move called ${name}`);
   return move;

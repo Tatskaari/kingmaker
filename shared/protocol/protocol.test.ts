@@ -58,7 +58,7 @@ test("each ask for a reply's lines has a key of its own (v5-design §3.6); the n
 test("every step has its endpoint and its timeout: the lines' 30 s", () => {
   assert.deepEqual(STEPS.map(step => STEP_ENDPOINT[step]), [
     "/v1/scenes/open", "/v1/turns/act", "/v1/turns/reactions", "/v1/turns/reply", "/v1/turns/settle", "/v1/turns/suggest", "/v1/turns/remember",
-    "/v1/scenes/boundary", "/v1/looks",
+    "/v1/scenes/boundary", "/v1/looks", "/v1/turns/sides", "/v1/fights/narrate", "/v1/fights/turn",
   ]);
   assert.equal(STEP_TIMEOUT_MS.suggest, 30_000);
 });

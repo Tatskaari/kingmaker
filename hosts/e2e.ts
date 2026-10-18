@@ -179,16 +179,16 @@ process.exit(passed ? 0 : 1);
 // The steps (v0-design §10.4, v5-design §4.4); V1's, 15 to 21, are e2e/creation.ts's, the GM's, 22 to 24, e2e/gm.ts's, the world's, 26 to 28 and 30, e2e/world.ts's, the whole story's, 31 to 34, e2e/story.ts's, the town's, 36 to 39, e2e/town.ts's, the fight's, 40, e2e/fight.ts's, and a report's, 41, e2e/report.ts's.
 
 /**
- * 1. The stack is up (--fresh); the campaign goes into both, and the zoo (M6) into the module beside it,
- * as the dev stack installs them; the dice are fixed for the run, as only the owner may; the doctor
- * finds all well.
+ * 1. The stack is up (--fresh); the campaign goes into both, and the zoo (M6) into both beside it (its
+ * scene exhibits are played by the GM: docs/combat-gm.md), as the dev stack installs them; the dice
+ * are fixed for the run, as only the owner may; the doctor finds all well.
  */
 async function installedAndWell(stack: Stack): Promise<void> {
   step(`1. Up in ${stack.mode} mode, the campaign installed (and the zoo), the dice fixed, the doctor`);
   const installed = await stack.install(join(import.meta.dirname, "..", "campaigns", "caerwyn"));
   ok(`${installed.id} installed in both`);
   const zoo = await stack.install(join(import.meta.dirname, "..", "campaigns", "zoo"));
-  check(`${zoo.id} installed in the module alone (no GM plays it: the AI service is never given it)`, zoo.structure.ok && zoo.words.ok && "skipped" in zoo.words);
+  check(`${zoo.id} installed in both (its scene exhibits are the GM's to play: the Crakes' toll)`, zoo.structure.ok && zoo.words.ok && !("skipped" in zoo.words));
   await fixDice(stack, DICE);
   ok(`the dice fixed as the owner (set_dice_seed ${DICE}): each game's seed from it, so every run rolls the same`);
   const refused = await stack.call("set_dice_seed", { seed: { none: [] } }, "ai").then(() => undefined, (e: unknown) => (e instanceof CallError ? refusalIn(e.body) : undefined));

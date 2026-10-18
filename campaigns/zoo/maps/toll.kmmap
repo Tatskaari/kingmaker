@@ -1,0 +1,76 @@
+{
+  "format": "kingmaker",
+  "version": 2,
+  "kind": "map",
+  "id": "toll",
+  "title": "The ring's gate",
+  "description": "A ring of raked sand inside a low stone wall, with two stone pillars to put between you and trouble, an iron brazier, and one gate.",
+  "grid": [
+    "################",
+    "#..............#",
+    "#..............#",
+    "#..............#",
+    "#..............#",
+    "#....O.........#",
+    "#.........O....#",
+    "#..............#",
+    "#..............#",
+    "#..............#",
+    "#..............#",
+    "#######+########"
+  ],
+  "legend": {
+    "#": {
+      "terrain": "wall",
+      "style": "stone",
+      "height": 2
+    },
+    ".": {
+      "terrain": "floor",
+      "style": "sand"
+    },
+    "O": {
+      "terrain": "wall",
+      "style": "stone"
+    },
+    "+": {
+      "terrain": "door",
+      "style": "timber",
+      "height": 2
+    }
+  },
+  "regions": [
+    {
+      "id": "toll",
+      "name": "the ring",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 12
+      },
+      "sceneId": "toll",
+      "worldOrigin": {
+        "x": 0,
+        "y": 0
+      },
+      "description": "Raked sand inside a low stone wall, scuffed where the last fight was."
+    }
+  ],
+  "exits": [
+    {
+      "at": {
+        "x": 7,
+        "y": 11
+      },
+      "to": {
+        "map": "toll",
+        "at": {
+          "x": 7,
+          "y": 11
+        }
+      },
+      "label": "the gate"
+    }
+  ]
+}

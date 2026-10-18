@@ -126,7 +126,9 @@ test("a row from before M2's columns (their defaults) reads as a scene at its st
   assert.deepEqual(gmFromRow(older as GmRow).twoPart, { roles: {}, notes: [] }, "the dev tools' SQL on an older module: no column at all");
 });
 
-test("who came on by a route has no column yet: writing it is an error, not a loss; the cast who are away have theirs", () => {
-  assert.throws(() => gmToRow(1n, { ...busy, entered: ["tull"] }), /no column for entered/);
+test("who came on by a fight's reinforcements has a column of their own (docs/combat-gm.md), and so do the cast who are away; a row from before it has nobody", () => {
+  assert.deepEqual(gmFromRow(gmToRow(1n, { ...busy, entered: ["wat"] })).entered, ["wat"]);
   assert.deepEqual(gmFromRow(gmToRow(1n, { ...busy, absent: ["moll"] })).absent, ["moll"]);
+  const { entered: _e, ...older } = gmToRow(1n, busy);
+  assert.deepEqual(gmFromRow(older as GmRow).entered, [], "the dev tools' SQL on an older module: no column at all");
 });

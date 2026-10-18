@@ -4,10 +4,10 @@ import { titleCase } from "../../shared/dice.ts";
 import type { GmState, TwoPartRole } from "../../shared/gm/state.ts";
 import { BANDS, type Band } from "../../shared/gm/two-part.ts";
 import type { Markup } from "../../shared/markup.ts";
-import type { CoGmAnswer, Reply, SpokenCheck, TurnAct, TurnCheck } from "../../shared/protocol/ai.ts";
-import { endingNeeds, enteringAt, isDiscovery, isEvent, limitOf, openRoutes, owedLeads, reachedOf, reachedTurns, stageOf, takeRoute, targetsOf, type RouteOutcome } from "../../shared/scene/beats.ts";
+import type { CoGmAnswer, Initiative, Reply, SpokenCheck, TurnAct, TurnCheck } from "../../shared/protocol/ai.ts";
+import { endingNeeds, enteringAt, fightsAhead, isDiscovery, isEvent, limitOf, openRoutes, owedLeads, reachedOf, reachedTurns, stageOf, takeRoute, targetsOf, type RouteOutcome } from "../../shared/scene/beats.ts";
 import type { Path } from "../../shared/scene/document.ts";
-import { presentCast } from "../../shared/scene/graph.ts";
+import { fighterOf, presentCast, presentFighters } from "../../shared/scene/graph.ts";
 import { heardIn, namedIn } from "../../shared/scene/names.ts";
 import { SKILLS, type Beat, type Character, type Exit, type Scene, type SceneRoute, type Skill } from "../../shared/scene/types.ts";
 import { areaOf, worldView } from "../../shared/world/scene-world.ts";
@@ -149,9 +149,11 @@ const OUTCOMES = { type: "object", additionalProperties: false, required: [...BA
  * written makes the narration the setup. The narration still streams, a few tokens in.
  */
 const SCHEMA = {
-  type: "object", additionalProperties: false, required: ["check", "narration", "outcomes"],
+  type: "object", additionalProperties: false, required: ["check", "roll_for_initiative", "narration", "outcomes"],
   properties: {
     check: { anyOf: [{ type: "null" }, { type: "object", additionalProperties: false, required: ["skill", "dc"], properties: { skill: { type: "string", enum: [...SKILLS] }, dc: { type: "integer" } } }] },
+    // docs/combat-gm.md: a fight breaking out at the end of this reply, decided before a word of it.
+    roll_for_initiative: { anyOf: [{ type: "null" }, { type: "object", additionalProperties: false, required: ["foes", "allies", "flee", "why", "on"], properties: { foes: { type: "array", items: { type: "string" } }, allies: { type: "array", items: { type: "string" } }, flee: { type: "array", items: { type: "string" } }, why: { type: "string" }, on: { type: "array", items: { type: "string", enum: [...BANDS] } } } }] },
     narration: { type: "string" },
     outcomes: { anyOf: [{ type: "null" }, OUTCOMES] },
   },
@@ -195,12 +197,17 @@ export function routeLine(scene: Scene, r: SceneRoute, options: { revelation?: b
   const discovery = !!target && isDiscovery(target);
   const when = r.condition.trim() || (discovery ? (options.revelation && target.revelation ? `the player has its heart, by one of its paths (${target.revelation}): ${HEART_BY}` : "its revelation has landed with the player") : r.label);
   const exit = options.ending ? scene.exits.find(e => e.id === r.target) : undefined;
+  const fight = target?.fight;
   const more = [
+    ...(fight ? [`It's a fight (roll for initiative): ${fighterNames(scene, fight.foes)} against the player${fight.allies?.length ? `, ${fighterNames(scene, fight.allies)} beside them` : ""}.`] : []),
     ...(options.now ? [limitLine(scene, r, options.now)].filter(Boolean) : []),
     ...(exit ? [`It's ${exit.result === "good" ? "a good" : exit.result === "bad" ? "a bad" : "a mixed"} ending. What's true there: ${exit.outcome}`] : []),
   ];
   return `- [${r.id}] from ${named(scene, r.source)} to ${named(scene, r.target)}${needs}${how}. When: ${more.length ? `${sentence(when)} ${more.join(" ")}` : when}`;
 }
+
+/** Fighters as the prep names them: by name and id (a card's, or a group's member's). */
+const fighterNames = (scene: Scene, ids: string[]) => ids.map(id => { const c = fighterOf(scene, id); return c ? `${c.name} [${id}]` : `[${id}]`; }).join(", ");
 
 /**
  * What has a discovery reached, for the co-GM (QA round qa3-1018, g08: the player saw the cut page
@@ -247,8 +254,11 @@ const endingAt = (scene: Scene, r: SceneRoute) => scene.exits.find(e => e.id ===
 /** A cue into a bad ending: the time running out on the player (the Heron's second bell, the barge sailing). An ending with no result counts as mixed, as routeLine says it. */
 export const intoBad = (scene: Scene, r: SceneRoute) => r.phase === "cue" && endingAt(scene, r)?.result === "bad";
 
-/** The open routes into a good or mixed ending: what a cue into a bad ending waits on. */
-export const intoBetter = (scene: Scene, open: SceneRoute[]) => open.filter(r => { const e = endingAt(scene, r); return !!e && e.result !== "bad"; });
+/** The open routes into a good or mixed ending, or into a fight (the Heron's blades out: the climax under way): what a cue into a bad ending waits on. */
+export const intoBetter = (scene: Scene, open: SceneRoute[]) => open.filter(r => { const e = endingAt(scene, r); return (!!e && e.result !== "bad") || !!fightAt(scene, r); });
+
+/** A route's event with a fight, if it goes to one. */
+const fightAt = (scene: Scene, r: SceneRoute) => scene.beats.find(b => b.id === r.target && b.fight);
 
 /** The routes into a node, as the prep lists them under it. */
 const routesInto = (scene: Scene, id: string) => scene.routes.filter(r => r.target === id).map(r => routeLine(scene, r));
@@ -314,6 +324,7 @@ function eventsOf(scene: Scene, options: { coGm?: boolean }): string {
         `### ${b.title} [${b.id}]`, b.direction,
         ...(b.pressure ? [`If it stalls here: ${b.pressure}`] : []),
         ...(arriving.length ? [`Who arrives: ${arriving.map(c => `${c.name} [${c.id}]`).join(", ")}`] : []),
+        ...(b.fight ? [`A fight: reaching it rolls for initiative, ${fighterNames(scene, b.fight.foes)} against the player${b.fight.allies?.length ? `, ${fighterNames(scene, b.fight.allies)} beside them` : ""}; everyone else here picks a side or runs.`] : []),
         ...(options.coGm ? suggested(scene, b.cast) : []),
         `Routes into it:\n${routesInto(scene, b.id).join("\n")}`,
       ].join("\n");
@@ -439,11 +450,23 @@ function waitingEndings(scene: Scene, view: TurnView, who: Character[]): Array<{
     .filter(x => x.missing.length);
 }
 
-/** What's ours after the user's prompt: the reply format (a talk's has no dice), who says each line, what the player sees and hears (and the player character, and where the scene plays), and the companion. */
+/**
+ * A fight breaking out (docs/combat-gm.md): the reply's roll_for_initiative, which switches the
+ * scene from the conversation's turns to everyone's in initiative order, each narrated by the GM.
+ */
+const FIGHT_START = `## When a fight breaks out
+- \`roll_for_initiative\` comes after \`check\`, before the narration: null unless a fight starts in this reply. A fight is when someone means to hurt someone and blows are about to be traded with nobody backing off: they attack and won't be talked down, or the player attacks someone who fights back. Then fill it in, putting everyone here (the cast here and everyone in the world right now, people and creatures, by their ids) in exactly one of three, each as who they are would: \`foes\`, the ids (or names) of those who'll fight the player, whoever steps in to stop the player by force among them (the law, a friend of whoever they've hurt); \`allies\`, those who'll fight beside them (whoever came with the player, unless their card says they wouldn't); \`flee\`, only those who run off from it now (the timid, the frightened, whoever has no stake in it): they're gone from the scene, so never anyone your narration keeps here. Nobody stands by: someone who'd neither fight nor run is on the side of whoever they're shielding, and against whoever they're stopping. \`why\`, a few words on what it's about; \`on\`, empty, unless you've called a check whose outcomes decide whether it comes to blows: then the outcomes that start the fight (a bluff that fails badly: ["major_failure"]), each of which ends on "Roll for initiative!" while the others don't. The player is always in it. Where a route on offer goes to a fight, it says who fights in it: when what it describes happens, that's the fight, with them on those sides.
+- Your narration (or those outcomes) takes the fight up to its first blow and stops there, ending on "Roll for initiative!". From then on the game goes round everyone in initiative order, and you narrate each turn as it comes, with the dice deciding what lands. If the player's own blow starts it and no dice line has settled that blow, stop at the swing: whether it lands is the fight's to decide.
+- Not for a shove, a slap or a scuffle that's over as soon as it starts, nor a threat that can still be talked down: those are the conversation's, with a check if it could go either way.`;
+
+/** What's ours after the user's prompt: the reply format (a talk's has no dice), a fight breaking out (not in a talk), who says each line, what the player sees and hears (and the player character, and where the scene plays), and the companion. */
 export function mouthpieceRules(scene: Scene, view: TurnView): string {
   const companion = companionNote(scene, view);
-  return [scene.companion ? TALK_FORMAT : FORMAT, SPEAKERS, SEEN, ...(companion ? [companion] : [])].join("\n\n");
+  return [...(scene.companion ? [TALK_FORMAT] : [FORMAT, FIGHT_START]), SPEAKERS, SEEN, ...(companion ? [companion] : [])].join("\n\n");
 }
+
+/** What the combat GM keeps of the mouthpiece's: who says each line, and what the player sees and hears (docs/combat-gm.md). */
+export const SPOKEN_RULES = (): string => [SPEAKERS, SEEN].join("\n\n");
 
 export function mouthpieceInstructions(scene: Scene, view: TurnView): string {
   return `${prompt("two-part-gm", { tone: tone(), beats: prepOf(scene, view), characters: charactersOf(scene, view) })}\n\n${mouthpieceRules(scene, view)}`;
@@ -459,20 +482,24 @@ export function mouthpieceInstructions(scene: Scene, view: TurnView): string {
  * right now, the names they haven't heard, what in their turn they did or thought rather than said,
  * and the clock when a sign of it is due; the reply's directives last.
  */
-export function twoPartNow(scene: Scene, view: TurnView, directive: string[]): string {
+/** What the per-turn note leaves out: in a fight (the combat GM's), the clock's sign and the stall's pressure, which are the conversation's replies', not each fighter's turn's. */
+export interface NowOptions { fight?: boolean }
+
+export function twoPartNow(scene: Scene, view: TurnView, directive: string[], options: NowOptions = {}): string {
   const stage = stageOf(scene, view);
   const open = openRoutes(scene, view);
   const parts = [
     `## Where the scene is now: ${stage.title}\n${stage.direction}`,
     // Pressure is for stalls, and is offered once: offered every turn, it gets replayed word for word.
-    ...(pressureOffered(scene, view) ? [`The scene has been sitting here a while. If it's stalling or drifting, the world can push: ${stage.pressure}`] : []),
+    ...(!options.fight && pressureOffered(scene, view) ? [`The scene has been sitting here a while. If it's stalling or drifting, the world can push: ${stage.pressure}`] : []),
     `(The scene has been at this point for ${view.turnsInBeat} exchange${view.turnsInBeat === 1 ? "" : "s"}.)`,
     `## What moves the scene on from here\n${open.length ? open.map(r => routeLine(scene, r)).join("\n") : "- (nothing: the scene is closing)"}${open.some(r => r.skill) ? "\nWhen the player attempts what a route the dice decide describes, call that route's check: its skill and DC." : ""}`,
     ...(view.established.length ? [`## Details established in play (keep them true)\nWhat has happened and been found, in the order it happened.${view.world ? " Where people are and what they're doing now is the world's, below: a detail here about where someone was or what they were doing was true then, and where the world says otherwise, they've moved on (people who have left don't come back unless the story brings them)." : ""}\n${bullets(view.established)}`] : []),
     ...[talkNotes(scene, view)].filter((m): m is string => !!m),
     ...(playerNow(view) ? [playerNow(view)!] : []),
     ...(view.world ? [`## The world right now\nWhere everyone and everything is, and what state it's in (ids in brackets). Keep to it, since it's updated after every reply: people and things are where it says, and what's destroyed, burning or gone stays that way until the story changes it. Details it doesn't list are yours to invent, consistent with it. It's as things stood before the player's turn: what the player does in it (shutting a book and buttoning it into their coat, picking something up, crossing the room) has happened by your reply, and the world catches up after it. It's the truth behind the screen, not what the player has seen: of what people carry, the player sees what's out in the open (worn, in hand, held up), and of the rest (in a pocket, a fist, a lining, a box) they know only what they've seen or been told.\n${PHYSICS}\n\n${worldView(view.world)}`] : []),
-    ...[hiddenNote(scene, view), reachNote(scene, view), holdersNote(scene, view), namesNote(unheardOf(scene, view)), asidesNote(view), clockNote(scene, view)].filter((n): n is string => !!n),
+    // QA round hobo2-1018: in a fight every fighter's turn showed the clock moving (the tenth bell twice, coats shouldered every round).
+    ...[hiddenNote(scene, view), reachNote(scene, view), holdersNote(scene, view), namesNote(unheardOf(scene, view)), asidesNote(view), options.fight ? undefined : clockNote(scene, view)].filter((n): n is string => !!n),
     ...(directive.length ? [`## For this reply\n${directive.join("\n\n")}`] : []),
   ];
   return parts.join("\n\n");
@@ -653,7 +680,7 @@ export function pressureOffered(scene: Scene, view: Pick<TurnView, "reached" | "
 }
 
 /** A GM turn as the player read it: its dice lines and what was said, the speakers tagged as the GM writes them. */
-function gmText(scene: Scene, view: TurnView, entries: TurnView["transcript"]): string {
+export function gmText(scene: Scene, view: TurnView, entries: TurnView["transcript"]): string {
   return entries.filter(e => e.kind !== "player" && e.kind !== "system").map(e => (e.kind === "roll" ? `🎲 ${e.text}` : asWritten(scene, view, e))).join("\n\n");
 }
 
@@ -662,14 +689,14 @@ function gmText(scene: Scene, view: TurnView, entries: TurnView["transcript"]): 
  * was written for), the player's turns and its own replies as the player read them. The latest note
  * goes last with the per-turn note beside it, so the reply has the world as it stands.
  */
-export function mouthpieceInput(scene: Scene, view: TurnView, directive: string[]): Message[] {
+export function mouthpieceInput(scene: Scene, view: TurnView, directive: string[], options: NowOptions = {}): Message[] {
   const notes = view.twoPart.notes;
   const here = sceneEntries(view);
   const input: Message[] = [];
   // Turn t's note was written after the reply to turn t-1 (the opening's, -1, before the scene began).
   for (let t = 0; t <= view.turn; t++) {
     const note = notes.find(n => n.turn === t - 1)?.text;
-    const now = t === view.turn ? twoPartNow(scene, view, directive) : undefined;
+    const now = t === view.turn ? twoPartNow(scene, view, directive, options) : undefined;
     if (note || now) input.push({ role: "system", content: [note, now].filter(Boolean).join("\n\n") });
     input.push({ role: "user", content: t === 0 ? "(The player is ready. Begin.)" : here.find(e => e.turn === t && e.kind === "player")?.text ?? "(The player waits.)" });
     if (t < view.turn) input.push({ role: "assistant", content: gmText(scene, view, here.filter(e => e.turn === t)) });
@@ -680,7 +707,7 @@ export function mouthpieceInput(scene: Scene, view: TurnView, directive: string[
 // --- Speaking ---------------------------------------------------------------------------------
 
 /** What the mouthpiece said: its narration as the screen has it, the check it called with the five outcomes, whether a closing closed, and what it cost. */
-export interface Spoke { narration: Reply; check?: SpokenCheck; closes: boolean; costUsd: number; firstTextMs: number | null }
+export interface Spoke { narration: Reply; check?: SpokenCheck; closes: boolean; initiative?: Initiative; costUsd: number; firstTextMs: number | null }
 
 /** How the mouthpiece is asked: its operation, the request's calls, a reply as it's written, and whether a closing may wait once. */
 export interface SpeakHow { operation: string; calls: CallContext; byKey(markup: Markup): Markup; onText?: (text: string, markup?: Markup) => void; mayHold?: boolean }
@@ -702,7 +729,7 @@ export async function speak(scene: Scene, view: TurnView, directive: string[], h
     json: { name: "reply", schema }, calls: how.calls,
     ...(show ? { onText: (raw: string) => { const said = narrationOf(raw); if (said) show(asKnown(said.text, unheard, { partial: !said.done }).text); } } : {}),
   });
-  const out = JSON.parse(result.text) as { check: { skill: Skill; dc: number } | null; narration: string; outcomes?: Record<Band, string> | null; closes?: boolean };
+  const out = JSON.parse(result.text) as { check: { skill: Skill; dc: number } | null; roll_for_initiative?: Initiative | null; narration: string; outcomes?: Record<Band, string> | null; closes?: boolean };
   const said = (text: string): Reply => {
     const { text: words, marked } = readReply(scene, view, text.trim());
     return { speaker: "gm", kind: "narration", text: words, ...(marked.speech.length ? { markup: how.byKey({ speech: marked.speech }) } : {}) };
@@ -714,7 +741,35 @@ export async function speak(scene: Scene, view: TurnView, directive: string[], h
   // Each outcome's names as the player knows them, and its failures kept from sending away whoever holds what the player still needs.
   const outcomes = whole ? inReach(scene, view, Object.fromEntries(BANDS.map(b => [b, asKnown(out.outcomes![b], after).text])) as Record<Band, string>) : undefined;
   const check = whole && outcomes ? { skill: out.check!.skill, dc: out.check!.dc, outcomes: Object.fromEntries(BANDS.map(b => [b, said(outcomes[b])])) as Record<Band, Reply> } : undefined;
-  return { narration: said(narration.text), ...(check ? { check } : {}), closes: out.closes !== false, costUsd: result.costUsd, firstTextMs: result.firstTextMs };
+  const initiative = dice ? fightOf(scene, view, out.roll_for_initiative) : undefined;
+  // A fight only some of a check's outcomes start keeps the check (its `on`); one that starts whatever comes up has none.
+  const keepCheck = check && (!initiative || !!initiative.on?.length);
+  return { narration: said(narration.text), ...(keepCheck ? { check } : {}), ...(initiative ? { initiative: keepCheck ? initiative : { foes: initiative.foes, allies: initiative.allies, ...(initiative.flee ? { flee: initiative.flee } : {}), why: initiative.why } } : {}), closes: out.closes !== false, costUsd: result.costUsd, firstTextMs: result.firstTextMs };
+}
+
+/**
+ * The reply's roll_for_initiative, held to who's here (docs/combat-gm.md): each side by the cast's ids
+ * (a name, or what the player calls them, read as their id), someone on neither side and present
+ * left out of it, the player in it always. None without a foe here.
+ */
+export function fightOf(scene: Scene, view: TurnView, asked: Initiative | null | undefined): Initiative | undefined {
+  if (!asked) return undefined;
+  // Everyone here: the cast, their groups' members, and the people and creatures in the world with no card (the gang, a dog).
+  const cast = presentFighters(scene, view);
+  const beings = Object.values(view.world?.entities ?? {}).filter(e => (e.kind === "person" || e.kind === "creature") && !e.player && !cast.some(c => c.id === e.id));
+  const present = [...cast.map(c => ({ id: c.id, names: [c.name, c.called ?? ""] })), ...beings.map(e => ({ id: e.id, names: [e.name] }))];
+  const idOf = (said: string) => {
+    const s = said.trim().toLowerCase();
+    return present.find(c => c.id.toLowerCase() === s || c.names.some(n => n && (n.toLowerCase() === s || n.toLowerCase().split(/\s+/).includes(s))))?.id;
+  };
+  const ids = (list: unknown) => [...new Set((Array.isArray(list) ? list : []).map(x => idOf(String(x))).filter((x): x is string => !!x))];
+  const foes = ids(asked.foes);
+  const flee = ids(asked.flee).filter(id => !foes.includes(id));
+  // The companion fights beside the player unless the GM sets them against them, or has them run.
+  const allies = [...new Set([...ids(asked.allies), ...companionsOf(scene, view).map(c => c.id).filter(id => !flee.includes(id))])].filter(id => !foes.includes(id));
+  const on = (Array.isArray(asked.on) ? asked.on : []).filter((b): b is Band => BANDS.includes(b as Band));
+  // A fight of the prep on offer has its own line-up (the simulation adds it): the reply needn't name a foe.
+  return foes.length || fightsAhead(scene, view).length ? { foes, allies, ...(flee.length ? { flee } : {}), why: String(asked.why ?? "").trim(), ...(on.length ? { on } : {}) } : undefined;
 }
 
 /**
@@ -1254,8 +1309,8 @@ export function movedText(scene: Scene, gm: GmState, reached: string | undefined
  * barge and closed the Heron on its bad ending.
  */
 export function heldText(scene: Scene, cue: SceneRoute, better: SceneRoute[]): string {
-  const title = (r: SceneRoute) => endingAt(scene, r)?.title ?? r.target;
-  const how = (r: SceneRoute) => (endingAt(scene, r)?.result === "good" ? "good" : "mixed");
+  const title = (r: SceneRoute) => endingAt(scene, r)?.title ?? fightAt(scene, r)?.title ?? r.target;
+  const how = (r: SceneRoute) => (fightAt(scene, r) ? "a fight" : endingAt(scene, r)?.result === "good" ? "good" : "mixed");
   return [
     `Not taken yet: [${cue.id}] ends the scene badly (${title(cue)}), and a cue into a bad ending waits on the good and mixed endings. Read these open routes against the story first:`,
     ...better.map(r => `- [${r.id}] to ${title(r)} (${how(r)}): ${r.condition.trim() || r.label}`),

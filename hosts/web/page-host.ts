@@ -170,7 +170,7 @@ function withinTime(answer: Promise<AiHttpResponse>, timeoutMs: number | undefin
  * simulation as the service's identity, a post at most every 100 ms; the page's ceiling and words.
  */
 function newAiService(kept: Persistence, content: Content, sim: MemoryHost, config: HostConfig): AiService {
-  const stores = { ...memoryStores(kept), campaigns: contentCampaigns(content.campaign) };
+  const stores = { ...memoryStores(kept), campaigns: contentCampaigns(content.campaign, content.zoo) };
   void stores.answers.sweep?.(KEEP_ANSWERS_MS);
   configurePrompts(name => content.prompts[name]);
   configureDocs({ lore: memoryVolume(), overlay: game => stores.docs.overlay(game) });

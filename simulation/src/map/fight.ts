@@ -1,53 +1,81 @@
-// fightOnMap is the prototype's town.afterFight (src/game/town.ts:654-682 at 44c6d4a) after the fight's stand-in (src/game/fight-standin.ts: one action, told as won), for a fight that broke out on the map: whoever came at the player goes down where they stood, until the story's clock moves on (the town's people are the time of day's). Its line is new, in the stand-in's manner (the Heron's names the Crakes).
-import { exploreOf, exploreRowOf } from "../../../shared/map/rows.ts";
+// A fight that broke out on the map (town-design §3.3: the explore row's `fight`, menu.ts's
+// townFight), fought on the board as the zoo's combat ring fights one (docs/combat-design.md §5): set
+// out on the town's own map where everyone stood, the player's hit points and slots kept; once the
+// player is out of it, the town's people are as the fight left them (down, hurt, given up, run off)
+// until the story's clock moves on (the town's people are the time of day's, as the prototype's
+// town.afterFight had them, src/game/town.ts:654-682 at 44c6d4a), each where they ended up.
+import { exploreOf, exploreRowOf, LOG_LINES } from "../../../shared/map/rows.ts";
+import type { FightSetup, Unit } from "../../../shared/fight/types.ts";
 import type { TownFight } from "../../../shared/map/types.ts";
 import { refusal } from "../../../shared/protocol/refusals.ts";
 import { Refused, type TxCtx } from "../context.ts";
+import { boardOfRow, liveFightOf, type FightRow } from "../fight/rows.ts";
+import { resultOf } from "../fight/scene.ts";
+import { startFight } from "../fight/start.ts";
 import { gameRow, playerRow, type PlayerRow } from "../rows.ts";
 import { mapPlaceOf, mapRowsOf, walkerOf, writeExplore } from "./rows.ts";
 
 /**
- * A fight that broke out on the map (town-design §3.3: the explore row's `fight`, recorded for V12,
- * which plays it), fought by the stand-in: told as won in a line, whoever came at the player down
- * where they stood (the town's people's states, until the clock moves on), the fight off the row.
- * False when the player's game has no fight on the map. Its host's, as every move on the map is.
+ * A fight that broke out on the map, set out on the board (fight_it_out off the map): its map, the
+ * player and whoever came at them where they stood, the player's sheet kept. False when the player's
+ * game has no fight on the map. Its host's, as every move on the map is.
  */
 export function fightOnMap(tx: TxCtx, player: PlayerRow): boolean {
   const game = gameRow(tx, player.gameId);
   const row = walkerOf(tx, game);
   if (!row?.fight) return false;
   if (game.hostId !== player.id) throw new Refused(refusal("not_controller", { name: playerRow(tx, game.hostId).name }));
-
-  const rows = mapRowsOf(tx, game, row);
-  const ex = exploreOf(rows);
-  const fight = rows.explore.fight!;
-  const town = ((ex.overlay.town ??= {})[ex.map] ??= { things: {} });
-  if (!town.people || town.people.time !== ex.story.time) town.people = { time: ex.story.time, states: {} };
-  const fell = fight.combatants.filter(c => c.side === "enemy" && c.castId);
-  for (const c of fell) town.people.states[c.castId!] = ["down"];
-
-  const place = mapPlaceOf(tx, game, ex.map);
-  tx.db.place.id.update({ ...place, town: JSON.stringify(town), rev: place.rev + 1 });
-  const said = [standinLine(fight), fell.length ? `${capital(theyAll(fight))} ${fell.length === 1 ? "lies" : "lie"} where they fell. Caerwyn steps round.` : ""].filter(Boolean).join("\n");
-  const { fight: _over, ...written } = exploreRowOf(ex, rows.explore, said);
-  writeExplore(tx, written);
-  tx.log(`[map] game ${game.id}: the fight on ${fight.place ?? ex.map} fought by the stand-in: ${fell.map(c => c.name).join(", ") || "nobody"} down`);
+  if (liveFightOf(tx, game.id)) throw new Refused(refusal("not_now", { text: "(The fight's on: see it through.)" }));
+  const broke = mapRowsOf(tx, game, row).explore.fight!;
+  const fight = startFight(tx, player, townSetup(broke, player.name));
+  tx.log(`[map] game ${game.id}: the fight on ${broke.place ?? broke.map} set out on the board, fight ${fight.id}`);
   return true;
 }
 
-/** What the stand-in's one action says of a fight on the map: told as won, in a line. */
-function standinLine(fight: TownFight): string {
-  const who = theyAll(fight);
-  return `Fists, steel and a lot of shouting: after a short, ugly scuffle${fight.place ? ` in ${fight.place}` : ""}, ${who} ${fight.combatants.filter(c => c.side === "enemy").length === 1 ? "is" : "are"} down, and nobody else about wants to be next.`;
+/** A fight on the map as the board sets it out: on the town's map, the player (by their name) and whoever came at them where they stood, kept. */
+export function townSetup(fight: TownFight, name: string): FightSetup {
+  const place = fight.place ?? "the street";
+  return {
+    title: `A fight in ${place}`, place, map: { key: fight.map },
+    combatants: fight.combatants.map(c => ({ ...c, ...(c.side === "player" ? { name } : {}), at: { ...c.at } })),
+    keep: true, town: true,
+  };
 }
 
-/** Whoever came at the player, in a few words: "the palace guard", "both palace guards", "the porter and the sweeper". */
-function theyAll(fight: TownFight): string {
-  const enemies = fight.combatants.filter(c => c.side === "enemy");
-  const bases = [...new Set(enemies.map(c => c.name.replace(/^the (first|second|third|fourth|fifth|sixth|\d+th) /, "").replace(/^(a|an|the)\s+/i, "")))];
-  if (enemies.length > 1 && bases.length === 1) return `${enemies.length === 2 ? "both" : `all ${enemies.length}`} ${bases[0]}s`;
-  const names = enemies.map(c => c.name);
-  return names.length <= 1 ? (names[0] ?? "nobody") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+/**
+ * The town after a fight on the map, once the player is out of it: each of the town's people in it
+ * as the fight left them, where they ended up, until the clock moves on; the player where they
+ * ended up; the fight off the explore row, and how it went its latest words (and in its log).
+ */
+export function townFightOver(tx: TxCtx, player: PlayerRow, fight: FightRow): void {
+  const game = gameRow(tx, player.gameId);
+  const row = walkerOf(tx, game);
+  if (!row) return;
+  const rows = mapRowsOf(tx, game, row);
+  const ex = exploreOf(rows);
+  const board = boardOfRow(fight);
+  const town = ((ex.overlay.town ??= {})[ex.map] ??= { things: {} });
+  if (!town.people || town.people.time !== ex.story.time) town.people = { time: ex.story.time, states: {} };
+  const people = town.people;
+  for (const u of Object.values(board.units)) {
+    if (u.id === board.pc || !u.castId) continue;
+    people.states[u.castId] = townStates(u);
+    people.at = { ...(people.at ?? {}), [u.castId]: { ...u.at } };
+  }
+  const place = mapPlaceOf(tx, game, ex.map);
+  tx.db.place.id.update({ ...place, town: JSON.stringify(town), rev: place.rev + 1 });
+  const result = resultOf(fight.result);
+  const said = `${fight.title}: ${result?.told ?? result?.summary ?? "it's over."}`;
+  const me = board.units[board.pc];
+  const { fight: _over, ...written } = exploreRowOf(ex, rows.explore, said);
+  writeExplore(tx, { ...written, ...(me ? { at: { ...me.at } } : {}), log: [...rows.explore.log, said].slice(-LOG_LINES) });
+  tx.log(`[map] game ${game.id}: the fight on ${ex.map} over (${fight.outcome ?? "?"}), the town as it left them`);
 }
 
-const capital = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+/** Someone of the town's after the fight, in the town's words: run off (gone), down, dead, given up, hurt. */
+function townStates(u: Unit): string[] {
+  if (u.state === "fled") return ["gone"];
+  if (u.state === "dead") return ["dead"];
+  if (u.state === "down" || u.hp <= 0) return ["down"];
+  return [...(u.state === "surrendered" ? ["cowering"] : []), ...(u.hp < u.maxHp ? [u.hp * 2 <= u.maxHp ? "badly hurt" : "hurt"] : [])];
+}

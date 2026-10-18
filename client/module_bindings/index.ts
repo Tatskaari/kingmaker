@@ -48,6 +48,7 @@ import DispatchWaitingReducer from "./dispatch_waiting_reducer";
 import DraftBackstoryReducer from "./draft_backstory_reducer";
 import EndSceneReducer from "./end_scene_reducer";
 import FightItOutReducer from "./fight_it_out_reducer";
+import FightSayReducer from "./fight_say_reducer";
 import FightTurnReducer from "./fight_turn_reducer";
 import FinishBackstoryReducer from "./finish_backstory_reducer";
 import HideReducer from "./hide_reducer";
@@ -660,6 +661,7 @@ const reducersSchema = __reducers(
   __reducerSchema("draft_backstory", DraftBackstoryReducer),
   __reducerSchema("end_scene", EndSceneReducer),
   __reducerSchema("fight_it_out", FightItOutReducer),
+  __reducerSchema("fight_say", FightSayReducer),
   __reducerSchema("fight_turn", FightTurnReducer),
   __reducerSchema("finish_backstory", FinishBackstoryReducer),
   __reducerSchema("hide", HideReducer),

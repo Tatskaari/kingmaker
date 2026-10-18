@@ -79,7 +79,7 @@ test("the whole story's recipe on the two-part GM: its co-GM walks each scene to
 test("the world bridge's quiet reactions (world-bridge-design §1.4): in the granary yard nobody fights the player's violence", () => {
   const reactions = Object.fromEntries(Object.entries(fake.choices!).filter(([k]) => k.startsWith("react_")));
 
-  assert.deepEqual(reactions, { react_kell: "intervene", react_cob: "flee", react_moll: "cower", react_tull: "unmoved" });
+  assert.deepEqual(reactions, { react_kell: "intervene", react_cob: "cower", react_moll: "cower", react_tull: "unmoved" });
 });
 
 test("the town's answers (town-design §3.6-3.7): Kell's talk opens ready to tell the door at the Rat, with lines of its own, and a swan gets a look", () => {

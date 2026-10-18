@@ -11,7 +11,7 @@ import type {Campaign} from './campaign.ts';
 import {EffectsEditor} from './effects.tsx';
 import {FactsField} from './facts.tsx';
 import {TOLD} from '../../../../shared/scene/talk.ts';
-import {EXIT_KINDS,ORDER,SKILLS,addRoute,changeKind,idProblem,isBeat,isDiscovery,isEnding,isStart,kindLosses,moveRoutes,nodeKind,optionalList,removeNodes,removeRoutes,renameNode,renameRoute,retitleNode,setArrival,setNodeField,setRouteField,titleOf,updateNode,updateRoute,viaNames,withKey} from './model.ts';
+import {EXIT_KINDS,ORDER,SKILLS,addRoute,changeKind,fighters,setFightSide,idProblem,isBeat,isDiscovery,isEnding,isStart,kindLosses,moveRoutes,nodeKind,optionalList,removeNodes,removeRoutes,renameNode,renameRoute,retitleNode,setArrival,setNodeField,setRouteField,titleOf,updateNode,updateRoute,viaNames,withKey} from './model.ts';
 import type {BeatData,Connection,EndingData,NewNodeKind,NodeKind,OuterLimit,Path,Route,SceneDocument,SceneNode,StartData} from './model.ts';
 
 export const KIND_LABELS:Record<NodeKind,string>={start:'Start',discovery:'Discovery',event:'Event',ending:'Ending'};
@@ -124,6 +124,7 @@ function DiscoveryFields({node}:{node:SceneNode<BeatData>}){
     <Establishes node={node} hint="Settled when it's reached: the GM is told their sentences, and endings' effects test them."/>
     <CarryEditor node={node}/>
     {node.data.pressure!==undefined&&<Pressure node={node} hint="An event's: a discovery is never the stage, so this isn't used. Remove it, or make the beat an event."/>}
+    {node.data.fight!==undefined&&<FightEditor node={node} hint="An event's: a discovery has no fight (the rules say so). Remove it, or make the beat an event."/>}
     {node.data.cast&&<RolesEditor node={node} label="Conversation roles here" hint="An event's: a discovery is never the stage, so these aren't used. Remove them, or make the beat an event."/>}
   </>;
 }
@@ -134,6 +135,7 @@ function EventFields({node}:{node:SceneNode<BeatData>}){
     <TextArea label="What happens" field="description" rows={5} hint="What happens, and what it puts to the player." value={node.data.description} onChange={value=>edit(scene=>setNodeField(scene,node.id,'description',value))}/>
     <Pressure node={node} hint="What the world does if the scene stalls here."/>
     <Arrivals node={node}/>
+    <FightEditor node={node} hint="A fight in the conversation: reaching this event rolls for initiative, and the GM narrates every turn. The GM is told who fights on every route into it, so its reply can start it; the co-GM taking one starts it too."/>
     <RolesEditor node={node} label="Conversation roles here" hint="Each person's role while the scene is here: the co-GM's suggestions. Behaviour, not meaning."/>
     <Establishes node={node} hint="Settled when the scene reaches it: the GM is told their sentences, and endings' effects test them."/>
     {node.data.paths!==undefined&&<PathsEditor node={node} note="An event has no paths (the rules say so): make it a discovery, or remove them."/>}
@@ -186,6 +188,33 @@ function Pressure({node,hint}:{node:SceneNode<BeatData>;hint:string}){
   const set=(value:string|undefined)=>edit(scene=>setNodeField(scene,node.id,'pressure',value));
   return <OptionalSection title="Pressure" field="pressure" present={node.data.pressure!==undefined} addLabel="Add pressure" hint={hint} onRemove={()=>set(undefined)}>
     {close=><TextArea label="Pressure" hideLabel rows={3} hint={hint} value={node.data.pressure??''} onChange={set} onLeave={value=>{if(!value.trim()){set(undefined);close()}}}/>}
+  </OptionalSection>;
+}
+
+/**
+ * An event's fight (docs/combat-gm.md): who's against the player and who's beside them, each of the
+ * cast or a group's member, as chips with [+ Add …]; everyone else here picks a side or runs as it
+ * breaks out. Optional: added with nobody on either side yet (a problem until someone's against the
+ * player), and removed whole.
+ */
+function FightEditor({node,hint}:{node:SceneNode<BeatData>;hint:string}){
+  const {edit,doc,showCast}=useScene();
+  const fight=node.data.fight;
+  const people=fighters(doc);
+  const name=(id:string)=>{const p=people.find(x=>x.id===id);return p?p.with?`${p.name} (with ${p.with})`:p.name:id};
+  const side=(key:'foes'|'allies',label:string,addLabel:string)=>{
+    const ids=fight?.[key]??[];
+    const taken=new Set([...(fight?.foes??[]),...(fight?.allies??[])]);
+    return <div className="fight-side" data-field={`fight.${key}`}>
+      <span className="field-label">{label}<span className="count">{ids.length}</span></span>
+      <Chips label={label} items={ids.map(id=>({value:id,label:name(id),detail:id,onOpen:doc.cast.some(member=>member.id===id)?()=>showCast(id):undefined}))} empty="Nobody yet." onRemove={id=>edit(scene=>setFightSide(scene,node.id,key,ids.filter(other=>other!==id)))}/>
+      <AddPicker label={addLabel} title={label} options={people.filter(p=>!taken.has(p.id)).map(p=>({value:p.id,label:`${p.name} (${p.id})`,detail:p.with?`One of ${p.with}'s`:'Their card in the Cast view'}))} empty={doc.cast.length?'Everyone is on a side already.':'The scene has no cast yet: add people in the Cast view.'} onPick={id=>edit(scene=>setFightSide(scene,node.id,key,[...ids,id]))}/>
+    </div>;
+  };
+  return <OptionalSection title="Fight" field="fight" present={fight!==undefined} addLabel="Add a fight" hint={hint} onAdd={()=>edit(scene=>setNodeField(scene,node.id,'fight',{foes:[]}))} onRemove={()=>edit(scene=>setNodeField(scene,node.id,'fight',undefined))}>
+    {side('foes','Against the player','Add a foe')}
+    {side('allies','Beside the player','Add an ally')}
+    <small className="field-hint">The companion is always beside the player. Everyone else here picks a side or runs as the fight breaks out, as the GM says, and the scene's reinforcements come as it goes on (the Scene view).</small>
   </OptionalSection>;
 }
 

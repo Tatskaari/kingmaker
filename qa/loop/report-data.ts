@@ -135,6 +135,49 @@ export function byCheck(games: GameStats[]): Array<{ check: string; arms: Record
 
 const ratings = (games: GameStats[], which: string) => games.map(g => g.review?.ratings?.[which]).filter((x): x is number => typeof x === "number");
 export const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : undefined);
+
+/**
+ * A fight as the player saw it in the scene (docs/combat-gm.md), from the game's system lines: the
+ * turn it broke out on and the player's line that brought it, who took which side (and who ran or
+ * kept clear), and once it was fought on the board and the scene picked up after it, the turn of
+ * that, how it went as the player was told it, and its rounds.
+ */
+export interface FightSeen { from: number; line: string; sides: string; to?: number; ended?: string; rounds?: number }
+
+/**
+ * The fights of a game, and the violence outside them: each blow rolled with no fight on (the
+ * player's blows, read by the act step), and each reply that called for initiative with no fight
+ * after it (the closing reply's, before hobo1-1018's fix).
+ */
+export function fightsOf(entries: GameRecord["entries"]): { fights: FightSeen[]; blows: Array<{ turn: number; line: string; roll: string }>; calledOnly: number[] } {
+  const fights: FightSeen[] = [];
+  const blows: Array<{ turn: number; line: string; roll: string }> = [];
+  const calledOnly: number[] = [];
+  const lineOf = (turn: number) => entries.find(e => e.turn === turn && e.kind === "player")?.text ?? "";
+  let on: FightSeen | undefined;
+  for (const e of entries) {
+    if (e.kind === "system" && e.text.startsWith("Roll for initiative! ")) {
+      on = { from: e.turn, line: lineOf(e.turn), sides: e.text.slice("Roll for initiative! ".length) };
+      fights.push(on);
+      continue;
+    }
+    if (on && e.kind === "system" && e.text.startsWith("The fight: ")) {
+      const rounds = /It took (\d+) rounds?\.\s*$/.exec(e.text);
+      on.to = e.turn;
+      on.ended = e.text.slice("The fight: ".length);
+      if (rounds) on.rounds = Number(rounds[1]);
+      on = undefined;
+      continue;
+    }
+    if (!on && e.kind === "roll" && / attack on /.test(e.text) && /^[^:]+: your attack on /.test(e.text)) blows.push({ turn: e.turn, line: lineOf(e.turn), roll: e.text });
+  }
+  for (const t of new Set(entries.map(e => e.turn))) {
+    const said = entries.filter(e => e.turn === t && e.kind !== "player" && e.kind !== "system" && e.kind !== "roll").map(e => e.text).join(" ");
+    if (/roll for initiative!?\W*$/i.test(said.trim()) && !fights.some(f => f.from === t)) calledOnly.push(t);
+  }
+  // A blow on the turn a fight broke out is the blow that started it, not one outside a fight.
+  return { fights, blows: blows.filter(b => !fights.some(f => f.from === b.turn)), calledOnly };
+}
 function medianOf(xs: number[]): number | undefined {
   if (!xs.length) return undefined;
   const sorted = [...xs].sort((a, b) => a - b);

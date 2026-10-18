@@ -64,6 +64,36 @@ export function openRoutes(scene: Scene, gm: Where): SceneRoute[] {
 }
 
 /**
+ * Who the story needs here, so neither a fight nor a reaction to the player's violence takes them
+ * away for good (they keep clear, or cower, and are here after it): whoever this scene's endings have
+ * walk with the player (Kell in the yard), and whoever holds a discovery the scene can't end well
+ * without that the player hasn't made yet, by its paths (Scrope and the true book; QA round
+ * hobo1-1018: a murder hobo's first blow at the Heron's door sent Scrope off, book and all). The
+ * caller adds who already walks with the player.
+ */
+export function storyNeeds(scene: Scene, gm: Where): Set<string> {
+  const follow = [...(scene.onEnd ?? []), ...scene.exits.flatMap(e => e.effects ?? [])].flatMap(e => (e.op === "follow" ? [e.who] : []));
+  const reached = new Set(reachedOf(gm));
+  const holders = scene.beats.filter(b => b.required && !reached.has(b.id)).flatMap(b => (b.paths ?? []).map(p => p.via));
+  return new Set([...follow, ...holders]);
+}
+
+/** An event with a fight (docs/combat-gm.md): reaching it rolls for initiative with its line-up. */
+export type FightBeat = Beat & { fight: NonNullable<Beat["fight"]> };
+
+/**
+ * The fights the scene can come to from here: each open route into an event with a fight, and that
+ * event (the Heron's blades out, open once the Master is in). A fight that breaks out while one is
+ * open is that one: the scene goes there, and its line-up fights.
+ */
+export function fightsAhead(scene: Scene, gm: Where): Array<{ route: SceneRoute; beat: FightBeat }> {
+  return openRoutes(scene, gm).flatMap(route => {
+    const beat = scene.beats.find(b => b.id === route.target);
+    return beat?.fight ? [{ route, beat: beat as FightBeat }] : [];
+  });
+}
+
+/**
  * The turn each node the scene has reached was reached on: the turn whose reply the move into it
  * followed (takeRoute's path steps), and the start the opening's, 0. A node reached in a state from
  * before the path kept its moves has none.

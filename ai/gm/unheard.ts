@@ -1,5 +1,5 @@
 import { presentCast } from "../../shared/scene/graph.ts";
-import { heardIn, knownCast, namedIn } from "../../shared/scene/names.ts";
+import { heardIn, knownCast, namedIn, kindIn } from "../../shared/scene/names.ts";
 import type { Scene } from "../../shared/scene/types.ts";
 import type { Entity } from "../../shared/world/scene-world.ts";
 import type { TurnView } from "./view.ts";
@@ -54,9 +54,6 @@ const headOf = (called: string): string => shortOf(called).split(/\s+/).at(-1)!.
  * Heron's mastiff, Duchess): what it is, from its description ("A vast, elderly brindle mastiff…"
  * is "the mastiff"), else what kind of thing it is.
  */
-const KINDS = "mastiff|hound|dog|cur|terrier|lurcher|cat|horse|mare|pony|mule|donkey|goat|pig|sow|boar|ox|cow|bull|rat|raven|crow|magpie|parrot|cockerel|goose|hen|bear|wolf|fox|man|woman|boy|girl|child|lad|lass|gentleman|lady|porter|clerk|watchman|sailor|bargee|soldier|bruiser|thug|ruffian|guard|bodyguard|footpad";
-/** What someone is, from the first sentence of how they look ("A vast, elderly brindle mastiff…", "An enormous river-bruiser…"). */
-const kindIn = (description: string | undefined) => new RegExp(`\\b(${KINDS})\\b`).exec((description ?? "").split(/(?<=[.;:])\s/)[0]!.toLowerCase())?.[1];
 function calledFor(e: Entity): string {
   return `the ${kindIn(e.description) ?? (e.kind === "creature" ? "animal" : "stranger")}`;
 }

@@ -96,7 +96,7 @@ test("the zoo's refusals: not installed, no such exhibit, line-up or build, a st
 
   const host = zooHost(5);
   const wren = identity(1), tom = identity(2);
-  assert.equal(host.as(wren).visitZoo({ exhibit: "theatre", build: "fighter" })?.text, "(There's no exhibit called theatre in the zoo: there's ring.)");
+  assert.equal(host.as(wren).visitZoo({ exhibit: "theatre", build: "fighter" })?.text, "(There's no exhibit called theatre in the zoo: there's ring and toll.)");
   assert.equal(host.as(wren).visitZoo({ exhibit: "ring", build: "fighter", foes: "wolves" })?.text, "(The combat ring has no line-up called wolves: there's sallow, crakes and dogs.)");
   assert.equal(host.as(wren).visitZoo({ exhibit: "ring", build: "cleric" })?.text, "(There's no ready-made build called cleric: there's fighter, wizard and rogue.)");
   assert.equal(host.as(wren).openExhibit({ exhibit: "ring" })?.code, "not_in_game");

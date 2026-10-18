@@ -115,9 +115,27 @@ export function streamed(scene: Scene, state: TurnView, onText: (text: string, m
 
 /** A GM reply's markup read once it's whole: the words, and who says each line (a note on a mark a model writes anyway is taken out of the words, and dropped). */
 export function readReply(scene: Scene, state: TurnView, raw: string): { text: string; marked: Markup; stats: MarkupStats } {
-  const parsed = parseMarkup(prose(raw));
+  const said = state.transcript.filter(e => e.kind === "player" && e.turn === state.turn).map(e => e.text).join(" ");
+  const parsed = parseMarkup(prose(withoutEchoes(raw, said)));
   const { text, speech } = withSpeakers(parsed, speakersOf(scene, state));
   return { text, marked: { speech }, stats: parsed.stats };
+}
+
+/**
+ * The player's own words echoed back in a reply as a line (QA rounds hobo1 and hobo2-1018: a battle
+ * cry under Kell's name, a threat to the clerk under the forewoman's, a Command word under Sallow's):
+ * not anyone's line, just the words, untagged. A quote that's one of the player's own quotes, or three
+ * words or more of their line as they typed it.
+ */
+export function withoutEchoes(raw: string, said: string): string {
+  if (!said.trim()) return raw;
+  const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, "").replace(/\s+/g, " ").trim();
+  const theirs = norm(said);
+  const quotes = [...said.matchAll(/[“"]([^”"]+)[”"]/g)].map(m => norm(m[1]!));
+  return raw.replace(/(?:\[[^\]\n]+\]\s*)?[“"]([^”"\n]+)[”"]/g, (whole, inner: string) => {
+    const q = norm(inner);
+    return q && (quotes.includes(q) || (q.split(" ").length >= 3 && theirs.includes(q))) ? inner : whole;
+  });
 }
 
 /** The GM's reply: one call, the GM narrating and voicing everyone. A repeat it was warned of is the view's to clear, and one it makes the view's to keep (`state.repeated`). */

@@ -33,6 +33,34 @@ function castRefused(name: string, said: string, you: boolean): string {
 }
 /** Buffs cast on a foe: the caster marks them. */
 const FOE_MARKS = new Set(["hunters-mark", "hex"]);
+
+/** A class feature to use in a fight (the engine's own option for it): what it's called, what it spends, whom it takes, and whether it can be used now (and why not, in words). */
+export interface FeatureChoice { id: string; name: string; cost: "bonus" | "action" | "free"; target: "self" | "creature" | "none"; enabled: boolean; why?: string }
+
+/** The engine's option lists, by the encounter (its module's own exports: bonusActions, actionOptions). */
+type OptionList = (state: unknown, content: unknown, encounterId: string, characterId: string) => Array<{ id: string; label: string; target: string; enabled: boolean; reason?: string }>;
+
+/** The engine's options the board has acts of its own for (a shove, a grab, Dash), or that it can't play yet (hiding, readying, a word with weight): not offered as features. */
+const BOARD_HAS = new Set(["grapple", "shove", "help", "hide", "influence", "ready", "search", "study", "utilize", "cunning-action-hide", "nimble-escape-hide"]);
+
+/** Words with weight in a fight: the skills a threat, a plea or a lie is (all Charisma). */
+export type TalkSkill = "intimidation" | "persuasion" | "deception";
+export const TALK_SKILLS: Record<TalkSkill, string> = { intimidation: "Intimidation", persuasion: "Persuasion", deception: "Deception" };
+
+/** Why the engine says a feature can't be used now, in the game's words. */
+function featureWhy(code: string, you: boolean): string {
+  const them = you ? "You've" : "They've";
+  switch (code) {
+    case "bonus-action-used": return `${them} used ${you ? "your" : "their"} bonus action this turn.`;
+    case "action-used": return `${them} used ${you ? "your" : "their"} action this turn.`;
+    case "not-your-turn": return "It isn't their turn.";
+    case "no-uses": return `${them} none of it left until ${you ? "you" : "they"} rest.`;
+    case "no-focus": return `${them} no focus points left.`;
+    case "already-dashed": return `${them} dashed this turn already.`;
+    case "already-disengaged": return `${them} disengaged this turn already.`;
+    default: return `Not now: ${code.replace(/-/g, " ")}.`;
+  }
+}
 /** The sheet's attack bonus with a weapon (the engine calls the instance weaponInstanceId; the typings say instanceId). */
 export function attackBonus(sheet: Dnd.CharacterSheet, weapon: string): number {
   const of = (a: Dnd.CharacterSheet["attacks"][number]) => (a as { weaponInstanceId?: string }).weaponInstanceId ?? a.instanceId;
@@ -70,7 +98,7 @@ interface Draft {
 export type Moment = Omit<FightEvent, "seq">;
 
 /** Kinds of moment that say something even with no lines in them; the rest, with nothing in them, aren't kept. */
-const ALWAYS: ReadonlySet<FightEventKind> = new Set(["start", "turn", "move", "attack", "cast", "dash", "dodge", "disengage", "wrestle", "use", "yield", "flee", "walk-off", "arrest", "pass", "over"]);
+const ALWAYS: ReadonlySet<FightEventKind> = new Set(["start", "turn", "move", "attack", "cast", "dash", "dodge", "disengage", "wrestle", "use", "yield", "flee", "walk-off", "arrest", "pass", "over", "arrive"]);
 
 export class Skirmish {
   readonly G: Field;
@@ -104,8 +132,30 @@ export class Skirmish {
   private team(u: Unit): number { return u.side === "player" || u.side === "ally" ? 1 : u.side === "enemy" ? 2 : 0; }
   friendly(a: Unit, b: Unit): boolean { return this.team(a) !== 0 && this.team(a) === this.team(b); }
   hostile(a: Unit, b: Unit): boolean { return this.team(a) !== 0 && this.team(b) !== 0 && this.team(a) !== this.team(b); }
+  /** On neither side: keeping out of it, or running from it. */
+  neutral(u: Unit): boolean { return this.team(u) === 0 && u.id !== this.G.pc; }
+  /**
+   * Whom someone's menu turns their weapons on: the other side, but not a child running for the door.
+   * The player's, anyone up who isn't on theirs (smoke4-1018: Cob kept clear of the fight Krug
+   * started by swinging at him, and the board gave no blow at him at all): the running and those
+   * keeping out of it too.
+   */
+  targetable(u: Unit, v: Unit): boolean {
+    if (v.id === u.id || v.state !== "fighting") return false;
+    return this.isYou(u) ? this.hostile(u, v) || this.neutral(v) : this.hostile(u, v) && v.role !== "coward";
+  }
+  /**
+   * Someone keeping out of it whom the player attacks, shoves, grabs or casts at is in it now,
+   * against them, with whatever's to hand (a brawler). One running keeps running.
+   */
+  private provoked(u: Unit, target: Unit): void {
+    if (!this.isYou(u) || target.role !== "bystander" || !this.neutral(target)) return;
+    target.side = "enemy";
+    target.role = "brawler";
+    this.log("narration", `${cap(target.called)} isn't keeping out of it any more.`, target.id);
+  }
   /** On the map at all (the fled are gone; the fallen lie where they fell). */
-  onBoard(u: Unit): boolean { return u.state !== "fled"; }
+  onBoard(u: Unit): boolean { return u.state !== "fled" && u.state !== "coming"; }
   /** Standing, in the fight, and able to do something about it. */
   able(u: Unit): boolean { return u.state === "fighting" && !u.conditions.some(c => INCAPACITATING.test(c)); }
   occupant(t: Tile2, except?: string): Unit | undefined { return this.units.find(u => u.id !== except && this.onBoard(u) && same(u.at, t)); }
@@ -113,6 +163,8 @@ export class Skirmish {
   dustAt(t: Tile2): boolean { return this.G.dust.includes(key(t)); }
   hotAt(t: Tile2): boolean { return this.G.fire.some(k => steps(fromKey(k), t) <= 1); }
   exitAt(t: Tile2): { at: Tile2; label: string } | undefined { return this.G.exits.find(e => same(e.at, t)); }
+  /** In the place's own tiles (all the map's, when the place is the map). */
+  inArea(t: Tile2): boolean { const a = this.G.area; return !a || (t.x >= a.x && t.y >= a.y && t.x < a.x + a.w && t.y < a.y + a.h); }
   isTurnOf(u: Unit): boolean { return this.activeUnit()?.id === u.id; }
 
   combatant(u: Unit): EngineCombatant | undefined {
@@ -139,7 +191,7 @@ export class Skirmish {
   /** Walls and standing enemies block; friends and the fallen can be passed but not stopped on; fire is avoided. */
   pathRules(u: Unit, options: { avoidFire?: boolean; avoidDust?: boolean } = {}): PathRules {
     return {
-      blocked: t => { const o = this.occupant(t, u.id); return !!o && o.state === "fighting" && this.hostile(u, o); },
+      blocked: t => { if (!this.inArea(t) && !this.exitAt(t)) return true; const o = this.occupant(t, u.id); return !!o && o.state === "fighting" && this.hostile(u, o); },
       noStop: t => !!this.occupant(t, u.id),
       penalty: t => (options.avoidFire !== false && this.hotAt(t) ? 6 : 0) + (options.avoidDust && this.dustAt(t) ? 3 : 0),
     };
@@ -467,6 +519,45 @@ export class Skirmish {
     this.moment("hazard");
     this.spreadFire();
     this.closeMoment();
+    this.arrivals();
+  }
+
+  /**
+   * The scene's reinforcements whose round it is (docs/combat-gm.md; the user: "the guards come after a
+   * few turns or a round"): each in at the way in (on its tile, or the nearest free one to it), on
+   * the board and in the fight from now on, their turns their place in the order; one moment for
+   * everyone coming in together, with why they came.
+   */
+  private arrivals(): void {
+    const due = this.units.filter(u => u.state === "coming" && (u.due ?? 0) <= this.G.round);
+    if (!due.length) return;
+    const way = this.G.exits.find(e => same(e.at, due[0]!.at)) ?? this.G.exits[0];
+    this.moment("arrive", undefined, { with: way?.label ?? "the way in" });
+    for (const u of due) {
+      const at = this.freeNear(u.at);
+      u.state = "fighting";
+      u.at = at;
+      try { this.t.plan("placeCombatant", { encounterId: this.G.encounterId, combatantId: u.engineId, position: toFeet(at) }); } catch { /* the board's own place stands */ }
+    }
+    for (const why of [...new Set(due.map(u => u.why).filter((w): w is string => !!w))]) this.log("narration", why);
+    this.closeMoment();
+  }
+
+  /**
+   * The nearest tile to `t` someone can stand on and nobody's on (t itself, if it is), a walk away
+   * (never through a wall), in the place's area or on a way out of it (smoke7-1018: the gate taken,
+   * Old Wat came in in the lane, out of everyone's reach).
+   */
+  private freeNear(t: Tile2): Tile2 {
+    const queue: Tile2[] = [t];
+    const seen = new Set<string>([key(t)]);
+    for (let i = 0; i < queue.length && i < 400; i++) {
+      const at = queue[i]!;
+      if (solid(this.G.map, at)) continue;
+      if (!this.occupant(at) && (this.inArea(at) || this.exitAt(at))) return at;
+      for (const n of neighbours(this.G.map, at)) if (!seen.has(key(n))) { seen.add(key(n)); queue.push(n); }
+    }
+    return t;
   }
 
   // -------------------------------------------------------------------------------------------
@@ -576,6 +667,7 @@ export class Skirmish {
       ...(advantage ? { advantage } : {}), ...(check.cover ? { cover: check.cover } : {}),
     };
     this.moment("attack", u, { target: target.id, at: { ...target.at }, with: label ?? this.namer().weapon(weapon) });
+    this.provoked(u, target);
     const say = this.isYou(u) ? undefined : `attack:${u.castId ?? u.role}`;
     if (say && hash(this.G.round, u.id, this.lineCount()) % 3 === 0) this.say(say, u);
     // A duellist's parry: the blade turns a hit that only just landed (his reaction, once a round).
@@ -727,6 +819,7 @@ export class Skirmish {
       ...(targetId ? { target: targetId } : {}), at: { ...aim }, with: spell.name, spell: spell.id, ...(element ? { element } : {}),
       ...(choice.targeting === "area" ? { area: tiles.map(t => ({ ...t })) } : {}),
     });
+    if (!choice.heal) for (const v of targets) this.provoked(u, v);
     let events: Dnd.EngineEvent[] = [];
     if (targets.length) {
       // Rays and beams (Scorching Ray, Eldritch Blast) are an attack each, at whoever's aimed at.
@@ -767,6 +860,85 @@ export class Skirmish {
   }
 
   /**
+   * Words with weight on the player's turn (a threat, a plea, a lie: the GM's talk_down on a typed
+   * turn, docs/combat-gm.md), for their action: their skill against the DC, by the engine's own check.
+   * Made, the one they spoke to gives up, as the board's surrender has it (a leader's people walk off
+   * with him); missed, the words were only words. A moment of its own, with the dice.
+   */
+  talkDown(u: Unit, targetId: string, skill: TalkSkill, dc: number): string | undefined {
+    if (!this.isTurnOf(u)) return "It isn't their turn.";
+    if (!this.able(u)) return `${cap(this.you(u).called)} can't just now.`;
+    if (!this.actionLeft(u)) return `${this.isYou(u) ? "You've" : "They've"} used ${this.isYou(u) ? "your" : "their"} action this turn: words with weight take it.`;
+    const target = this.unit(targetId) ?? this.units.find(v => v.castId === targetId);
+    if (!target || target.state !== "fighting" || !this.hostile(u, target)) return "There's nobody of the other side by that to talk down.";
+    this.moment("say", u, { target: target.id, with: TALK_SKILLS[skill] });
+    let events: Dnd.EngineEvent[];
+    try {
+      events = this.t.plan("abilityCheck", { type: "AbilityCheck", characterId: u.engineId, ability: "CHA", skill, dc });
+      this.t.apply([this.event("ActionEconomyConsumed", { encounterId: this.G.encounterId, combatantId: u.engineId, kind: "action" })]);
+    } catch (e) {
+      this.current = undefined;
+      return reason(e);
+    }
+    const roll = events.find(e => e.type === "AbilityCheckRolled");
+    const made = roll?.["success"] === true;
+    const d20 = (roll?.["d20"] as number[] | undefined)?.join("/") ?? "?";
+    this.log("dice", `${TALK_SKILLS[skill]}: ${possessive(this.you(u).called)} check at ${target.called}: ${d20} ${signed(Number(roll?.["bonus"] ?? 0))} = ${roll?.["total"]} vs DC ${dc}: ${made ? "success" : "failure"}`, u.id);
+    const how = skill === "intimidation" ? "threaten" : skill === "persuasion" ? "talk to" : "lie to";
+    this.current!.caption = `${cap(this.you(u).called)} ${this.isYou(u) ? how : `${how}s`} ${target.called}: ${made ? "it works" : "it doesn't"}.`;
+    if (made) this.surrender(target);
+    this.settle();
+    return undefined;
+  }
+
+  // -------------------------------------------------------------------------------------------
+  // Class features (the user: "how do I use a bonus action? I think I have second wind which is one
+  // but I can't cast it"): the engine's own options, the bonus actions (Second Wind, Cunning Action,
+  // Rage, Bardic Inspiration…) and those that take the action or nothing (Action Surge, Lay on Hands).
+
+  /** u's class features in this fight, as the engine lists them on its encounter: what each spends, and whether it can be used now (and why not). */
+  features(u: Unit): FeatureChoice[] {
+    const E = this.t.kit.E as unknown as { bonusActions?: OptionList; actionOptions?: OptionList };
+    const listed = (list: OptionList | undefined, cost: "bonus" | "action") => {
+      try { return (list?.(this.t.state, this.t.kit.engine.content, this.G.encounterId, u.engineId) ?? []).map(o => ({ ...o, cost })); } catch { return []; }
+    };
+    return [...listed(E.bonusActions, "bonus"), ...listed(E.actionOptions, "action")]
+      .filter(o => !BOARD_HAS.has(o.id))
+      .map(o => ({
+        id: o.id, name: o.label, cost: o.id === "action-surge" ? "free" as const : o.cost, target: o.target === "creature" ? "creature" as const : o.target === "self" ? "self" as const : "none" as const,
+        enabled: o.enabled, ...(o.reason ? { why: featureWhy(o.reason, this.isYou(u)) } : {}),
+      }));
+  }
+
+  /**
+   * A class feature used, through the engine's own option for it (its uses and rests, the turn's
+   * bonus action or action), as a moment of its own: its dice, and what it did (a heal's hit points,
+   * a dash's feet, a rage's condition). One aimed at someone (Bardic Inspiration, Lay on Hands) is at
+   * whoever's on `targetId`, or u themselves when it can be.
+   */
+  feature(u: Unit, id: string, targetId?: string): string | undefined {
+    if (!this.isTurnOf(u)) return "It isn't their turn.";
+    if (!this.able(u)) return `${cap(this.you(u).called)} can't just now.`;
+    const f = this.features(u).find(x => x.id === id);
+    if (!f) return `${this.isYou(u) ? "You haven't" : "They haven't"} got that to use here.`;
+    if (!f.enabled) return f.why ?? "Not now.";
+    const target = f.target === "creature" ? (targetId !== undefined ? this.unit(targetId) : u) : undefined;
+    if (f.target === "creature" && !target) return `${f.name} needs someone to use it on.`;
+    this.moment("feature", u, { with: f.name, ...(target && target !== u ? { target: target.id } : {}) });
+    let events: Dnd.EngineEvent[];
+    try {
+      events = this.t.plan(f.cost === "bonus" ? "useOption" : "useActionOption", { optionId: id, combatantId: u.engineId, ...(target ? { targetId: target.engineId } : {}) });
+    } catch (e) {
+      this.current = undefined;
+      return `${f.name}: ${reason(e)}`;
+    }
+    this.dice(events, f.name);
+    this.log("system", `${f.name}${target && target !== u ? ` for ${target.called}` : ""}${f.cost === "bonus" ? " (a bonus action)" : f.cost === "action" ? " (your action)" : ""}.`, u.id);
+    this.settle();
+    return undefined;
+  }
+
+  /**
    * A grab or a shove (2024: the target makes a Strength or Dexterity save against u's Strength DC,
    * through the engine's own Grapple and Shove, which take the action): held fast (grappled, so they
    * can't move until they're let go), knocked over (prone, until they get up as their turn starts),
@@ -782,6 +954,7 @@ export class Skirmish {
     if (!this.actionLeft(u)) return `${this.isYou(u) ? "You've" : "They've"} already used ${this.isYou(u) ? "your" : "their"} action this turn.`;
     const from = target.at;
     this.moment("wrestle", u, { target: target.id, at: { ...target.at }, with: how === "grapple" ? "Grapple" : "Shove" });
+    this.provoked(u, target);
     let events: Dnd.EngineEvent[];
     try {
       events = how === "grapple"

@@ -305,10 +305,17 @@ const REACTIONS: Record<Reaction, string> = {
   unmoved: "Carries on: it doesn't touch them, they didn't see it, or they've seen worse.",
 };
 
-/** Everyone present reacts to what the player just did, each by their own lights: one decider call. */
-export async function decideReactions(decider: Decider, scene: Scene, state: TurnView, playerTurn: string, act: Act, witnesses: Witness[], name: (id: string) => string): Promise<{ reactions: Record<string, Reaction>; decision?: Decision }> {
+/** What someone the story needs here may do: anything but leave the place (they cower, step in, fight…). */
+const STAYING: Record<string, string> = Object.fromEntries(Object.entries(REACTIONS).filter(([k]) => k !== "flee" && k !== "raise_alarm"));
+
+/**
+ * Everyone present reacts to what the player just did, each by their own lights: one decider call.
+ * Those in `stays` (the story needs them here: shared/scene/beats.ts storyNeeds, and the companion)
+ * aren't offered leaving the place, and one decided gone anyway cowers instead.
+ */
+export async function decideReactions(decider: Decider, scene: Scene, state: TurnView, playerTurn: string, act: Act, witnesses: Witness[], name: (id: string) => string, stays: ReadonlySet<string> = new Set()): Promise<{ reactions: Record<string, Reaction>; decision?: Decision }> {
   const q: Record<string, ChoiceQuestion> = {};
-  for (const w of witnesses) q[`react_${w.id}`] = { instructions: `How does ${w.name} react, right now, to what the player just did? By who they are, not by what would be dramatic: someone hurt or caught by it takes it hardest, the timid get out, the hard and the angry fight, and the law steps in.`, criteria: REACTIONS };
+  for (const w of witnesses) q[`react_${w.id}`] = { instructions: `How does ${w.name} react, right now, to what the player just did? By who they are, not by what would be dramatic: someone hurt or caught by it takes it hardest, the timid get out, the hard and the angry fight, and the law steps in.${stays.has(w.id) ? ` ${w.name} stays in this place, whatever happens: hiding, cowering or stepping in, never leaving it.` : ""}`, criteria: stays.has(w.id) ? STAYING : REACTIONS };
   const decision = await decider.decide({
     ...decisionState(scene, state, playerTurn),
     what_the_player_did: act.what,
@@ -320,7 +327,8 @@ export async function decideReactions(decider: Decider, scene: Scene, state: Tur
   for (const w of witnesses) {
     const choice = decision?.answers[`react_${w.id}`]?.choice as Reaction | undefined;
     // Undecided: the hurt hit back if they can, everyone else gets out of the way.
-    reactions[w.id] = choice && choice in REACTIONS ? choice : act.victims.includes(w.id) ? "fight" : "cower";
+    const decided = choice && choice in REACTIONS ? choice : act.victims.includes(w.id) ? "fight" : "cower";
+    reactions[w.id] = stays.has(w.id) && (decided === "flee" || decided === "raise_alarm") ? "cower" : decided;
   }
   return { reactions, ...(decision ? { decision } : {}) };
 }

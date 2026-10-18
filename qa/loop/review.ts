@@ -3,7 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { prepText } from "./prep.ts";
 import { BRIEFS, packPath, recordPath, reviewPath, RUBRIC, shortPath, TRUTH, type LoopConfig } from "./paths.ts";
-import { readRecord, turnsOf, turnText, type GameRecord } from "./record.ts";
+import { fightEntries, fightLogText, readRecord, turnsOf, turnText, type GameRecord } from "./record.ts";
 import { sceneOf, type Loaded } from "./scenes.ts";
 
 /** A blind reviewer's findings on one game (reviews/<game>.json). */
@@ -87,7 +87,9 @@ function toldOf(record: GameRecord, hook: string | undefined): string {
 }
 
 function sceneText(record: GameRecord): string {
-  const turns = turnsOf(record.entries).map(([n, entries]) => `## Turn ${n}${n === 0 ? " (the opening)" : ""}\n\n${turnText(entries)}`);
+  const fights = (n: number) => (record.fights ?? []).filter(f => f.turn === n)
+    .map(f => `### The fight on the board: ${f.title}\n\n${fightLogText(f)}\n\n(${f.over ? `How it went: ${f.over}` : "Not over when the game stopped."}${f.rounds ? ` ${f.rounds} round${f.rounds === 1 ? "" : "s"}.` : ""})`);
+  const turns = turnsOf(record.entries).map(([n, entries]) => [`## Turn ${n}${n === 0 ? " (the opening)" : ""}\n\n${turnText(entries)}`, ...fights(n)].join("\n\n"));
   const end = record.ended ? `— The scene ended (${record.ended.title}). —` : "— The game stopped here (out of turns, or the player stopped). —";
   return `${turns.join("\n\n")}\n\n${end}`;
 }
@@ -108,10 +110,10 @@ export function checkReviewFile(config: LoopConfig, round: string, game: string,
   }
 }
 
-/** What's wrong with a review: a missing part, a rating out of range, an unknown check, a turn out of range, a quote not in its turn's reply. */
-export function checkReview(review: Review, record: Pick<GameRecord, "entries">, checks = rubricChecks()): string[] {
+/** What's wrong with a review: a missing part, a rating out of range, an unknown check, a turn out of range, a quote not in its turn's reply (a fight on the board's lines are the turn's it broke out on). */
+export function checkReview(review: Review, record: Pick<GameRecord, "entries" | "fights">, checks = rubricChecks()): string[] {
   if (!review || typeof review !== "object") return ["not a JSON object"];
-  const turns = new Map(turnsOf(record.entries));
+  const turns = new Map(turnsOf([...record.entries, ...(record.fights ?? []).flatMap(fightEntries)]));
   return [
     ...(typeof review.summary !== "string" || !review.summary.trim() ? ["summary: missing"] : []),
     ...RATINGS.filter(r => { const v = review.ratings?.[r]; return typeof v !== "number" || v < 0 || v > 5; })

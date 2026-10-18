@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { steps } from "../../shared/fight/grid.ts";
 import type { Unit } from "../../shared/fight/types.ts";
 import { direction } from "../../shared/map/tiles.ts";
+import { MAX_LINE } from "../../shared/protocol/refusals.ts";
 import type { Tile2 } from "../../shared/map/types.ts";
 import type { Surface } from "../app/model.ts";
 import { ARROW } from "../explore/words.ts";
@@ -57,6 +58,8 @@ export function FightPlay({ fight: model }: { fight: FightModel; surface?: Surfa
   useEffect(() => () => model.close(), [model]);
   useKeyboard(key => {
     if (model.overlay || key.defaultPrevented) return;
+    // Saying what you do (a scene's fight): the line has the keys, Esc puts it away.
+    if (model.typing !== undefined) { if (key.name === "escape") { key.preventDefault(); model.stopTyping(); } return; }
     key.preventDefault();
     if (model.menu) { fightMenuKey(model, key, width, height); return; }
     if (model.aim) { aimKey(model, key); return; }
@@ -131,9 +134,16 @@ export function FightPlay({ fight: model }: { fight: FightModel; surface?: Surfa
       </box>
     </box>
     <Caption model={model} play={play} width={width} />
-    <box height={logH} flexShrink={0} border borderColor={C.border} title=" The fight " titleAlignment="left" paddingX={1} flexDirection="column" overflow="hidden"
-      onMouseDown={(e: MouseEvent) => { if (e.button === MouseButton.LEFT && !model.menu && !model.aim) { model.overlay = { kind: "log" }; model.emit(); } }}>
-      {logRows(model.player.log, width - 4, logH - 2).map((r, i) => <text key={i} fg={r.color} height={1} flexShrink={0} {...(r.bold ? { attributes: BOLD } : {})}>{r.text}</text>)}
+    <box height={logH} flexShrink={0} border borderColor={model.typing !== undefined ? C.borderHot : C.border} title={model.canType() || model.typing !== undefined ? " The fight · click to say what you do " : " The fight "} titleAlignment="left" paddingX={1} flexDirection="column" overflow="hidden"
+      onMouseDown={(e: MouseEvent) => {
+        if (e.button !== MouseButton.LEFT || model.menu || model.aim || model.typing !== undefined) return;
+        // The user: "if I click on it, I can still narrate what I do". Otherwise, the whole log.
+        if (model.canType()) model.startTyping();
+        else { model.overlay = { kind: "log" }; model.emit(); }
+      }}>
+      {logRows(model.player.log, width - 4, logH - 2 - (model.typing !== undefined ? 1 : 0)).map((r, i) => <text key={i} fg={r.color} height={1} flexShrink={0} {...(r.bold ? { attributes: BOLD } : {})}>{r.text}</text>)}
+      {model.typing !== undefined ? <input maxLength={MAX_LINE} value={model.typing} onInput={(t: string) => { model.typing = t; }} onSubmit={(value: unknown) => void model.sayTurn(typeof value === "string" ? value : model.typing ?? "")} focused
+        placeholder="What do you do? (Enter: do it · Esc: never mind)" /> : null}
     </box>
     <box height={1} paddingX={1} flexShrink={0}>
       <BottomLine model={model} play={play} width={width - 2} mine={mine} over={over} othersPlaying={othersPlaying} />
@@ -168,6 +178,7 @@ function fightKey(model: FightModel, key: KeyEvent): void {
   if (zooFightKey(model, key)) return;
   if (view.status !== "on") { if (isEnter(key) && model.player.caughtUp) void model.out(); return; }
   if (!model.canAct()) return;
+  if (key.name === "t" && model.canType()) { model.startTyping(); return; }
   if (key.name === "m" || isEnter(key)) model.openMenu();
   else if (key.name === "e") model.endTurn();
   else if (WALK.has(key.name) && !key.ctrl) model.step(key.name);
@@ -204,7 +215,8 @@ function aimKey(model: FightModel, key: KeyEvent): void {
  */
 function TurnBar({ model, play, width, rows }: { model: FightModel; play: PlayFrame; width: number; rows: number }) {
   const board = model.view.board;
-  const order = board.order.filter(id => board.units[id]);
+  // Whoever's still coming (the scene's reinforcements) isn't in the bar until they're in the fight.
+  const order = board.order.filter(id => board.units[id] && play.stances[id]?.state !== "coming");
   const n = Math.max(1, order.length);
   const each = Math.floor(width / n);
   const shown = play.revealed ?? n;
@@ -290,7 +302,7 @@ function SidePanel({ model, play, header, inner, rows, mine, over, othersPlaying
     out.push(<text key="gap" height={1} flexShrink={0}>{" "}</text>);
     for (const [i, l] of wrap(view.result?.told ?? view.result?.summary ?? "", inner).slice(0, Math.max(1, rows - 7)).entries()) line(`sum${i}`, <span fg={C.text}>{l}</span>);
     out.push(<text key="gap2" height={1} flexShrink={0}>{" "}</text>);
-    if (!view.watching && !zooHints(model, true).length) out.push(<Clickable key="out" height={1} flexShrink={0} onClick={() => void model.out()}><text><span fg={C.lead}>{"▶ "}</span><span fg={C.lead} attributes={BOLD}>{truncate("Back to the map", inner - 10)}</span><span fg={C.faint}>{"  Enter"}</span></text></Clickable>);
+    if (!view.watching && !zooHints(model, true).length) out.push(<Clickable key="out" height={1} flexShrink={0} onClick={() => void model.out()}><text><span fg={C.lead}>{"▶ "}</span><span fg={C.lead} attributes={BOLD}>{truncate(view.board.scene ? "Back to the scene" : "Back to the map", inner - 10)}</span><span fg={C.faint}>{"  Enter"}</span></text></Clickable>);
   } else if (mine && o) {
     const pip = (used: boolean) => (used ? "○ spent" : "● ready");
     // The bonus action is "ready" only with something to spend it on (a bonus-action spell); else it says there's none to use.
@@ -357,6 +369,9 @@ function BottomLine({ model, play, width, mine, over, othersPlaying }: { model: 
     const room = Math.max(0, width - what.length - keys.length);
     return <text flexShrink={0} height={1}><span fg={C.title} attributes={BOLD}>{what}</span><span fg={friendly ? C.warn : C.text} {...(friendly ? { attributes: BOLD } : {})}>{truncate(catches, room)}</span><span fg={C.dim}>{truncate(keys, Math.max(0, width - what.length - Math.min(room, catches.length)))}</span></text>;
   }
+  // The GM is playing what the player said (docs/combat-gm.md): the menu waits.
+  if (model.view.board.thinking && !model.view.watching) return <text flexShrink={0} height={1} fg={C.lead}>{truncate("The GM is playing what you said…", width)}</text>;
+  if (model.typing !== undefined) return <text flexShrink={0} height={1} fg={C.dim}>{truncate("Say what you do: the GM plays it on the board. Enter does it, Esc puts it away.", width)}</text>;
   const hover = model.hover;
   if (hover && !model.menu) {
     const said = pointerLine(model, play, hover, mine);
@@ -364,8 +379,8 @@ function BottomLine({ model, play, width, mine, over, othersPlaying }: { model: 
   }
   const button = (run: () => void) => run;
   const report: KeyHint = ["b", "report a problem", button(() => model.report("b"))];
-  const hints: KeyHint[] = over ? [...(zooHints(model, true).length ? zooHints(model, true) : [["Enter", "back to the map", button(() => void model.out())] as KeyHint]), ["r", "the log"], ["?", "help"], report]
-    : mine ? [["m", "actions", button(() => model.openMenu())], ["click", "walk or act"], ["←↑→↓", "step"], ["e", "end turn", button(() => model.endTurn())], ["c", "sheet"], ["r", "the log"], ["?", "help"], ["Esc", "menu"], report]
+  const hints: KeyHint[] = over ? [...(zooHints(model, true).length ? zooHints(model, true) : [["Enter", model.view.board.scene ? "back to the scene" : "back to the map", button(() => void model.out())] as KeyHint]), ["r", "the log"], ["?", "help"], report]
+    : mine ? [["m", "actions", button(() => model.openMenu())], ...(model.canType() ? [["t", "say what you do", button(() => model.startTyping())] as KeyHint] : []), ["click", "walk or act"], ["←↑→↓", "step"], ["e", "end turn", button(() => model.endTurn())], ["c", "sheet"], ["r", "the log"], ["?", "help"], ["Esc", "menu"], report]
     : [["Space", "finish this move", button(() => model.finish())], ...(model.view.watching ? [] : [["F", "skip to your turn", button(() => model.skip())] as KeyHint]), ["r", "the log"], ["?", "help"], ["Esc", "menu"], report];
   void othersPlaying;
   return <Keys items={fit(hints, width, gap.length)} gap={gap} />;
@@ -401,12 +416,14 @@ function whatsAt(model: FightModel, play: PlayFrame, at: Tile2): string {
 // ---------------------------------------------------------------------------------------------
 // The log.
 
-/** The log as rows that fit: each moment's caption (a turn's start as a heading), its dice and words under it, the newest at the bottom. */
+/** The log as rows that fit: each moment's caption (a turn's start as a heading), its dice and words under it, the GM's telling and the player's own words among them, the newest at the bottom. */
 function logRows(log: LogEntry[], width: number, rows: number): Array<{ text: string; color: string; bold?: boolean }> {
   const out: Array<{ text: string; color: string; bold?: boolean }> = [];
   for (const e of log.slice(-40)) {
-    const head = e.kind === "turn" ? `— ${e.caption}` : e.caption;
-    for (const t of wrap(head, width)) out.push({ text: t, color: e.kind === "turn" ? C.title : C.text, ...(e.kind === "turn" || e.kind === "over" ? { bold: true } : {}) });
+    const yours = e.kind === "say" && e.actor === "player";
+    const head = e.kind === "turn" ? `— ${e.caption}` : yours ? `> ${e.caption}` : e.caption;
+    const color = e.kind === "turn" ? C.title : e.kind === "gm" ? C.lead : yours ? C.good : C.text;
+    for (const t of wrap(head, width)) out.push({ text: t, color, ...(e.kind === "turn" || e.kind === "over" ? { bold: true } : {}) });
     for (const l of e.lines) for (const t of wrap(`  ${l}`, width)) out.push({ text: t, color: DICE.test(l) ? C.dice : C.dim });
   }
   return out.slice(-rows);
@@ -424,7 +441,8 @@ const FIGHT_HELP = [
   "On your turn: move up to your speed, a tile at a time (click a blue tile, or the arrows), and take one action, and a bonus action if you have one. A red tile is one a walk to would draw a swing at you, leaving someone's reach: Disengage first and it won't.",
   "m (or Enter) is the action menu, by what each takes: your action (attack, spells, shove, grab, dash, dodge, disengage), your bonus action, your movement, your turn (let the dice decide, yield, end it). A line with ▸ is aimed on the board: its reach and targets lit, Tab between them, Enter or a click does it. A click on someone opens what you can do to them.",
   "e ends your turn; with nothing at all left, it ends by itself and says so. At 0 hit points you make death saves; nobody dies in these fights.",
-  "c your sheet, r the whole log, Esc the menu (reduced motion, back to the title, Report a problem…). When it's over, Enter goes back to the map.",
+  "In a scene's fight you can say what you do instead (t, or a click on the log): the GM plays it on the board, a move at a time, and tells it in the log, as it tells everyone's turns.",
+  "c your sheet, r the whole log, Esc the menu (reduced motion, back to the title, Report a problem…). When it's over, Enter goes back (to the scene it broke out in, or to the map).",
   REPORT_HELP,
 ];
 

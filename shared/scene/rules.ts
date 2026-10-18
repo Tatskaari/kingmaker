@@ -208,6 +208,27 @@ function peopleProblems({ doc, p }: Scene): void {
     if (c.enters !== undefined && !(at && isBeat(at) && !isDiscovery(at))) p(`${c.id} enters at ${c.enters}, which isn't an event beat`, person(c.id, "enters"));
   }
   for (const n of doc.nodes) for (const id of Object.keys(("cast" in n.data ? n.data.cast : undefined) ?? {})) if (!castIds.has(id)) p(`${n.id} has a note for ${id}, who isn't in the cast`, node(n.id, "cast"));
+  // A fight's line-up: an event's, of the cast and their groups' members, with somebody to fight.
+  const fighters = new Set([...castIds, ...doc.cast.flatMap(c => (c.members ?? []).map(m => m.id))]);
+  for (const n of doc.nodes.filter(isBeat)) {
+    const fight = n.data.fight;
+    if (!fight) continue;
+    if (isDiscovery(n)) p(`discovery ${n.id} has a fight: only an event can`, node(n.id, "fight"));
+    if (!fight.foes.length) p(`${n.id}'s fight has nobody against the player`, node(n.id, "fight"));
+    for (const id of [...fight.foes, ...(fight.allies ?? [])]) if (!fighters.has(id)) p(`${n.id}'s fight names ${id}, who isn't in the cast or a group of it`, node(n.id, "fight"));
+    for (const id of (fight.allies ?? []).filter(a => fight.foes.includes(a))) p(`${n.id}'s fight has ${id} on both sides`, node(n.id, "fight"));
+  }
+  // Who comes when a fight breaks out: one of the cast, or someone new with a name and a statblock; each once, after a round at least.
+  const seen = new Set<string>();
+  (doc.reinforcements ?? []).forEach((r, i) => {
+    const at = field(`reinforcements.${i}`);
+    if (seen.has(r.id)) p(`reinforcement ${r.id} comes twice`, at);
+    seen.add(r.id);
+    if (!castIds.has(r.id) && fighters.has(r.id)) p(`reinforcement ${r.id} is one of a group's members, who come with their leader`, at);
+    if (!castIds.has(r.id) && !(r.name?.trim() && r.statblock?.trim())) p(`reinforcement ${r.id} isn't in the cast, so needs a name and a statblock of their own`, at);
+    if (!(r.after >= 1)) p(`reinforcement ${r.id} comes after ${r.after} rounds: one at least`, at);
+    if (!r.why.trim()) p(`reinforcement ${r.id} has no why`, at);
+  });
 }
 
 /** Every node can be reached from the start, and it can end well. */

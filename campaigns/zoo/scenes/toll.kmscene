@@ -1,0 +1,237 @@
+{
+  "format": "kingmaker",
+  "version": 2,
+  "kind": "scene",
+  "id": "toll",
+  "title": "The Crakes' toll",
+  "description": "The zoo's fight breaking out in a scene (docs/combat-gm.md): the Crake brothers have the ring's gate and want a shilling each to let you out. Pay, talk them down, or fight: if it comes to blows the GM rolls for initiative, everyone takes a side, and it's fought on the board, the scene picking up from how it went.",
+  "lore": [],
+  "place": "toll",
+  "time": "afternoon",
+  "hook": "The ring's gate, and the two very large men standing in it.",
+  "setting": "The combat ring after hours: raked sand inside a stone wall twice a man's height, two squat pillars, and an iron brazier ticking as it cools. The only way out is the timber gate in the south wall, and the Crake brothers are leaning on it with their cudgels, the talking one jingling a tin cup. Sergeant Kell is beside you, her coat off and her truncheon still in her belt.",
+  "premise": "Will the player and Kell get out through the gate, and what will it cost them: a shilling, some words, or a fight?",
+  "truth": "Nobody hired the Crakes for this: they're freelancing, having noticed that people who come into the ring have to leave by the gate. They want coin, not a fight, and will take a shilling each, haggle down to a shilling for the pair, back off from a real threat, and fight only if someone swings first or makes a fool of the talking one in front of his brother. In a fight they come in together on whoever hit them; once one of them is down, the other gives up.",
+  "limits": [
+    "Another way out: the wall is too high and there's only the gate.",
+    "Anyone else coming: it's after hours, and the ring is empty but for the four of them.",
+    "Anyone dying: nobody dies in the zoo; down is down, out cold."
+  ],
+  "known": [
+    "The Crake brothers are hired muscle off the river: big, slow to start and very hard to stop.",
+    "The ring's wall is twice a man's height: the gate is the only way out."
+  ],
+  "cast": [
+    {
+      "id": "kell",
+      "name": "Sergeant Agnes Kell",
+      "look": "Forties, in her watch uniform with the coat off, her truncheon in her belt and her notebook buttoned into her pocket.",
+      "voice": "Dry, calm and sparing: 'That's not a toll. That's a robbery with a cup.'",
+      "wants": "To get out through the gate with the investigator, by the book: no paying off thugs if she can help it, and an arrest if they swing.",
+      "whyHere": "She came into the ring with the investigator and is leaving with them.",
+      "knows": [
+        "Demanding money at a gate is extortion, and she'd arrest them for it if there were a cell nearer than the river."
+      ],
+      "attitude": "Unimpressed and patient. She leaves the talking to the investigator, says one dry thing, and if it comes to blows she fights beside them: she takes whoever's nearest them, keeps between them and the worst of it, and arrests whoever gives up, out loud and by the book. She never hits anyone who's down or yielding.",
+      "limits": "She won't pay them herself and won't start the fight; she never runs while the investigator is still in it.",
+      "statblock": "guard",
+      "weapon": "club"
+    },
+    {
+      "id": "crake-1",
+      "name": "Bram",
+      "called": "the big man with the tin cup",
+      "look": "An enormous river-bruiser in a reefer jacket, with a cudgel under one arm and a tin cup in the other hand, which he jingles.",
+      "voice": "Cheerful, reasonable and relentless, all about rates: 'Shilling a head to use the gate. Uniforms is extra, but we'll waive it, seeing as it's you.'",
+      "wants": "A shilling each, or a shilling for the pair if he's haggled, and no trouble; and not to look a fool in front of his brother.",
+      "whyHere": "He and his brother noticed that people who come into the ring have to leave by the gate.",
+      "knows": [
+        "Nobody's paying them for this; it's their own idea, and he's proud of it.",
+        "His brother will follow him in, whatever he does."
+      ],
+      "attitude": "Friendly extortion. He'll haggle, take a shilling and step aside, and back down from a real threat (a blade out, a spell ready, a sergeant's warrant) if he can do it without losing face. Mocked in front of his brother, or hit, he fights: he closes in and hits whoever hit him, talking the whole time. Once his brother's down he gives up.",
+      "limits": "He won't hurt a child or kick a dog. He never fights on alone once his brother is down.",
+      "statblock": "bandit",
+      "weapon": "club",
+      "aka": [
+        "the man with the cup",
+        "the cup-man",
+        "the cup man",
+        "the talking Crake",
+        "the talking one"
+      ]
+    },
+    {
+      "id": "crake-2",
+      "name": "Tam",
+      "called": "the other big man",
+      "look": "His identical brother, with an identical cudgel, leaning on the gate post and saying nothing at all.",
+      "voice": "Says nothing. Nods at his brother, occasionally; cracks his knuckles, once.",
+      "wants": "Whatever his brother wants.",
+      "whyHere": "His brother brought him.",
+      "knows": [
+        "Nothing he's prepared to share."
+      ],
+      "attitude": "He does what his brother does: steps aside when his brother does, and in a fight comes in beside him on the same target. Once his brother's down he gives up.",
+      "limits": "He never says a word and never fights on alone.",
+      "statblock": "bandit",
+      "weapon": "club",
+      "aka": [
+        "the silent one",
+        "the silent brother",
+        "the silent Crake",
+        "the knuckle-cracker"
+      ]
+    }
+  ],
+  "facts": {},
+  "onEnd": [
+    {
+      "op": "follow",
+      "who": "kell"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "at-the-gate",
+      "type": "story",
+      "position": {
+        "x": 0,
+        "y": 160
+      },
+      "data": {
+        "kind": "start",
+        "title": "At the gate",
+        "description": "The player and Kell walk up to the gate from the sand; the Crakes are leaning on it, about twenty-five feet off. The talking one explains the toll, cheerfully. Let the player answer: pay, haggle, talk, threaten or swing. A fight is the player's choice or the Crakes' answer to an insult or a blow, never the scene's.",
+        "cast": {
+          "kell": "One dry remark about tolls, then watching the investigator to see what they'll do.",
+          "crake-1": "Cheerful, explaining the toll and jingling the cup: a shilling a head.",
+          "crake-2": "Leaning on the gate post, silent, cracking his knuckles."
+        },
+        "lore": []
+      }
+    },
+    {
+      "id": "talked-down",
+      "type": "story",
+      "position": {
+        "x": 460,
+        "y": 0
+      },
+      "data": {
+        "kind": "exit",
+        "title": "Talked out of it",
+        "description": "The Crakes step aside for nothing: the player talked them out of it, scared them off or made it not worth their while, with no blows struck.",
+        "closing": "Close on the gate opening for the two of you, a last word from the talking one about this being a one-time courtesy, and Kell writing a line in her notebook.",
+        "result": "good",
+        "exitKind": "persuaded",
+        "lore": []
+      }
+    },
+    {
+      "id": "paid-up",
+      "type": "story",
+      "position": {
+        "x": 460,
+        "y": 120
+      },
+      "data": {
+        "kind": "exit",
+        "title": "Paid the toll",
+        "description": "The player paid the Crakes (whatever was settled on) and they stepped aside.",
+        "closing": "Close on the coins changing hands, the gate opening, and Kell's opinion of it in one word.",
+        "result": "mixed",
+        "exitKind": "leave",
+        "lore": []
+      }
+    },
+    {
+      "id": "beaten",
+      "type": "story",
+      "position": {
+        "x": 460,
+        "y": 240
+      },
+      "data": {
+        "kind": "exit",
+        "title": "The Crakes beaten",
+        "description": "It came to blows and the Crakes lost: one or both down, or they gave up, and Kell arrests whoever's still awake.",
+        "closing": "Close on Kell arresting whoever is still awake, and the gate standing open.",
+        "result": "good",
+        "exitKind": "other",
+        "lore": []
+      }
+    },
+    {
+      "id": "beaten-back",
+      "type": "story",
+      "position": {
+        "x": 460,
+        "y": 360
+      },
+      "data": {
+        "kind": "exit",
+        "title": "Beaten back",
+        "description": "It came to blows and the player lost: knocked senseless, or ran for it back across the sand. The Crakes take the toll from their pockets and the gate after all.",
+        "closing": "Close on the player coming round, a shilling lighter, with Kell beside them, bruised, saying they'll be seeing those two again.",
+        "result": "bad",
+        "exitKind": "other",
+        "lore": []
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "talk-them-down",
+      "source": "at-the-gate",
+      "target": "talked-down",
+      "type": "smoothstep",
+      "label": "Talk them down",
+      "data": {
+        "condition": "The Crakes agree to step aside without being paid and with no blows struck: the player talked them out of it, threatened them convincingly, or made it not worth their while.",
+        "phase": "outcome",
+        "skill": "",
+        "dc": 12
+      }
+    },
+    {
+      "id": "pay-up",
+      "type": "smoothstep",
+      "source": "at-the-gate",
+      "target": "paid-up",
+      "label": "Pay up",
+      "data": {
+        "condition": "The player hands over coin and the Crakes step aside.",
+        "phase": "outcome",
+        "skill": "",
+        "dc": 12
+      }
+    },
+    {
+      "id": "won-the-fight",
+      "type": "smoothstep",
+      "source": "at-the-gate",
+      "target": "beaten",
+      "label": "Won the fight",
+      "data": {
+        "condition": "A fight was fought and is over, and the player's side won it: the Crakes are down or gave up.",
+        "phase": "outcome",
+        "skill": "",
+        "dc": 12
+      }
+    },
+    {
+      "id": "lost-the-fight",
+      "type": "smoothstep",
+      "source": "at-the-gate",
+      "target": "beaten-back",
+      "label": "Lost the fight",
+      "data": {
+        "condition": "A fight was fought and is over, and the player lost it: they were knocked senseless or ran.",
+        "phase": "outcome",
+        "skill": "",
+        "dc": 12
+      }
+    }
+  ]
+}

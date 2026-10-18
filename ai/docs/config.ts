@@ -22,10 +22,12 @@ export interface DocsVolume {
 }
 
 export interface DocsConfig {
-  /** The authored lore. */
+  /** The authored lore: the campaign last served's, for what's read with no game (character creation's world, the cast's entries). */
   lore: DocsVolume;
   /** A game's own copy of the lore, by the game's id. */
   overlay: (game: string) => DocsVolume;
+  /** The authored lore of a game's own campaign (docs/combat-gm.md: the zoo served beside the story), else `lore`. */
+  loreOf: (game: string) => DocsVolume;
 }
 
 /** Where the docs are to be, as volumes, or as folders by their paths (as the prototype's adapters and the tests on folders say it). */
@@ -35,16 +37,20 @@ export interface DocsPlaces {
   loreRoot?: string;
   /** A game's own copy of the lore, by the game's id: a volume, or a folder's path. */
   overlay?: (game: string) => DocsVolume | string;
+  /** The authored lore of one game's campaign, when it isn't `lore`'s (a service serving more than one). */
+  gameLore?: { game: string; lore: DocsVolume };
 }
 
 let lore: DocsVolume | undefined;
 let overlay: ((game: string) => DocsVolume) | undefined;
+const byGame = new Map<string, DocsVolume>();
 
 /** Where the docs are now: the folders, for what no host has said. */
 export function docsConfig(): Readonly<DocsConfig> {
   lore ??= folderVolume(join(import.meta.dirname, "..", "..", "campaigns", "caerwyn", "lore"));
   overlay ??= game => folderVolume(join(globalThis.process?.env.KM_RUNS_DIR ?? "runs", "sessions", game, "docs"));
-  return { lore, overlay };
+  const fallback = lore;
+  return { lore, overlay, loreOf: game => byGame.get(game) ?? fallback };
 }
 
 /** Where the docs are, from now on: what isn't given stays as it was. */
@@ -53,6 +59,7 @@ export function configureDocs(changes: DocsPlaces): void {
   if (given) lore = given;
   const place = changes.overlay;
   if (place) overlay = game => volumeAt(place(game));
+  if (changes.gameLore) byGame.set(changes.gameLore.game, changes.gameLore.lore);
 }
 
 const volumeAt = (place: DocsVolume | string): DocsVolume => (typeof place === "string" ? folderVolume(place) : place);

@@ -10,6 +10,8 @@ import { CONFIDED, FAREWELL, GOODBYE, TOLD } from "../../../shared/scene/talk.ts
 import { all, hostWithCampaign, identity, sceneNow } from "../host/testing.ts";
 import type { MemoryHost } from "../host/memory.ts";
 import { mapRowsOf } from "./rows.ts";
+import { fightOf } from "../fight/rows.ts";
+import type { FightBoard } from "../../../shared/fight/types.ts";
 
 /**
  * The town unit's simulation (docs/town-design.md §3.2-3.7, package S's done-when), on the memory
@@ -169,7 +171,7 @@ test("Ray of Frost at Kell opens the hanged clerk as walking in does; once the o
   assert.ok(now.lines.some(l => l.turn === 1 && l.kind === "roll" && /^Ray of Frost/.test(l.text)), "the scene's rules resolved it");
 });
 
-test("hurting a palace guard brings the guards on: the fight is recorded on the map, moves wait for it, and fight_it_out fights it as won", () => {
+test("hurting a palace guard brings the guards on: the fight is recorded on the map, moves wait for it, fight_it_out sets it out on the board, and out leaves the guards as it left them", () => {
   const { host, wren, explore, town } = onMap();
   assert.equal(host.as(wren).walk({ to: { x: 11, y: 16 } }), undefined);
   const guard = actorsHere(menuOf(host, explore().gameId).ex).find(a => /palace guard/.test(a.name))!;
@@ -181,11 +183,27 @@ test("hurting a palace guard brings the guards on: the fight is recorded on the 
   assert.deepEqual([fight.map, fight.place], ["caerwyn", "Palace Street"]);
   assert.deepEqual(host.as(wren).walk({ toward: "north" }), { code: "not_now", text: "(There's a fight on: fight it out first.)" });
 
+  // On to it: on the town's own map, where everyone stood, the player's sheet kept.
   assert.equal(host.as(wren).fightItOut(), undefined);
+  const board = () => host.transact(tx => fightOf(tx, explore().gameId))!;
+  const set = JSON.parse(board().board) as FightBoard;
+  assert.deepEqual([board().mapKey, board().title, set.town, set.keep], ["caerwyn", "A fight in Palace Street", true, true]);
+  assert.deepEqual(Object.values(set.units).filter(u => u.side === "enemy").map(u => u.name), ["the first palace guard", "the second palace guard"]);
+  assert.equal(host.as(wren).fightItOut()?.code, "not_now", "it's on already");
+  // Fought to its end by the dice, then out: the guards as the fight left them, the fight off the map.
+  for (let i = 0; i < 600 && board().status === "on"; i++) {
+    if (board().options) assert.equal(host.as(wren).fightTurn({ act: "auto" }), undefined);
+    else { host.advance(5000); host.fightSteps(); }
+  }
+  const ended = JSON.parse(board().board) as FightBoard;
+  assert.equal(host.as(wren).walk({ toward: "out" }), undefined);
   assert.equal(explore().fight, undefined);
-  assert.match(explore().said, /^Fists, steel and a lot of shouting: after a short, ugly scuffle in Palace Street, both palace guards are down/);
+  assert.match(explore().said, /^A fight in Palace Street: /);
   const people = (JSON.parse(town().town) as { people: { states: Record<string, string[]> } }).people.states;
-  assert.deepEqual(Object.entries(people).filter(([, s]) => s.includes("down")).length, 2, JSON.stringify(people));
+  for (const u of Object.values(ended.units).filter(u => u.side === "enemy")) {
+    if (u.state === "down") assert.deepEqual(people[u.castId!], ["down"], `${u.name} down on the map`);
+    if (u.state === "fled") assert.deepEqual(people[u.castId!], ["gone"], `${u.name} gone`);
+  }
   assert.equal(host.as(wren).fightItOut()?.code, "no_fight");
 });
 

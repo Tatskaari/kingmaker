@@ -2,13 +2,54 @@
 // the prep, when and where, the world, the story and the lore), in the main area beside the graph's.
 import React from 'react';
 import {useScene} from './api.ts';
-import {Checkbox,Group,IdField,ListField,LoreLinks,SelectField,TextArea,TextField} from './fields.tsx';
+import {Plus} from 'lucide-react';
+import {Checkbox,Group,IdField,ItemCard,ListField,LoreLinks,NumberField,SelectField,TextArea,TextField,moved} from './fields.tsx';
 import {EffectsEditor} from './effects.tsx';
 import {storyScenes} from './inspectors.tsx';
-import {SLUG,optionalList,optionalText,setSceneField} from './model.ts';
+import {SLUG,optionalList,optionalText,setReinforcements,setSceneField,uniqueId} from './model.ts';
+import type {Reinforcement} from './model.ts';
 
 const TIMES=['morning','afternoon','evening','night','next-morning'];
 const GROUPS:Array<[string,string]>=[['scene-identity','The scene'],['scene-player','What the player knows'],['scene-prep','The prep'],['scene-when','When and where'],['scene-world','The world'],['scene-story','The story'],['scene-lore','Lore']];
+
+/**
+ * Who comes when a fight breaks out here (docs/combat-gm.md): a card for each, one of the cast or
+ * someone new (their id, name, statblock, weapon and look), after how many rounds of fighting and
+ * why; they come in at the way in, and the GM picks their side, or has them run, as they arrive.
+ */
+function Reinforcements(){
+  const {doc,edit,showCast}=useScene();
+  const items=doc.reinforcements??[];
+  const put=(next:Reinforcement[])=>edit(scene=>setReinforcements(scene,next));
+  const change=(index:number,values:Partial<Reinforcement>)=>put(items.map((item,i)=>i===index?{...item,...values}:item));
+  const taken=(except?:string)=>new Set([...doc.cast.map(member=>member.id),...doc.cast.flatMap(member=>(member.members??[]).map(m=>m.id)),...items.map(item=>item.id).filter(id=>id!==except)]);
+  const options=[{value:'',label:'Someone new'},...doc.cast.map(member=>({value:member.id,label:`${member.name||member.id} (${member.id})`}))];
+  return <div className="reinforcements" data-field="reinforcements">
+    <span className="field-label">Who comes when a fight breaks out<span className="count">{items.length}</span></span>
+    {!items.length&&<p className="muted">Nobody comes: whoever is here when a fight breaks out is all there is.</p>}
+    {items.map((item,index)=>{
+      const card=doc.cast.find(member=>member.id===item.id);
+      return <ItemCard key={index} index={index} count={items.length} title={card?.name||item.name||item.id} label={`Who comes ${index+1}`} field={`reinforcements.${index}`} onMove={by=>put(moved(items,index,by))} onRemove={()=>put(items.filter((_,i)=>i!==index))} removeLabel="Remove">
+        <SelectField label="Who" field={`reinforcements.${index}.id`} hint={card?'One of the cast: their card says who they are.':'Someone the scene has no card for: their name, statblock, weapon and look are here.'} value={card?item.id:''} options={options}
+          onChange={value=>value?put(items.map((other,i)=>i===index?{id:value,after:other.after,why:other.why}:other)):change(index,{id:uniqueId('newcomer',taken(item.id)),name:'',statblock:'commoner'})}/>
+        {card&&<button type="button" className="text-button" onClick={()=>showCast(card.id)}>Open {card.name||card.id}'s card</button>}
+        {!card&&<>
+          <TextField label="Id" field={`reinforcements.${index}.id`} hint="A slug, not the cast's: the world and the fight know them by it." value={item.id} onChange={value=>change(index,{id:value})}/>
+          <TextField label="Name" field={`reinforcements.${index}.name`} hint="What they're called (two palace guards come as two, each their own)." value={item.name??''} onChange={value=>change(index,{name:value})}/>
+          <div className="field-row">
+            <TextField label="Statblock" field={`reinforcements.${index}.statblock`} hint="An SRD statblock: guard, tough, commoner, veteran, knight…" value={item.statblock??''} onChange={value=>change(index,{statblock:value||undefined})}/>
+            <TextField label="Weapon" field={`reinforcements.${index}.weapon`} hint="An SRD weapon (club, spear…), when it isn't the statblock's." value={item.weapon??''} onChange={value=>change(index,{weapon:value||undefined})}/>
+          </div>
+          <TextArea label="Look" field={`reinforcements.${index}.look`} rows={2} value={item.look??''} onChange={value=>change(index,{look:value||undefined})}/>
+        </>}
+        <NumberField label="After rounds" field={`reinforcements.${index}.after`} hint="Rounds of fighting before they come: 1 is the top of the second round." min={1} max={20} value={item.after} onChange={value=>change(index,{after:value})}/>
+        <TextArea label="Why they come" field={`reinforcements.${index}.why`} rows={2} hint="Why and how they come: the GM is told it as they arrive." value={item.why} onChange={value=>change(index,{why:value})}/>
+      </ItemCard>;
+    })}
+    <button type="button" className="add-item" onClick={()=>put([...items,{id:uniqueId('newcomer',taken()),name:'',statblock:'commoner',after:2,why:''}])}><Plus size={13}/>Add who comes</button>
+    <small className="field-hint">They come in at the way in as the round starts, and the GM picks each one's side (or has them run) as they arrive.</small>
+  </div>;
+}
 
 export function SceneView(){
   const {doc,edit,campaign,loreNames,openLore,pickLore,place,openPlace}=useScene();
@@ -54,6 +95,7 @@ export function SceneView(){
     <Group title="The world" anchor="scene-world" field="world">
       <ListField label="Limits" field="limits" addLabel="Add a limit" rows={2} hint="Tempting things that don't exist or can't work here, so the GM can say “no, but” honestly." items={list('limits')} onChange={items=>set('limits',optionalList(items))}/>
       <ListField label="Known" field="known" addLabel="Add what locals know" hint="What any local knows and a newcomer wouldn't (customs, prices, common talk). Never a secret." items={list('known')} onChange={items=>set('known',optionalList(items))}/>
+      <Reinforcements/>
     </Group>
     <Group title="The story" anchor="scene-story" field="story" hint="How the scene sits in the story: what it carries in, what it takes for granted, what it starts as it comes in, and what every ending does.">
       <ListField label="Background" field="background" addLabel="Add a fact carried in" hint="Facts carried in from earlier scenes, for the GM." items={list('background')} onChange={items=>set('background',optionalList(items))}/>

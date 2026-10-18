@@ -213,6 +213,22 @@
       "text": "taken away: to the watch house under a sheet, or on the dead-cart"
     }
   ],
+  "reinforcements": [
+    {
+      "id": "porters",
+      "name": "the granary porters",
+      "statblock": "commoner",
+      "weapon": "club",
+      "look": "Half a dozen granary porters in flour-white sack aprons, hand-hooks in their belts and a broom or two among them.",
+      "after": 2,
+      "why": "The shouting carries round to the granary's loading dock, and the porters on the morning shift come in at the far gate to see who's brawling under a hanged man."
+    },
+    {
+      "id": "wat",
+      "after": 2,
+      "why": "Old Wat comes in with the porters, as quick as his legs allow, shouting for the Sarge."
+    }
+  ],
   "fronts": "World/Fronts.md",
   "nodes": [
     {

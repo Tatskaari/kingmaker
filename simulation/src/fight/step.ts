@@ -1,6 +1,7 @@
 // New (M6, docs/combat-design.md §1): fight_step, the scheduled reducer that plays the other side's turns one at a time (V12's "everyone else's turns run as short scheduled reducers, paced for the screen").
 import type { TxCtx } from "../context.ts";
-import { play } from "./rows.ts";
+import { boardOfRow, play, scheduleStep } from "./rows.ts";
+import { waitsForTheGm } from "./gm.ts";
 import { nextTurn, playersTurn, step } from "./turns.ts";
 
 /**
@@ -16,6 +17,8 @@ export function fightStep(tx: TxCtx, row: { scheduledId: bigint; fightId: bigint
   tx.db.fightClock.scheduledId.delete(row.scheduledId);
   const fight = tx.db.fight.id.find(row.fightId);
   if (!fight || fight.status !== "on" || fight.options) return;
+  // A scene's fight: the GM's telling of the last turn comes first, so the log reads in order (a few seconds at most).
+  if (waitsForTheGm(tx, boardOfRow(fight))) { scheduleStep(tx, fight, 300); return; }
   const started = tx.elapsedMs();
   const turn = fight.turn;
   try {

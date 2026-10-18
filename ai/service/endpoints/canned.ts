@@ -78,6 +78,18 @@ export const canned: Endpoints = {
   async looks() {
     return { looks: {}, usage: noUsage() };
   },
+  // The GM on the board, canned (the canned GM never starts a fight): no words, and a typed turn ends at once.
+  async narrate() {
+    return { entries: [], usage: noUsage() };
+  },
+  async fight() {
+    const narration = "(The AI service is canned: the turn passes.)";
+    return { move: { kind: "end_turn" as const, narration }, entries: [{ speaker: "gm", kind: "narration", text: narration }], usage: noUsage() };
+  },
+  // The sides in a fight, canned (the canned GM never starts one): everyone with no side runs.
+  async sides(req) {
+    return { sides: Object.fromEntries(req.sides.pending.map(p => [p.id, "flee" as const])), entries: [], usage: noUsage() };
+  },
 
   characters: characters(() => null),
 
