@@ -13,8 +13,8 @@ import type { Beat, Character, Exit, Scene, SceneRoute } from "./types.ts";
 /** How a move came out: a dice route's success or failure; none for a route with no dice. */
 export type RouteOutcome = "success" | "failure" | "none";
 
-/** What the bookkeeping these read: the nodes reached, and the stage (which stands for them in a state from before them). */
-type Where = Pick<GmState, "reached" | "beat">;
+/** What the bookkeeping these read: the nodes reached, the stage (which stands for them in a state from before them), and the fights already fought. */
+type Where = Pick<GmState, "reached" | "beat"> & Partial<Pick<GmState, "fought">>;
 
 /** The nodes the scene has reached, in order, its start first. A state with none (from before M2) has its stage alone. */
 export function reachedOf(gm: Where): string[] {
@@ -54,12 +54,13 @@ export function endingOf(scene: Scene, gm: Where): Exit | undefined {
 /**
  * The open routes: those whose source is reached, whose target isn't, and every beat of whose
  * `requires` is. The start is always reached, so its routes are open all scene long. Once an ending
- * is reached, nothing is: the scene is closing.
+ * is reached, nothing is: the scene is closing. A fight already fought (the scene picked up after
+ * it: story/fight.ts) isn't offered again.
  */
 export function openRoutes(scene: Scene, gm: Where): SceneRoute[] {
   if (endingOf(scene, gm)) return [];
   const reached = new Set(reachedOf(gm));
-  return scene.routes.filter(r => reached.has(r.source) && !reached.has(r.target) && (r.requires ?? []).every(b => reached.has(b)));
+  return scene.routes.filter(r => reached.has(r.source) && !reached.has(r.target) && !gm.fought?.includes(r.target) && (r.requires ?? []).every(b => reached.has(b)));
 }
 
 /** Who arrives when the scene reaches a node: the cast whose `enters` it is (an event beat's people). */
@@ -115,6 +116,28 @@ export function takeRoute(scene: Scene, gm: GmState, routeId: string, outcome: R
   return { gm: next, reached: to };
 }
 
+/**
+ * Every discovery the scene can still reach from where it is, reached, as a thorough player's game
+ * would have them by its end (the owner's end_scene for QA, `thorough`): an open route into a
+ * discovery not yet reached taken with takeRoute, in the scene's order (a dice route on its
+ * success), again until none is left, so each is added, its facts settled and a carried one landed.
+ * No event or ending is taken, so the stage stays and a discovery whose routes all leave from an
+ * event not reached isn't reached. The new state, and the discoveries reached, in order.
+ */
+export function reachDiscoveries(scene: Scene, gm: GmState, turn: number): { gm: GmState; reached: string[] } {
+  const reached: string[] = [];
+  const intoDiscovery = (r: SceneRoute) => scene.beats.some(b => b.id === r.target && isDiscovery(b));
+  let route = openRoutes(scene, gm).find(intoDiscovery);
+  while (route) {
+    const taken = takeRoute(scene, gm, route.id, route.skill ? "success" : "none", turn);
+    if ("error" in taken || !taken.reached) break;
+    gm = taken.gm;
+    reached.push(taken.reached);
+    route = openRoutes(scene, gm).find(intoDiscovery);
+  }
+  return { gm, reached };
+}
+
 /** Facts settled, as the sentences the GM is told (the scene's `facts`), each once. */
 function settle(scene: Scene, gm: GmState, facts: string[] | undefined): void {
   for (const id of facts ?? []) {
@@ -133,6 +156,7 @@ function whyShut(scene: Scene, gm: Where, route: SceneRoute): string {
   const reached = new Set(reachedOf(gm));
   if (!reached.has(route.source)) return `it leaves from ${titleOf(scene, route.source)} [${route.source}], which the scene hasn't reached`;
   if (reached.has(route.target)) return `it goes to ${titleOf(scene, route.target)} [${route.target}], which the scene has reached already`;
+  if (gm.fought?.includes(route.target)) return `it goes to ${titleOf(scene, route.target)} [${route.target}], a fight already fought`;
   const missing = (route.requires ?? []).filter(b => !reached.has(b));
   return `it requires ${missing.map(b => `${titleOf(scene, b)} [${b}]`).join(" and ")}, not reached yet`;
 }

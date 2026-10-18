@@ -110,7 +110,7 @@ test("a reply's short spoken line goes over its speaker's head; someone who walk
   const { place, barks, at } = watched(sceneViewOf(rowsWith(first.tables)));
   const text = "Kell looks up. “The porters found him.” She shrugs.";
   const start = text.indexOf("“"), end = text.indexOf("”") + 1;
-  const reply: Entry = { seq: 0, turn: 1, speaker: "gm", kind: "narration", text, markup: JSON.stringify({ speech: [{ start, end, speaker: "kell" }], marks: [] }) };
+  const reply: Entry = { seq: 0, turn: 1, speaker: "gm", kind: "narration", text, markup: JSON.stringify({ speech: [{ start, end, speaker: "kell" }] }) };
   at(2000);
   place.update(sceneViewOf(rowsWith(first.tables, [reply])));
   assert.deepEqual(barks, ["kell: The porters found him."]);

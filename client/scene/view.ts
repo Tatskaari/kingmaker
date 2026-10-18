@@ -17,11 +17,10 @@ export type { Suggestion };
 /**
  * A turn's phase, as the `turn` row has it; "idle" before the scene's first line. "considering": the
  * GM is ruling on a risky act no route covers, before the reply (full-gm-design §4.3); the box stays
- * shut, as while deciding. "noting": all in but the notes on the reply's marks, which the GM is
- * still writing. The turn ends when they're in, so a line said meanwhile waits for them; the player
- * may type, as while the world settles.
+ * shut, as while deciding. (A turn was "noting" while the notes on its reply's marks were written,
+ * until M2 took them out.)
  */
-export type Phase = "idle" | "queued" | "deciding" | "considering" | "replying" | "settling" | "noting" | "done" | "failed";
+export type Phase = "idle" | "queued" | "deciding" | "considering" | "replying" | "settling" | "done" | "failed";
 
 /** What kind of entry a transcript row is (the simulation's `transcript.kind`). */
 export type EntryKind = "player" | "narration" | "dialogue" | "roll" | "system";
@@ -35,7 +34,7 @@ export interface Entry {
   /** The name the player knows the speaker by (my_names, or the player's character), for their lines and dialogue. */
   name?: string;
   text: string;
-  /** A GM reply's markup: who says each line, and the notes on its phrases (offsets into `text`). */
+  /** A GM reply's markup: who says each line (offsets into `text`). */
   markup?: Markup;
 }
 
@@ -103,8 +102,6 @@ export interface SceneView {
   suggestionsComing: boolean;
   /** This player's own setting: the suggested lines on (the default) or off. */
   suggestionsOn: boolean;
-  /** The GM is still writing the notes on the shown turn's reply: its marks come with them. */
-  notesComing: boolean;
   /** The story around the scene (story-design §4.5): the way on once it's over, the lead, the notebook, the quests, The End. None until the game's rows have come. */
   story?: StoryView;
   /** The scene's place, from its rows (the world bridge): none until they've come, and none for a scene without one. */

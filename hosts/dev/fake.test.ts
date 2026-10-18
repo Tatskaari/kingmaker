@@ -7,35 +7,18 @@ import { devFake, fakeOptions, onTop, quietGm, wholeStory } from "./fake.ts";
 
 const file = JSON.parse(readFileSync(join(import.meta.dirname, "fake.json"), "utf8"));
 const fake = devFake();
-const notes = (fake.byName!.notes as { notes: Array<{ on: string; words: string; kind: string; turn: number; lore: string }> }).notes;
 
-test("the dev host's fake is fake.json's options: four replies, the notes' answer, twelve lines, the delays", () => {
+test("the dev host's fake is fake.json's options: four replies with no notes in them, twelve lines, the delays", () => {
   const { about, ...options } = file;
 
   assert.match(about, /^What npm run dev -- --fake plays/);
   assert.deepEqual(fake, options);
   assert.equal(fake.replies!.length, 4);
   assert.match(fake.replies![0]!, /^Behind the King’s Granary/);
-  assert.deepEqual(notes.map(n => n.kind), ["know", "why", "why", "you", "why", "know"]);
+  assert.ok(fake.replies!.every(r => !/\[(?:why|know|you):/.test(r)), "the notes on marked words went in M2");
+  assert.equal((fake.byName as Record<string, unknown>).notes, undefined);
   assert.deepEqual(String(fake.suggestions).split("\n").map(l => l.split(":")[0]), ["say", "say", "do", "try", "say", "say", "do", "try", "leave", "say", "say", "say"]);
-  assert.deepEqual([fake.streamMs, fake.byNameDelayMs, fake.suggestDelayMs], [2000, { notes: 1500 }, 800]);
-});
-
-test("each note is on free words of its own reply, so the same answer gives each reply its own notes", () => {
-  const inReplies = (words: string) => fake.replies!.flatMap((r, i) => (r.includes(words) ? [i] : []));
-
-  assert.ok(notes.every(n => n.on === ""));
-  assert.deepEqual(Object.fromEntries(notes.map(n => [n.words, inReplies(n.words)])), {
-    "King’s Granary": [0],
-    "I haven’t written that down.": [0, 1],
-    "And Cob don’t talk to bluebottles.": [1],
-    "Moll’s smirk thins at your question": [2],
-    "The rest is not yet stated.": [2],
-    "the Royal Purveyor’s office": [3],
-  });
-  // A know explains from a lore doc by its id in the notes' brief: the granary yard is the scene's
-  // first, and the office's is 18th once Kell, Cob and Moll have been named (the third reply's turn).
-  assert.deepEqual(notes.filter(n => n.kind === "know").map(n => n.lore), ["D1", "D18"]);
+  assert.deepEqual([fake.streamMs, fake.byNameDelayMs, fake.suggestDelayMs], [2000, undefined, 800]);
 });
 
 test("--fake plays fake.json's options, KM_AI_FAKE's on top, and says so when KM_AI_FAKE isn't JSON", () => {
@@ -45,12 +28,12 @@ test("--fake plays fake.json's options, KM_AI_FAKE's on top, and says so when KM
   assert.throws(() => fakeOptions("{ streamMs: 0"), /^Error: KM_AI_FAKE isn't JSON: \{ streamMs: 0$/);
 });
 
-test("KM_AI_FAKE's answers, delays and choices by name go beside fake.json's: creation's answers keep the notes', a choice keeps the quiet defaults", () => {
-  const options = fakeOptions('{"byName":{"draft_backstory":{"backstory":"I kept the palace books."}},"byNameDelayMs":{"notes":12000},"choices":{"attempt":"examine-body","witnessed":"not_flagged"},"toolCalls":{"search_lore":[]}}');
+test("KM_AI_FAKE's answers, delays and choices by name go beside fake.json's: creation's answers keep the others', a choice keeps the quiet defaults", () => {
+  const options = fakeOptions('{"byName":{"draft_backstory":{"backstory":"I kept the palace books."}},"byNameDelayMs":{"world_ops":12000},"choices":{"attempt":"examine-body","witnessed":"not_flagged"},"toolCalls":{"search_lore":[]}}');
 
-  assert.deepEqual(Object.keys(options.byName!).sort(), ["co_gm_notes", "draft_backstory", "looks", "notes", "ruling", "talk"]);
-  assert.deepEqual(options.byName!.notes, fake.byName!.notes);
-  assert.deepEqual(options.byNameDelayMs, { notes: 12000 });
+  assert.deepEqual(Object.keys(options.byName!).sort(), ["co_gm_notes", "draft_backstory", "looks", "ruling", "talk"]);
+  assert.deepEqual(options.byName!.looks, fake.byName!.looks);
+  assert.deepEqual(options.byNameDelayMs, { world_ops: 12000 });
   assert.deepEqual(options.choices, { ...fake.choices, attempt: "examine-body", witnessed: "not_flagged" });
   assert.deepEqual(Object.keys((options as { toolCalls?: object }).toolCalls ?? {}), ["save_memory", "search_lore"]);
   assert.deepEqual(options.replies, fake.replies);
@@ -77,18 +60,26 @@ test("a test's recipe on the quiet full GM: its choices beside the attention fil
   const quiet = quietGm();
   const options = onTop(quiet, { replies: ["Kell nods."], choices: { outcome: "make-case" }, byName: { ruling: { act: "mine" } } });
 
-  assert.deepEqual(Object.keys(quiet).sort(), ["byName", "choices", "toolCalls"]);
+  assert.deepEqual(Object.keys(quiet).sort(), ["byName", "choices", "coGm", "toolCalls"]);
+  assert.deepEqual(quiet.coGm, { still: true }, "the two-part co-GM kept still");
   assert.deepEqual(options.replies, ["Kell nods."]);
   assert.deepEqual(options.choices, { ...fake.choices, outcome: "make-case" });
   assert.deepEqual(options.byName, { co_gm_notes: fake.byName!.co_gm_notes, ruling: { act: "mine" } });
   assert.deepEqual((options as { toolCalls?: unknown }).toolCalls, (fake as { toolCalls?: unknown }).toolCalls);
 });
 
-test("a choice that's a list goes in as it is, beside the quiet ones (the whole story's recipe, story-design §1.1)", () => {
+test("a choice that's a list goes in as it is, beside the quiet ones (the old pipeline's whole story's recipe, story-design §1.1)", () => {
   const options = fakeOptions('{"choices":{"ending":["open-case","hobb-talks","fight","caught-in-the-act","justice"],"own_exit":"theirs"}}');
 
   assert.deepEqual(options.choices, { ...fake.choices, ending: ["open-case", "hobb-talks", "fight", "caught-in-the-act", "justice"], own_exit: "theirs" });
-  assert.deepEqual(onTop(devFake(), wholeStory()), options, "the page's ?fake=arc plays the recipe README.md gives KM_AI_FAKE");
+});
+
+test("the whole story's recipe on the two-part GM: its co-GM walks each scene to the first of its endings; the page's ?fake=arc plays what README.md gives KM_AI_FAKE", () => {
+  const options = fakeOptions('{"coGm":{"endings":["murder-unknown","hobb-talks","proof-taken","justice"]}}');
+
+  assert.deepEqual(onTop(devFake(), wholeStory()), options);
+  assert.deepEqual(options.coGm, { endings: ["murder-unknown", "hobb-talks", "proof-taken", "justice"] });
+  assert.equal(fake.coGm, undefined, "fake.json's own co-GM walks to each scene's first good ending");
 });
 
 test("the world bridge's quiet reactions (world-bridge-design §1.4): in the granary yard nobody fights the player's violence", () => {

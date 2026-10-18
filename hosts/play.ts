@@ -69,8 +69,8 @@ const USAGE = `Kingmaker: headless play
   play journal --session <name>                 the investigator's notebook, the quests, the flags, the attitudes
   play map --session <name> [--w 100 --h 30]    the scene's place: as the player sees it, then from above with what's what
 
-new, begin, say, act, retry and go wait for the notes on the reply's marks (the opening's, for new,
-begin and go) and the lines suggested after it (15 s at most), and print them. Every verb also takes --demo (canned turns, no server), and --url
+new, begin, say, act, retry and go wait for the lines suggested after the reply (the opening's, for
+new, begin and go; 15 s at most), and print them. Every verb also takes --demo (canned turns, no server), and --url
 and --db for the server (else KM_STDB_URL and KM_STDB_DB, else the running dev stack's, found in
 runs/dev/stack.json or the folder --stack names, else ws://127.0.0.1:3300 and kingmaker). Sessions
 are kept in runs/play/ (KM_RUNS_DIR moves runs/). A refusal or a failed turn exits 1.

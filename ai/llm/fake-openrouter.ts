@@ -28,6 +28,15 @@ import type { ToolCall } from "./tools.ts";
  *   (`save_memory`: the memories agent; `search_lore`: the lore agent). Its first round answers with
  *   them; a round that sends their outputs back answers "Done.". A loop without any answers as a
  *   reply does.
+ * - The two-part GM (docs/two-part-design.md): its mouthpiece (the structured call named `reply`)
+ *   answers the next of `replies` as its narration, with no check, or with `mouthpiece.check`'s on
+ *   every reply but an opening or a closing (five outcomes the fake writes); a closing closes, unless
+ *   `mouthpiece.holds` (then it waits, the once it may). Its co-GM (the tool loop with `move_scene`)
+ *   walks the scene to its first good ending (or the first of `coGm.endings` the scene has): each turn
+ *   the next open route on the shortest way there, the required discoveries first, a dice route taken
+ *   as a success; it reads the scene's routes off its prep, where routeLine writes them (ai/gm/two-part.ts),
+ *   and what's reached and open off its input. `coGm.still` keeps it from moving; `coGm.roles` are
+ *   roles it sets every turn.
  *
  * Anything else asked of it is refused, so a test can't reach the real thing by accident. Two ways
  * in: `fakeOpenRouter` puts it in place of the process's fetch (the prototype's tests), and
@@ -62,6 +71,10 @@ export interface FakeOptions {
   byNameDelayMs?: Record<string, number>;
   suggestDelayMs?: number;
   toolCalls?: Record<string, Array<Pick<ToolCall, "name" | "args">>>;
+  /** The two-part GM's mouthpiece: a check it calls on every reply but an opening or a closing (its five outcomes the fake's), and a closing that waits. */
+  mouthpiece?: { check?: { skill: string; dc: number }; holds?: boolean };
+  /** The two-part GM's co-GM: still (no moves), the endings it walks to (the first the scene has; else its first good one), and roles it sets every turn. */
+  coGm?: { still?: boolean; endings?: string[]; roles?: Record<string, { status: string; mental_state: string; conversation_role: string }> };
 }
 
 /** The stand-in as a fetch of its own, with what it was asked and sent, in order. */
@@ -103,6 +116,7 @@ export function fakeFetch(options: FakeOptions = {}): FakeFetch {
       return json({ answers: answer(body.questions ?? {}, options.choices, options.odds), usage: { cost: 0.0001 } });
     }
     if (url !== "https://openrouter.ai/api/v1/responses") return json({ error: { message: `the fake OpenRouter doesn't answer ${url}` } }, 404);
+    if (body.tools?.some(t => t.name === "move_scene")) return json(coGmRound(body, options.coGm ?? {}));
     const looped = body.tools?.[0] && options.toolCalls?.[body.tools[0].name];
     if (looped) return json(toolRound(looped, body.input ?? []));
     const format = body.text?.format;
@@ -113,7 +127,9 @@ export function fakeFetch(options: FakeOptions = {}): FakeFetch {
     const delay = format ? options.byNameDelayMs?.[format.name] : suggesting ? options.suggestDelayMs : undefined;
     if (delay) await waited(delay, init?.signal);
     if (format && options.capped?.[format.name] !== undefined) return capped(options.capped[format.name]!);
-    const text = format?.type === "json_schema" ? JSON.stringify(options.byName?.[format.name] ?? fit(format.schema))
+    const mouthpiece = format?.name === "reply" && !!format.schema.properties?.narration && options.byName?.reply === undefined;
+    const text = mouthpiece ? JSON.stringify(spoken(replies[next++ % replies.length]!, format.schema, body.input ?? [], options.mouthpiece ?? {}))
+      : format?.type === "json_schema" ? JSON.stringify(options.byName?.[format.name] ?? fit(format.schema))
       : talking ? talkSuggestions![talked++ % talkSuggestions!.length]!
       : suggesting ? suggestions[suggested++ % suggestions.length]!
       : handing ? options.handoff!
@@ -152,6 +168,102 @@ function toolRound(calls: Array<Pick<ToolCall, "name" | "args">>, input: NonNull
   if (input.some(item => (item as { type?: string }).type === "function_call_output")) return completed("Done.");
   const output = calls.map((c, i) => ({ type: "function_call", call_id: `call_${i + 1}`, name: c.name, arguments: JSON.stringify(c.args ?? {}) }));
   return { status: "completed", output, usage: { input_tokens: 120, output_tokens: 30, cost: 0.0002 } };
+}
+
+/**
+ * The two-part GM's mouthpiece: the reply as its narration; a check on a reply that isn't the
+ * opening (whose only player turn is "(The player is ready. Begin.)") or a closing (asked whether it
+ * closes), when the recipe has one; a closing closes, unless the recipe holds it.
+ */
+function spoken(narration: string, schema: Schema, input: NonNullable<Request["input"]>, recipe: NonNullable<FakeOptions["mouthpiece"]>): unknown {
+  const closing = !!schema.properties?.closes;
+  const opening = input.filter(m => m.role === "user").at(-1)?.content === "(The player is ready. Begin.)";
+  const check = recipe.check && !closing && !opening ? {
+    skill: recipe.check.skill, dc: recipe.check.dc,
+    outcomes: {
+      major_failure: "It goes badly wrong, and Kell's pencil stops.", minor_failure: "Not this time: something else will have to tell it.",
+      barely_passed: "Just: a part of it, and a catch.", minor_success: "Cleanly: the next of it comes out.", major_success: "Better than hoped: the next of it, and a little more.",
+    },
+  } : null;
+  return { narration, check, ...(closing ? { closes: !recipe.holds } : {}) };
+}
+
+/** A route as the co-GM's prep has it (routeLine's): its id, where it goes from and to, what it needs reached first, and whether the dice decide it. */
+export interface PrepRoute { id: string; source: string; target: string; requires: string[]; dice: boolean }
+
+/** The scene as the co-GM's prep writes it: every route (each once), its endings in order with how they went, and the discoveries it can't end well without. */
+export function readPrep(instructions: string): { routes: PrepRoute[]; endings: Array<{ id: string; result: string }>; required: string[] } {
+  const routes = new Map<string, PrepRoute>();
+  for (const [, head] of instructions.matchAll(/^- (\[[a-z0-9-]+\] from .*?)\. When: /gm)) {
+    const ids = [...head!.matchAll(/\[([a-z0-9-]+)\]/g)].map(m => m[1]!);
+    const once = /, once (.*?) (?:is|are) reached/.exec(head!)?.[1] ?? "";
+    if (ids.length >= 3 && !routes.has(ids[0]!)) routes.set(ids[0]!, { id: ids[0]!, source: ids[1]!, target: ids[2]!, requires: [...once.matchAll(/\[([a-z0-9-]+)\]/g)].map(m => m[1]!), dice: head!.includes("; the dice decide (") });
+  }
+  const endings = [...instructions.matchAll(/^### .* \[([a-z0-9-]+)\]: an? (good|mixed|bad) ending$/gm)].map(m => ({ id: m[1]!, result: m[2]! }));
+  const required = [...instructions.matchAll(/^### .* \[([a-z0-9-]+)\] \(required/gm)].map(m => m[1]!);
+  return { routes: [...routes.values()], endings, required };
+}
+
+/**
+ * The fake co-GM's walk: the routes to take, in order, to reach `target` from what's `reached`, the
+ * required discoveries first. Each node by the route into it that needs the fewest routes taken
+ * before it (its source and what it requires, reached the same way), ties to the prep's order.
+ */
+export function walkTo(prep: ReturnType<typeof readPrep>, reached: string[], target: string): string[] {
+  const have = new Set(reached);
+  const memo = new Map<string, string[] | undefined>();
+  const into = (node: string, visiting: Set<string>): string[] | undefined => {
+    if (have.has(node)) return [];
+    if (memo.has(node)) return memo.get(node);
+    if (visiting.has(node)) return undefined;
+    visiting.add(node);
+    let best: string[] | undefined;
+    for (const r of prep.routes.filter(x => x.target === node)) {
+      const before: string[] = [];
+      let possible = true;
+      // What it requires first (the discoveries an ending needs), then where it leaves from (an event): the story's order.
+      for (const need of [...r.requires, r.source]) {
+        const way = into(need, visiting);
+        if (!way) { possible = false; break; }
+        for (const id of way) if (!before.includes(id)) before.push(id);
+      }
+      if (possible && (!best || before.length + 1 < best.length)) best = [...before, r.id];
+    }
+    visiting.delete(node);
+    memo.set(node, best);
+    return best;
+  };
+  const path: string[] = [];
+  for (const node of [...prep.required, target]) for (const id of into(node, new Set()) ?? []) if (!path.includes(id)) path.push(id);
+  return path;
+}
+
+/**
+ * The fake co-GM's round: its roles (the recipe's), and the next open route on its walk to the
+ * scene's first good ending (or the first of the recipe's the scene has whose walk is open: a fight
+ * fought, the walk goes on to the next), a dice route as a success; once their outputs come back,
+ * "done".
+ */
+function coGmRound(body: Request, recipe: NonNullable<FakeOptions["coGm"]>): unknown {
+  const input = body.input ?? [];
+  if (input.some(item => (item as { type?: string }).type === "function_call_output")) return completed("done");
+  const said = input.map(m => (typeof m.content === "string" ? m.content : "")).join("\n");
+  const calls: Array<Pick<ToolCall, "name" | "args">> = Object.entries(recipe.roles ?? {}).map(([id, role]) => ({ name: "update_character_role", args: { char_id: id, ...role } }));
+  if (!recipe.still) {
+    const prep = readPrep(body.instructions ?? "");
+    const reached = [.../Reached so far: (.*)\./.exec(said)?.[1]?.matchAll(/\[([a-z0-9-]+)\]/g) ?? []].map(m => m[1]!);
+    const open = [...(/# Open routes\n([\s\S]*?)(?:\n\n|$)/.exec(said)?.[1] ?? "").matchAll(/^- \[([a-z0-9-]+)\]/gm)].map(m => m[1]!);
+    const targets = recipe.endings ? recipe.endings.filter(e => prep.endings.some(x => x.id === e)) : prep.endings.filter(e => e.result === "good").slice(0, 1).map(e => e.id);
+    let target: string | undefined, next: string | undefined;
+    for (const t of targets) {
+      next = walkTo(prep, reached, t).find(id => open.includes(id));
+      if (next) { target = t; break; }
+    }
+    const route = prep.routes.find(r => r.id === next);
+    if (route) calls.push({ name: "move_scene", args: { route_id: route.id, outcome: route.dice ? "success" : "none", why: `The fake co-GM's walk to ${target}.` } });
+  }
+  if (!calls.length) return completed("done");
+  return { status: "completed", output: calls.map((c, i) => ({ type: "function_call", call_id: `call_${i + 1}`, name: c.name, arguments: JSON.stringify(c.args ?? {}) })), usage: { input_tokens: 120, output_tokens: 30, cost: 0.0002 } };
 }
 
 /** A call that never answers: it fails only when the caller gives up on it (its signal). */

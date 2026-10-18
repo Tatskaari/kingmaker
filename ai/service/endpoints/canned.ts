@@ -1,6 +1,6 @@
 import type { RepairResult } from "../../../shared/gm/repair.ts";
-import type { Mark, Speech } from "../../../shared/markup.ts";
-import type { BoundaryRequest, NotesRequest, Reply, SceneContext, Suggestion } from "../../../shared/protocol/ai.ts";
+import type { Speech } from "../../../shared/markup.ts";
+import type { BoundaryRequest, Reply, SceneContext, Suggestion } from "../../../shared/protocol/ai.ts";
 import { effectiveScene, presentCast } from "../../../shared/scene/graph.ts";
 import { unnamed } from "../../../shared/scene/names.ts";
 import type { Character, Scene } from "../../../shared/scene/types.ts";
@@ -14,12 +14,12 @@ import { characters } from "./characters.ts";
  * The thinks with no model at all (KM_AI_GM=canned): for bringing a stack up and playing it end to
  * end before, or without, the GM, and for telling the plumbing's faults from the GM's. The opening
  * and each reply stream a word at a time, as a model's would, so the draft grows on every screen, and
- * someone of the cast says a line in each, so the screen has a speaker to colour and the notes a line
- * to go on. Nothing moves the scene: no route is taken, nothing lands, no ending comes, the rules
- * resolve no act (so nobody reacts: reactions asked for anyway come back with none), and the GM rules
- * on nothing (a ruling asked for anyway comes back without one, and without a check to roll).
- * The notes put one why on the first line someone of the cast says, linked to them, with their card;
- * the suggested lines are the same four every time, and a talk's the same two (town-design §3.6: a
+ * someone of the cast says a line in each, so the screen has a speaker to colour. Nothing moves the
+ * scene: no route is taken, nothing lands, no ending comes (the two-part GM's co-GM sets no roles and
+ * makes no move, and its mouthpiece calls no check; its closing closes), the rules resolve no act (so
+ * nobody reacts: reactions asked for anyway come back with none), and the GM rules on nothing (a
+ * ruling asked for anyway comes back without one, and without a check to roll).
+ * The suggested lines are the same four every time, and a talk's the same two (town-design §3.6: a
  * talk's prep keeps nothing back and adds no facts). After a turn, nobody remembers anything, and the
  * co-GM finds the scene on track, with no notes, and nothing gets a look invented. After a scene, the boundary goes to the first scene
  * it could, with the prototype's fallback hand-off, nothing rewritten, nobody absent, nothing owed
@@ -48,23 +48,20 @@ export const canned: Endpoints = {
   async reply(req, ctx) {
     const scene = effectiveScene(ctx.campaign.scene(req.turn.scene.key), req.turn.gm.patches);
     const line = req.turn.line.text.length > 200 ? `${req.turn.line.text.slice(0, 199)}…` : req.turn.line.text;
-    const reply = req.outcome.windDown && !req.decision.outOfCharacter
+    // The two-part GM's wind-down (no decision) always closes; the old pipeline's waits out a word out of character.
+    const reply = req.outcome.windDown && !req.decision?.outOfCharacter
       ? narration("The scene draws to a close. (Canned: no model was asked.)")
       : answered(line, speakerAt(scene, presentCast(scene, req.turn.gm), req.turn.scene.turn, req.turn.transcript));
     const sink = ctx.stream(req.stream.turn);
     await written(sink, reply);
-    return { entries: [reply], gm: { repeated: null }, firstTextMs: sink.firstTextMs(), usage: noUsage() };
+    return { entries: [reply], gm: { repeated: null }, firstTextMs: sink.firstTextMs(), ...(req.twoPart && req.outcome.windDown ? { closes: true } : {}), usage: noUsage() };
   },
   async settle(req) {
+    // The two-part GM's co-GM, canned: it sets no roles and moves nothing.
+    if (req.twoPart) return { ops: [], coGm: { roles: {}, moves: [], log: [] }, usage: noUsage() };
     const closed = !!req.turn.gm.ended;
     const talk = req.talk ? { talk: { suggestions: req.talk.suggest && !closed ? TALK_LINES : [] } } : {};
     return { ops: [], ...(closed ? {} : { after: { status: "on_track", landed: [], hinted: [], unanswered: false, theirs: false } }), ...talk, usage: noUsage() };
-  },
-  async notes(req, ctx) {
-    const scene = effectiveScene(ctx.campaign.scene(req.turn.scene.key), req.turn.gm.patches);
-    const line = req.reply.speech.find(s => s.speaker && s.speaker !== "you" && scene.cast.some(c => c.id === s.speaker));
-    if (!line) return { marks: [], usage: noUsage() };
-    return { marks: [whyOn(scene, req, line)], usage: noUsage() };
   },
   async suggest() {
     return { lines: LINES, dropped: [], usage: noUsage() };
@@ -111,7 +108,7 @@ const LINES: Suggestion[] = [
 /** A talk's two lines, every time: something to ask, and something to say. */
 const TALK_LINES = ["How are you keeping?", "What do you make of it all?"];
 
-const narration = (text: string, speech: Speech[] = []): Reply => ({ speaker: "gm", kind: "narration", text, ...(speech.length ? { markup: { speech, marks: [] } } : {}) });
+const narration = (text: string, speech: Speech[] = []): Reply => ({ speaker: "gm", kind: "narration", text, ...(speech.length ? { markup: { speech } } : {}) });
 
 /** Someone of the cast here to say a canned line, a different one each turn, by the name the player knows them by. */
 function speakerAt(scene: Scene, here: Character[], turn: number, transcript: SceneContext["transcript"]): { id: string; name: string } | undefined {
@@ -131,20 +128,7 @@ function answered(line: string, voice: { id: string; name: string } | undefined)
   const lead = "You said: ", quote = `“${line}”`;
   const reply = said(`${lead}${quote} `, voice, "Go on, then");
   const speech: Speech[] = [{ start: lead.length, end: lead.length + quote.length, speaker: "you" }, ...(reply.markup?.speech ?? [])];
-  return { ...reply, text: `${reply.text} (Canned: no model was asked.)`, markup: { speech, marks: [] } };
-}
-
-/** A why on the line, linked to whoever says it, with the card the popover shows of them: their name as the player knows it, and their last words. */
-function whyOn(scene: Scene, req: NotesRequest, line: Speech): Mark {
-  const who = scene.cast.find(c => c.id === line.speaker)!;
-  const name = unnamed(scene, req.turn)[who.id] ?? who.name;
-  const words = req.reply.text.slice(line.start, line.end);
-  return {
-    start: line.start, end: line.end, kind: "why",
-    note: `${name.charAt(0).toUpperCase()}${name.slice(1)} wants to hear more. (Canned: no model was asked.)`,
-    link: { kind: "person", id: who.id },
-    card: { title: `${name.charAt(0).toUpperCase()}${name.slice(1)}`, lines: ["You met them in this scene.", `Last said to you (turn ${req.turn.scene.turn}): ${words}`] },
-  };
+  return { ...reply, text: `${reply.text} (Canned: no model was asked.)`, markup: { speech } };
 }
 
 /** The ended scene's last four moments that aren't the system's, as the prototype words them (engine.ts:1078-1079). */
@@ -163,7 +147,7 @@ async function written(sink: StreamSink, reply: Reply): Promise<void> {
   for (let n = 1; n <= words.length; n++) {
     const shown = words.slice(0, n).join("").trimEnd();
     const speech = reply.markup?.speech.filter(s => s.start < shown.length).map(s => ({ ...s, end: Math.min(s.end, shown.length) })) ?? [];
-    sink.show(shown, speech.length ? { speech, marks: [] } : undefined);
+    sink.show(shown, speech.length ? { speech } : undefined);
     await new Promise(resolve => setTimeout(resolve, WORD_MS));
   }
   await sink.finish(reply.text, reply.markup);

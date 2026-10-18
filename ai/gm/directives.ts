@@ -132,7 +132,7 @@ const diceDecided = (exit: Exit) => `The dice have decided it: this is heading t
 /** The scene judged stuck after the last reply (engine.ts:728). */
 const STUCK = "The scene has been going in circles. Break the loop in this reply with something new: someone acts on what they want or gives ground, a consequence lands, or something is revealed that opens a way forward. Don't replay an earlier push or repeat the last exchange.";
 
-const FIGHT_CLOSE = " A fight starts here and is played out blow by blow on the map: end on the moment it breaks out, before any blow lands, any shot hits or any spell takes hold.";
+export const FIGHT_CLOSE = " A fight starts here and is played out blow by blow on the map: end on the moment it breaks out, before any blow lands, any shot hits or any spell takes hold.";
 
 /**
  * The player's turn with an ending held for their answer (engine.ts:276-286, the line of each way

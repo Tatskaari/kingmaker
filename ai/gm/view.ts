@@ -1,7 +1,7 @@
 import type { Backstory } from "../docs/types.ts";
 import type { RulingRecord } from "../../shared/gm/consider.ts";
 import type { GmState, GuardStage, OpenedNote, OwedRow, PathStep, ScenePatch, SceneStatus, TalkRecord, TwoPartState } from "../../shared/gm/state.ts";
-import type { MarkLink, Markup } from "../../shared/markup.ts";
+import type { Markup } from "../../shared/markup.ts";
 import type { Chapter, Entry, OpenRequest, SceneContext, SheetRow, Story as Told } from "../../shared/protocol/ai.ts";
 import { isTurnKey, keyParts } from "../../shared/protocol/keys.ts";
 import type { SpellRef, WeaponRef } from "../../shared/rules/types.ts";
@@ -226,13 +226,10 @@ function owedOf(rows: OwedRow[], world: SceneWorld, keys: Keys, essentialOf: Ess
   });
 }
 
-/** Markup by the game's keys as the copied code reads it: speakers and the people marks link to by the world's ids. Cards are dropped: nothing in the copied code reads one. */
+/** Markup by the game's keys as the copied code reads it: the speakers by the world's ids. */
 export function localMarkup(markup: Markup, keys: Keys): Markup {
   const local = (key: string) => (key === "you" ? key : localKey(key, keys));
-  return {
-    speech: markup.speech.map(s => (s.speaker ? { ...s, speaker: local(s.speaker) } : s)),
-    marks: markup.marks.map(({ card: _, ...m }) => (m.link?.kind === "person" ? { ...m, link: { kind: "person" as const, id: local(m.link.id) } } : m)),
-  };
+  return { speech: markup.speech.map(s => (s.speaker ? { ...s, speaker: local(s.speaker) } : s)) };
 }
 
 /**
@@ -242,9 +239,5 @@ export function localMarkup(markup: Markup, keys: Keys): Markup {
  */
 export function gameMarkup(markup: Markup, scene: Scene, world: SceneWorld | undefined, keys: Keys): Markup {
   const game = (id: string) => (id === "you" || scene.cast.some(c => c.id === id) || !world?.entities[id] ? id : fullKey(id, world.entities[id], keys));
-  const link = (l: MarkLink): MarkLink => (l.kind === "person" ? { kind: "person", id: game(l.id) } : l);
-  return {
-    speech: markup.speech.map(s => (s.speaker ? { ...s, speaker: game(s.speaker) } : s)),
-    marks: markup.marks.map(m => (m.link ? { ...m, link: link(m.link) } : m)),
-  };
+  return { speech: markup.speech.map(s => (s.speaker ? { ...s, speaker: game(s.speaker) } : s)) };
 }

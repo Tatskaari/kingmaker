@@ -35,8 +35,8 @@ test("a reply streams to stream_reply as the service: the first words at once, t
   const timing: typeof fetch = (input, init) => { sentAt.push(performance.now()); return fetch(input, init); };
   const sink = streamSink({ url: stdb.url, db: "kingmaker", token: "ai-token", periodMs: 100, fetch: timing, log: l => logged.push(l) }, { turn: "812", attempt: 2, started: performance.now() });
 
-  for (const words of ["The", "The yard", "The yard is", "The yard is quiet", "The yard is quiet."]) { sink.show(words, { speech: [], marks: [] }); await sleep(30); }
-  await sink.finish("The yard is quiet.", { speech: [{ start: 0, end: 4, speaker: "kell" }], marks: [] });
+  for (const words of ["The", "The yard", "The yard is", "The yard is quiet", "The yard is quiet."]) { sink.show(words, { speech: [] }); await sleep(30); }
+  await sink.finish("The yard is quiet.", { speech: [{ start: 0, end: 4, speaker: "kell" }] });
   await stdb.close();
 
   const seqs = stdb.posts.map(p => p.args.seq);
@@ -47,7 +47,7 @@ test("a reply streams to stream_reply as the service: the first words at once, t
   assert.ok(stdb.posts.length < 6, "not every change is posted: newer text replaces what waits");
   assert.ok(sentAt.slice(1, -1).every((at, i) => at - sentAt[i]! >= 99), "a period between posts (the last goes as soon as it can)");
   assert.ok(stdb.posts.every(p => p.args.turnId === 812 && p.args.attempt === 2 && p.args.speaker === "gm"));
-  assert.deepEqual(stdb.posts.at(-1)!.args, { turnId: 812, attempt: 2, seq: seqs.length, speaker: "gm", text: "The yard is quiet.", markup: { some: JSON.stringify({ speech: [{ start: 0, end: 4, speaker: "kell" }], marks: [] }) }, done: true });
+  assert.deepEqual(stdb.posts.at(-1)!.args, { turnId: 812, attempt: 2, seq: seqs.length, speaker: "gm", text: "The yard is quiet.", markup: { some: JSON.stringify({ speech: [{ start: 0, end: 4, speaker: "kell" }] }) }, done: true });
   assert.deepEqual(logged, []);
   assert.ok((sink.firstTextMs() ?? -1) >= 0);
 });

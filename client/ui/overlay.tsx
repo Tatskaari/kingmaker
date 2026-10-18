@@ -1,4 +1,4 @@
-// Cut from the prototype's src/app/ui/overlay.tsx at 44c6d4a (:40-48, :80-83, :103-109, :110-116, :124-127, :163-191, :242-252, :253-262 the help scrolled): the sheet, the mark's popover, the help, and the investigator's notebook (story-design §4.5: from rows, its scrolling keys the prototype's) with the quests beside it (new: the prototype records them and shows none), HELP.scene trimmed to this client's commands and to what it shows (marks, no ⓘ lines, a deed for the example where it had a spell), its suggested lines' paragraph (:45) less the Esc menu's words; the sheet is the seat's sheet row (SceneModel.sheet) in place of the session's. The map's (ExploreOverlay, map-design §2): HELP.explore (:28-38) less what's cut from the map (the notebook, the report), the Esc menu (:84, :297-306) back to the game or the title, What happens (:233-238) and the sheet, over an ExploreModel.
+// Cut from the prototype's src/app/ui/overlay.tsx at 44c6d4a (:40-48, :80-83, :103-109, :110-116, :124-127, :163-191, :242-252, :253-262 the help scrolled): the sheet, the help (the mark's popover went with the notes in M2), and the investigator's notebook (story-design §4.5: from rows, its scrolling keys the prototype's) with the quests beside it (new: the prototype records them and shows none), HELP.scene trimmed to this client's commands and to what it shows (no marks since M2, no ⓘ lines, a deed for the example where it had a spell), its suggested lines' paragraph (:45) less the Esc menu's words; the sheet is the seat's sheet row (SceneModel.sheet) in place of the session's. The map's (ExploreOverlay, map-design §2): HELP.explore (:28-38) less what's cut from the map (the notebook, the report), the Esc menu (:84, :297-306) back to the game or the title, What happens (:233-238) and the sheet, over an ExploreModel.
 import type { MouseEvent, ScrollBoxRenderable } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useRef, type ReactNode, type RefObject } from "react";
@@ -7,7 +7,6 @@ import type { SceneModel, SheetShown } from "../scene/model.ts";
 import { questLine } from "../story/view.ts";
 import { C } from "../theme.ts";
 import { BOLD, Clickable, Keys, SCROLLBAR, useStore, wrap, type KeyHint } from "./common.tsx";
-import { MarkPopover } from "./popover.tsx";
 import { sheetHeight } from "./sheet-layout.ts";
 import { SheetView, type SheetHandle } from "./sheet.tsx";
 
@@ -19,7 +18,7 @@ import { SheetView, type SheetHandle } from "./sheet.tsx";
  */
 const HELP = [
   "Type and press Enter. Plain words are what you say, out loud, to whoever's there: Who paid you, then? *Asterisks* or (brackets) are what you do: *looks over my shoulder*, (I check his pockets). Talk and do in the same breath if you like.",
-  "The GM narrates and plays everyone else, each person's lines in their colour (gold italics for anyone not here). Underlined words are the GM's marks (on coral, why someone acts as they do; teal, something you'd know; lavender, something you did): click one, or Tab to it and press Enter, for a note from what you know. Rolls happen when the story needs them (🎲 lines).",
+  "The GM narrates and plays everyone else, each person's lines in their colour (gold italics for anyone not here). Rolls happen when the story needs them (🎲 lines): the GM calls a check, the dice say how far it made or missed it, and the scene goes on from there.",
   "After each reply, suggested lines come up over the box (a risky try in yellow): a number or a click puts one in the box to send or change; typing hides them. A talk's are said at once. /suggestions off turns them off.",
   "/sheet (or /c) your character sheet · /journal (or /j) your notebook · /quests the quests · /help this · /retry carries on a turn the GM lost · /quit goes back to the title (the game is kept). PgUp/PgDn (or the mouse wheel) scroll the conversation.",
   "When a scene ends, it waits for you: an Enter of its own, or a click, goes on. For testing, as the dev stack's owner: /exits lists the scene's endings, /end <id> takes one now.",
@@ -31,7 +30,7 @@ const SCROLL_KEYS: Record<string, number> = { up: -1, down: 1, pageup: -2, paged
 /** The keys that put the sheet away, when it has no use for them itself (the prototype's, c and s among them). */
 const CLOSE_SHEET = ["escape", "return", "space", "c", "s", "q"];
 
-/** What's open over the scene: the character sheet, a mark's popover, or the help. */
+/** What's open over the scene: the character sheet, or the help. */
 export function Overlay({ scene }: { scene: SceneModel }) {
   useStore(scene);
   const { width, height } = useTerminalDimensions();
@@ -53,14 +52,11 @@ export function Overlay({ scene }: { scene: SceneModel }) {
       return;
     }
     key.preventDefault();
-    // A marked phrase, open: Tab goes on to the reply's next mark; any other key puts it away.
-    if (o.kind === "mark") { if (key.name === "tab") scene.stepMark(key.shift ? -1 : 1); else scene.closeOverlay(); return; }
     // Any of these keys closes the help, the notebook and the quests (j the notebook, as it opens it between scenes).
     if (CLOSE.includes(key.name) || key.sequence === "?" || (key.name === "j" && o.kind === "journal")) scene.closeOverlay();
   });
   const o = scene.overlay;
   if (!o) return null;
-  if (o.kind === "mark") return <MarkPopover scene={scene} at={o} width={width} height={height} />;
   if (o.kind === "sheet") return <SheetBox shown={scene.sheet()} sheet={sheet} width={width} height={height} close={() => scene.closeOverlay()} />;
   const w = Math.min(width - 4, 104);
   const h = Math.min(height - 2, 40);

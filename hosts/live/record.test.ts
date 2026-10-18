@@ -16,7 +16,7 @@ function store(): string {
   writeFileSync(join(root, "ai", "games", UID, "calls.jsonl"), [
     JSON.stringify({ key: `${UID}:s1:t0:open`, operation: "gm.opening", started: "/api/v1/responses" }),
     call("t0:open", "gm.opening", 0.002, { model: "openai/gpt-6-luna" }),
-    call("t0:notes", "notes", 0.0003, { model: "openai/gpt-6-luna" }),
+    call("t0:suggest", "scene.suggest", 0.0003, { model: "openai/gpt-6-luna" }),
     call("t1:reply", "gm.reply", 0.003, { request: { model: "openai/gpt-6-luna" } }),
     call("t1:suggest-2", "scene.suggest", 0.0004),
     "",
@@ -32,7 +32,7 @@ test("the call log gives each done call with its key's turn, and the spend and t
     const calls = callsOf(root, UID);
 
     assert.deepEqual(calls.map(c => [c.operation, c.turn, c.model]), [
-      ["gm.opening", 0, "openai/gpt-6-luna"], ["notes", 0, "openai/gpt-6-luna"], ["gm.reply", 1, "openai/gpt-6-luna"], ["scene.suggest", 1, "?"],
+      ["gm.opening", 0, "openai/gpt-6-luna"], ["scene.suggest", 0, "openai/gpt-6-luna"], ["gm.reply", 1, "openai/gpt-6-luna"], ["scene.suggest", 1, "?"],
     ]);
     const spent = spentOf(root, UID);
     assert.equal(spent.total.toFixed(4), "0.0057");

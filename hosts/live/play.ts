@@ -6,7 +6,7 @@ import { picked, stepName, type Script, type Step } from "./scripts.ts";
 /**
  * Playing a live run's script as a player would: a new game (on the campaign's map, its scene opened
  * by talking to Kell, map-design §4), then each line said once the turn before it is done and its
- * notes and lines are in (at most 15 s more, v5-design §4.6), or a suggested line picked as the
+ * lines are in (at most 15 s more, v5-design §4.6), or a suggested line picked as the
  * headless `act` picks one. A line that waits for the background (full-gm-design §1.2) is said once
  * the memory review and the co-GM are done too, and a script that records the GM's side waits for
  * them after its last line. It stops before a line the budget can't cover, when the scene ends, or
@@ -35,8 +35,8 @@ export interface PlayOptions {
 /** What a step came to: the turn it played and the line said, or why it said nothing; how long it waited for the background jobs first. */
 export interface Played { step: string; n?: number; said?: string; skipped?: string; waitedMs?: number }
 
-/** When each turn's parts reached this client (Date.now()): its reply's entry, its notes' commit, its lines' commit. */
-export interface Seen { final?: number; notes?: number; lines?: number }
+/** When each turn's parts reached this client (Date.now()): its reply's entry, its lines' commit. */
+export interface Seen { final?: number; lines?: number }
 
 /** How a game begun on the map came into its scene: where the walker stood, the move, what it said, and how long it took to the seat in the scene. */
 export interface WalkedIn { from: string; move: string; said: string; ms: number }
@@ -65,8 +65,8 @@ const TURN_MS = 180_000, EXTRAS_MS = 15_000;
 /** How long a line waits for the background jobs: their endpoints' 170 s, and a little. */
 const BACKGROUND_MS = 180_000;
 
-/** A note or a set of lines no longer on its way: the job's commit, or its giving up. */
-const NOTES_IN = ["written", "lost"], LINES_IN = ["landed", "dropped", "lost"];
+/** A set of lines no longer on its way: the job's commit, or its giving up. */
+const LINES_IN = ["landed", "dropped", "lost"];
 
 export async function playScript(conn: Connection, script: Script, options: PlayOptions): Promise<Run> {
   const run: Run = { played: [], seen: new Map(), sets: new Map(), worlds: new Map() };
@@ -153,7 +153,7 @@ async function backgroundDone(run: Run, options: PlayOptions, when: string): Pro
 }
 
 /**
- * A turn done, then its notes and lines in (or given up waiting for), and its set of lines kept as it
+ * A turn done, then its lines in (or given up waiting for), and its set of lines kept as it
  * landed: the scene holds one set, which the next reply's replaces.
  */
 async function afterTurn(conn: Connection, n: number, run: Run, options: PlayOptions): Promise<void> {
@@ -198,13 +198,13 @@ function turnDone(conn: Connection, n: number): boolean {
   return t?.phase === "done";
 }
 
-/** Its notes aren't being written and its lines aren't on their way. */
-const extrasIn = (t: Turn | undefined) => !!t && t.notes !== "writing" && t.suggest !== "coming";
+/** Its lines aren't on their way. */
+const extrasIn = (t: Turn | undefined) => !!t && t.suggest !== "coming";
 
-/** ", notes written, lines landed": how the turn's notes and lines stand. */
+/** ", lines landed": how the turn's lines stand. */
 function extrasNote(conn: Connection, n: number): string {
   const t = turn(conn, n);
-  return t ? `, notes ${t.notes}, lines ${t.suggest}` : "";
+  return t ? `, lines ${t.suggest}` : "";
 }
 
 /** Resolves once `ready` holds, re-checked at every change of the rows; rejects after ms, or when `ready` throws. */
@@ -227,7 +227,7 @@ function until(conn: Connection, ready: () => boolean, ms: number, late = "timed
   });
 }
 
-/** Timestamps each turn's parts as their rows reach this client: the reply's entry, the notes' commit, the lines'. */
+/** Timestamps each turn's parts as their rows reach this client: the reply's entry, the lines' commit. */
 function watch(conn: Connection, seen: Map<number, Seen>): () => void {
   const at = (n: number) => seen.get(n) ?? seen.set(n, {}).get(n)!;
   return conn.onEvent((table, op, row) => {
@@ -235,7 +235,6 @@ function watch(conn: Connection, seen: Map<number, Seen>): () => void {
     if (table === "transcript" && op === "insert" && (row as Transcript).speaker === "gm") at((row as Transcript).turn).final ??= now;
     if (table !== "turn" || op === "delete") return;
     const t = row as Turn;
-    if (NOTES_IN.includes(t.notes)) at(t.n).notes ??= now;
     if (LINES_IN.includes(t.suggest)) at(t.n).lines ??= now;
   });
 }

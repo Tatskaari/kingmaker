@@ -14,8 +14,8 @@ import { folderStores } from "../service/folder-stores.ts";
 import type { StreamSink } from "../service/stream.ts";
 import type { Backstory } from "../../shared/creation/types.ts";
 import type { GmState } from "../../shared/gm/state.ts";
-import type { Card, Mark, Markup, Speech } from "../../shared/markup.ts";
-import type { AiRequest, Decision, DecideRequest, Drafted, Entry, NotesRequest, NotesResponse, OpenRequest, OpenResponse, Outcome, ReplyRequest, ReplyResponse, SceneContext, SettleRequest, SheetRow, Suggestion, SuggestRequest, SuggestResponse, TurnContext } from "../../shared/protocol/ai.ts";
+import type { Markup, Speech } from "../../shared/markup.ts";
+import type { AiRequest, Decision, DecideRequest, Entry, OpenRequest, OpenResponse, Outcome, ReplyRequest, ReplyResponse, SceneContext, SettleRequest, SheetRow, Suggestion, SuggestRequest, SuggestResponse, TurnContext } from "../../shared/protocol/ai.ts";
 import { keysFor, worldToRows } from "../../shared/world/rows.ts";
 import type { SceneWorld } from "../../shared/world/scene-world.ts";
 import { testScene, testStory } from "./fixtures.ts";
@@ -64,14 +64,13 @@ interface Session {
   transcript: Array<{ turn: number; speaker: string; kind: Entry["kind"]; text: string; marked?: Markup }>;
   world: SceneWorld;
 }
-/** Who says each line of a reply as it streams (each time its words grow) and once it's whole. */
-interface Speakers { streamed: Array<{ text: string; speech: Speech[] }>; whole: { text: string; speech: Speech[]; drafted: Drafted[] } }
+/** Who says each line of a reply as it streams (each time its words grow) and once it's whole (the marks it drafted are the recording's, which the game no longer keeps). */
+interface Speakers { streamed: Array<{ text: string; speech: Speech[] }>; whole: { text: string; speech: Speech[] } }
 /**
  * A step of the GM's. The stand-in it ran on is `fake` (tools/record-golden.mts), or, in V1's
  * recording with a backstory (tools/v2/record-v1-golden.mts), its replies and the decider's choices.
  */
 interface Step { step: string; line?: string; fake?: FakeOptions; replies?: string[]; choices?: Record<string, string>; session: Session; calls: Array<{ operation: string; body: Request }>; speakers?: Speakers }
-interface NotesMoment { moment: string; fake: FakeOptions; session: Session; reply: { at: number; text: string; speech: Speech[]; drafted: Drafted[] }; body: Request; marks: Mark[]; cards: Array<Card | null> }
 interface SuggestMoment { moment: string; fake: FakeOptions; session: Session; offered: string[]; bodies: { suggest: Request; judge?: Request & { state?: Record<string, string> } }; vetting: Vetting; lines: Suggestion[]; dropped: Array<{ text: string; why: string }> }
 
 /**
@@ -96,19 +95,15 @@ const stepsOf = (recording: string) => filesIn(recording).filter(f => /^\d\d-/.t
 const files = filesIn("hanged-clerk");
 const steps = stepsOf("hanged-clerk");
 const withBackstory = stepsOf("hanged-clerk-backstory");
-const notesOf = (moment: string) => read<NotesMoment>(`${moment}.notes.json`);
 const linesOf = (moment: string) => read<SuggestMoment>(`${moment}.suggest.json`);
 /** The stand-in a step ran on. */
 const fakeOf = (g: Step): FakeOptions => g.fake ?? { replies: g.replies ?? [], ...(g.choices ? { choices: g.choices } : {}) };
 
-test("the golden recording is there: the opening and three turns, each step's calls, and each moment's notes and lines", () => {
+test("the golden recording is there: the opening and three turns, each step's calls, and each moment's lines", () => {
   assert.deepEqual(steps.map(s => s.step), ["open", "t1-decide", "t1-reply", "t1-settle", "t2-decide", "t2-reply", "t2-settle", "t3-decide", "t3-reply", "t3-settle"]);
   assert.deepEqual(steps.filter(s => s.step.endsWith("-reply")).map(s => s.calls.map(c => c.operation)), [["gm.reply"], ["gm.reply"], ["gm.reply"]]);
-  assert.deepEqual(files.filter(f => !/^\d\d-/.test(f)), ["open.notes.json", "open.suggest.json", "t1.notes.json", "t1.suggest.json", "t2.notes.json", "t2.suggest.json", "t3.notes.json", "t3.suggest.json"]);
-  // Between them: a note on a mark of the GM's, on a spoken line, on words of the reply; a person, a lore doc and a deed linked; and lines judged and dropped.
-  const marks = ["open", "t1", "t2", "t3"].flatMap(m => notesOf(m).marks);
-  assert.deepEqual([...new Set(marks.map(m => m.link?.kind))].sort(), ["deed", "lore", "person"]);
-  assert.deepEqual([...new Set(marks.map(m => m.kind))].sort(), ["know", "why", "you"]);
+  assert.deepEqual(files.filter(f => !/^\d\d-/.test(f)), ["open.suggest.json", "t1.suggest.json", "t2.suggest.json", "t3.suggest.json"], "the notes' moments went with the notes (M2)");
+  // Between them: lines judged and dropped.
   const why = ["open", "t1", "t2", "t3"].flatMap(m => linesOf(m).dropped.map(d => d.why.replace(/:.*/, "")));
   for (const reason of ["a name not heard", "no way out yet", "the GM's markup", "the judge", "offered last time"]) assert.ok(why.includes(reason), reason);
   // A rules session (the wizard's build): the director's rules questions are in the recording, for the AI service to ask too.
@@ -117,8 +112,8 @@ test("the golden recording is there: the opening and three turns, each step's ca
   for (const step of ["t1-settle", "t2-settle", "t3-settle"]) assert.ok(["left", "threat", "threat_severity"].every(id => asked(step, "director.after").includes(id)), `${step}: left, the threat and its severity`);
 });
 
-test("the AI service asks what the prototype's asks, step by step through the opening and three turns, with the notes and the lines after each reply", async () => {
-  await playedAlong(steps, { notesAndLines: true });
+test("the AI service asks what the prototype's asks, step by step through the opening and three turns, with the lines after each reply", async () => {
+  await playedAlong(steps, { lines: true });
 });
 
 test("the recording with a backstory is there: the opening and a turn, the GM told who they are from it", () => {
@@ -130,15 +125,15 @@ test("the recording with a backstory is there: the opening and a turn, the GM to
 });
 
 test("with a backstory from character creation, the GM asks what the prototype's asks: the player's doc written before disclosure, the brief's who they are", async () => {
-  await playedAlong(withBackstory, { notesAndLines: false });
+  await playedAlong(withBackstory, { lines: false });
 });
 
 /**
  * A recording's steps in order on one game, each compared with the prototype's calls; and, where
- * the recording has them (the hanged clerk's, not the one with a backstory), each reply's notes and
- * lines after it.
+ * the recording has them (the hanged clerk's, not the one with a backstory), each reply's lines
+ * after it.
  */
-async function playedAlong(recording: Step[], { notesAndLines }: { notesAndLines: boolean }): Promise<void> {
+async function playedAlong(recording: Step[], { lines }: { lines: boolean }): Promise<void> {
   const play = await game();
   const decisions = new Map<string, Decision>();
   const before = new Map<string, Session>();
@@ -155,18 +150,9 @@ async function playedAlong(recording: Step[], { notesAndLines }: { notesAndLines
 
     compare(golden.step, golden.calls, asked.calls);
     if (golden.speakers) sameSpeakers(golden.step, golden.speakers, asked.shown, (asked.answer as OpenResponse | ReplyResponse).entries[0]!);
-    if (notesAndLines && (golden.step === "open" || golden.step.endsWith("-reply"))) {
-      await sameNotes(play, notesOf(turn));
-      await sameLines(play, linesOf(turn));
-    }
+    if (lines && (golden.step === "open" || golden.step.endsWith("-reply"))) await sameLines(play, linesOf(turn));
   }
 }
-
-test("the notes are in the GM's history: a reply's notes, written once it's on the transcript, are what the next reply's history writes back", () => {
-  const t2 = steps.find(s => s.step === "t2-reply")!.calls[0]!.body;
-  const t1Why = notesOf("t1").marks.find(m => m.kind === "why")!;
-  assert.ok(t2.input!.some(m => m.role === "assistant" && m.content.includes(`)[why: ${t1Why.note}]`)), "t1's note, in t2's history as the prototype writes it");
-});
 
 // ---------------------------------------------------------------------------------------------
 // What's compared.
@@ -197,23 +183,11 @@ function sameDecision(step: string, operation: string, mine: Request & { state?:
   assert.deepEqual(missing.filter(id => !left.includes(id)), [], `${step} ${operation}: questions the AI service should ask and doesn't`);
 }
 
-/** Who says each line as the reply streams (the draft's posts, a word at a time) and once it's whole, by the game's keys: the cast's are their ids either way. */
+/** Who says each line as the reply streams (the draft's posts, a word at a time) and once it's whole, by the game's keys: the cast's are their ids either way; a note the GM wrote, never shown or kept. */
 function sameSpeakers(step: string, theirs: Speakers, shown: Array<{ text: string; speech: Speech[] }>, entry: OpenResponse["entries"][number]): void {
   assert.deepEqual(shown, theirs.streamed, `${step}: who says each line as it streams`);
-  assert.deepEqual({ text: entry.text, speech: entry.markup?.speech ?? [], drafted: entry.drafted ?? [] }, theirs.whole, `${step}: who says each line once it's whole`);
-  assert.deepEqual(entry.markup?.marks ?? [], [], `${step}: none of the GM's own notes`);
-}
-
-/** A moment's notes: the writer told what the prototype's was, byte for byte; the same marks placed and linked (by the game's keys), each with the same card. */
-async function sameNotes(play: Game, moment: NotesMoment): Promise<void> {
-  const req = notesRequest(moment);
-  const asked = await play.run(moment.fake, ctx => pipeline.notes(req, ctx));
-  const answer = asked.answer as NotesResponse;
-  const keys = (m: Mark) => gameMarkup({ speech: [], marks: [m] }, play.scene(), worldOf(moment.session), KEYS).marks[0]!;
-
-  compare(`${moment.moment} notes`, [{ operation: "notes", body: moment.body }], asked.calls);
-  assert.deepEqual(answer.marks.map(({ card: _, ...m }) => m), moment.marks.map(keys), `${moment.moment}: the notes placed and linked`);
-  assert.deepEqual(answer.marks.map(m => m.card ?? null), moment.cards, `${moment.moment}: each link's card`);
+  assert.deepEqual({ text: entry.text, speech: entry.markup?.speech ?? [] }, { text: theirs.whole.text, speech: theirs.whole.speech }, `${step}: who says each line once it's whole`);
+  assert.deepEqual(Object.keys(entry.markup ?? { speech: [] }), ["speech"], `${step}: who says each line, and nothing else`);
 }
 
 /**
@@ -341,11 +315,6 @@ function settleRequest(g: Step, before: Session): SettleRequest {
   const lines = s.transcript.filter(e => e.turn === s.turn && e.kind === "roll").map(e => e.text);
   // What was settled before the turn (settledFacts: the facts, and the rulings, none here), the last 16.
   return { ...base("settle", s.turn, s), turn: turnOf(s), reply, lines, settled: before.established.slice(-16) };
-}
-
-/** The notes on a moment's reply: the reply's seq is its place on the scene's transcript, from 1, as the simulation numbers its rows. */
-function notesRequest(m: NotesMoment): NotesRequest {
-  return { ...base("notes", m.session.turn, m.session), turn: sceneOf(m.session), reply: { seq: m.reply.at + 1, text: m.reply.text, speech: m.reply.speech, drafted: m.reply.drafted } };
 }
 
 /** The lines after a moment's reply: none of the scene's last set again. */

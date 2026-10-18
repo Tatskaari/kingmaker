@@ -13,9 +13,10 @@ import { callLog, check, doneTurn, mapUntil, modelCalls, nextTurn, ok, restartAi
 
 /**
  * The e2e's steps for the whole story (story-design §5, the integrator's): one game from the yard to
- * The End on the fake model, a lead and a spectator. §1.1's recipe finds each scene at the first of
- * its endings the decider offers (the line that reaches it, then its wind-down), but the Rat, which
- * the dev stack's owner ends with end_scene through the headless client's end, as /end does. Each
+ * The End on the fake model, a lead and a spectator. §1.1's recipe has the two-part GM's co-GM walk
+ * each scene to the first of its endings it can reach, a route a line (then its wind-down), but the
+ * Rat, which the dev stack's owner ends with end_scene through the headless client's end, as /end
+ * does. Each
  * scene's end writes its chapter and the endings' story rows and crosses the boundary on the AI
  * service (the hand-off, the verdict, the fronts and presence, under the ended scene's last turn's
  * key); the next scene waits until the lead walks to it, the spectator's seat following; the Heron's
@@ -26,8 +27,8 @@ import { callLog, check, doneTurn, mapUntil, modelCalls, nextTurn, ok, restartAi
 /** Step 20 left $10 in today's ledger, so the AI service keeps its ceiling raised from here on. */
 const RAISED = { KM_AI_DAILY_USD: "100" };
 const WREN = { campaign: "caerwyn", name: "Wren Ashdown", concept: "a hedge wizard from the fens", build: "wizard" };
-/** §1.1's recipe: each scene's ending the first of these it offers, the player's own doing. */
-const ENDINGS = ["open-case", "hobb-talks", "fight", "caught-in-the-act", "justice"];
+/** §1.1's recipe: the co-GM walks each scene to the first of these it has that its walk can still reach (the Heron's fight, then, fought, caught in the act). */
+const ENDINGS = ["murder-unknown", "hobb-talks", "fight", "caught-in-the-act", "justice"];
 
 /** What a step's headless verb printed, and its progress (dropped). */
 interface Printed { text: string[]; out: verbs.Out }
@@ -44,7 +45,7 @@ function printed(): Printed {
 export async function theWholeStory(stack: Stack, root: string, lead: Player, b: Player, fake: FakeOptions): Promise<void> {
   step("31. A scene's end crosses the boundary: the yard to the Drowned Rat, waiting");
   // The recipe on fake.json's quiet answers, every call at once (no streaming: this step isn't about it).
-  await restartAi(stack, onTop(fake, { choices: { ending: ENDINGS, own_exit: "theirs" }, streamMs: 0, byNameDelayMs: { notes: 0 }, suggestDelayMs: 0 }), RAISED);
+  await restartAi(stack, onTop(fake, { coGm: { endings: ENDINGS }, streamMs: 0, suggestDelayMs: 0 }), RAISED);
   const was = lead.conn.explore()?.game;
   check(`${lead.name}'s new_game (${WREN.name}, ${WREN.build}) is made`, (await lead.conn.newGame(WREN)) === undefined);
   // The game starts on the map in the granary lane (map-design §3.3): walked to its lead, the yard.
@@ -56,20 +57,20 @@ export async function theWholeStory(stack: Stack, root: string, lead: Player, b:
   check(`B's join_game(${game.id}) is made`, (await b.conn.joinGame(game.id)) === undefined);
   await until(b, "B to see the yard", 10_000, r => r.game.id === game.id && r.scene.status === "live");
 
-  const yard = await twoLines(lead, "Sergeant, that's a cord mark, not a rope. Write him down as murdered, persons unknown.", "Let's go.", "Murder by persons unknown");
+  const yard = await toTheEnding(lead, ["Cob, who was the big man last night?", "Sergeant, that's a cord mark, not a rope.", "Is that the dead-cart?", "Write him down as murdered, persons unknown."], "Let's go.", "Murder by persons unknown");
   const rat = await waitingLead(lead, "drowned-rat", "The Drowned Rat");
   check(`the game's time is the Rat's: ${String(rat.game.time)}`, rat.game.time === "evening");
   const [chapter] = await stack.sql(`SELECT * FROM chapter WHERE scene_id = ${game.scene}`);
   const summary = String(chapter?.summary ?? "");
   check(`the yard's chapter: ${String(chapter?.exit_key)}, its hand-off "${summary.split("\n")[0]}" and the fake's words after it, ${Number(chapter?.calls)} calls`,
-    chapter?.exit_key === "open-case" && summary.startsWith('Previous scene, "The Hanged Clerk", ended: Murder by persons unknown (hanged-clerk: open-case).') && summary.includes("Kell has it all in her notebook") && Number(chapter?.calls) >= 3);
+    chapter?.exit_key === "murder-unknown" && summary.startsWith('Previous scene, "The Hanged Clerk", ended: Murder by persons unknown (hanged-clerk: murder-unknown).') && summary.includes("Kell has it all in her notebook") && Number(chapter?.calls) >= 3);
   const boundary = keyOf(game, yard, "boundary");
   const asked = ["handoff", "boundary", "fronts"].map(op => `${op} ${modelCalls(root, game.uid, op, boundary)}`);
   check(`the boundary asked the hand-off, the verdict and the fronts once each under ${boundary.split(":").slice(1).join(":")}: ${asked.join(", ")}`, asked.every(a => a.endsWith(" 1")));
   const story = rat.story!;
   check(`the ending's story rows: quest ${story.quests.map(q => `${q.key} ${q.status}`).join()}, flag ${story.flags.map(f => `${f.name}=${f.value}`).join()}, ${story.followers.map(f => f.name).join()} follows, ${story.journal.length} journal line`,
-    story.quests.some(q => q.key === "hanged-clerk" && q.status === "active") && story.flags.some(f => f.name === "prout_death" && f.value === "murder, unnamed")
-      && story.followers.some(f => f.castKey === "kell") && story.journal.some(j => j.text === "Prout was murdered. The watch has it down as persons unknown."));
+    story.quests.some(q => q.key === "hanged-clerk" && q.status === "complete") && story.flags.some(f => f.name === "prout_death" && f.value === "murder")
+      && story.followers.some(f => f.castKey === "kell") && story.journal.some(j => j.text === "Wendell Prout didn't hang himself. Big Hobb Mallory, the Drowned Rat's champion, was there: find him at the Rat."));
   const docs = join(root, "ai", "games", game.uid, "docs");
   const kell = join(docs, "Cast", "Sergeant Agnes Kell", "memories", "index.md");
   check("the game's docs: the played scene in the story's index, and Kell's memory of how it ended",
@@ -83,7 +84,7 @@ export async function theWholeStory(stack: Stack, root: string, lead: Player, b:
   check("the lead's go (walk toward the lead) opens the Rat", await verbs.go(lead.conn, went.out) === 0 && went.text.join("\n").includes("[The Drowned Rat, evening]"));
   const inRat = await until(lead, "the Rat to be live", 30_000, r => r.scene.title === "The Drowned Rat" && r.scene.status === "live" && r);
   const ratGame: Game = { ...game, scene: inRat.scene.id };
-  const openingInput = modelInput(root, ratGame, "gm.opening", keyOf(ratGame, 0, "open"));
+  const openingInput = modelInput(root, ratGame, "two-part.opening", keyOf(ratGame, 0, "open"));
   check("its opening was told the story so far: \"What happened just before this scene\", the yard's hand-off", openingInput.includes("What happened just before this scene") && openingInput.includes('Previous scene, "The Hanged Clerk", ended'));
   await until(b, "B's seat to follow into the Rat", 10_000, r => r.scene.id === inRat.scene.id && r.scene.status === "live");
   ok("B's seat followed the lead into the Rat");
@@ -92,7 +93,7 @@ export async function theWholeStory(stack: Stack, root: string, lead: Player, b:
   check(`Kell and the player's character are one entity each, in the Rat's place now: ${entities.map(e => `${String(e.key)} in place ${String(e.place_id)}`).join(", ")}`,
     entities.length === 2 && entities.every(e => String(e.place_id) === String(ratPlace?.id)));
 
-  step("33. The Rat ended as the owner (end_scene), on to the Heron; its fight, and the stand-in");
+  step("33. The Rat ended as the owner (end_scene), on to the Heron; the co-GM's walk to its fight, and the stand-in");
   const ended = printed();
   check("the lead's end --exit hobb-talks (end_scene as the dev stack's owner) prints the way on", await verbs.end(lead.conn, "hobb-talks", ended.out) === 0);
   const between = ended.text.join("\n");
@@ -103,10 +104,11 @@ export async function theWholeStory(stack: Stack, root: string, lead: Player, b:
   check("the lead's go opens the Heron", await verbs.go(lead.conn, toHeron.out) === 0);
   const atHeron = await until(lead, "the Heron to be live", 30_000, r => r.scene.title === "The Heron Warehouse" && r.scene.status === "live" && r);
   const heronGame: Game = { ...game, scene: atHeron.scene.id };
+  await toTheEnding(lead, ["I'll take that book off the desk.", "Someone's coming: the Master?", "Sallow, you're cornered."], undefined, "Roll for initiative");
   const n = nextTurn(lead);
-  check("the lead goes for Sallow", (await lead.conn.say("(I go for Sallow with my blade)")) === undefined);
+  check("the lead goes for Sallow, as the scene closes on the fight", (await lead.conn.say("(I go for Sallow with my blade)")) === undefined);
   const fighting = await until(lead, "the Heron to be fighting", 60_000, r => r.scene.status === "fighting" && r);
-  check(`"${lastEntry(fighting).text}" ends it at once, and no chapter yet`, lastEntry(fighting).text === "Scene ends: Roll for initiative" && !(await stack.sql(`SELECT * FROM chapter WHERE scene_id = ${heronGame.scene}`)).length);
+  check(`"${lastEntry(fighting).text}" ends it, the wind-down's reply closing on the fight breaking out, and no chapter yet`, lastEntry(fighting).text === "Scene ends: Roll for initiative" && !(await stack.sql(`SELECT * FROM chapter WHERE scene_id = ${heronGame.scene}`)).length);
   check("a line now is refused: not_now", (await lead.conn.say("Wait!"))?.code === "not_now");
   await until(b, "B to see the fight", 10_000, r => r.scene.status === "fighting");
   ok("B sees the fight");
@@ -120,13 +122,13 @@ export async function theWholeStory(stack: Stack, root: string, lead: Player, b:
     gm.fought.includes("fight") && gm.established.some(e => e.startsWith("The fight is over: ")) && after.story!.journal.some(j => j.text === "The fight wasn't played: it's told as won."));
 
   step("34. A summons, then The End");
-  await twoLines(lead, "Sergeant, arrest him: he was caught with the King's grain.", "To the palace, then.", "Caught in the act", true);
+  await toTheEnding(lead, ["Whose grain is in these sacks?", "Sergeant, arrest him: he was caught with the King's grain."], "To the palace, then.", "Caught in the act", true);
   const king = await until(lead, "the King's morning to open by itself", 60_000, r => r.scene.title === "The King's Morning" && r.scene.status === "live" && r);
   check(`a summons: the King's morning opened in the boundary's commit with no walk (nothing waits), at ${String(king.game.time)}`, king.game.time === "next-morning" && !king.story!.scenes.some(s => s.status === "waiting"));
   await doneTurn(lead, 0);
   await until(b, "B's seat to be summoned too", 10_000, r => r.scene.id === king.scene.id);
   ok("B's seat went to the King's morning too");
-  await twoLines(lead, "Majesty, Sallow's initials are on every lost wagon.", "Thank you, Majesty.", "Done right by");
+  await toTheEnding(lead, ["Majesty, what would you have done?", "Majesty, Sallow's initials are on every lost wagon."], "Thank you, Majesty.", "Done right by");
   const end = await until(lead, "The End", 60_000, r => r.story?.game.status === "ended" && r);
   const chapters = await stack.sql(`SELECT * FROM chapter WHERE game_id = ${game.id}`);
   check(`The End: the game is over with ${chapters.length} chapters (${chapters.sort((x, y) => Number(x.seq) - Number(y.seq)).map(c => c.exit_key).join(", ")}), no lead`,
@@ -141,16 +143,23 @@ export async function theWholeStory(stack: Stack, root: string, lead: Player, b:
 }
 
 /**
- * Two lines that end the scene: the first reaches the recipe's ending (the scene closing), the
- * second is its wind-down; the scene ends on `ending`. Its last turn's n (the boundary's key).
- * A summons moves the seat on as the scene ends: `summons` reads the scene's end from the SQL then.
+ * Lines until the co-GM's walk reaches the recipe's ending (the scene closing: a route a line), then
+ * the wind-down, when there's one to say: the scene ends on `ending`. Its last turn's n (the
+ * boundary's key). A summons moves the seat on as the scene ends: `summons` reads the scene's end
+ * from the SQL then. Without a wind-down, it stops at the scene closing.
  */
-async function twoLines(p: Player, first: string, second: string, ending: string, summons = false): Promise<number> {
+async function toTheEnding(p: Player, lines: string[], windDown: string | undefined, ending: string, summons = false): Promise<number> {
   const at = p.conn.rows()!.scene.id;
-  check(`${p.name} says "${first}"`, (await p.conn.say(first)) === undefined);
-  await until(p, "the scene to close on the ending", 60_000, r => r.scene.id === at && r.scene.status === "closing");
+  for (const line of lines) {
+    const n = nextTurn(p);
+    check(`${p.name} says "${line}"`, (await p.conn.say(line)) === undefined);
+    if ((await doneTurn(p, n)).scene.status === "closing") break;
+  }
+  await until(p, `the scene to close on ${ending}`, 10_000, r => r.scene.id === at && r.scene.status === "closing");
+  ok(`the co-GM's walk closed the scene in ${lines.length > 1 ? "its lines" : "a line"}: ${ending}`);
+  if (!windDown) return nextTurn(p) - 1;
   const n = nextTurn(p);
-  check(`${p.name} says the wind-down, "${second}"`, (await p.conn.say(second)) === undefined);
+  check(`${p.name} says the wind-down, "${windDown}"`, (await p.conn.say(windDown)) === undefined);
   if (summons) {
     await until(p, "the scene to end and the story to move on", 60_000, r => r.scene.id !== at || (r.scene.status === "ended" && r.story?.game.onward === undefined));
     ok(`the scene ended on ${ending}`);
@@ -177,8 +186,8 @@ function keyOf(game: Game, n: number, step: Step): string {
   return idempotencyKey(game.uid, game.scene, n, step);
 }
 
-/** What the model was given for the last call for `operation` under a key: its input's messages, as one text. */
+/** What the model was given for the last call for `operation` under a key: its instructions (the two-part GM's prep is there) and its input's messages, as one text. */
 function modelInput(root: string, game: Game, operation: string, key: string): string {
-  const call = callLog(root, game.uid).filter(c => !c.started && c.operation === operation && c.key === key).at(-1) as { request?: { input?: Array<{ content: string }> } } | undefined;
-  return call?.request?.input?.map(m => m.content).join("\n") ?? "";
+  const call = callLog(root, game.uid).filter(c => !c.started && c.operation === operation && c.key === key).at(-1) as { request?: { instructions?: string; input?: Array<{ content: string }> } } | undefined;
+  return [call?.request?.instructions ?? "", ...(call?.request?.input?.map(m => m.content) ?? [])].join("\n");
 }

@@ -67,7 +67,7 @@ export const SCRIPTS: Record<string, Script> = {
   v5: {
     name: "v5",
     title: "V5 live run",
-    about: "The reply as drawn: each speaker's lines, the notes on a reply's marks and the lines suggested after it, through V5's split",
+    about: "The reply as drawn: each speaker's lines and the lines suggested after it, through V5's split",
     who: "Wren Ashdown: a quick-witted investigator lent to the case by the King",
     build: "rogue",
     // v5-design §4.6: greetings, a look and a question, the two on the wall, a suggested line, the

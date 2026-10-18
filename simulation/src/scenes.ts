@@ -109,6 +109,15 @@ export function sceneGraph(tx: TxCtx, scene: SceneRow, gm: Pick<GmState, "patche
   return graphOf(sceneDefOf(tx, gameRow(tx, scene.gameId), scene.sceneKey), gm.patches);
 }
 
+/**
+ * Whether a scene plays on the two-part GM's steps (docs/two-part-design.md): a scene of the story
+ * does (a talk keeps its own), unless its campaign says its scenes are the old pipeline's
+ * (campaign.json's `gm`).
+ */
+export function playsTwoPart(tx: TxCtx, scene: Pick<SceneRow, "kind" | "gameId">): boolean {
+  return scene.kind !== "talk" && campaignFile(campaignOfGame(tx, gameRow(tx, scene.gameId))).gm !== "pipeline";
+}
+
 /** An exit of the graph by its id. */
 export function exitOf(graph: Scene, id: string): Exit {
   const exit = graph.exits.find(e => e.id === id);

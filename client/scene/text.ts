@@ -1,35 +1,24 @@
-// The prototype's src/runtime/markup.ts:623-635 (markupLines, with each mark's card under it) and src/game/play.ts:547-553 (render) at 44c6d4a, reading names from the view; src/cli/qa.ts:94-97 (the actions, as actionLines, with the way back to the map once a scene on one is over: map-design §3.3, and a talk's goodbye and walking on: src/game/play.ts:351-361, town-design §3.9); viewText and phaseLine are new, the way on's lines (story/text.ts) once the scene is over.
-import type { Mark, MarkLink, Markup } from "../../shared/markup.ts";
+// The prototype's src/runtime/markup.ts:623-635 (markupLines, but each mark's note and card: the notes went in M2) and src/game/play.ts:547-553 (render) at 44c6d4a, reading names from the view; src/cli/qa.ts:94-97 (the actions, as actionLines, with the way back to the map once a scene on one is over: map-design §3.3, and a talk's goodbye and walking on: src/game/play.ts:351-361, town-design §3.9); viewText and phaseLine are new, the way on's lines (story/text.ts) once the scene is over.
+import type { Markup } from "../../shared/markup.ts";
 import { FAREWELL, WALK_ON } from "../../shared/scene/talk.ts";
 import { wayOnActions, wayOnPhase } from "../story/text.ts";
 import { isPlayer, type Entry, type SceneView } from "./view.ts";
 
 /**
  * The scene as text, for the headless client (an agent plays through it) and the logs: the last few
- * entries, a GM reply's markup under it (who says what, each marked phrase's note and card), the
+ * entries, a GM reply's markup under it (who says what), the
  * lines suggested for this moment (say_1…, as the agent picks them), the phase and whether the
  * player may speak. The prototype's QA console printed the same way (src/game/play.ts
  * render, src/runtime/markup.ts markupLines), from the core; this prints from the same view model the
  * screen draws, so the agent sees what the player sees.
  */
 
-/**
- * A reply's markup in words: who says each line, then each marked phrase with its note and what
- * it's linked to, and under it the card its popover shows (what the player knows of that), when it
- * has one to show.
- */
+/** A reply's markup in words: who says each line. */
 export function markupLines(text: string, markup: Markup, name: (id: string) => string | undefined): string[] {
   const clip = (s: string, n = 28) => (s.length > n ? `${s.slice(0, n - 1)}…”` : s);
   // A tag that's no one here is someone the GM brought in ("the porter"), not someone away.
   const who = markup.speech.map(s => `${s.speaker === "you" ? "you" : (s.speaker ? name(s.speaker) : undefined) ?? (s.tag ? `${s.tag} (not in the cast)` : "nobody can tell")} ${clip(text.slice(s.start, s.end))}`);
-  const link = (l: MarkLink) => (l.kind === "deed" ? `what you did, turn ${l.turn}` : l.kind === "person" ? `who: ${name(l.id) ?? l.id}` : `lore: ${l.path.replace(/^.*\//, "").replace(/\.md$/, "")}`);
-  return [
-    ...(who.length ? [`  ⟨who says what: ${who.join("; ")}⟩`] : []),
-    ...markup.marks.flatMap((m: Mark) => [
-      `  ⟨${m.kind} on “${text.slice(m.start, m.end)}”: ${m.note}${m.link ? ` (${link(m.link)})` : ""}⟩`,
-      ...(m.card?.lines.length ? [`    ⟨card: ${[m.card.title, ...m.card.lines].join(" · ")}⟩`] : []),
-    ]),
-  ];
+  return who.length ? [`  ⟨who says what: ${who.join("; ")}⟩`] : [];
 }
 
 /** Entries as text: the player's lines quoted, the dice marked, dialogue by name, a reply with its markup under it. */

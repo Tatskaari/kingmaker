@@ -66,12 +66,12 @@ flowchart TB
 
 | Caller | Uses |
 |---|---|
-| [service/endpoints/turn.ts](../service/endpoints/turn.ts) | `disclose` before an opening and alongside each turn's decide; `keepOpened` |
-| [gm/voice.ts](../gm/voice.ts) | `memoryBrief`, in every GM reply |
+| [service/endpoints/turn.ts](../service/endpoints/turn.ts) | `disclose` before an opening and alongside each turn's decide (the old pipeline's: a talk's, or a campaign that names it; the two-part GM discloses nothing); `keepOpened` |
+| [gm/voice.ts](../gm/voice.ts) | `memoryBrief`, in every reply of the old pipeline's GM (a talk's, and a fight's aftermath; the two-part GM reads no memories) |
 | [service/endpoints/remember.ts](../service/endpoints/remember.ts) | `reviewTurn`, after each turn (`POST /v1/turns/remember`), with the request's call context (`calls`) |
 | [gm/boundary.ts](../gm/boundary.ts) | At a boundary: `errandsOf` (for the verdict: what the people the story goes on with do in the time between), `savePlayedScene`, `broadcastEnding`, `frontsText` and `moveFronts`, `saveMemory` and `memoryLines` |
 | [gm/talk.ts](../gm/talk.ts) | A companion's talk: their lore entry, notes and memories (`characterEntry`, `seedDoc`, `memoryLines`, `saveMemory`), and `withhold` |
-| [gm/knowledge.ts](../gm/knowledge.ts), [gm/notes.ts](../gm/notes.ts) | `listDocs` and `seedDoc`: the lore a note on a reply links to, and its card |
+| [gm/knowledge.ts](../gm/knowledge.ts) | `playerDocPath` and `readDoc`: the player's own doc, for the GM's note of what the player knows (until M2, the notes on a reply's marks linked into the lore with `listDocs` and `seedDoc` too) |
 | [service/endpoints/backstories.ts](../service/endpoints/backstories.ts) | Character creation's backstory: `draftBackstory`, `workIn`, `checkLore`, `finishBackstory` (`applyFix` is shared/creation's) |
 
 It calls [the model client](../llm/README.md) (`JevDecider` for disclosure and the attention filter, `runTools` for the agents, `respondJson` for the lite reviews) and [the prompts](../prompts/README.md) (the reviews'), and nothing outside ai/ and shared/. Who is present and the transcript come in the working set. The lite reviews ([remember.ts](remember.ts): `rememberTurn`, `rememberScene`) were the prototype's `memory: "lite"` approaches' alone: nothing in the game calls them.
