@@ -105,7 +105,7 @@ async function reviewNotes(view: WorkingSet, turn: number, flags: string[], effo
     const people = present.map(c => `- ${c.id}: ${c.name}\n${(notesText(readNotes(view.game, c.id), { keys: true }) ?? "(no notes yet)").split("\n").map(l => `    ${l}`).join("\n")}`).join("\n");
     const dice = rulings(view, turn);
     const result = await respondJson<{ updates: NoteUpdate[]; summary: string }>({
-      operation: "memory.review.notes", model: LUNA, effort, maxOutputTokens: 2000,
+      operation: "memory.review.notes", model: LUNA, effort, maxOutputTokens: 8000,
       instructions: prompt("memory-review", { parts: partsText() }),
       input: [{ role: "user", content: [
         `## Your task: the GM's notes on the people here (flags raised on this moment: ${flags.join(", ")})`,

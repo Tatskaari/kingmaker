@@ -38,7 +38,7 @@ export type Notes = Record<NoteSection, string[]>;
 export interface NotePerson { id: string; name: string }
 
 /** A line at most this long (longer is cut at a word, with an ellipsis). */
-export const LONGEST_LINE = 300;
+export const LONGEST_LINE = 400;
 
 /** Where someone's notes are in a game's copy of the lore: beside their lore entry, or under characters/ for someone with none. */
 export function notesPath(id: string): string {

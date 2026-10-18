@@ -118,12 +118,14 @@ function notesAtEnd(scene: Scene, next: Scene, state: TurnView, exit: Exit): voi
  * What the boundary says of someone in the time between (what the player heard of it, in the lead;
  * how things stand for them, in the adjustments) goes into the GM's notes on them, so the next
  * scene's GM and their talks know it as theirs. Kell's afternoon at the Purveyor's wagons was in the
- * lead, and in the talk that followed she flatly denied it: her memories held only the granary.
+ * lead, and in the talk that followed she flatly denied it: her memories held only the granary. Only
+ * the people of the scene that ended lived the time between: someone the next scene brings on has
+ * no line of it (the lead's "followed the big man to the Rat" was never Hobb's doing, and what the
+ * adjustments say of him is that scene's prep already).
  */
 function rememberBetween(scene: Scene, next: Scene, state: TurnView, lead: string | undefined, adjustments: string[]): void {
-  const people = new Map([...scene.cast, ...next.cast].map(c => [c.id, c]));
   const between = `Between ${scene.title} and ${next.title}`;
-  for (const c of people.values()) {
+  for (const c of scene.cast) {
     const names = (text: string) => nameTokens(c).some(t => new RegExp(`\\b${t}\\b`).test(text));
     const lines = [...(lead && names(lead) ? [`${between}, as ${firstName(state.player.name)} heard it: ${lead}`] : []), ...adjustments.filter(names).map(a => `${between}: ${a}`)];
     for (const line of lines) {

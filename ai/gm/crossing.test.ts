@@ -65,7 +65,7 @@ test("before a scene closes, what it still holds for the player is offered once 
   assert.match(nowNote(rat, state, directives), /The scene is ending: [^\n]*\n\nBefore it closes: the player hasn't come across these/);
 });
 
-test("the lead stays in the story, and what it says someone did in the time between is in the GM's notes on them (Kell denied the sighting the lead gave her); the ending's attitude and memory are in them too", async () => {
+test("the lead stays in the story, and what it says someone of the scene that ended did in the time between is in the GM's notes on them (Kell denied the sighting the lead gave her); the ending's attitude and memory are in them too", async () => {
   const lead = "As the hours pass, Kell tells you she saw a gentleman with a wheat-ear ring beside the Purveyor's wagons, and followed a big porter with a bandaged hand to the Drowned Rat.";
   const { fake, how } = standIn({ byName: { boundary: {
     scenes: [{ id: "drowned-rat", holds: true, why: "The big man hasn't been questioned." }],
@@ -95,7 +95,7 @@ test("the lead stays in the story, and what it says someone did in the time betw
   ], "how it ended for her, and the time between, and nothing about Nan's Rat");
   assert.deepEqual(kell.standing, ["Friendly: The King's investigator made Prout's case properly."], "the ending's attitude is her standing");
   assert.deepEqual(readNotes("crossing-between", "cob").did, ["Was there when The Hanged Clerk ended: The case is made."], "Cob was there, with no memory of the ending's own");
-  assert.deepEqual(readNotes("crossing-between", "nan-quill").did, ["Between The Hanged Clerk and The Drowned Rat: Nan has the Rat open as ever."], "and Nan, whom an adjustment is about");
+  assert.deepEqual(readNotes("crossing-between", "nan-quill").did, [], "Nan, whom an adjustment is about, wasn't in the scene that ended: what it says of her is the Rat's prep already");
   assert.equal(crossed.next.lead, lead);
 });
 
