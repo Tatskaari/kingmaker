@@ -1,4 +1,6 @@
+import { scriptLine, scriptOf } from "../../client/fight/script.ts";
 import type { FightView } from "../../client/fight/view.ts";
+import { playMs } from "../../shared/fight/pace.ts";
 import type { Stack } from "../dev/stack.ts";
 import { check, mapUntil, moduleLog, note, ok, seconds, step, type Player } from "./kit.ts";
 
@@ -7,9 +9,11 @@ import { check, mapUntil, moduleLog, note, ok, seconds, step, type Player } from
  * SpacetimeDB, through the client's connection. start_ring sets out the wolf run; the wolves' turns
  * are played one at a time by fight_step on SpacetimeDB's own schedule, each a commit of its own
  * paced for the screen, each written as moments (the turn, the move with its path, the bite with its
- * roll); a spectator sees the same moments; the player's own act on their turn, then the dice
- * deciding (auto) to the end; out back to the map, the fight's end the map's words. The steps' times
- * as the module logged them.
+ * roll); the screen's playback of each (M6's screen: a step a tile, a bite's swing and what it did,
+ * each as long on screen as the simulation waited for it); a spectator sees the same moments; the
+ * player's own act on their turn; hurry, the screen's skip to their turn, playing the wolves' turns
+ * after it at once; then the dice deciding (auto) to the end; out back to the map, the fight's end
+ * the map's words. The steps' times as the module logged them.
  */
 
 /** Resolves with what `test` finds in the player's fight, once it finds it; a Failed after `ms`. */
@@ -37,7 +41,7 @@ const theirs = (v: FightView) => v.status === "on" && !!v.options;
 
 /** 40. A fight in the zoo's ring. `lead` plays it (its game on the map, after the town's steps); `b` watches that game. */
 export async function aFightInTheRing(stack: Stack, lead: Player, b: Player): Promise<void> {
-  step("40. A fight in the zoo's ring: start_ring sets out the wolf run; the wolves' turns played one at a time by fight_step on SpacetimeDB's schedule, each its moments, which the spectator sees too; the player's act, then auto to the end; out, back to the map");
+  step("40. A fight in the zoo's ring: start_ring sets out the wolf run; the wolves' turns played one at a time by fight_step on SpacetimeDB's schedule, each its moments, as the screen plays them, which the spectator sees too; the player's act, hurry playing the wolves' turns at once, then auto to the end; out, back to the map");
   check(`${lead.name}'s start_ring("wolves") is made`, (await lead.conn.act("startRing", { ring: "wolves", fast: undefined })) === undefined);
   const first = await fightUntil(lead, "the wolf run to be set out", 10_000, v => v.title === "The wolf run" && v);
   check(`the fight's rows came: ${first.title}, ${first.order.length} in it, in initiative order ${first.order.join(", ")}`, first.order.length === 4 && first.status === "on");
@@ -50,6 +54,15 @@ export async function aFightInTheRing(stack: Stack, lead: Player, b: Player): Pr
   note(`moments before the player's turn: ${mine.events.map(e => `${e.kind}${e.actor ? `:${e.actor}` : ""}`).join(", ")}`);
   for (const e of mine.events.filter(e => e.kind === "move")) check(`a move's path, a tile at a time: ${e.caption} (${(e.detail.path ?? []).map(t => `${t.x},${t.y}`).join(" ")})`, (e.detail.path ?? []).length > 0);
   for (const e of mine.events.filter(e => e.kind === "attack")) check(`a bite with its roll: ${e.caption} (${e.detail.rolls[0]?.d20.join("/")} ${e.detail.rolls[0]?.bonus} = ${e.detail.rolls[0]?.total} vs AC ${e.detail.rolls[0]?.ac})`, e.detail.rolls.length > 0);
+  // The screen plays each as the playback's script has it: a step a tile, a bite's swing and what it did, as long as the simulation waited.
+  const named = (id: string) => (id === mine.board.pc ? "you" : mine.board.units[id]?.called ?? id);
+  for (const e of mine.events.filter(e => e.actor && e.actor !== "player" && (e.kind === "move" || e.kind === "attack"))) {
+    const s = scriptOf(e);
+    const steps = s.beats.filter(b => b.kind === "step").length;
+    const blow = s.beats.some(b => b.kind === "swing" || b.kind === "shot");
+    const landed = s.beats.some(b => b.kind === "hit" || b.kind === "miss");
+    check(`the screen plays it: ${scriptLine(e, named)} (${s.ms} ms)`, s.ms === playMs(e) && (e.kind === "move" ? steps === (e.detail.path ?? []).length : blow && landed));
+  }
   // Each of the other side's turns came in a commit of its own, a moment apart: SpacetimeDB's schedule playing fight_step.
   const gaps = npcTurns.slice(1).map((e, i) => e.at - npcTurns[i]!.at);
   if (gaps.length) check(`the wolves' turns came one at a time, paced (${gaps.map(g => `${Math.round(g)} ms`).join(", ")} apart)`, gaps.every(g => g >= 200));
@@ -67,6 +80,17 @@ export async function aFightInTheRing(stack: Stack, lead: Player, b: Player): Pr
     check(`${lead.name}'s act on their turn: ${act.id} (${act.label})`, refused === undefined);
     const after = await fightUntil(lead, "the act's moment", 10_000, v => v.events.length > seen && v);
     ok(`"${after.events[seen]!.caption}"`);
+    // The screen's skip to your turn: the turn ended, hurry plays the wolves' turns at once, not a paced step apart.
+    if (theirs(after)) {
+      check("end_turn is made", (await lead.conn.act("fightTurn", { act: "end_turn" })) === undefined);
+      const asked = performance.now();
+      const hurried = await lead.conn.act("fightTurn", { act: "hurry" });
+      check(`hurry is made (or the wolves' turns were already played: ${hurried?.text ?? "made"})`, hurried === undefined || hurried.code === "not_now");
+      const back = await fightUntil(lead, "the player's turn after hurry", 10_000, v => (theirs(v) || v.status !== "on") && v);
+      const took = Math.round(performance.now() - asked);
+      check(`the wolves' turns came at once, ${took} ms to the player's turn (or the end, ${back.status}), not a paced step apart`, took < 1500);
+      check("hurry on the player's own turn says there's nothing to hurry", back.status !== "on" || (await lead.conn.act("fightTurn", { act: "hurry" }))?.text === "(It's your turn already: there's nothing to hurry.)");
+    }
   }
 
   let rounds = 0;
