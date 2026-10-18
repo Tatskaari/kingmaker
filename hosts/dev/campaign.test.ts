@@ -233,6 +233,19 @@ test("Kell signs Prout in once the case holds and the lead is in her notebook, w
   assert.match(kell.attitude, /once the lead to who was there is in her notebook too, she'll sign Prout in as a murder over the Captain's word; until then she writes down what she has and says nothing aloud of what's missing\./);
 });
 
+test("the Heron's people and things go by what the player can see, not the prep's labels for them (QA round qa3-1018's g02 and g04: \"the talking bruiser\" before either had spoken, and \"the true book\" for a ledger nobody had called that)", () => {
+  const heron = JSON.parse(files[HERON]!);
+  const place = JSON.parse(files["places/heron.json"]!);
+  const crakes = heron.cast.find((c: any) => c.id === "sallow").members.filter((m: any) => /Crake/.test(m.name));
+  assert.deepEqual(crakes.map((m: any) => m.name), ["the first Crake", "the second Crake"], "nobody can tell them apart until one of them speaks");
+  assert.doesNotMatch(JSON.stringify(heron), /talking (?:one|Crake)|silent Crake/, "which one talks is shown, not named");
+  assert.equal(place.things.find((t: any) => t.id === "true-book").name, "the green ledger");
+  assert.doesNotMatch(JSON.stringify(place), /true book/, "the world the narration reads calls it what it looks like");
+  assert.doesNotMatch(heron.cast.find((c: any) => c.id === "scrope").look, /true book/);
+  assert.doesNotMatch(heron.setting, /true book/);
+  assert.match(node(heron, "wharf").description, /"the true book" is this prep's name for Scrope's real accounts, and to the player it's the fat green ledger with the brass clasp under the clerk's hand until someone here calls it the true book where they can hear/);
+});
+
 test("a discovery: a revelation, two paths or more, three for a required one with one free of dice, each path whole and via the cast or a thing; never behind a roll alone", () => {
   const paths = changed(SCENE, s => {
     node(s, "murder").paths = node(s, "murder").paths.slice(0, 1);
