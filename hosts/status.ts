@@ -1,7 +1,7 @@
-// After the prototype's src/cli/scene.ts at 44c6d4a (status, :250-268; memories, :182-190): the same views of a game the dev stack plays, from its rows (owner SQL) and the AI service's store.
+// After the prototype's src/cli/scene.ts at 44c6d4a (status, :250-268; memories, :182-190, now the GM's notes): the same views of a game the dev stack plays, from its rows (owner SQL) and the AI service's store.
 import { join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { memoriesText, statusOf, statusRows, type Row } from "./dev/gm-status.ts";
+import { notesText, statusOf, statusRows, type Row } from "./dev/gm-status.ts";
 import { sql } from "./dev/spacetime.ts";
 import { readStackFile } from "./dev/stack-file.ts";
 
@@ -12,8 +12,8 @@ import { readStackFile } from "./dev/stack-file.ts";
  * whispers, canon and routes, the GM's rulings, the co-GM's reviews (merged or waiting), the memory
  * reviews, the notes disclosure opened, the background jobs in flight, what the boundary handed on
  * to the scene and the story between scenes (story-design §4.1: the lead, the chapters, the quests,
- * the flags, who walks with the player, the attitudes); or, with --memories,
- * every memory the reviews wrote, in full. It reads the running dev stack: its private rows as the
+ * the flags, who walks with the player, the attitudes); or, with --notes (--memories, its old name),
+ * the GM's notes on each person, in full. It reads the running dev stack: its private rows as the
  * database's owner (runs/dev/stack.json has the token), and the AI service's store (runs/dev/ai/).
  * Not for blind QA: it shows what the player hasn't seen.
  */
@@ -23,7 +23,7 @@ const USAGE = `Kingmaker: the GM's side of a game
   npm run status -- --game <n>              the GM's side of game n's latest scene: beat, path, reached, roles, notes, whispers, canon,
                                             patches, rulings, the co-GM's reviews, the memory reviews, the jobs in flight,
                                             what was handed on to it, and the story: the lead, chapters, quests, flags
-  npm run status -- --game <n> --memories   every memory the reviews wrote, in full
+  npm run status -- --game <n> --notes      the GM's notes on each person (what's happened with them in play), in full
 
 --game is the number in the game's side panel (the newest game when it's left out). --root is the
 stack's folder (runs/dev). Not for blind QA: it shows what the player hasn't seen.`;
@@ -31,7 +31,7 @@ stack's folder (runs/dev). Not for blind QA: it shows what the player hasn't see
 const V2 = resolve(import.meta.dirname, "..");
 
 async function main(argv: string[]): Promise<number> {
-  const { values } = parseArgs({ args: argv, options: { game: { type: "string" }, memories: { type: "boolean" }, root: { type: "string" }, help: { type: "boolean", short: "h" } } });
+  const { values } = parseArgs({ args: argv, options: { game: { type: "string" }, notes: { type: "boolean" }, memories: { type: "boolean" }, root: { type: "string" }, help: { type: "boolean", short: "h" } } });
   if (values.help) { console.log(USAGE); return 0; }
   if (values.game !== undefined && !/^\d+$/.test(values.game)) { console.error(`--game takes the game's number (its side panel says "Game 1"), not "${values.game}".`); return 1; }
   const root = resolve(values.root ?? join(V2, "runs", "dev"));
@@ -43,7 +43,7 @@ async function main(argv: string[]): Promise<number> {
   const game = values.game !== undefined ? games.find(g => String(g.id) === values.game) : games.sort((a, b) => Number(b.id) - Number(a.id))[0];
   if (!game) { console.error(values.game !== undefined ? `There's no game ${values.game} on this stack.` : "There are no games on this stack yet."); return 1; }
   const store = join(root, "ai", "games", String(game.uid));
-  if (values.memories) { console.log(memoriesText(join(store, "docs"), String(game.id))); return 0; }
+  if (values.notes || values.memories) { console.log(notesText(join(store, "docs"), String(game.id))); return 0; }
 
   const scenes = await query(`SELECT * FROM scene WHERE game_id = ${String(game.id)}`);
   const scene = scenes.sort((a, b) => Number(b.id) - Number(a.id))[0];

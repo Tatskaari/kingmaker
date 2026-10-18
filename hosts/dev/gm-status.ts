@@ -1,7 +1,8 @@
-// After the prototype's src/cli/scene.ts at 44c6d4a: its status command (:250-268, the fields and the summaries of path, patches and rulings) and its memories command (:182-190, a doc's heading and body), read from a game's rows and the AI service's store.
+// After the prototype's src/cli/scene.ts at 44c6d4a: its status command (:250-268, the fields and the summaries of path, patches and rulings) and its memories command (:182-190, a doc's heading and body: the GM's notes on each person now, since the memories became those), read from a game's rows and the AI service's store.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseDoc } from "../../ai/docs/docs.ts";
+import { isNotesPath } from "../../ai/docs/notes.ts";
 import type { RepairResult } from "../../shared/gm/repair.ts";
 import { gmFromRow, type GmRow, type GmState, type ScenePatch } from "../../shared/gm/state.ts";
 
@@ -10,8 +11,8 @@ import { gmFromRow, type GmRow, type GmState, type ScenePatch } from "../../shar
  * `scene status` fields from the scene's gm_state row (beat, path, notes, canon, patches, rulings, and
  * the world bridge's threat, hold, brawl and who left),
  * its co-GM reviews from co_gm_result (`repairs`), and what the prototype kept in files: the memory
- * reviews (the AI service's memory-reviews.jsonl) and the notes they wrote (`--memories`, as
- * `scene memories` prints them). Pure: hosts/status.ts reads the rows and the files.
+ * reviews (the AI service's memory-reviews.jsonl) and the GM's notes on each person they keep
+ * (`--notes`, as `scene memories` printed a doc). Pure: hosts/status.ts reads the rows and the files.
  */
 
 /** A row as the owner's SQL gives it: snake_case columns, an empty option null, a time in microseconds. */
@@ -194,16 +195,16 @@ export function reviewLines(file: string): unknown[] {
 }
 
 /**
- * Every memory the reviews wrote in a game's docs (its copy of the lore): each person's index and
- * notes, under Cast/<name>/memories/ (or characters/<id>/memories/ for someone without lore), in
- * full, as the prototype's `scene memories` prints a doc. Says so when there are none.
+ * The GM's notes on each person in a game's docs (its copy of the lore: Cast/<name>/notes.md, or
+ * characters/<id>/notes.md for someone without lore), in full, as the prototype's `scene memories`
+ * printed a doc, with the scene and turn each was last brought up to date on. Says so when there are none.
  */
-export function memoriesText(docs: string, game: string): string {
-  const paths = walk(docs).filter(p => /^(Cast|characters)\/.+\/memories\/[^/]+\.md$/.test(p)).sort();
-  if (!paths.length) return `(No memories yet: the reviews have written none in game ${game}.)`;
+export function notesText(docs: string, game: string): string {
+  const paths = walk(docs).filter(isNotesPath).sort();
+  if (!paths.length) return `(No notes yet: play has given nobody any in game ${game}.)`;
   return paths.map(path => {
     const doc = parseDoc(path, readFileSync(join(docs, path), "utf8"));
-    return `## ${path}  [${doc.meta.visibility}${doc.meta.readers ? ` ${doc.meta.readers.join(",")}` : ""}]\n${doc.meta.context ? `(${doc.meta.context})\n` : ""}${doc.body}\n`;
+    return `## ${path}  [${doc.meta.visibility}${doc.meta.scene ? `, last ${doc.meta.scene} turn ${doc.meta.turn ?? "?"}` : ""}]\n${doc.body}\n`;
   }).join("\n");
 }
 
