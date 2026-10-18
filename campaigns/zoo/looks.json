@@ -1,0 +1,37 @@
+{
+  "kell": {
+    "role": "person",
+    "glyph": "K",
+    "fg": "#6d9eeb"
+  },
+  "sallow": {
+    "role": "person",
+    "glyph": "$",
+    "fg": "#c9a3ff"
+  },
+  "crake-1": {
+    "role": "person",
+    "glyph": "C",
+    "fg": "#b8a888"
+  },
+  "crake-2": {
+    "role": "person",
+    "glyph": "c",
+    "fg": "#9a8f80"
+  },
+  "dog-1": {
+    "role": "creature",
+    "glyph": "d",
+    "fg": "#c08a5a"
+  },
+  "dog-2": {
+    "role": "creature",
+    "glyph": "d",
+    "fg": "#8a8a96"
+  },
+  "dog-3": {
+    "role": "creature",
+    "glyph": "d",
+    "fg": "#b0a898"
+  }
+}

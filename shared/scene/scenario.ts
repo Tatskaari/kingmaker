@@ -198,8 +198,12 @@ export function scenarioShapeProblems(value: unknown): string[] {
   if (!isObject(d.creation)) p.push("it has no creation { name, premise, primer, notCanon, places }");
   if (d.quests !== undefined && !(isObject(d.quests) && Object.values(d.quests).every(t => typeof t === "string"))) p.push("its quests aren't { key: title }");
   if (d.layout !== undefined && !(isObject(d.layout) && Object.values(d.layout).every(isPoint))) p.push("its layout isn't { id: { x, y } }");
+  if (d.gm !== undefined && !GMS.includes(d.gm as string)) p.push(`its gm ${JSON.stringify(d.gm)} isn't one of ${GMS.join(", ")}`);
   return p;
 }
+
+/** Who plays a campaign's scenes (files.ts CampaignFile's gm): the two-part GM, the old pipeline, or no GM (the zoo's). */
+const GMS: string[] = ["two-part", "pipeline", "none"];
 
 /** What's wrong with a value's shape as a map, each problem naming where: [] when it's one. */
 export function mapShapeProblems(value: unknown): string[] {

@@ -1,0 +1,82 @@
+{
+  "format": "kingmaker",
+  "version": 2,
+  "kind": "scenario",
+  "id": "zoo",
+  "title": "The zoo",
+  "description": "Every feature of the game laid out to see and try, an exhibit at a time, kept apart from the story's games. The first exhibit is the combat ring: a fight on the map, a turn at a time.",
+  "campaignVersion": "0.1.0",
+  "firstScene": "ring",
+  "startPlace": "ring",
+  "start": {
+    "day": 1,
+    "time": "afternoon",
+    "map": "ring",
+    "at": [
+      7,
+      9
+    ]
+  },
+  "level": 3,
+  "rulesPack": "starter-pack@0.1.0",
+  "gm": "none",
+  "scenes": [
+    "ring"
+  ],
+  "places": [
+    "ring"
+  ],
+  "maps": [
+    "ring"
+  ],
+  "startingPurse": [],
+  "creation": {
+    "name": "The zoo",
+    "premise": "The zoo is where the game's features are laid out to see and try, one exhibit at a time. A visitor comes in as one of the ready-made characters and nothing done here reaches the story.",
+    "primer": "Zoo.md"
+  },
+  "exhibits": [
+    {
+      "id": "ring",
+      "title": "The combat ring",
+      "description": "A fight on the map, a turn at a time: you and Sergeant Kell against the foes you pick, on a sand floor with two pillars for cover and a brazier to kick over. Every move the other side makes plays out on the board.",
+      "scene": "ring",
+      "fight": {
+        "allies": {
+          "kell": "ally"
+        },
+        "foes": [
+          {
+            "id": "sallow",
+            "title": "Sallow and the Crakes",
+            "description": "Master Sallow with his sword-cane, fighting from behind the Crake brothers: the Heron's fight, on open sand.",
+            "fighters": {
+              "sallow": "villain",
+              "crake-1": "bruiser",
+              "crake-2": "bruiser"
+            }
+          },
+          {
+            "id": "crakes",
+            "title": "The Crakes alone",
+            "description": "The Crake brothers and their cudgels, with nobody paying them to stop.",
+            "fighters": {
+              "crake-1": "bruiser",
+              "crake-2": "bruiser"
+            }
+          },
+          {
+            "id": "dogs",
+            "title": "A pack of dogs",
+            "description": "Three mastiffs off the wharves: fast, and they bite to bring you down.",
+            "fighters": {
+              "dog-1": "brawler",
+              "dog-2": "brawler",
+              "dog-3": "brawler"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

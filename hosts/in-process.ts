@@ -27,13 +27,19 @@ export function streamArgsOf(post: StreamReplyArgs): StreamArgs {
   };
 }
 
-/** A campaign's files into both, as the install tool does it: every file to the AI service (with the module's bearer), then the structure to the module as its owner. */
+/**
+ * A campaign's files into both, as the install tool does it: every file to the AI service (with the
+ * module's bearer), then the structure to the module as its owner. One no GM plays (its scenario's gm
+ * "none": the zoo) goes to the module alone, as the install tool sends it (hosts/dev/install.ts).
+ */
 export async function install(files: CampaignFiles, ai: AiService, sim: MemoryHost, bearer: string): Promise<void> {
   const pack = packOf(files);
   const name = `${pack.campaign.id}@${pack.campaign.version}`;
 
-  const put = await ai.answer({ method: "PUT", path: `/v1/campaigns/${pack.campaign.id}/${pack.campaign.version}`, headers: { authorization: `Bearer ${bearer}` }, body: JSON.stringify({ files }) });
-  if (put.status !== 200) throw new Error(`the AI service didn't take ${name}: ${put.status} ${put.body}`);
+  if (pack.campaign.gm !== "none") {
+    const put = await ai.answer({ method: "PUT", path: `/v1/campaigns/${pack.campaign.id}/${pack.campaign.version}`, headers: { authorization: `Bearer ${bearer}` }, body: JSON.stringify({ files }) });
+    if (put.status !== 200) throw new Error(`the AI service didn't take ${name}: ${put.status} ${put.body}`);
+  }
 
   const refused = sim.as(sim.owner).installCampaign(installArgsOf(pack));
   if (refused) throw new Error(`install_campaign refused ${name}: ${refused.text}`);

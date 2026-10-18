@@ -1,0 +1,212 @@
+{
+  "format": "kingmaker",
+  "version": 2,
+  "kind": "scene",
+  "id": "ring",
+  "title": "The combat ring",
+  "description": "The zoo's ring: you and Sergeant Kell on the sand against whoever's been picked to fight you. The zoo starts the fight at once; the scene is the cast and their notes on how they fight, and what a GM would play if the ring were talked into first.",
+  "lore": [],
+  "place": "ring",
+  "time": "afternoon",
+  "hook": "The combat ring: raked sand, two pillars, a brazier, and somebody waiting on the far side of it to fight you.",
+  "setting": "A ring of raked sand inside a low stone wall, warm with the afternoon and the brazier. Two squat stone pillars stand in the middle of it, chipped where people have hidden behind them. The gate in the south wall is behind you; whoever you've come to fight is on the far side of the sand, and Sergeant Kell is at your shoulder.",
+  "premise": "Can the player and Kell win the fight they've picked, and how?",
+  "truth": "There's nothing hidden: the ring is for practice. Whoever stands on the far side is here to fight, does it as their notes say, and stops when their notes say they stop. Nobody dies in the zoo.",
+  "limits": [
+    "Anyone else to help: the ring has the player, Kell and whoever they picked to fight, and nobody else is coming.",
+    "Getting out of it by talking: the fight is what the ring is for. Sallow will talk, and then fight."
+  ],
+  "cast": [
+    {
+      "id": "kell",
+      "name": "Sergeant Agnes Kell",
+      "look": "Forties, in her watch uniform with the coat off for once, a truncheon in her hand that she has finally been seen to draw, and her notebook buttoned into her pocket out of harm's way.",
+      "voice": "Dry, calm and sparing, in a fight as anywhere: 'Behind you.' 'Down.' 'Noted.'",
+      "wants": "To see the investigator through the fight on their feet, and to arrest whoever gives up, by the book.",
+      "whyHere": "Lent to the King's investigator, she comes into the ring with them.",
+      "knows": [
+        "The Crakes are hired muscle and stop when they stop being paid; Sallow fights from behind them."
+      ],
+      "attitude": "How she fights: beside the investigator, not for them. She takes whoever's nearest the investigator, keeps between them and the worst of it, and says so in a word. She arrests whoever puts their hands up, out loud and by the book, and never hits anyone who's down or yielding.",
+      "limits": "She never takes the fight out of the investigator's hands, and never runs while they're still in it.",
+      "statblock": "guard",
+      "weapon": "club"
+    },
+    {
+      "id": "sallow",
+      "name": "Master Josiah Sallow",
+      "called": "the gentleman with the silver-topped cane",
+      "look": "Fifty, pink and well-fed, in a good dark coat with a fur collar, with a silver-topped cane that slides apart into a thin bright sword, and so much lavender water that you smell him across the sand.",
+      "voice": "Courteous and unhurried, as if to a junior clerk who has made an error: 'Regrettably, this will have to be settled the other way.'",
+      "wants": "Somebody else to do the fighting, and to be the last one standing if they don't.",
+      "whyHere": "The ring has him on the far side of the sand with the Crakes he pays.",
+      "knows": [
+        "What a Crake costs by the hour, and what the second half costs if the fight is lost: nothing, since nobody pays it."
+      ],
+      "attitude": "How he fights: not while he has people to fight for him. He sets the Crakes on whoever's nearest and fights from behind them, a fencer's lunge past a Crake's shoulder at whoever is busy with the Crake, never a fair fight if he can help it; and he parries the first blow that would land each round. If his Crakes go down and the gate is clear, he remembers an urgent appointment and runs for it. Cornered, or with a blade at his throat, he drops the sword and asks very politely to surrender.",
+      "limits": "He never does his own violence while the Crakes can be paid to, and never fights fair. Once he's down, held or surrendering, the Crakes stop.",
+      "statblock": "sword-cane-duellist",
+      "weapon": "rapier"
+    },
+    {
+      "id": "crake-1",
+      "name": "the talking Crake",
+      "look": "An enormous river-bruiser in a reefer jacket, with a cudgel and a great deal to say about it.",
+      "voice": "Talks while he works, mostly about his rates: 'That's a shilling extra for the uniform.'",
+      "wants": "His fee, and the second half of it.",
+      "whyHere": "Hired by the hour, with his brother, to stand on the far side of the sand.",
+      "knows": [
+        "His rates, which he'll tell anyone."
+      ],
+      "attitude": "How he fights: he picks one target, closes in and hits it until it stops moving, and he talks the whole time. With Sallow in the fight he stops the moment Sallow is down, held or surrendering, puts his cudgel down and walks out (nobody pays the second half of a lost fight). Without Sallow there's nobody to stop for.",
+      "limits": "He won't hurt a child or kick a dog, and he never fights on for nothing once the man paying him is out of it.",
+      "statblock": "river-bruiser",
+      "weapon": "club"
+    },
+    {
+      "id": "crake-2",
+      "name": "the silent Crake",
+      "look": "The talking Crake's identical brother, with an identical cudgel, who has never been heard to say anything at all.",
+      "voice": "Says nothing. Nods, occasionally, at his brother.",
+      "wants": "The same fee as his brother, without having to discuss it.",
+      "whyHere": "Hired by the hour, with his brother, to stand on the far side of the sand.",
+      "knows": [
+        "Nothing he's prepared to share."
+      ],
+      "attitude": "How he fights: as his brother does, on whoever his brother is hitting if he can get there, so the two of them come in together. He stops when his brother stops.",
+      "limits": "He won't hurt a child or kick a dog, and never says a word.",
+      "statblock": "river-bruiser",
+      "weapon": "club"
+    },
+    {
+      "id": "dog-1",
+      "name": "a brindle mastiff",
+      "look": "A broad brindle dog off the wharves, all chest and jaw, with a torn ear.",
+      "voice": "A low rumble, then nothing until it bites.",
+      "wants": "To bring someone down, and then the next one.",
+      "whyHere": "One of a pack of three, let into the ring off the wharves.",
+      "knows": [
+        "Which of you smells most frightened."
+      ],
+      "attitude": "How it fights: with the pack, on whoever's nearest, from the side if it can get round; its bite drags people down. It doesn't stop for words.",
+      "limits": "It can't be talked to, bribed or reasoned with.",
+      "statblock": "mastiff",
+      "weapon": "mastiff-bite"
+    },
+    {
+      "id": "dog-2",
+      "name": "a black mastiff",
+      "look": "A big black dog with a white blaze and a rope collar somebody chewed through.",
+      "voice": "Barks once, which is a warning, and once is all you get.",
+      "wants": "To bring someone down.",
+      "whyHere": "One of a pack of three, let into the ring off the wharves.",
+      "knows": [
+        "Where the gate is, and that you're between it and the sand."
+      ],
+      "attitude": "How it fights: with the pack, straight at whoever's nearest; its bite drags people down. It doesn't stop for words.",
+      "limits": "It can't be talked to, bribed or reasoned with.",
+      "statblock": "mastiff",
+      "weapon": "mastiff-bite"
+    },
+    {
+      "id": "dog-3",
+      "name": "a grey mastiff",
+      "look": "An old grey dog, slower than the others and meaner for it.",
+      "voice": "Growls without stopping, like a kettle.",
+      "wants": "Whatever the other two have got hold of.",
+      "whyHere": "One of a pack of three, let into the ring off the wharves.",
+      "knows": [
+        "That the young ones go in first."
+      ],
+      "attitude": "How it fights: with the pack, on whoever the others are on; its bite drags people down. It doesn't stop for words.",
+      "limits": "It can't be talked to, bribed or reasoned with.",
+      "statblock": "mastiff",
+      "weapon": "mastiff-bite"
+    }
+  ],
+  "facts": {},
+  "nodes": [
+    {
+      "id": "the-ring",
+      "type": "story",
+      "position": {
+        "x": 0,
+        "y": 120
+      },
+      "data": {
+        "kind": "start",
+        "title": "On the sand",
+        "description": "The player and Kell stand on the sand by the gate; across it, whoever they've picked to fight. Let the far side speak first (Sallow, if he's there, is courteous about it; the Crakes discuss their rates; the dogs don't) and let the player answer, briefly. The ring is for fighting: the first blow, the first weapon drawn, or the first step towards each other starts it.",
+        "cast": {
+          "kell": "At the investigator's shoulder, truncheon out: one dry word, if any.",
+          "sallow": "Courteous, superior, pulling on his gloves: he regrets that this will have to be settled the other way.",
+          "crake-1": "Rolling his shoulders, quoting his rates.",
+          "crake-2": "Rolling his shoulders, saying nothing."
+        },
+        "lore": []
+      }
+    },
+    {
+      "id": "fight",
+      "type": "story",
+      "position": {
+        "x": 420,
+        "y": 0
+      },
+      "data": {
+        "kind": "exit",
+        "title": "Roll for initiative",
+        "description": "The fight starts: the player and Kell against whoever is on the far side of the sand.",
+        "closing": "Close on the moment it starts: Sallow's cane sliding apart into a thin bright sword, or the Crakes rolling their shoulders, or the dogs coming low across the sand. End with 'Roll for initiative!'",
+        "result": "mixed",
+        "exitKind": "combat",
+        "lore": []
+      }
+    },
+    {
+      "id": "leave",
+      "type": "story",
+      "position": {
+        "x": 420,
+        "y": 240
+      },
+      "data": {
+        "kind": "exit",
+        "title": "Out through the gate",
+        "description": "The player thinks better of it and goes out through the gate, with Kell, before anything starts.",
+        "closing": "Close on the gate swinging shut behind them, and somebody on the far side of the sand saying it's a pity.",
+        "result": "good",
+        "exitKind": "leave",
+        "lore": []
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "to-blows",
+      "source": "the-ring",
+      "target": "fight",
+      "type": "smoothstep",
+      "label": "To blows",
+      "data": {
+        "condition": "Anyone strikes a blow, draws a weapon or casts at someone, or the two sides step towards each other to fight.",
+        "phase": "outcome",
+        "skill": "",
+        "dc": 12
+      }
+    },
+    {
+      "id": "walk-out",
+      "source": "the-ring",
+      "target": "leave",
+      "type": "smoothstep",
+      "label": "Walk out",
+      "data": {
+        "condition": "The player goes back out through the gate before anything starts.",
+        "phase": "outcome",
+        "skill": "",
+        "dc": 12
+      }
+    }
+  ]
+}

@@ -1,0 +1,111 @@
+{
+  "fighter": {
+    "concept": "a broken-nosed ex-sergeant of the river watch who solves most problems with a longsword and the rest with a longer one",
+    "build": {
+      "classId": "fighter",
+      "subclassId": "champion",
+      "speciesId": "human",
+      "backgroundId": "soldier",
+      "abilities": [
+        "STR",
+        "CON",
+        "DEX",
+        "WIS",
+        "CHA",
+        "INT"
+      ],
+      "skills": [
+        "athletics",
+        "intimidation",
+        "perception"
+      ],
+      "feat": "savage-attacker",
+      "cantrips": [],
+      "spells": [],
+      "weapons": [
+        "longsword",
+        "longbow"
+      ],
+      "armor": "chain-mail",
+      "shield": true
+    }
+  },
+  "wizard": {
+    "concept": "an absent-minded hedge-wizard of the Invisible College who has read about fire extensively and is keen to try it",
+    "build": {
+      "classId": "wizard",
+      "subclassId": "evoker",
+      "speciesId": "human",
+      "backgroundId": "sage",
+      "abilities": [
+        "INT",
+        "DEX",
+        "CON",
+        "WIS",
+        "CHA",
+        "STR"
+      ],
+      "skills": [
+        "arcana",
+        "investigation",
+        "history"
+      ],
+      "feat": "alert",
+      "cantrips": [
+        "fire-bolt",
+        "ray-of-frost",
+        "light"
+      ],
+      "spells": [
+        "burning-hands",
+        "magic-missile",
+        "shield",
+        "thunderwave",
+        "sleep",
+        "scorching-ray",
+        "fireball",
+        "misty-step"
+      ],
+      "weapons": [
+        "quarterstaff",
+        "dagger"
+      ],
+      "armor": "none",
+      "shield": false
+    }
+  },
+  "rogue": {
+    "concept": "a palace inspector with soft shoes, a rapier and a notebook, who reads people better than ledgers",
+    "build": {
+      "classId": "rogue",
+      "subclassId": "thief",
+      "speciesId": "halfling",
+      "backgroundId": "criminal",
+      "abilities": [
+        "DEX",
+        "CON",
+        "INT",
+        "WIS",
+        "CHA",
+        "STR"
+      ],
+      "skills": [
+        "investigation",
+        "insight",
+        "stealth",
+        "perception",
+        "sleight-of-hand"
+      ],
+      "feat": "alert",
+      "cantrips": [],
+      "spells": [],
+      "weapons": [
+        "rapier",
+        "shortbow",
+        "dagger"
+      ],
+      "armor": "leather-armor",
+      "shield": false
+    }
+  }
+}

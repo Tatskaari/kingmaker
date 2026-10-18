@@ -41,6 +41,8 @@ set, 0 for none. Past it, a move that needs a model fails in the game's words un
 
 const V2 = resolve(import.meta.dirname, "..");
 const CAMPAIGN = join(V2, "campaigns", "caerwyn");
+/** The zoo (M6): installed beside the story, in the module alone (no GM plays it). */
+const ZOO = join(V2, "campaigns", "zoo");
 /**
  * f's fault: the service exits (137) right after it stores its next reply, before it sends it (v0-design
  * §5.1). After s the kept reply lands at once. (Any answer would be a line's decide, which no one sees.)
@@ -238,13 +240,16 @@ function watchAi(): void {
   });
 }
 
-/** The campaign into both services: "caerwyn 0.1.0 installed in both", or which didn't take it and why. */
+/** The campaign into both services, and the zoo into the module: "caerwyn 0.1.0 installed in both; zoo 0.1.0 installed in the module (no GM plays it)", or which didn't take it and why. */
 async function installCampaign(): Promise<string> {
-  try {
-    return describeInstall(await stack.install(CAMPAIGN));
-  } catch (e) {
-    return (e as Error).message;
-  }
+  const one = async (dir: string) => {
+    try {
+      return describeInstall(await stack.install(dir));
+    } catch (e) {
+      return (e as Error).message;
+    }
+  };
+  return `${await one(CAMPAIGN)}; ${await one(ZOO)}`;
 }
 
 async function doctorNow(): Promise<void> {

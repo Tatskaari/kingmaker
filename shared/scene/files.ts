@@ -3,6 +3,7 @@ import type { Build } from "../rules/types.ts";
 import type { SceneDocument } from "./document.ts";
 import type { WorldOp, WorldSpec } from "../world/scene-world.ts";
 import type { MapFile } from "../map/tiles.ts";
+import type { Exhibit } from "../zoo/exhibits.ts";
 
 /**
  * The campaign format: the files of a campaign folder (campaigns/<id>/), as content-world A1-A4 had
@@ -54,9 +55,13 @@ export interface CampaignFile {
    * Who plays the story's scenes (docs/two-part-design.md): the two-part GM (the default), or the
    * old pipeline ("pipeline": the decider, the reactions, considered rolls and the co-GM's reviews,
    * kept until the user decides what to salvage of it; the simulation's tests of it set it). A talk
-   * keeps its own steps either way.
+   * keeps its own steps either way. "none": no GM plays its scenes (the zoo's, M6, whose exhibits
+   * the simulation sets out itself), so the install gives the AI service none of its words: the AI
+   * service serves one campaign at a time, and that's the story's.
    */
-  gm?: "two-part" | "pipeline";
+  gm?: "two-part" | "pipeline" | "none";
+  /** The zoo's exhibits (shared/zoo/exhibits.ts): what a visit can open, each set out from the campaign's own files. */
+  exhibits?: Exhibit[];
 }
 
 /**

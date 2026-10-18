@@ -1,0 +1,151 @@
+{
+  "format": "kingmaker",
+  "version": 2,
+  "kind": "place",
+  "id": "ring",
+  "title": "The combat ring",
+  "description": "A ring of raked sand inside a low stone wall: two stone pillars, an iron brazier burning on three legs, and the gate in the south wall.",
+  "size": {
+    "w": 80,
+    "h": 60
+  },
+  "areas": [
+    {
+      "id": "sand",
+      "name": "the sand",
+      "rect": {
+        "x": 5,
+        "y": 5,
+        "w": 70,
+        "h": 50
+      },
+      "description": "Raked smooth before every fight, which nobody notices, and scuffed after it, which everybody does."
+    },
+    {
+      "id": "gate",
+      "name": "the gate",
+      "rect": {
+        "x": 35,
+        "y": 55,
+        "w": 5,
+        "h": 5
+      },
+      "description": "A timber gate in the south wall. It opens outwards, for the convenience of people leaving in a hurry."
+    }
+  ],
+  "things": [
+    {
+      "id": "brazier",
+      "name": "a brazier",
+      "in": "sand",
+      "at": [
+        22,
+        42
+      ],
+      "size": "medium",
+      "material": "iron",
+      "tags": [
+        "fire",
+        "light"
+      ],
+      "states": [
+        "lit"
+      ],
+      "description": "An iron brazier on three legs, full of hot coals, standing exactly where somebody will knock it over."
+    },
+    {
+      "id": "pillar-west",
+      "name": "a stone pillar",
+      "kind": "feature",
+      "in": "sand",
+      "at": [
+        27,
+        27
+      ],
+      "size": "huge",
+      "material": "stone",
+      "tags": [
+        "cover"
+      ],
+      "description": "A squat stone pillar, chipped at shoulder height."
+    },
+    {
+      "id": "pillar-east",
+      "name": "another stone pillar",
+      "kind": "feature",
+      "in": "sand",
+      "at": [
+        52,
+        32
+      ],
+      "size": "huge",
+      "material": "stone",
+      "tags": [
+        "cover"
+      ],
+      "description": "Its twin, chipped at knee height, which says something about the last pack of dogs."
+    }
+  ],
+  "people": {
+    "player": {
+      "in": "sand",
+      "at": [
+        37,
+        47
+      ]
+    },
+    "kell": {
+      "in": "sand",
+      "at": [
+        42,
+        47
+      ],
+      "note": "at the investigator's shoulder"
+    },
+    "sallow": {
+      "in": "sand",
+      "at": [
+        42,
+        12
+      ],
+      "note": "at the back, pulling on his gloves"
+    },
+    "crake-1": {
+      "in": "sand",
+      "at": [
+        32,
+        17
+      ],
+      "note": "in front of Sallow, talking"
+    },
+    "crake-2": {
+      "in": "sand",
+      "at": [
+        52,
+        17
+      ],
+      "note": "in front of Sallow, not talking"
+    },
+    "dog-1": {
+      "in": "sand",
+      "at": [
+        17,
+        12
+      ]
+    },
+    "dog-2": {
+      "in": "sand",
+      "at": [
+        37,
+        7
+      ]
+    },
+    "dog-3": {
+      "in": "sand",
+      "at": [
+        62,
+        12
+      ]
+    }
+  }
+}

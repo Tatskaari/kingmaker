@@ -23,7 +23,7 @@ import { install, streamArgsOf, streamInto } from "../in-process.ts";
  * The page host (browser-design §2, §4.2, §5): the simulation on the memory host, from what the
  * page's database kept, and the AI service in the same worker, its stores kept there too, joined as
  * the local host joins them (hosts/in-process.ts). The build's campaign is installed in both when it
- * has changed; every commit is kept, pushed to the clients and its jobs run, as SpacetimeDB's
+ * has changed (and the zoo in the simulation); every commit is kept, pushed to the clients and its jobs run, as SpacetimeDB's
  * scheduler runs them; each client is served its rows over its duplex. The server worker starts it
  * once it has its tab, its database and its content (server-worker.ts); the contract test starts it
  * on a database in memory and the repo's files.
@@ -66,7 +66,7 @@ export async function startHost(config: HostConfig, storage: Storage, content: C
   const commits = commitsTo(storage.sim.write, config.log);
   const sim = newSimulation(storage.sim, commits.tell, config, request => ai.answer(request));
   const ai = newAiService(storage.ai, content, sim, config);
-  await installCampaign(content.campaign, ai, sim, storage.sim);
+  await installCampaign(content, ai, sim, storage.sim);
 
   const push = pushTo(sim);
   const jobs = startJobs(sim);
@@ -156,13 +156,17 @@ function newAiService(kept: Persistence, content: Content, sim: MemoryHost, conf
 }
 
 /**
- * The build's campaign into both, as the install tool puts one (hosts/in-process.ts), unless it's the
- * one the simulation installed when the database was last kept. The AI service is served it from the
- * content either way.
+ * The build's campaign into both, as the install tool puts one (hosts/in-process.ts), and the zoo into
+ * the simulation (no GM plays it: M6), unless they're the ones the simulation installed when the
+ * database was last kept. The AI service is served the campaign from the content either way.
  */
-async function installCampaign(files: Content["campaign"], ai: AiService, sim: MemoryHost, kept: SimStore): Promise<void> {
-  const hash = await campaignHash(files);
+async function installCampaign(content: Content, ai: AiService, sim: MemoryHost, kept: SimStore): Promise<void> {
+  const hash = await campaignHash({ ...content.campaign, ...prefixed("zoo/", content.zoo ?? {}) });
   if (kept.installed === hash) return;
-  await install(files, ai, sim, BEARER);
+  await install(content.campaign, ai, sim, BEARER);
+  if (content.zoo) await install(content.zoo, ai, sim, BEARER);
   kept.markInstalled(hash);
 }
+
+/** Files by paths with a prefix: two folders' files in one hash, apart. */
+const prefixed = (prefix: string, files: Record<string, string>) => Object.fromEntries(Object.entries(files).map(([path, text]) => [`${prefix}${path}`, text]));

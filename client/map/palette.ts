@@ -1,4 +1,4 @@
-// Copied from the prototype's src/game/map/palette.ts at 44c6d4a, whole; StoryState from v2/shared/map/types.ts.
+// Copied from the prototype's src/game/map/palette.ts at 44c6d4a, whole; StoryState from v2/shared/map/types.ts. New (M6): GROUND.sand, the zoo ring's floor (a floor of style sand: the look layer's sand ground already had its cell).
 import type { StoryState } from "../../shared/map/types.ts";
 
 /**
@@ -27,6 +27,7 @@ export const GROUND: Record<string, GroundLook> = {
   boards: { bg: "#3d2c1d", fg: "#5c4430", fg2: "#4a3624", face: "──═─", tip: "╌" },
   grass: { bg: "#1f2b1a", fg: "#30452a", fg2: "#4a6a32", face: "  '   \"  ", tip: " " },
   dirt: { bg: "#382f25", fg: "#4c4134", face: "   .  ", tip: "·" },
+  sand: { bg: "#5a4e34", fg: "#a89468", fg2: "#8a7a54", face: "  · ∙  ", tip: "·" },
   stairs: { bg: "#3c3a3f", fg: "#7a7680", face: "▁▂▃", tip: "▔" },
   water: { bg: "#123352", fg: "#3d7ab0", fg2: "#6aa6d6", face: "~ ≈ ~ ", tip: "~", animate: true },
   "deep-water": { bg: "#0b1f36", fg: "#25537e", fg2: "#3d78ab", face: "≈ ~  ", tip: "~", animate: true },
