@@ -42,7 +42,7 @@ export interface Backstory {
 }
 
 /**
- * The world a backstory is written for and checked against: campaign.json's `creation` block, which
+ * The world a backstory is written for and checked against: the scenario's `creation` block, which
  * the AI service hands the backstory's calls. Only what anyone in the world could know: the lore
  * check's words go straight to the player.
  */

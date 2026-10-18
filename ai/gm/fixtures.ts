@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { initialGm } from "../../shared/gm/state.ts";
 import type { PlaceFile } from "../../shared/scene/files.ts";
+import { loadPlace, placePath } from "../../shared/scene/scenario.ts";
 import { effectiveScene, presentCast } from "../../shared/scene/graph.ts";
 import type { Scene } from "../../shared/scene/types.ts";
 import { buildWorld, joinWorld } from "../../shared/world/scene-world.ts";
@@ -76,7 +77,7 @@ export function stateIn(sceneId: string, fields: Partial<TurnView> = {}): TurnVi
   };
 }
 
-export const granaryYard = (): PlaceFile => JSON.parse(readFileSync(join(CAERWYN, "places", "granary-yard.json"), "utf8")) as PlaceFile;
+export const granaryYard = (): PlaceFile => loadPlace(readFileSync(join(CAERWYN, placePath("granary-yard")), "utf8"), placePath("granary-yard"));
 
 /** A view of the scene at a beat (its start by default), two exchanges in, with no transcript and the world as it opens. */
 export function viewAt(scene: Scene, beat = scene.start, extra: Partial<TurnView> = {}): TurnView {

@@ -210,7 +210,7 @@ function EffectField({spec,effect,choices,onChange}:{spec:FieldSpec;effect:Effec
     case 'prose':return <TextArea label={label} field={key} hint={hint} rows={2} value={text} onChange={setText}/>;
     case 'person':return <SelectField label={label} field={key} hint={hint} value={text} options={choices.cast} placeholder="Choose someone…" onChange={set}/>;
     case 'party':return <SelectField label={label} field={key} hint={hint} value={text} options={parties} onChange={set}/>;
-    case 'quest':return <SelectField label={label} field={key} hint={hint??'One of campaign.json\'s quests.'} value={text} options={choices.quests} placeholder="Choose a quest…" onChange={set}/>;
+    case 'quest':return <SelectField label={label} field={key} hint={hint??'One of the scenario\'s quests.'} value={text} options={choices.quests} placeholder="Choose a quest…" onChange={set}/>;
     case 'step':return <SelectField label={label} field={key} value={text} options={QUEST_STEPS.map(step=>({value:step,label:step}))} onChange={set}/>;
     case 'attitude':return <SelectField label={label} field={key} value={text} options={ATTITUDES.map(attitude=>({value:attitude,label:attitude}))} onChange={set}/>;
     case 'thing-kind':return <SelectField label={label} field={key} value={text} options={THING_KINDS.map(kind=>({value:kind,label:kind}))} onChange={set}/>;

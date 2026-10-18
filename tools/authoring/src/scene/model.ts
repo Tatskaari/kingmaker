@@ -6,8 +6,10 @@ import {SKILLS} from '../../../../shared/scene/types.ts';
 import type {Skill} from '../../../../shared/scene/types.ts';
 import {SLUG,sceneRuleProblems,sceneStoryProblems,talkTemplateProblems} from '../../../../shared/scene/rules.ts';
 import type {ProblemAt,SceneContext,SceneProblem} from '../../../../shared/scene/rules.ts';
+import {optionalList,optionalText,slugOf,uniqueId,withKey} from '../campaign/json.ts';
+import type {PlaceFile} from '../../../../shared/scene/files.ts';
 
-export {EXIT_KINDS,RESULTS,SKILLS,STRENGTHS,SLUG,isBeat,isDiscovery,isEnding,isStart};
+export {EXIT_KINDS,RESULTS,SKILLS,STRENGTHS,SLUG,isBeat,isDiscovery,isEnding,isStart,optionalList,optionalText,slugOf,uniqueId,withKey};
 export type {BeatData,CastMember,EndingData,NodeData,OuterLimit,Path,ProblemAt,Route,SceneContext,SceneDocument,SceneNode,SceneProblem,Skill,StartData};
 
 /**
@@ -62,47 +64,6 @@ export const ORDER={
   roles:['characterise','inconsistency','hooks'],
   member:['id','name','statblock','weapon','look'],
 } as const;
-
-/**
- * An object with `key` set to `value`, or taken out when `value` is undefined. A key that's there
- * keeps its place; a new one goes before the first key `order` puts after it (keys `order` doesn't
- * know stay where they are). The same object comes back when nothing changes.
- */
-export function withKey<T extends object>(object:T,key:string,value:unknown,order:readonly string[]):T{
-  const entries=Object.entries(object);
-  const at=entries.findIndex(([k])=>k===key);
-  if(value===undefined)return at<0?object:Object.fromEntries(entries.filter(([k])=>k!==key)) as T;
-  if(at>=0){
-    if(Object.is(entries[at][1],value))return object;
-    entries[at]=[key,value];
-    return Object.fromEntries(entries) as T;
-  }
-  const rank=(k:string)=>{const i=order.indexOf(k);return i<0?-1:i};
-  const mine=rank(key);
-  const before=mine<0?-1:entries.findIndex(([k])=>rank(k)>mine);
-  entries.splice(before<0?entries.length:before,0,[key,value]);
-  return Object.fromEntries(entries) as T;
-}
-
-/** A text that's optional in the format: empty is no key at all. */
-export const optionalText=(text:string):string|undefined=>text.trim()?text:undefined;
-/** A list that's optional in the format: empty is no key at all. */
-export const optionalList=<T,>(list:T[]):T[]|undefined=>list.length?list:undefined;
-
-// ---------------------------------------------------------------------------------------------
-// Ids: readable slugs, made once from a title or name and never changed with it (game state keys on them).
-
-/** A slug of a title or a name ("The Hanged Clerk" → "the-hanged-clerk"), or "" when it has no letters or digits. */
-export function slugOf(text:string):string{
-  return text.normalize('NFKD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/['’]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,48).replace(/-+$/,'');
-}
-
-/** `base`, or `base-2`, `base-3`… whichever isn't taken. */
-export function uniqueId(base:string,taken:Iterable<string>):string{
-  const used=new Set(taken),root=base||'node';
-  if(!used.has(root))return root;
-  for(let n=2;;n++)if(!used.has(`${root}-${n}`))return `${root}-${n}`;
-}
 
 // ---------------------------------------------------------------------------------------------
 // Reading a scene.
@@ -687,4 +648,40 @@ export function problemsOf(key:string,doc:SceneDocument,context:SceneContext):Pr
   if(shape.length)return shape.map(message=>({message,at:{kind:'scene'}}));
   const ids=new Set([...context.scenes,...(context.talk?[context.talk]:[]),...context.others.map(other=>other.id),doc.id]);
   return [...sceneRuleProblems(key,doc,context),...(key===context.talk?talkTemplateProblems(doc):[]),...sceneStoryProblems(doc,ids)];
+}
+
+// ---------------------------------------------------------------------------------------------
+// Warnings: what the game takes as it is but the author should look at, which the campaign check doesn't refuse.
+
+/** A path's via, as words to match: no case, no leading article, nothing in brackets, one space between words. */
+const words=(text:string)=>text.toLowerCase().replace(/\([^)]*\)/g,' ').replace(/[’]/g,"'").replace(/\s+/g,' ').trim().replace(/^(the|a|an) /,'');
+
+/**
+ * Whether a via names someone or something the scene has: one of the cast (by id, name, what they're
+ * called or also known as), or a thing or a part of the scene's place (by id or name). Words, not
+ * case or a leading article: "the tally loft" names the loft, "The Tally Loft (above the yard)".
+ */
+export function viaNames(via:string,doc:SceneDocument,place:PlaceFile|undefined):boolean{
+  const v=words(via);
+  if(!v)return true;
+  const names=[
+    ...doc.cast.flatMap(member=>[member.id,member.name,member.called??'',...(member.aka??[])]),
+    ...(place?[...place.things.flatMap(thing=>[thing.id,thing.name]),...place.areas.flatMap(area=>[area.id,area.name])]:[]),
+  ];
+  return names.some(name=>name&&words(name)===v);
+}
+
+/**
+ * The warnings for a scene: each discovery's path whose via, of more than one word, names neither one
+ * of the cast nor a thing (or part) of its place. The game reads a via as words, so it isn't refused;
+ * but the GM is told the clue is with something the scene doesn't have. (A via of one word is a cast
+ * id, which the rules hold it to.) A scene with no place of the campaign's has nothing to check.
+ */
+export function viaWarnings(doc:SceneDocument,place:PlaceFile|undefined):Problem[]{
+  if(!place)return [];
+  return doc.nodes.filter(isBeat).flatMap(node=>(node.data.paths??[]).flatMap((path,i)=>{
+    const via=path.via.trim();
+    if(!via.includes(' ')||viaNames(via,doc,place))return [];
+    return [{message:`discovery ${node.id}'s path ${i+1} is via “${via}”, which is neither one of the cast nor a thing of ${place.key}`,at:{kind:'node' as const,id:node.id}}];
+  }));
 }

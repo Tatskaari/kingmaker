@@ -1,21 +1,16 @@
-import React from 'react';
-import type {GraphDocument,Host} from './model';
-import {ScenarioEditor} from './ScenarioEditor';
-import {MapEditor} from './MapEditor';
-import {LegacyScene} from './scene/LegacyScene.tsx';
-import {SceneApp} from './scene/SceneEditor.tsx';
 import '@xyflow/react/dist/style.css';
 import './styles.css';
-
-export {LegacyScene,SceneApp};
+export {LegacyScene} from './scene/LegacyScene.tsx';
+export {SceneApp} from './scene/SceneEditor.tsx';
+export {ScenarioApp} from './scenario/ScenarioEditor.tsx';
+export {LegacyScenario} from './scenario/LegacyScenario.tsx';
+export {MapApp} from './map/MapEditor.tsx';
+export {MapMigration} from './map/Migration.tsx';
+export {PlaceApp} from './place/PlaceEditor.tsx';
 
 /**
- * The editors for the plugin's own version 1 files, the scenario graph and the map, which M4 replaces.
- * Scenes are the game's files (.kmscene version 2) and have their own editor, SceneApp; a version 1
- * scene, the plugin's old graph, opens read-only.
+ * The plugin's editors, one for each kind of the game's files: a scene (.kmscene), the scenario
+ * (.kmscenario), a map (.kmmap) and a place (.kmplace), each the format's version 2 and edited as the
+ * game loads it. The plugin's own version 1 files open read-only (a scene, a scenario), or with the
+ * offer to migrate (a map).
  */
-export function App({document,host}:{document:GraphDocument;host:Host}){
-  if(document.kind==='scenario')return <ScenarioEditor document={document} host={host}/>;
-  if(document.kind==='map')return <MapEditor document={document} host={host}/>;
-  return <LegacyScene path={host.filePath} title={document.title} nodes={document.nodes.length} routes={document.edges.length}/>;
-}

@@ -2,13 +2,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { loadMap, loadScenario, mapPath, scenarioPath } from "../scene/scenario.ts";
 import { join } from "node:path";
 import { move, newExploration, SCREEN_KEYS, steer } from "./explore.ts";
 import { useMaps } from "./maps.ts";
 
 const CAMPAIGN = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
-const read = (path: string) => JSON.parse(readFileSync(join(CAMPAIGN, path), "utf8"));
-useMaps((read("campaign.json").maps as string[]).map(key => read(`maps/${key}.json`)));
+const text = (path: string) => readFileSync(join(CAMPAIGN, path), "utf8");
+useMaps((loadScenario(text(scenarioPath("caerwyn"))).maps ?? []).map(key => loadMap(text(mapPath(key)))));
 
 // The river stairs at dusk, where a bare arrow key keeps catching on the walls.
 const stairs = () => Object.assign(newExploration({ time: "evening", played: ["hanged-clerk"], lead: "drowned-rat", flags: {} }), { map: "caerwyn", at: { x: 24, y: 34 } });

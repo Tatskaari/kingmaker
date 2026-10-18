@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { PlaceFile } from "../../shared/scene/files.ts";
+import { loadPlace, placePath } from "../../shared/scene/scenario.ts";
 import { applyOps, buildWorld, type SceneWorld, type WorldOp } from "../../shared/world/scene-world.ts";
 import { inSight } from "./sight.ts";
 
@@ -11,11 +11,11 @@ import { inSight } from "./sight.ts";
  * worlds open: QA round qa3-1018's testers read the hidden things and the shut rooms off the QA map.
  */
 
-const PLACES = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn", "places");
+const CAERWYN = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
 
 /** A place of the campaign's as its scene opens, everyone its file places there present. */
 function worldOf(scene: string, place: string): SceneWorld {
-  const spec = JSON.parse(readFileSync(join(PLACES, `${place}.json`), "utf8")) as PlaceFile;
+  const spec = loadPlace(readFileSync(join(CAERWYN, placePath(place)), "utf8"), placePath(place));
   const people = Object.keys(spec.people).filter(id => id !== "player").map(id => ({ id, name: id }));
   return buildWorld(scene, spec, people, { name: "Nell Fitch" });
 }

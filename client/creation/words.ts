@@ -23,7 +23,7 @@ export const TIME_WORDS: Record<string, string> = {
 /** A game's time of day in the story's words: "Morning, on the eve of the Assembly" (a time it has no words for, as it is). */
 export const timeWords = (time: string): string => TIME_WORDS[time] ?? `${time.charAt(0).toUpperCase()}${time.slice(1)}`;
 
-/** The level a campaign makes characters at: its campaign.json's `level`, else LEVEL. */
+/** The level a campaign makes characters at: its scenario's `level`, else LEVEL. */
 export function levelOf(campaign: Pick<Campaign, "json"> | undefined): number {
   const level = jsonOf<{ level?: unknown }>(campaign?.json)?.level;
   return typeof level === "number" && level > 0 ? level : LEVEL;

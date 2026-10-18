@@ -10,8 +10,8 @@ import { JevDecider, LUNA_DECISIONS_MODEL } from "../llm/decide.ts";
 import { fakeFetch } from "../llm/fake-openrouter.ts";
 import type { CallContext } from "../llm/openrouter.ts";
 import { prompt } from "../prompts/index.ts";
-import type { PlaceFile } from "../../shared/scene/files.ts";
 import { effectiveScene } from "../../shared/scene/graph.ts";
+import { loadPlace, placePath } from "../../shared/scene/scenario.ts";
 import { inventory } from "../../shared/world/inventory.ts";
 import { buildWorld } from "../../shared/world/scene-world.ts";
 import { chainScene } from "./boundary.ts";
@@ -85,7 +85,7 @@ test("the hand-off and the verdict know what the player carries as the scene end
   const fake = fakeFetch({ replies: ["Wren leaves the Rat with Hobb's token."] });
   const calls: CallContext = { fetch: fake.fetch, apiKey: "test", log: () => {}, cost: () => {} };
   const rat = sceneById("drowned-rat");
-  const place = JSON.parse(readFileSync(join(CAERWYN, "places", "drowned-rat.json"), "utf8")) as PlaceFile;
+  const place = loadPlace(readFileSync(join(CAERWYN, placePath("drowned-rat")), "utf8"), placePath("drowned-rat"));
   const world = buildWorld(rat.id, place, rat.cast.map(c => ({ id: c.id, name: c.name })), { name: "Wren Ashdown" });
   inventory(world, 0).settle("heron-token", "player");
   const state = stateIn("drowned-rat", { world, transcript: [{ turn: 1, scene: "drowned-rat", speaker: "system", kind: "system", text: "Scene ends: What Big Hobb knows" }] });

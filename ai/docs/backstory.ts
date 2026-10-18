@@ -17,7 +17,7 @@ export type { Asked, LoreIssue, Who } from "../../shared/creation/types.ts";
  * it says of them (who they are, in a sentence or two for every GM brief; personality, ideals,
  * bonds and flaws for the sheet). The model's part goes through an Ask, so the checks can stand in
  * for it; offline there's no model to ask (or `ask: null` says so), and each says so (the traits are
- * then drawn from the player's own sentences). The world is the campaign's (`world`, campaign.json's
+ * then drawn from the player's own sentences). The world is the campaign's (`world`, its scenario's
  * `creation`), Caerwyn's when none is given.
  */
 
@@ -37,7 +37,7 @@ export const PREMISE = "This morning, the eve of the Centennial Assembly in Caer
 /**
  * Caerwyn, the world a backstory is written for when no other is given: the premise, the city's own
  * doc, the World docs that aren't canon (how it stands now, its fronts, the index), and the places'
- * public docs by the words that call them up. v2's campaign.json has the same as its `creation`.
+ * public docs by the words that call them up. The campaign's scenario has the same as its `creation`.
  */
 export const CAERWYN: CreationWorld = {
   name: "Caerwyn",

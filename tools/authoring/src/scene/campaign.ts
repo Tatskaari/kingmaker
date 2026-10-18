@@ -2,10 +2,15 @@
 // the vault), read through whatever host holds its files (Obsidian's vault, or the browser test harness).
 import {openSceneFile} from './model.ts';
 import type {SceneContext,SceneDocument} from './model.ts';
-import type {CampaignFile,PlaceFile} from '../../../../shared/scene/files.ts';
+import type {PlaceFile} from '../../../../shared/scene/files.ts';
+import {loadPlace,loadScenario,placePath,scenarioPathIn} from '../../../../shared/scene/scenario.ts';
+import {campaignRootOf} from '../campaign/files.ts';
+
+export {campaignRootOf};
 
 /**
- * A scene lives at <campaign>/scenes/<id>.kmscene, beside campaign.json, places/ and lore/. Its lore
+ * A scene lives at <campaign>/scenes/<id>.kmscene, beside the campaign's scenario (<id>.kmscenario),
+ * its places/ (places/<key>.kmplace) and lore/ (docs/scenario-format.md). Its lore
  * paths are the game's: relative to the campaign's lore/ ("Cast/Cob/public.md" is the vault's
  * lore/Cast/Cob/public.md when the campaign folder is the vault). The editor offers lore that way,
  * opens it that way, and holds the scene to the game's rules with the campaign's scenes, places,
@@ -23,11 +28,13 @@ export type CampaignScene={id:string;title:string;doc?:SceneDocument;error?:stri
 export type Campaign={
   /** The campaign's folder in the vault: '' when the vault is the campaign folder, else "campaigns/caerwyn/". */
   root:string;
-  /** Why campaign.json couldn't be read, if it couldn't: then nothing needing it is checked or offered. */
+  /** The scenario's path in the vault ("campaigns/caerwyn/caerwyn.kmscenario"), when the campaign has one. */
+  scenario?:string;
+  /** Why the scenario couldn't be read, if it couldn't: then nothing needing it is checked or offered. */
   error?:string;
-  /** campaign.json's scenes, in story order, then its talk template. */
+  /** The scenario's scenes, in story order, then its talk template. */
   scenes:CampaignScene[];
-  /** The ids of the scene files in its scenes/ that campaign.json doesn't list yet (a scene being written), which an ending may name, and the problems say until it's listed. */
+  /** The ids of the scene files in its scenes/ that the scenario doesn't list yet (a scene being written), which an ending may name, and the problems say until it's listed. */
   unlisted:string[];
   talk?:string;
   places:PlaceFile[];
@@ -38,18 +45,8 @@ export type Campaign={
   loreFiles:Set<string>;
 };
 
-/** What the editor needs of a host's files: the paths under a folder, and a file's text (undefined when it isn't there). */
-export type VaultFiles={
-  list:(folder:string)=>string[];
-  read:(path:string)=>Promise<string|undefined>;
-};
-
-/** The campaign folder of a scene file at `path` in the vault: the folder its scenes/ folder is in. */
-export function campaignRootOf(path:string):string{
-  const parts=path.split('/');
-  const at=parts.length>=2&&parts[parts.length-2]==='scenes'?parts.length-2:parts.length-1;
-  return parts.slice(0,at).map(part=>`${part}/`).join('');
-}
+export type {VaultFiles} from '../campaign/files.ts';
+import type {VaultFiles} from '../campaign/files.ts';
 
 /** The scene's id its file's name gives it: scenes/<id>.kmscene. */
 export const sceneKeyOf=(path:string):string=>(path.split('/').at(-1)??path).replace(/\.kmscene$/i,'');
@@ -61,22 +58,28 @@ export const scenePathOf=(root:string,id:string):string=>`${root}scenes/${id}.km
 export const lorePathOf=(root:string,path:string):string=>`${root}lore/${path}`;
 
 /**
- * The campaign around the scene at `path`: campaign.json, each of its scenes (their drafts from
- * `drafts`, by vault path, where an editor has one), its places and quests, and its lore.
+ * The campaign around the scene at `path`: its scenario (the game's shapes, as scenario.ts loads it),
+ * each of its scenes (their drafts from `drafts`, by vault path, where an editor has one), its places
+ * and quests, and its lore.
  */
 export async function readCampaign(path:string,files:VaultFiles,drafts:(path:string)=>SceneDocument|undefined=()=>undefined):Promise<Campaign>{
   const root=campaignRootOf(path);
   const lore=readLore(root,files);
   const empty:Campaign={root,scenes:[],unlisted:[],places:[],quests:{},...lore};
 
-  const campaign=await readJson<CampaignFile>(files,`${root}campaign.json`);
-  if(typeof campaign==='string')return {...empty,error:campaign};
+  const found=scenarioPathIn(files.list(root).filter(path=>path.startsWith(root)).map(path=>path.slice(root.length)));
+  if(!found)return {...empty,error:`the campaign has no scenario beside scenes/ (${root}<id>.kmscenario)`};
+  const scenario=`${root}${found}`;
+  const text=await files.read(scenario);
+  if(text===undefined)return {...empty,scenario,error:`${scenario} isn't there`};
+  let campaign;
+  try{campaign=loadScenario(text,scenario)}catch(error){return {...empty,scenario,error:(error as Error).message}}
 
   const ids=[...(campaign.scenes??[]),...(campaign.talk?[campaign.talk]:[])];
   const scenes=await Promise.all(ids.map(id=>readScene(root,id,files,drafts)));
   const places=await readPlaces(root,campaign.places??[],files);
   const unlisted=files.list(`${root}scenes/`).filter(file=>file.slice(root.length+'scenes/'.length).match(/^[^/]+\.kmscene$/i)).map(sceneKeyOf).filter(id=>!ids.includes(id)).sort();
-  return {...empty,scenes,unlisted,...(campaign.talk?{talk:campaign.talk}:{}),places,quests:campaign.quests??{}};
+  return {...empty,scenario,scenes,unlisted,...(campaign.talk?{talk:campaign.talk}:{}),places,quests:campaign.quests??{}};
 }
 
 /** The rules' context for the scene `key` in this campaign: everything but the scene itself, whose draft is the editor's. */
@@ -91,7 +94,7 @@ export function contextOf(campaign:Campaign,key:string):SceneContext{
   };
 }
 
-/** Is the scene `key` one the game installs (campaign.json's scenes, or its talk template)? */
+/** Is the scene `key` one the game installs (the scenario's scenes, or its talk template)? */
 export const isListed=(campaign:Campaign,key:string):boolean=>campaign.scenes.some(scene=>scene.id===key);
 
 // ---------------------------------------------------------------------------------------------
@@ -108,9 +111,13 @@ async function readScene(root:string,id:string,files:VaultFiles,drafts:(path:str
   }catch(error){return {id,title:id,error:(error as Error).message}}
 }
 
+/** The scenario's places (places/<key>.kmplace) as the game keeps them: one that's missing or isn't a place is left out. */
 async function readPlaces(root:string,keys:string[],files:VaultFiles):Promise<PlaceFile[]>{
-  const places=await Promise.all(keys.map(key=>readJson<PlaceFile>(files,`${root}places/${key}.json`)));
-  return places.filter((place):place is PlaceFile=>typeof place!=='string'&&!!place&&typeof place==='object'&&Array.isArray(place.areas)&&Array.isArray(place.things));
+  const places=await Promise.all(keys.map(async key=>{
+    const text=await files.read(`${root}${placePath(key)}`);
+    try{return text===undefined?undefined:loadPlace(text,placePath(key))}catch{return undefined}
+  }));
+  return places.filter((place):place is PlaceFile=>!!place);
 }
 
 /** The lore: every file under lore/ (for the rules), and the notes to offer, a person's public card once for their folder. */
@@ -141,8 +148,3 @@ function kindOf(path:string):LoreKind{
   return top==='Cast'?'character':top==='Places'?'place':top==='World'?'world':'note';
 }
 
-async function readJson<T>(files:VaultFiles,path:string):Promise<T|string>{
-  const text=await files.read(path);
-  if(text===undefined)return `${path} isn't there`;
-  try{return JSON.parse(text) as T}catch(error){return `${path} isn't JSON (${(error as Error).message})`}
-}

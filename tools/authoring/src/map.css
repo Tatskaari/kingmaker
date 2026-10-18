@@ -1,4 +1,6 @@
-.km-workshop.km-map {--km-accent:#c4a776;--km-bg:#20272b;--km-panel:#272f33;--km-line:#414b4e;--km-text:#e3e3d8;--km-muted:#a6b2b1;background:var(--km-bg)}
+/* The map, place and migration views are dark whatever the host's theme, so the host's hover tint (a light theme's is pale, under
+   their pale text: a hovered button or list row, a key's chip) is theirs too. */
+.km-workshop.km-map {--km-accent:#c4a776;--km-bg:#20272b;--km-panel:#272f33;--km-line:#414b4e;--km-text:#e3e3d8;--km-muted:#a6b2b1;--background-modifier-hover:#ffffff12;background:var(--km-bg)}
 .km-map .map-body {display:flex;flex-direction:column;width:100%;height:100%;min-width:0}
 .km-map .map-heading {display:flex;justify-content:space-between;align-items:center;padding:15px 20px;gap:12px;border-bottom:1px solid var(--km-line)}
 .km-map .map-heading h1 {font-size:25px}
@@ -9,7 +11,7 @@
 .km-map .map-toolbar button {font-size:11px;padding:7px}
 .km-map .map-toolbar button>span {font-size:16px}
 .km-map .map-content {display:flex;flex:1;min-height:0}
-.km-map .map-palette {width:205px;flex-shrink:0;background:var(--km-panel);border-right:1px solid var(--km-line);padding:16px 12px;display:flex;flex-direction:column;gap:15px;overflow:auto}
+.km-map .map-palette {width:250px;flex-shrink:0;background:var(--km-panel);border-right:1px solid var(--km-line);padding:16px 12px;display:flex;flex-direction:column;gap:15px;overflow:auto}
 .km-map .map-materials {display:grid;grid-template-columns:1fr;gap:2px}
 .km-map .map-paint-pair {display:flex;flex-direction:column;gap:5px;padding-bottom:12px;border-bottom:1px solid var(--km-line)}
 .km-map .map-material-slot {justify-content:flex-start;text-align:left;padding:7px;gap:10px}
@@ -18,8 +20,6 @@
 .km-map .map-material-slot small {font-size:8px;letter-spacing:1px}
 .km-map .map-material-slot strong {font-size:12px;overflow:hidden;text-overflow:ellipsis}
 .km-map .map-swap-materials {align-self:flex-end;font-size:11px;padding:3px 7px}
-.km-map .map-materials button {justify-content:flex-start;font-size:12px;padding:5px 9px}
-.km-map .map-materials button>span {width:17px;height:17px;display:inline-block;border:1px solid #ffffff25;border-radius:3px;transform:rotate(-12deg);margin-right:5px}
 .km-map .map-palette label {font-size:11px;display:block;color:var(--km-muted)}
 .km-map .map-palette label strong {float:right;color:var(--km-text)}
 .km-map .map-palette input[type=range] {padding:0;margin-top:9px;accent-color:#c4a776}
@@ -64,4 +64,147 @@
 .km-map .map-feature-dialog footer {display:flex;justify-content:flex-end;gap:8px;margin-top:22px}
 .km-map .map-feature-dialog footer .danger {margin-right:auto;color:#ffbca5}
 .km-map .map-feature-dialog [role=alert] {color:#ffbca5}
-@media(max-width:900px){.km-map .map-palette{width:165px}.km-map .map-toolbar kbd{display:none}.km-map .map-heading{padding:10px}.km-map .map-heading h1{font-size:20px}}
+
+/* M4: the map editor on the game's maps. The legend is the palette; the inspector is on the right. */
+.km-map .map-legend-head {display:flex;align-items:center;justify-content:space-between;gap:8px}
+.km-map .map-legend-head .eyebrow {margin:0}
+.km-map .map-new-entry {font-size:11px;padding:3px 7px;border:1px solid var(--km-line)}
+.km-map .map-legend-filter {font-size:11px;padding:5px 7px}
+.km-map .map-materials {max-height:46vh;overflow-y:auto}
+.km-map .map-material {display:flex;align-items:stretch}
+.km-map .map-material-choose {flex:1;min-width:0;justify-content:flex-start;font-size:11.5px;padding:4px 7px;text-align:left;gap:6px;white-space:nowrap}
+.km-map .map-material-choose .name {overflow:hidden;text-overflow:ellipsis;min-width:0}
+.km-map .map-material-choose>span:first-child {width:17px;height:17px;flex-shrink:0;display:inline-block;border:1px solid #ffffff25;border-radius:3px;transform:rotate(-12deg)}
+.km-map .map-material-choose code {font:12px ui-monospace,monospace;min-width:14px;text-align:center;color:#f0d6a5;background:transparent;border:0;padding:0}
+.km-map .map-material-choose small {margin-left:auto;font-size:9px;color:var(--km-muted)}
+.km-map .map-material-edit {padding:4px 6px;color:var(--km-muted)}
+.km-map .map-overlay {position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.km-map .map-overlay svg {position:absolute;inset:0;overflow:visible}
+.km-map .map-region {fill:#c4a77612;stroke:#c4a77666;stroke-width:1;stroke-dasharray:4 3}
+.km-map .map-region.plays {stroke:#9cd8c299;fill:#9cd8c210}
+.km-map .map-region.chosen {stroke:#f0d6a5;stroke-width:2;stroke-dasharray:none;fill:#f0d6a520}
+.km-map .map-region.draft {stroke:#ffe2a9;stroke-width:2;fill:#ffe2a930}
+.km-map .map-place {fill:#8874ac14;stroke:#b9a2e0;stroke-width:1.5;stroke-dasharray:6 3}
+.km-map .map-area {fill:#b9a2e01a;stroke:#b9a2e0aa;stroke-width:1}
+.km-map .map-area.chosen {stroke:#efe2ff;stroke-width:2;fill:#b9a2e033}
+.km-map .map-area-chip {position:absolute;transform:translate(-50%,-110%);pointer-events:auto;touch-action:none;font-size:10px;padding:1px 6px;border-radius:9px;background:#2e2640e6;color:#e6dbff;border:1px solid #b9a2e0aa;white-space:nowrap;cursor:grab}
+.km-map .map-area-chip.chosen {background:#b9a2e0;color:#1d1828}
+.km-map .map-marker {touch-action:none;cursor:grab;display:grid;place-items:center;font:bold 13px ui-monospace,monospace}
+.km-map .map-marker.chosen {box-shadow:0 0 0 2px #f0d6a5,0 2px 6px #0009}
+.km-map .map-marker-exit {background:#4a3621;color:#ffe1a6;border-color:#d6ac65}
+.km-map .map-marker-person {background:#1d2428;border-color:#8a959a}
+.km-map .map-marker-start {background:#2c4a2f;color:#c9f2c0;border-color:#8fd18a;border-radius:4px}
+.km-map .map-marker-thing {background:#2e2640;color:#e6dbff;border-color:#b9a2e0;width:18px;height:18px;font-size:11px}
+.km-map .map-marker-cast {background:#2e2640;border-color:#b9a2e0}
+.km-map .map-place-note {position:absolute;top:12px;left:50%;transform:translateX(-50%);max-width:70%;padding:7px 12px;background:#2e2640ee;border:1px solid #b9a2e0aa;border-radius:7px;font-size:11px;color:#e6dbff;display:flex;align-items:center;gap:10px}
+.km-map .map-place-note button {font-size:11px;padding:2px 8px;border:1px solid #b9a2e0aa;white-space:nowrap}
+.km-map .kind-dot.region {background:#c4a776}.km-map .kind-dot.exit {background:#d6ac65}.km-map .kind-dot.map {background:#5f8f8a}
+.km-map .kind-dot.area,.km-map .kind-dot.thing,.km-map .kind-dot.person,.km-map .kind-dot.place {background:#b9a2e0}
+.km-map .legend-swatch {display:inline-block;width:16px;height:16px;border-radius:3px;border:1px solid #ffffff40;vertical-align:middle}
+.km-map .legend-preview {display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--km-muted)}
+.km-map .inspector-title {font:18px/1.3 Georgia,serif;margin:8px 0 2px}
+.km-map .person-glyph {font:bold 14px ui-monospace,monospace}
+.km-map .colour-inputs {display:flex;gap:6px}
+.km-map .colour-inputs input[type=color] {width:38px;padding:2px;flex-shrink:0}
+.km-map .decor-fields,.km-map .rect-field,.km-map .tile-field,.km-map .spot-field {border:1px solid var(--km-line);border-radius:6px;padding:4px 10px 8px;margin:10px 0}
+.km-map .place-contents {display:flex;flex-direction:column;align-items:flex-start;margin:10px 0}
+.km-map .place-contents button {font-size:12px;padding:3px 6px}
+.km-map .place-contents small {color:var(--km-muted);font-size:10px}
+.km-map .toast {position:absolute;bottom:44px;left:50%;transform:translateX(-50%);z-index:20;display:flex;align-items:center;gap:8px;max-width:70%;padding:9px 14px;border-radius:7px;background:#3d2f22f2;border:1px solid #d6ac65;color:#ffe9c4;font-size:12px}
+.km-map .km-dialog-body .field,.km-scenario .km-dialog-body .field {margin:8px 0}
+/* A version 1 map, and its migration. */
+.km-map.km-migration {overflow:auto;flex-direction:column}
+.km-map .migration-body {max-width:760px;margin:0 auto;padding:28px 24px;display:flex;flex-direction:column;gap:14px;line-height:1.6}
+.km-map .migration-body h2 {display:flex;align-items:center;gap:10px}
+.km-map .migration-facts {display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;font-size:12px}
+.km-map .migration-facts dt {color:var(--km-muted)}
+.km-map .migration-facts dd {margin:0}
+.km-map .migration-start {border:1px solid var(--km-line);border-radius:8px;padding:8px 14px;display:flex;flex-direction:column;gap:6px;font-size:12px}
+.km-map .migration-start label {display:flex;gap:8px;align-items:flex-start}
+.km-map .migration-start input {width:auto;margin-top:4px}
+.km-map .migration-legend {display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:4px 12px;padding:0;margin:0;list-style:none;font-size:12px}
+.km-map .migration-legend li {display:flex;align-items:center;gap:7px}
+.km-map .migration-legend small {color:var(--km-muted);margin-left:auto}
+.km-map .migration-notes {font-size:12px;margin:0;padding-left:18px}
+.km-map .migration-body .primary {align-self:flex-start}
+/* A place on its own grid. */
+.km-map .place-stage {background:#1b2023;display:flex;align-items:center;justify-content:center}
+.km-map .place-grid {width:100%;height:100%}
+.km-map .place-floor {fill:#262e31}
+.km-map .place-lines line {stroke:#3a4549;stroke-width:.12}
+.km-map .place-area rect {fill:#b9a2e014;stroke:#b9a2e0aa;stroke-width:.35;cursor:grab}
+.km-map .place-area.chosen rect {stroke:#efe2ff;stroke-width:.6;fill:#b9a2e030}
+.km-map .place-area text {font:2.4px system-ui;fill:#d6c8f2;pointer-events:none;dominant-baseline:hanging}
+.km-map .place-thing,.km-map .place-person {cursor:grab}
+.km-map .place-thing circle {fill:#2e2640;stroke:#b9a2e0;stroke-width:.3}
+.km-map .place-person circle {fill:#1d2428;stroke:#8a959a;stroke-width:.3}
+.km-map .place-thing.chosen circle,.km-map .place-person.chosen circle {stroke:#f0d6a5;stroke-width:.6}
+.km-map .place-thing text,.km-map .place-person text {font:bold 1.9px ui-monospace,monospace;fill:#e6dbff;text-anchor:middle;pointer-events:none}
+.km-map .place-layers {display:flex;flex-wrap:wrap;gap:6px;font-size:11px}
+.km-map .place-layers button {font-size:11px;border:1px solid var(--km-line)}
+.km-map .place-path {display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.km-workshop .km-dialog {display:flex;flex-direction:column;max-height:88vh;overflow:hidden}
+.km-workshop .km-dialog>header {flex-shrink:0}
+.km-workshop .km-dialog-body {overflow-y:auto;min-height:0;padding-right:4px}
+.km-workshop .km-dialog>.modal-footer {flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.km-workshop .km-dialog.wide {width:min(640px,92vw)}
+/* The rework (the author's rules): a bar of views under the title, the painter's inspector only what's
+   selected, the map's own fields in views of their own; and narrower panes, where the palette shrinks to
+   its swatches and the inspector lies over the map while something is selected. */
+.km-map .paint-view {flex:1;min-width:0;min-height:0;display:flex;flex-direction:column}
+.km-map .map-content {position:relative}
+.km-map .map-toolbar {flex-shrink:0}
+.km-map .map-toolbar[role=toolbar] {justify-content:flex-start;gap:3px}
+.km-map .view-scroll {background:var(--km-bg)}
+.km-map .map-palette-options {display:flex;flex-direction:column;gap:12px}
+.km-map .map-palette .map-materials {flex:1 1 auto;min-height:180px;max-height:none;overflow-y:auto}
+.km-map .map-toolbar button>span.tool-name {font-size:11px}
+.km-map .map-palette-options select {font-size:11px;padding:5px}
+.km-map .map-palette-hint {display:block}
+.km-map .map-marker-name {position:absolute;transform:translate(-50%,9px);pointer-events:none;font-size:9.5px;line-height:1.2;padding:0 4px;border-radius:3px;background:#2e2640d9;color:#e6dbff;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+.km-map .map-marker-name.cast {background:#1d2428d9;color:#e3e3d8}
+.km-map .map-tile-chosen {fill:#f0d6a533;stroke:#f0d6a5;stroke-width:2}
+.km-map .tile-inspector .inspector-title {font-size:16px}
+.km-map .tile-inspector .muted svg {vertical-align:-1px}
+.km-map .scene-place {border:1px dashed var(--km-line);border-radius:6px;padding:2px 10px 8px;margin:10px 0}
+.km-map .size-row {align-items:flex-end}
+.km-map .size-row .primary {margin:0 0 16px;white-space:nowrap}
+.km-map .list-view .doc-card .inspector-kind {display:none}
+.km-map .list-view .doc-card .inspector-title {display:none}
+.km-map .doc-card.empty {padding:20px}
+.km-map .people-view .hour-filter .choice-field {margin:4px 0 6px}
+.km-map .people-view .hour-filter legend {font-size:10px}
+@container km-forms (max-width:1000px) {
+  .km-map .map-palette {width:200px;padding:12px 9px}
+  .km-map .map-toolbar kbd {display:none}
+}
+@container km-forms (max-width:760px) {
+  .km-map .map-palette {width:66px;padding:8px 5px;gap:8px}
+  .km-map .map-palette .map-material-slot>span:last-child,.km-map .map-palette-hint,.km-map .map-legend-head .eyebrow,.km-map .map-new-entry-label,.km-map .map-swap-materials span,.km-map .map-swap-materials kbd,.km-map .map-legend-filter,.km-map .map-palette-options {display:none}
+  .km-map .map-material-slot {padding:4px;justify-content:center}
+  .km-map .map-material-choose .name,.km-map .map-material-choose small,.km-map .map-material-edit {display:none}
+  .km-map .map-material-choose {justify-content:center;padding:4px 2px;gap:3px}
+  .km-map .map-legend-head {justify-content:center}
+  .km-map .map-materials {max-height:none}
+  .km-map .tool-name {display:none}
+  .km-map .map-toolbar button {padding:6px 7px}
+  .km-map .map-place-note {max-width:94%;top:6px;flex-wrap:wrap}
+  .km-map .map-resize-guide {max-width:calc(100% - 40px)}
+  .km-map .map-view-controls {bottom:10px;right:10px}
+  .km-map .preview-options {width:150px}
+  .km-map .preview-options p {display:none}
+}
+/* A place's plan: names under its things and people, a spot clicked, the inspector beside it. */
+.km-map .place-area text {font:1.6px system-ui;fill:#d6c8f2;pointer-events:none;dominant-baseline:hanging}
+.km-map .place-thing .place-name,.km-map .place-person .place-name {font:600 .95px system-ui;fill:#e6dbff;text-anchor:middle;dominant-baseline:hanging;paint-order:stroke;stroke:#1b2023;stroke-width:.35px;pointer-events:none}
+.km-map .place-person .place-name {fill:#e3e3d8}
+.km-map .place-spot {fill:#f0d6a555;stroke:#f0d6a5;stroke-width:.3}
+.km-map .map-toolbar .place-layers {margin-left:auto}
+.km-map .map-toolbar .map-check {display:flex;gap:6px;align-items:center;font-size:11px;color:var(--km-muted)}
+.km-map .map-toolbar .map-check input {width:auto}
+/* The status line is one line, whatever it says: a hovered tile's long name wrapping it to two made the canvas
+   shorter mid-stroke, and the tiles under the pointer moved (found writing a map in a 1000px pane). */
+.km-map .map-status {flex-wrap:nowrap;white-space:nowrap;overflow:hidden;flex-shrink:0}
+.km-map .map-status>span {min-width:0;overflow:hidden;text-overflow:ellipsis}
+.km-map .map-status>span:first-child {flex:0 1 auto}
+.km-map .map-status>span:last-child {flex:1 1 0;text-align:right}

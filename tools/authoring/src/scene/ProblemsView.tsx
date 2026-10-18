@@ -1,6 +1,8 @@
 // The Problems view: the game's own rules for a scene (shared/scene/rules.ts), run as the scene is
 // edited, each saying where it is and taking the author there: the node or the route on the graph, the
-// person's card, the fact, or the scene's field, the very part of it focused.
+// person's card, the fact, or the scene's field, the very part of it focused. Under them, apart and not
+// counted with them, the warnings: what the game takes as it is but the author should look at (a path
+// via something the scene hasn't got).
 import React from 'react';
 import {AlertTriangle,CheckCircle2,Info} from 'lucide-react';
 import {nodeKind,titleOf} from './model.ts';
@@ -31,7 +33,7 @@ export function placeOf(doc:SceneDocument,at:ProblemAt):string{
   return [`Cast · ${doc.cast.find(member=>member.id===at.id)?.name||at.id}`,field?partOf(field,'Description'):''].filter(Boolean).join(' · ');
 }
 
-export function ProblemsView({doc,problems,notes,onGo,checking}:{doc:SceneDocument;problems:Problem[];notes:string[];onGo:(at:ProblemAt)=>void;checking:boolean}){
+export function ProblemsView({doc,problems,warnings=[],notes,onGo,checking}:{doc:SceneDocument;problems:Problem[];warnings?:Problem[];notes:string[];onGo:(at:ProblemAt)=>void;checking:boolean}){
   return <div className="view-content problems-view">
     <header className="view-header">
       <h2>Problems</h2>
@@ -47,5 +49,15 @@ export function ProblemsView({doc,problems,notes,onGo,checking}:{doc:SceneDocume
         </button>
       </li>)}
     </ol>
+    {warnings.length>0&&<>
+      <p className="muted warnings-head">{warnings.length===1?'A warning':`${warnings.length} warnings`}: the game takes {warnings.length===1?'it':'them'} as {warnings.length===1?'it is':'they are'}, but the GM is told of something the scene hasn't got. Pick from the cast or the place's things.</p>
+      <ol className="warnings">
+        {warnings.map((warning,index)=><li key={`${index}:${warning.message}`}>
+          <button type="button" className="warning" data-at={JSON.stringify(warning.at)} onClick={()=>onGo(warning.at)}>
+            <Info size={14}/><span><b>{warning.message}</b><small>{placeOf(doc,warning.at)}</small></span>
+          </button>
+        </li>)}
+      </ol>
+    </>}
   </div>;
 }

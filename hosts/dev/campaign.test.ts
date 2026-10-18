@@ -19,7 +19,7 @@ function changed(path: string, edit: ((json: any) => void) | string | undefined)
   return copy;
 }
 
-const SCENE = "scenes/hanged-clerk.kmscene", PLACE = "places/granary-yard.json";
+const SCENARIO = "caerwyn.kmscenario", SCENE = "scenes/hanged-clerk.kmscene", PLACE = "places/granary-yard.kmplace";
 const RAT = "scenes/drowned-rat.kmscene", HERON = "scenes/heron-warehouse.kmscene";
 /** A node's data, or a route's, by its id, to edit in place. */
 const node = (scene: any, id: string) => scene.nodes.find((n: any) => n.id === id).data;
@@ -43,6 +43,9 @@ test("caerwyn is fit to install: its pack every scene's file, its files every fi
   assert.equal(pack.looks.kell?.fg, "#6d9eeb");
   assert.equal(Object.keys(files).filter(p => p.startsWith("lore/")).length, 154);
   assert.deepEqual(Object.keys(files).filter(p => p.startsWith("scenes/")), pack.scenes.map(s => `scenes/${s.id}.kmscene`).sort(), "a file a scene, nothing else");
+  assert.deepEqual(Object.keys(files).filter(p => !p.includes("/") && p.endsWith(".kmscenario")), ["caerwyn.kmscenario"], "the scenario, named for the campaign");
+  assert.deepEqual(Object.keys(files).filter(p => p.startsWith("maps/")), pack.maps.map(m => `maps/${m.id}.kmmap`).sort(), "a file a map, nothing else");
+  assert.deepEqual(Object.keys(files).filter(p => p.startsWith("places/")), pack.places.map(p => `places/${p.key}.kmplace`).sort(), "a file a place, nothing else");
   assert.ok(!Object.keys(files).some(p => p.split("/").some(part => part.startsWith("."))));
 });
 
@@ -59,7 +62,7 @@ test("a scene file that isn't of the format says what's wrong with its shape, an
     'scenes/hanged-clerk.kmscene: edges[0] (find-murder)\'s target "the-moon" isn\'t a node of the scene',
   ]);
   assert.deepEqual(checkCampaign(changed(SCENE, "{ nope")), ["scenes/hanged-clerk.kmscene isn't JSON: Expected property name or '}' in JSON at position 2 (line 1 column 3)"]);
-  assert.deepEqual(checkCampaign(changed(SCENE, undefined)), ["scenes/hanged-clerk.kmscene is missing"]);
+  assert.deepEqual(checkCampaign(changed(SCENE, undefined)), ["caerwyn.kmscenario: its scene hanged-clerk has no file (scenes/hanged-clerk.kmscene)"]);
 });
 
 test("ids are slugs, the scene's its file's name; the prose it needs is there, and its lore is in lore/", () => {
@@ -235,7 +238,7 @@ test("Kell signs Prout in once the case holds and the lead is in her notebook, w
 
 test("the Heron's people and things go by what the player can see, not the prep's labels for them (QA round qa3-1018's g02 and g04: \"the talking bruiser\" before either had spoken, and \"the true book\" for a ledger nobody had called that)", () => {
   const heron = JSON.parse(files[HERON]!);
-  const place = JSON.parse(files["places/heron.json"]!);
+  const place = JSON.parse(files["places/heron.kmplace"]!);
   const crakes = heron.cast.find((c: any) => c.id === "sallow").members.filter((m: any) => /Crake/.test(m.name));
   assert.deepEqual(crakes.map((m: any) => m.name), ["the first Crake", "the second Crake"], "nobody can tell them apart until one of them speaks");
   assert.doesNotMatch(JSON.stringify(heron), /talking (?:one|Crake)|silent Crake/, "which one talks is shown, not named");
@@ -323,8 +326,25 @@ test("the place's people are the cast, its things are somewhere, and what a beat
   const nowhere = changed(SCENE, s => { node(s, "motive").carry.things = ["ledger-page", "the-crown-jewels"]; });
 
   assert.deepEqual(sceneChecks(stranger), ["scenes/hanged-clerk.kmscene: granary-yard's people: sallow isn't in the cast"]);
-  assert.deepEqual(sceneChecks(floating), ["places/granary-yard.json: thing elm is in unknown the-sky"]);
+  assert.deepEqual(sceneChecks(floating), ["places/granary-yard.kmplace: thing elm is in unknown the-sky"]);
   assert.deepEqual(sceneChecks(nowhere), ["scenes/hanged-clerk.kmscene: beat motive carries the-crown-jewels, which isn't a thing of its place, nor carried from another scene"]);
+});
+
+test("a place's areas, spots and starts are on its floor, so it's laid on its map's tiles whole", () => {
+  // The yard is 52 by 40 feet: its loft is 14 feet wide from 38, the elm at (34, 3), Kell at (16, 13).
+  const off = changed(PLACE, p => {
+    p.areas.find((a: any) => a.id === "loft").rect.w = 20;
+    p.things.find((t: any) => t.id === "elm").at = [-7, 3];
+    p.people.kell.at = [16, 40];
+  });
+  const edges = changed(PLACE, p => { p.things.find((t: any) => t.id === "elm").at = [51, 39]; p.people.kell.at = [0, 0]; });
+
+  assert.deepEqual(sceneChecks(off), [
+    "places/granary-yard.kmplace: area loft runs past the place's edges (52 by 40 feet)",
+    "places/granary-yard.kmplace: thing elm stands at (-7, 3), off the place (52 by 40 feet)",
+    "places/granary-yard.kmplace: kell starts at (16, 40), off the place (52 by 40 feet)",
+  ]);
+  assert.deepEqual(sceneChecks(edges), []);
 });
 
 test("the story goes on: every overtaken is a scene, a scene that can be overtaken says what it assumes, and an interlude goes on", () => {
@@ -352,10 +372,10 @@ test("the effects name an op, facts, people, things and quests the story has, on
   const fight = changed(HERON, s => { node(s, "fight").effects = [{ op: "startFight", enemies: [{ asset: "bandit", count: 2, leader: "sallow" }], allies: ["kell", "duchess"], at: "the-roof" }]; });
 
   assert.deepEqual(sceneChecks(files2), [
-    "scenes/drowned-rat.kmscene: onStart: quest lost-dog isn't one of campaign.json's quests",
+    "scenes/drowned-rat.kmscene: onStart: quest lost-dog isn't one of the scenario's quests",
     "scenes/drowned-rat.kmscene: onEnd: follow names unknown moll",
     "scenes/drowned-rat.kmscene: ending taken-in: teleport isn't an effect the story knows",
-    "scenes/drowned-rat.kmscene: ending taken-in: quest lost-cat isn't one of campaign.json's quests",
+    "scenes/drowned-rat.kmscene: ending taken-in: quest lost-cat isn't one of the scenario's quests",
     "scenes/drowned-rat.kmscene: ending taken-in: attitude smitten isn't an attitude",
     "scenes/drowned-rat.kmscene: ending taken-in: promise names unknown sallow",
     "scenes/drowned-rat.kmscene: ending taken-in: condition on unknown fact nope",
@@ -389,52 +409,138 @@ test("a build names what the rules engine's pack has: its class, species, backgr
 });
 
 test("the rules pack is the vendored one, and creation's world has its docs in lore/ and its places' words as regular expressions", () => {
-  const otherPack = changed("campaign.json", c => { c.rulesPack = "starter-pack@0.2.0"; });
-  const lostDocs = changed("campaign.json", c => { c.creation.primer = "World/Atlantis.md"; c.creation.places[0].words = "\\b(granary"; });
+  const otherPack = changed(SCENARIO, c => { c.rulesPack = "starter-pack@0.2.0"; });
+  const lostDocs = changed(SCENARIO, c => { c.creation.primer = "World/Atlantis.md"; c.creation.places[0].words = "\\b(granary"; });
 
-  assert.deepEqual(checkCampaign(otherPack), ["campaign.json: its rulesPack starter-pack@0.2.0 isn't the rules engine's pack, starter-pack@0.1.0"]);
+  assert.deepEqual(checkCampaign(otherPack), ["caerwyn.kmscenario: its rulesPack starter-pack@0.2.0 isn't the rules engine's pack, starter-pack@0.1.0"]);
   assert.deepEqual(checkCampaign(lostDocs).map(p => p.replace(/ \(.*\)$/, "")), [
-    "campaign.json: creation: World/Atlantis.md isn't in lore/",
-    "campaign.json: creation: Places/Granary Yard.md's words aren't a regular expression",
+    "caerwyn.kmscenario: creation: World/Atlantis.md isn't in lore/",
+    "caerwyn.kmscenario: creation: Places/Granary Yard.md's words aren't a regular expression",
   ]);
 });
 
-test("campaign.json names its first scene and place, and a file that isn't JSON says so", () => {
-  const lost = changed("campaign.json", c => { c.firstScene = "the-heron"; });
+test("the scenario names its first scene and place, and a file that isn't JSON says so", () => {
+  const lost = changed(SCENARIO, c => { c.firstScene = "the-heron"; });
   const garbled = changed("looks.json", "{ kell: ");
 
-  assert.deepEqual(checkCampaign(lost), ["campaign.json: the first scene the-heron isn't one of its scenes"]);
+  assert.deepEqual(checkCampaign(lost), ["caerwyn.kmscenario: the first scene the-heron isn't one of its scenes"]);
   assert.equal(checkCampaign(garbled).length, 1);
   assert.match(checkCampaign(garbled)[0]!, /^looks\.json isn't JSON/);
   assert.deepEqual(checkCampaign(changed("builds.json", undefined)), ["builds.json is missing"]);
 });
 
 test("the maps: each builds as the simulation builds it, its ways out land where a person can stand, and the story starts on one", () => {
-  const MAP = "maps/caerwyn.json";
+  const MAP = "maps/caerwyn.kmmap";
   const broken = changed(MAP, m => { m.grid[0] = `${m.grid[0]}Z`; });
-  const misnamed = changed("maps/palace.json", m => { m.id = "castle"; });
+  const misnamed = changed("maps/palace.kmmap", m => { m.id = "castle"; });
   const nowhere = changed(MAP, m => { m.exits[0].to.map = "atlantis"; m.exits[1].to.at = { x: 2, y: 1 }; });
   const strays = changed(MAP, m => { m.regions[0].rect.x = 63; m.regions[1].id = "granary-yard"; m.people[0].at = { x: 99, y: 0 }; m.people[1].times = ["teatime"]; });
-  const offStart = changed("campaign.json", c => { c.start.at = [2, 2]; });
-  const lostStart = changed("campaign.json", c => { c.start.map = "atlantis"; });
+  const offStart = changed(SCENARIO, c => { c.start.at = [2, 2]; });
+  const lostStart = changed(SCENARIO, c => { c.start.map = "atlantis"; });
 
-  assert.deepEqual(checkCampaign(broken), ['maps/caerwyn.json: it doesn\'t build (caerwyn: no legend entry for "Z" at (64, 0))']);
+  assert.deepEqual(checkCampaign(broken), ['maps/caerwyn.kmmap: "Z" isn\'t in its legend (at (64, 0))']);
   assert.deepEqual(checkCampaign(misnamed), [
-    "maps/palace.json: its id castle isn't its file's name",
-    'maps/caerwyn.json: "Through the palace gate" goes to palace, which isn\'t one of the campaign\'s maps',
+    "maps/palace.kmmap: its id castle isn't its file's name",
+    'maps/caerwyn.kmmap: "Through the palace gate" goes to palace, which isn\'t one of the campaign\'s maps',
   ]);
   assert.deepEqual(checkCampaign(nowhere), [
-    'maps/caerwyn.json: "Through the palace gate" goes to atlantis, which isn\'t one of the campaign\'s maps',
-    'maps/caerwyn.json: "The Drowned Rat\'s door" lands on (2, 1) in drowned-rat, where nobody can stand',
+    'maps/caerwyn.kmmap: "Through the palace gate" goes to atlantis, which isn\'t one of the campaign\'s maps',
+    'maps/caerwyn.kmmap: "The Drowned Rat\'s door" lands on (2, 1) in drowned-rat, where nobody can stand',
   ]);
   assert.deepEqual(checkCampaign(strays), [
-    "maps/caerwyn.json: a palace guard at (99, 0) is off the map",
-    'maps/caerwyn.json: a palace guard\'s times ["teatime"] aren\'t times of day',
-    "maps/caerwyn.json: region granary-yard isn't inside the map",
-    "maps/caerwyn.json: region granary-yard is caerwyn's too",
+    "maps/caerwyn.kmmap: a palace guard at (99, 0) is off the map",
+    'maps/caerwyn.kmmap: a palace guard\'s times ["teatime"] aren\'t times of day',
+    "maps/caerwyn.kmmap: region granary-yard isn't inside the map",
+    "maps/caerwyn.kmmap: region granary-yard is caerwyn's too",
   ]);
-  assert.deepEqual(checkCampaign(offStart), ["campaign.json: it starts at (2, 2) on caerwyn, where nobody can stand"]);
-  assert.deepEqual(checkCampaign(lostStart), ["campaign.json: it starts on the map atlantis, which isn't one of its maps"]);
+  assert.deepEqual(checkCampaign(offStart), ["caerwyn.kmscenario: it starts at (2, 2) on caerwyn, where nobody can stand"]);
+  assert.deepEqual(checkCampaign(lostStart), ["caerwyn.kmscenario: it starts on the map atlantis, which isn't one of its maps"]);
+});
+
+test("the scenario's files (scenario-format.md): one scenario, named for its id; every scene, place and map it lists there and of the format's shape", () => {
+  const { [SCENARIO]: scenario, ...withoutScenario } = files;
+  const twice = { ...files, "other.kmscenario": scenario! };
+  const lost = changed(SCENARIO, c => { c.scenes.push("the-lamplighter"); c.places.push("lamp-room"); c.maps.push("sewers"); c.talk = "chat"; });
+  const shapes = { ...changed("maps/heron.kmmap", m => { m.kind = "place"; m.regions[0].rect = { x: 1 }; }), [PLACE]: changed(PLACE, p => { p.things[0].size = "vast"; })[PLACE]! };
+
+  assert.deepEqual(checkCampaign(withoutScenario), ["the folder has no scenario (<id>.kmscenario)"]);
+  assert.deepEqual(checkCampaign(twice), ["the folder has 2 scenarios (caerwyn.kmscenario, other.kmscenario), not one"]);
+  assert.deepEqual(checkCampaign(changed(SCENARIO, "{ nope")).map(p => p.replace(/: .*$/, "")), ["caerwyn.kmscenario isn't JSON"]);
+  assert.deepEqual(checkCampaign(changed(SCENARIO, c => { c.kind = "campaign"; c.start.time = "noon"; })), [
+    'caerwyn.kmscenario: it isn\'t a scenario of the kingmaker format, version 2 (format "kingmaker", version 2, kind "campaign")',
+    'caerwyn.kmscenario: its start\'s time "noon" isn\'t one of morning, afternoon, evening, night, next-morning',
+  ]);
+  assert.deepEqual(checkCampaign(lost), [
+    "caerwyn.kmscenario: its scene the-lamplighter has no file (scenes/the-lamplighter.kmscene)",
+    "caerwyn.kmscenario: its talk template chat has no file (scenes/chat.kmscene)",
+    "caerwyn.kmscenario: its place lamp-room has no file (places/lamp-room.kmplace)",
+    "caerwyn.kmscenario: its map sewers has no file (maps/sewers.kmmap)",
+  ]);
+  assert.deepEqual(checkCampaign(shapes), [
+    'places/granary-yard.kmplace: things[0] (elm)\'s size "vast" isn\'t one of tiny, small, medium, large, huge, gargantuan',
+    'maps/heron.kmmap: it isn\'t a map of the kingmaker format, version 2 (format "kingmaker", version 2, kind "place")',
+    "maps/heron.kmmap: regions[0] (heron) has no rect { x, y, w, h }",
+  ]);
+});
+
+test("the scenario's own: its id its file's name, its prose, the campaign's version where the format has it, and nothing listed twice", () => {
+  const renamed = changed(SCENARIO, c => { c.id = "kaerwyn"; c.description = " "; c.scenes.push("drowned-rat"); });
+  const before = changed(SCENARIO, c => { c.version = c.campaignVersion; delete c.campaignVersion; });
+
+  assert.deepEqual(checkCampaign(renamed), [
+    "caerwyn.kmscenario: its id kaerwyn isn't its file's name",
+    "caerwyn.kmscenario: it has no description",
+    "caerwyn.kmscenario: its scenes list drowned-rat twice",
+  ]);
+  assert.deepEqual(checkCampaign(before), ["caerwyn.kmscenario: the campaign's version is in version, which is the format's: move it to campaignVersion, and make version 2"]);
+  assert.equal(packOf(before).campaign.version, "0.1.0", "the loader reads either");
+});
+
+test("a map's legend defines every character its grid uses, each a terrain, and a map is 160 by 120 at most", () => {
+  const MAP = "maps/palace.kmmap";
+  const unknown = changed(MAP, m => { m.grid[1] = m.grid[1].replace(/a/g, "Z"); m.grid[2] = `${m.grid[2]}~`; });
+  const lava = changed(MAP, m => { m.legend.v = { terrain: "lava" }; m.legend.P.terrain = "marble"; });
+  const vast = changed(MAP, m => { m.grid = [...m.grid, ...Array(115).fill("aaaaa")]; m.grid[0] = "a".repeat(170); });
+
+  assert.deepEqual(checkCampaign(unknown), ['maps/palace.kmmap: "Z" isn\'t in its legend (at (1, 1), and 2 more)', 'maps/palace.kmmap: "~" isn\'t in its legend (at (14, 2))']);
+  assert.deepEqual(checkCampaign(lava), [
+    "maps/palace.kmmap: legend \"P\": marble isn't a terrain (floor, boards, cobbles, grass, dirt, stairs, bridge, water, deep-water, wall, door, window, fence, tree, void)",
+    "maps/palace.kmmap: legend \"v\": lava isn't a terrain (floor, boards, cobbles, grass, dirt, stairs, bridge, water, deep-water, wall, door, window, fence, tree, void)",
+  ]);
+  assert.deepEqual(checkCampaign(vast), ["maps/palace.kmmap: it's 170 by 127 tiles: a map is 160 by 120 at most"]);
+});
+
+test("a map's regions name the scenario's scenes, and one with a scene lays its place there, fitting the map, or opens it, laid elsewhere", () => {
+  const MAP = "maps/caerwyn.kmmap";
+  const region = (m: any, id: string) => m.regions.find((r: any) => r.id === id);
+  const unknown = changed(MAP, m => { region(m, "granary-yard").sceneId = "the-lamplighter"; region(m, "rat-door").opensFor = "talk"; });
+  const past = changed("maps/heron.kmmap", m => { m.regions[0].worldOrigin = { x: 5, y: 1 }; });
+  const neither = changed(MAP, m => { delete region(m, "heron-wharf").trigger; });
+  const unlaid = changed("maps/heron.kmmap", m => { delete m.regions[0].worldOrigin; });
+
+  assert.deepEqual(checkCampaign(unknown), [
+    "maps/caerwyn.kmmap: region granary-yard's sceneId the-lamplighter isn't one of the scenario's scenes",
+    "maps/caerwyn.kmmap: region rat-door's opensFor talk isn't one of the scenario's scenes",
+  ]);
+  assert.deepEqual(checkCampaign(past), ["maps/heron.kmmap: region heron lays heron (21 by 18 tiles) at (5, 1), past the map's edge (23 by 19)"]);
+  assert.deepEqual(checkCampaign(neither), ["maps/caerwyn.kmmap: region heron-wharf names the scene heron-warehouse, but neither lays its place there (worldOrigin) nor opens it (trigger)"]);
+  assert.deepEqual(checkCampaign(unlaid), [
+    "maps/caerwyn.kmmap: region heron-wharf opens heron-warehouse, but no region lays its place (one with its sceneId and a worldOrigin)",
+    "maps/heron.kmmap: region heron opens heron-warehouse, but no region lays its place (one with its sceneId and a worldOrigin)",
+  ]);
+});
+
+test("every scene of the story can be reached from the start: a region plays it on a map the player can walk to, or a scene before it goes on to it", () => {
+  // The Rat's door shut (its exit gone), and no ending going on to the Rat: it can't be reached, nor the wharf at night it goes on to; the Heron still can, by the wharves.
+  const shut = { ...changed("maps/caerwyn.kmmap", m => { m.exits = m.exits.filter((e: any) => e.to.map !== "drowned-rat"); }), "scenes/caerwyn-afternoon.kmscene": changed("scenes/caerwyn-afternoon.kmscene", s => { for (const n of s.nodes) delete n.data.next; })["scenes/caerwyn-afternoon.kmscene"]! };
+  // The King's morning played on no map, but summoned by the Heron's endings: reached by the story.
+  const summoned = changed("maps/palace.kmmap", m => { m.regions = m.regions.filter((r: any) => r.sceneId !== "kings-morning"); });
+
+  assert.deepEqual(checkCampaign(shut).filter(p => !p.includes("an interlude")), [
+    "caerwyn.kmscenario: the scene drowned-rat can't be reached from the start: no region plays it on a map the player can walk to, and no scene that can be reached goes on to it",
+    "caerwyn.kmscenario: the scene wharf-night can't be reached from the start: no region plays it on a map the player can walk to, and no scene that can be reached goes on to it",
+  ]);
+  assert.deepEqual(checkCampaign(summoned), []);
 });
 
 const TALK = "scenes/talk.kmscene";

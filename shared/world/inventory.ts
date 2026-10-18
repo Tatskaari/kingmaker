@@ -1,4 +1,4 @@
-// Copied from the prototype's src/world/inventory.ts at 44c6d4a; dropped node:crypto with the strict read and commit (no callers), and startingPurse (campaign.json has it).
+// Copied from the prototype's src/world/inventory.ts at 44c6d4a; dropped node:crypto with the strict read and commit (no callers), and startingPurse (the campaign's scenario has it).
 
 import { areaAt, areaOf, positionOf, spotNear, type Entity, type SceneWorld } from "./scene-world.ts";
 

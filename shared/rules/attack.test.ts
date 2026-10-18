@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import "./shim.ts";
 import * as E from "../../vendor/dnd-srd-engine/dnd-srd-engine.module.js";
 import type { BuildsFile, PlaceFile } from "../scene/files.ts";
+import { loadPlace } from "../scene/scenario.ts";
 import type { Character } from "../scene/types.ts";
 import { applyOps, buildWorld } from "../world/scene-world.ts";
 import { attack, damageLine } from "./acts.ts";
@@ -25,7 +26,7 @@ const pregenSession = (options: { pregen: string; level?: number; seed?: number 
 };
 const yard = () => {
   const state = pregenSession({ pregen: "fighter", seed: 3 });
-  state.world = buildWorld("hanged-clerk", read<PlaceFile>("../../campaigns/caerwyn/places/granary-yard.json"), [{ id: "cob", name: "Cob" }, { id: "kell", name: "Sergeant Agnes Kell" }], { name: state.player.name });
+  state.world = buildWorld("hanged-clerk", loadPlace(readFileSync(new URL("../../campaigns/caerwyn/places/granary-yard.kmplace", import.meta.url), "utf8")), [{ id: "cob", name: "Cob" }, { id: "kell", name: "Sergeant Agnes Kell" }], { name: state.player.name });
   return state;
 };
 const blank = { to: "", how: "", name: "", kind: "", text: "", add: [], remove: [] };

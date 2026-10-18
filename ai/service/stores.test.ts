@@ -64,10 +64,10 @@ for (const [name, make] of Object.entries(KINDS)) {
     assert.equal(await stores.answers.sweep?.(7 * DAY, Date.now() + 8 * DAY), 1, "a week on, swept");
     assert.equal(await stores.answers.get("g1:s1:t3:reply"), undefined);
 
-    await stores.campaigns.put("caerwyn", "0.1.0", { "campaign.json": "{}", "lore/World/Old.md": "old" });
-    await stores.campaigns.put("caerwyn", "0.1.0", { "campaign.json": "{}", "lore/World/New.md": "new" });
+    await stores.campaigns.put("caerwyn", "0.1.0", { "caerwyn.kmscenario": "{}", "lore/World/Old.md": "old" });
+    await stores.campaigns.put("caerwyn", "0.1.0", { "caerwyn.kmscenario": "{}", "lore/World/New.md": "new" });
     const files = stores.campaigns.files("caerwyn", "0.1.0")!;
-    assert.deepEqual([files.read("lore/World/New.md"), files.read("lore/World/Old.md"), files.paths().sort()], ["new", undefined, ["campaign.json", "lore/World/New.md"]]);
+    assert.deepEqual([files.read("lore/World/New.md"), files.read("lore/World/Old.md"), files.paths().sort()], ["new", undefined, ["caerwyn.kmscenario", "lore/World/New.md"]]);
     assert.deepEqual([stores.campaigns.list(), stores.campaigns.files("caerwyn", "0.2.0")], [["caerwyn@0.1.0"], undefined]);
 
     stores.docs.overlay("g1").write("Cast/Kell/memories/index.md", "# Memories");
@@ -132,7 +132,7 @@ test("answers older than a week are swept by their files' times, the rest kept",
 test("a campaign version is a folder on disk as PUT, and each game's copy of the lore one beside its logs", async () => {
   const root = fresh();
   const stores = folderStores(root);
-  await stores.campaigns.put("caerwyn", "0.1.0", { "campaign.json": "{}", "lore/World/New.md": "new" });
+  await stores.campaigns.put("caerwyn", "0.1.0", { "caerwyn.kmscenario": "{}", "lore/World/New.md": "new" });
   stores.docs.overlay("g1").write("Player/Wren.md", "# Wren");
 
   assert.equal(readFileSync(join(root, "campaigns", "caerwyn", "0.1.0", "lore", "World", "New.md"), "utf8"), "new");

@@ -11,7 +11,7 @@ import { bigints, check, homeUntil, mapUntil, moduleLog, note, ok, step, type Pl
  * map moves' times, as the module logged them. Every move goes through the client's connection.
  */
 
-/** Where the campaign starts a game (campaign.json's start): the granary lane, by the yard's gate. */
+/** Where the campaign starts a game (its scenario's start): the granary lane, by the yard's gate. */
 const LANE = { x: 42, y: 9 };
 /** The granary yard on the town's map (its region), where the hanged clerk is played. */
 const YARD = { x: 40, y: 11, w: 7, h: 6 };

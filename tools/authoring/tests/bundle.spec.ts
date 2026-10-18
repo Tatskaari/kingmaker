@@ -6,7 +6,8 @@ import {fileURLToPath} from 'node:url';
 // The plugin's bundle as Obsidian loads it: dist/plugin/main.js (or the one KINGMAKER_PLUGIN names, such
 // as a vault's installed copy) evaluated as CommonJS with the obsidian module given, here a small
 // implementation of the public API in a real page, over a vault of the campaign folder's files (or
-// KINGMAKER_VAULT's). Every scene of the campaign opens in its scene editor with nothing written.
+// KINGMAKER_VAULT's). Every scene of the campaign opens in its scene editor, and the scenario, every
+// map and every place in theirs, each with its campaign read and no problems, and nothing written.
 // This is the test host, not Obsidian's desktop UI.
 const root=fileURLToPath(new URL('..',import.meta.url));
 const bundlePath=path.resolve(root,process.env.KINGMAKER_PLUGIN??'dist/plugin/main.js');
@@ -23,16 +24,18 @@ async function vaultFiles(){
   return files;
 }
 
-test('the plugin\'s bundle loads under the test host and opens every scene of the vault in its scene editor',async({page})=>{
+test('the plugin\'s bundle loads under the test host and opens every scene, the scenario, every map and every place of the vault in its editor',async({page})=>{
   const [bundle,styles,files]=await Promise.all([readFile(bundlePath,'utf8'),readFile(path.join(path.dirname(bundlePath),'styles.css'),'utf8'),vaultFiles()]);
   const scenes=Object.keys(files).filter(file=>/^scenes\/[^/]+\.kmscene$/.test(file)).sort();
   expect(scenes.length).toBeGreaterThanOrEqual(7);
+  const others=Object.keys(files).filter(file=>/^([^/]+\.kmscenario|maps\/[^/]+\.kmmap|places\/[^/]+\.kmplace)$/.test(file)).sort();
+  expect(others.length).toBeGreaterThanOrEqual(9);
   const errors:string[]=[];
   page.on('pageerror',error=>errors.push(error.message));
   await page.setViewportSize({width:1500,height:950});
   await page.setContent(`<!doctype html><html><head><style>${styles}</style><style>html,body{margin:0;height:100%}.view{width:1500px;height:950px}</style></head><body></body></html>`);
 
-  const results=await page.evaluate(async({bundle,files,scenes})=>{
+  const results=await page.evaluate(async({bundle,files,scenes,otherFiles})=>{
     // ---- The public Obsidian API, as much of it as the plugin uses ----
     const writes:string[]=[],notices:string[]=[];
     class TFolder{constructor(public path:string){}name=''}
@@ -82,13 +85,34 @@ test('the plugin\'s bundle loads under the test host and opens every scene of th
       await view.onUnloadFile();
       view.contentEl.remove();
     }
-    return {opened,writes,notices};
-  },{bundle,files,scenes});
+    // ---- The scenario, every map and every place, each in its editor ----
+    const others=[];
+    for(const file of otherFiles){
+      const view=makeView({app}) as TextFileView&{getViewData:()=>string};
+      await view.onLoadFile(entries.get(file) as TFile);
+      let problems='',title='',ready=false;
+      for(let i=0;i<150&&!(ready&&/^Problems\d+$/.test(problems));i++){
+        await settle();
+        problems=[...view.contentEl.querySelectorAll('[role=tab]')].map(tab=>tab.textContent??'').find(text=>text.startsWith('Problems'))??'';
+        title=view.contentEl.querySelector('h1')?.textContent??'';
+        ready=file.endsWith('.kmmap')?view.contentEl.querySelector('canvas')?.getAttribute('data-renderer')==='pixi':file.endsWith('.kmscenario')?view.contentEl.querySelectorAll('.scenario-card').length>1:view.contentEl.querySelectorAll('.place-thing').length>0;
+      }
+      const document=JSON.parse(files[file]);
+      others.push({file,ready,title,expected:document.title,problems,same:view.getViewData()===files[file]});
+      await view.onUnloadFile();
+      view.contentEl.remove();
+    }
+    return {opened,others,writes,notices};
+  },{bundle,files,scenes,otherFiles:others});
 
   for(const result of results.opened){
     expect(result,result.scene).toMatchObject({viewType:'kingmaker-authoring-file',cards:result.nodes,title:result.expected,problems:'Problems0',same:true});
   }
   expect(results.opened.map(result=>result.scene)).toEqual(scenes);
+  for(const result of results.others){
+    expect(result,result.file).toMatchObject({ready:true,title:result.expected,problems:'Problems0',same:true});
+  }
+  expect(results.others.map(result=>result.file)).toEqual(others);
   expect(results.writes).toEqual([]);
   expect(results.notices).toEqual([]);
   expect(errors).toEqual([]);

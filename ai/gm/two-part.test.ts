@@ -13,7 +13,7 @@ import { loadScene } from "../../shared/scene/load.ts";
 import { parseScene } from "../../shared/scene/document.ts";
 import { CONFIDED, talkSceneId, TOLD } from "../../shared/scene/talk.ts";
 import { talkScene } from "./talk.ts";
-import type { PlaceFile } from "../../shared/scene/files.ts";
+import { loadPlace, placePath } from "../../shared/scene/scenario.ts";
 import type { Scene } from "../../shared/scene/types.ts";
 import { buildWorld } from "../../shared/world/scene-world.ts";
 import { fakeFetch, readPrep, walkTo, type FakeOptions } from "../llm/fake-openrouter.ts";
@@ -191,7 +191,7 @@ test("the per-turn note: what the place the player is in holds, with no dice, is
   // The Heron's counting-box holds two: the Master's bag of new pennies, and the true book over Scrope's shoulder.
   const heron = sceneFile("heron-warehouse");
   const box = viewAt(heron, heron.start, { turn: 5 });
-  box.world = buildWorld(heron.id, JSON.parse(readFileSync(join(CAERWYN, "places", "heron.json"), "utf8")) as PlaceFile, [], box.player);
+  box.world = buildWorld(heron.id, loadPlace(readFileSync(join(CAERWYN, placePath("heron")), "utf8"), placePath("heron")), [], box.player);
   assert.deepEqual(reachNote(heron, into(box, "counting-box"))!.split("\n").filter(l => l.startsWith("- ")).map(l => l.slice(0, 40)), ["- A bag of new heron pennies on the cler", "- The book itself, open under the lamp o"]);
   // The rule the note applies, for whoever gets somewhere the reply takes them.
   assert.match(mouthpieceInstructions(clerk, yard()), /The per-turn note lists what's hidden right now\. But what a place itself holds, where your prep's path through it has no dice, is for whoever gets there: they see it as written, meaning and all, even where someone's secret has it too\./);

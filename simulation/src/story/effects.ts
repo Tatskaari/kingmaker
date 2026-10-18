@@ -131,7 +131,7 @@ type FollowEffect = Extract<Effect, { op: "follow" }>;
 
 /**
  * A quest started, advanced, completed or failed: by its key, one row a game. One the story hasn't
- * started yet is made as it's first touched, titled as campaign.json's quests have it.
+ * started yet is made as it's first touched, titled as the scenario's quests have it.
  */
 function quest(tx: TxCtx, scene: SceneRow, e: QuestEffect): string {
   const old = [...tx.db.quest.gameId.filter(scene.gameId)].find(q => q.key === e.quest);

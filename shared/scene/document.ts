@@ -27,7 +27,7 @@ export interface SceneDocument {
 
   // ---- When and where (the story and the map) ----
   time?: TimeOfDay;
-  /** The place's key: places/<key>.json, the world the stage manager keeps (areas, things, who stands where). */
+  /** The place's key: places/<key>.kmplace, the world the stage manager keeps (areas, things, who stands where). */
   place?: string;
   /** Downtime between scenes, standing in for the map (the story skips it). */
   interlude?: boolean;

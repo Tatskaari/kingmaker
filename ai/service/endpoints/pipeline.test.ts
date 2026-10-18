@@ -9,6 +9,7 @@ import { initialGm, type GmState } from "../../../shared/gm/state.ts";
 import type { Markup } from "../../../shared/markup.ts";
 import type { Entry, OpenRequest, ReplyRequest, SettleRequest, StreamReplyArgs, SuggestRequest } from "../../../shared/protocol/ai.ts";
 import type { PlaceFile } from "../../../shared/scene/files.ts";
+import { loadPlace, placePath } from "../../../shared/scene/scenario.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import { keysFor, worldToRows, type PlaceRows } from "../../../shared/world/rows.ts";
 import { buildWorld, joinWorld } from "../../../shared/world/scene-world.ts";
@@ -54,7 +55,7 @@ async function setUp(options: FakeOptions = {}) {
 
 /** The opening world as the simulation builds it (buildWorld, joinWorld) and sends it, as rows; with `others`, people of the place's own (not the cast), by their local ids. */
 function openingRows(gm: GmState, campaign: Awaited<ReturnType<typeof setUp>>["campaign"], others: Record<string, string> = {}): PlaceRows {
-  const place = JSON.parse(readFileSync(join(CAERWYN, "places", "granary-yard.json"), "utf8")) as PlaceFile;
+  const place: PlaceFile = loadPlace(readFileSync(join(CAERWYN, placePath("granary-yard")), "utf8"));
   const people = presentCast(campaign.scene("hanged-clerk"), gm).map(c => ({ id: c.id, name: c.name }));
   const world = buildWorld("hanged-clerk", place, people, { name: "Wren Ashdown" });
   joinWorld(world, people, 0);

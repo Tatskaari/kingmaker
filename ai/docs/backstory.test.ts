@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import type { CreationWorld } from "../../shared/creation/types.ts";
+import { loadScenario, scenarioPath } from "../../shared/scene/scenario.ts";
 import type { Ask } from "../llm/openrouter.ts";
 
 /**
@@ -205,7 +206,7 @@ test("what it says of them: from the model, short and to the point; offline, fro
 });
 
 test("the world is Caerwyn's unless another is given, and the campaign's creation block is Caerwyn's", async () => {
-  const campaign = JSON.parse(readFileSync(join(import.meta.dirname, "..", "..", "campaigns", "caerwyn", "campaign.json"), "utf8")) as { creation: CreationWorld };
+  const campaign = loadScenario(readFileSync(join(import.meta.dirname, "..", "..", "campaigns", "caerwyn", scenarioPath("caerwyn")), "utf8"));
   assert.deepEqual(campaign.creation, CAERWYN);
   const elsewhere: CreationWorld = { name: "Elsewhere", premise: "The game begins in a muddy field.", primer: "World/Nowhere.md", notCanon: [], places: [{ doc: "Places/Granary Yard.md", words: "\\bturnips?\\b" }] };
   const { ask, asked } = model({ "backstory.draft": { story: "I grew turnips." }, "backstory.check": { issues: [] } });

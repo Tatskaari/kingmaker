@@ -13,7 +13,7 @@ const bundle=async entry=>{
 };
 const model=await bundle('../src/scene/model.ts');
 const {campaignRootOf,contextOf,readCampaign,sceneKeyOf}=await bundle('../src/scene/campaign.ts');
-const {openSceneFile,serializeScene,SceneOpenError,withKey,ORDER,setSceneField,setNodeField,setRouteField,setCastField,addNode,addRoute,addCast,removeNodes,removeCast,addFact,removeFact,renameFact,settlesOf,testsOf,idProblem,renameNode,renameRoute,renameCast,makeEvent,makeDiscovery,moveRoutes,skeletonScene,slugOf,uniqueId,problemsOf,shapeOf,setArrival,freePosition,retitleNode,changeKind,kindLosses,nodeKind,eventsOf,countingFrom}=model;
+const {openSceneFile,serializeScene,SceneOpenError,withKey,ORDER,setSceneField,setNodeField,setRouteField,setCastField,addNode,addRoute,addCast,removeNodes,removeCast,addFact,removeFact,renameFact,settlesOf,testsOf,idProblem,renameNode,renameRoute,renameCast,makeEvent,makeDiscovery,moveRoutes,skeletonScene,slugOf,uniqueId,problemsOf,shapeOf,setArrival,freePosition,retitleNode,changeKind,kindLosses,viaWarnings,viaNames,updateNode,nodeKind,eventsOf,countingFrom}=model;
 
 const CAMPAIGN=new URL('../../../campaigns/caerwyn/',import.meta.url);
 const TESTDATA=new URL('../../../shared/scene/testdata/',import.meta.url);
@@ -362,7 +362,7 @@ test('onStart is held to the effects\' rules as onEnd is, each problem at its ef
   const campaign=await readCampaign('scenes/hanged-clerk.kmscene',await campaignFiles());
   const started=setSceneField(clerk(),'onStart',[...clerk().onStart,{op:'quest',quest:'lost-dog',do:'start',text:'x'},{op:'follow',who:'nobody'},{op:'give',what:'',to:'$player'}]);
   assert.deepEqual(problemsOf('hanged-clerk',started,contextOf(campaign,'hanged-clerk')).map(problem=>[problem.message,problem.at]),[
-    ['onStart: quest lost-dog isn\'t one of campaign.json\'s quests',{kind:'scene',field:'onStart.1'}],
+    ['onStart: quest lost-dog isn\'t one of the scenario\'s quests',{kind:'scene',field:'onStart.1'}],
     ['onStart: follow names unknown nobody',{kind:'scene',field:'onStart.2'}],
     ['onStart: give doesn\'t say what it acts on',{kind:'scene',field:'onStart.3'}],
   ]);
@@ -396,7 +396,7 @@ test('the campaign around a scene: its root, its scenes, places and quests, its 
   assert.ok(!campaign.lore.some(note=>/\/(private|gm|index)\.md$|\/knowledge\//.test(note.path)&&note.path.startsWith('Cast/')),'a person\'s public card is offered, not their private notes');
   assert.ok(campaign.lore.some(note=>note.path==='World/Fronts.md'&&note.kind==='world'));
   assert.ok(campaign.lore.some(note=>note.path==='Places/Granary Yard.md'&&note.kind==='place'));
-  // A scene file campaign.json doesn't list yet is one the story can be sent to (the problems say so until it's listed).
+  // A scene file the scenario doesn't list yet is one the story can be sent to (the problems say so until it's listed).
   assert.deepEqual(campaign.unlisted,[]);
   const files=await campaignFiles();
   const writing={list:folder=>[...files.list(folder),...('scenes/the-short-weight.kmscene'.startsWith(folder)?['scenes/the-short-weight.kmscene']:[])],read:files.read};
@@ -426,4 +426,25 @@ test('the problems are the campaign check\'s: none on the real scenes, and one w
     'discovery discovery has no revelation','discovery discovery has 0 paths, not two or more',
     'ending can\'t be reached from the start','it has no good or mixed ending that can be reached',
   ]);
+});
+
+test('a path via something the scene hasn\'t got is a warning, not a problem: on the real scenes, and gone once a thing of the place is picked',async()=>{
+  const campaign=await readCampaign('scenes/hanged-clerk.kmscene',await campaignFiles());
+  const warned=Object.fromEntries(campaign.scenes.map(scene=>[scene.id,viaWarnings(scene.doc,campaign.places.find(place=>place.key===scene.doc.place)).map(w=>w.message.match(/“(.*)”/)[1])]));
+  assert.deepEqual(warned,{
+    'hanged-clerk':['the body','the body'],'caerwyn-afternoon':[],
+    'drowned-rat':['Hobb\'s right hand','Prout\'s page','the heron pennies','Cob\'s left boot'],'wharf-night':[],
+    'heron-warehouse':['a sack split on the hoist'],'kings-morning':['his papers'],talk:[],
+  },'the interludes have no place to check against; the rest name things their places haven\'t got');
+  const yard=campaign.places.find(place=>place.key==='granary-yard');
+  const doc=clerk();
+  // Words, not case, an article or what's in brackets: the loft is the tally loft.
+  for(const via of ['the tally loft','The Tally Loft','tally loft','Wendell Prout\'s body','prout','the rope cleat','Kell','Sergeant Agnes Kell'])assert.ok(viaNames(via,doc,yard),via);
+  assert.ok(!viaNames('the body',doc,yard));
+  const [first]=viaWarnings(doc,yard);
+  assert.deepEqual(first.at,{kind:'node',id:'murder'});
+  // Picking the body by its name clears both of murder's, and leaves none: the lead's porters' path is Old Wat's, someone of the cast.
+  const picked=updateNode(doc,'murder',data=>({...data,paths:data.paths.map(path=>path.via==='the body'?{...path,via:'Wendell Prout\'s body'}:path)}));
+  assert.deepEqual(viaWarnings(picked,yard),[]);
+  assert.deepEqual(problemsOf('hanged-clerk',picked,contextOf(campaign,'hanged-clerk')),[],'a warning is never a problem');
 });

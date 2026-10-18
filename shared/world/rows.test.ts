@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import type { SceneDocument } from "../scene/document.ts";
 import type { CampaignFile, PlaceFile } from "../scene/files.ts";
+import { loadPlace, loadScenario, placePath, scenarioPath } from "../scene/scenario.ts";
 import { inventory } from "./inventory.ts";
 import { fullKey, isNewId, keysFor, localKey, opToGame, opToLocal, pcKey, rowsToWorld, worldToRows, type Keys, type PlaceRows } from "./rows.ts";
 import { applyOps, buildWorld, joinWorld, worldView, type SceneWorld, type WorldOp } from "./scene-world.ts";
@@ -22,10 +23,10 @@ const keys: Keys = keysFor("granary-yard", "hanged-clerk", pcKey(1n));
 
 /** The world as the simulation opens the scene: the place, the cast present, the purse, the gear. */
 function openingWorld(): SceneWorld {
-  const campaign = read<CampaignFile>("campaign.json");
+  const campaign: CampaignFile = loadScenario(readFileSync(join(CAERWYN, scenarioPath("caerwyn")), "utf8"));
   const scene = read<SceneDocument>("scenes/hanged-clerk.kmscene");
   const present = scene.cast.filter(c => !c.enters).map(c => ({ id: c.id, name: c.name }));
-  const world = buildWorld("hanged-clerk", read<PlaceFile>("places/granary-yard.json"), present, { name: "Tamsin Vell" });
+  const world = buildWorld("hanged-clerk", loadPlace(readFileSync(join(CAERWYN, placePath("granary-yard")), "utf8")), present, { name: "Tamsin Vell" });
   joinWorld(world, present, 0);
   for (const coin of campaign.startingPurse) inventory(world, 0).add("player", coin);
   world.entities["tamsin-longbow"] = { id: "tamsin-longbow", name: "Tamsin's longbow", kind: "item", parent: "player", tags: ["weapon"], states: ["in hand"], notes: [], gear: "longbow-1" };

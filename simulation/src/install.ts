@@ -11,8 +11,9 @@ import { isAdmin } from "./access.ts";
 import { Refused, type TxCtx } from "./context.ts";
 
 /**
- * install_campaign (v0-design §8, v1-design §3.9, map-design §3.1): a campaign version (campaign.json,
- * each scene's .kmscene file whole, its places, builds, looks and maps), from the database's owner.
+ * install_campaign (v0-design §8, v1-design §3.9, map-design §3.1): a campaign version (its scenario,
+ * each scene's .kmscene file whole, its places, builds, looks and maps, the scenario, places and maps
+ * as the game keeps them: shared/scene/scenario.ts), from the database's owner.
  * Every scene must be one of the format and load as the simulation will read it, every ready-made
  * build name only what the rules engine's pack has, and every map build; re-installing a version
  * replaces it whole (a game keeps the version it started on, so a real release bumps the version).
@@ -45,7 +46,7 @@ function parsed(args: InstallArgs): CampaignPack {
 
 /** The first thing wrong with a pack: its id, a scene that doesn't load or names a place it hasn't got, a build the rules engine can't make. */
 function packProblem(tx: TxCtx, args: InstallArgs, pack: CampaignPack): string | undefined {
-  if (args.id !== campaignId(pack.campaign)) return `its id ${args.id} isn't campaign.json's ${campaignId(pack.campaign)}`;
+  if (args.id !== campaignId(pack.campaign)) return `its id ${args.id} isn't its campaign's ${campaignId(pack.campaign)}`;
   if (!pack.scenes.some(s => s?.id === pack.campaign.firstScene)) return `it has no first scene ${pack.campaign.firstScene}`;
   for (const [i, scene] of pack.scenes.entries()) {
     const problem = sceneProblem(scene, pack);

@@ -11,7 +11,7 @@ import type {Campaign} from './campaign.ts';
 import {EffectsEditor} from './effects.tsx';
 import {FactsField} from './facts.tsx';
 import {TOLD} from '../../../../shared/scene/talk.ts';
-import {EXIT_KINDS,ORDER,SKILLS,addRoute,changeKind,idProblem,isBeat,isDiscovery,isEnding,isStart,kindLosses,moveRoutes,nodeKind,optionalList,removeNodes,removeRoutes,renameNode,renameRoute,retitleNode,setArrival,setNodeField,setRouteField,titleOf,updateNode,updateRoute,withKey} from './model.ts';
+import {EXIT_KINDS,ORDER,SKILLS,addRoute,changeKind,idProblem,isBeat,isDiscovery,isEnding,isStart,kindLosses,moveRoutes,nodeKind,optionalList,removeNodes,removeRoutes,renameNode,renameRoute,retitleNode,setArrival,setNodeField,setRouteField,titleOf,updateNode,updateRoute,viaNames,withKey} from './model.ts';
 import type {BeatData,Connection,EndingData,NewNodeKind,NodeKind,OuterLimit,Path,Route,SceneDocument,SceneNode,StartData} from './model.ts';
 
 export const KIND_LABELS:Record<NodeKind,string>={start:'Start',discovery:'Discovery',event:'Event',ending:'Ending'};
@@ -151,18 +151,18 @@ function EndingFields({node}:{node:SceneNode<EndingData>}){
     <SelectField label="Exit kind" field="exitKind" hint={EXIT_OPTIONS[node.data.exitKind]?.detail} value={node.data.exitKind} options={EXIT_KINDS.map(kind=>({value:kind,label:EXIT_OPTIONS[kind].label}))} onChange={value=>set('exitKind',value)}/>
     <TextArea label="What's true" field="description" rows={4} hint="What is true if the scene ends this way." value={node.data.description} onChange={value=>set('description',value)}/>
     <TextArea label="Closing" field="closing" rows={4} hint="How the GM should close it: the feeling, the last image." value={node.data.closing} onChange={value=>set('closing',value)}/>
-    <SelectField label="Next scene" field="next" hint="The scene the story goes on to: one of the campaign's, or a scene file it doesn't list yet (the problems say so until campaign.json lists it)." value={node.data.next??''} options={scenes} onChange={value=>set('next',value||undefined)}/>
+    <SelectField label="Next scene" field="next" hint="The scene the story goes on to: one of the campaign's, or a scene file it doesn't list yet (the problems say so until the scenario lists it)." value={node.data.next??''} options={scenes} onChange={value=>set('next',value||undefined)}/>
     {node.data.next&&<button type="button" className="text-button" onClick={()=>openScene(node.data.next!)}>Open {node.data.next} <ArrowRight size={12}/></button>}
     <EffectsEditor label="Effects" field="effects" at={{kind:'node',id:node.id}} hint="What ending this way does to the story and the world, in order, each only when its facts say so."/>
     <WaysIn node={node}/>
   </>;
 }
 
-/** The scenes the story can go on to: campaign.json's (not the talk template), then the scene files it doesn't list yet, which the problems name until it does. */
+/** The scenes the story can go on to: the scenario's (not the talk template), then the scene files it doesn't list yet, which the problems name until it does. */
 export function storyScenes(campaign:Campaign|null,except?:string):Option[]{
   return [
     ...(campaign?.scenes??[]).filter(scene=>scene.id!==campaign?.talk&&scene.id!==except).map(scene=>({value:scene.id,label:`${scene.title} (${scene.id})`})),
-    ...(campaign?.unlisted??[]).filter(id=>id!==except).map(id=>({value:id,label:`${id} (a scene file campaign.json doesn't list yet)`})),
+    ...(campaign?.unlisted??[]).filter(id=>id!==except).map(id=>({value:id,label:`${id} (a scene file the scenario doesn't list yet)`})),
   ];
 }
 
@@ -256,8 +256,8 @@ function PathsEditor({node,note}:{node:SceneNode<BeatData>;note?:string}){
   useEffect(()=>{if(focus===null)return;list.current?.querySelector<HTMLElement>(`[data-field="paths.${focus}"] input`)?.focus();setFocus(null)},[focus]);
   const vias=useMemo(()=>[
     ...doc.cast.map(member=>({value:member.id,label:member.name})),
-    ...(place?.things??[]).map(thing=>({value:thing.name,label:`a thing of ${place!.name}`})),
-    ...(place?.areas??[]).map(area=>({value:area.name,label:`a part of ${place!.name}`})),
+    ...(place?.things??[]).map(thing=>({value:thing.name,label:`a thing of ${place!.name} (${thing.id})`})),
+    ...(place?.areas??[]).map(area=>({value:area.name,label:`a part of ${place!.name} (${area.id})`})),
   ],[doc.cast,place]);
   const required=!!node.data.required;
   return <fieldset className="paths" data-field="paths" ref={list}>
@@ -268,6 +268,8 @@ function PathsEditor({node,note}:{node:SceneNode<BeatData>;note?:string}){
       title={path.via||'Via…'} badges={<><span className={`strength ${path.strength}`}>{path.strength}</span>{path.check&&<span className="dice-badge"><Dices size={11}/>{SKILL_LABEL(path.check.skill)} {path.check.dc}</span>}</>}
       onMove={by=>setPaths(old=>moved(old,index,by))} onRemove={()=>setPaths(old=>old.filter((_,i)=>i!==index))}>
       <TextField label="Via" field="via" list={listId} hint="A cast id, or a thing or place in a few words (“the body”)." value={path.via} onChange={value=>setPath(index,'via',value)}/>
+      {vias.length>0&&<SelectField label="Pick via" field="via.pick" hint={place?`From the cast and ${place.name}'s things and parts.`:'From the cast (the scene has no place of the campaign\'s).'} value="" placeholder="Choose…" options={vias.map(via=>({value:via.value,label:`${via.value}: ${via.label}`}))} onChange={value=>{if(value)setPath(index,'via',value)}}/>}
+      {place&&path.via.trim().includes(' ')&&!viaNames(path.via,doc,place)&&<p className="via-warning" role="note">Neither one of the cast nor a thing of {place.name}: the GM is told the clue is with something the scene hasn't got. Pick one, or keep it as words.</p>}
       <TextArea label="Clue" field="clue" rows={2} hint="What's there to find or hear, concretely." value={path.clue} onChange={value=>setPath(index,'clue',value)}/>
       <TextArea label="Earn" field="earn" rows={2} hint="What earns it: free to a look, a kindness, a promise, a roll. An approach that needs no dice says so up front (“No dice: free to anyone who looks up”); where the roll is for another approach, the free ones come first and the roll after them." value={path.earn} onChange={value=>setPath(index,'earn',value)}/>
       <ChoiceField label="Strength" field="strength" value={path.strength} options={STRENGTH_OPTIONS} onChange={value=>setPath(index,'strength',value)}/>

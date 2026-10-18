@@ -2,12 +2,14 @@ import {test,expect,type Page,type Locator} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 
 // The scene editor on the game's own campaign: the browser harness's vault is campaigns/caerwyn (its
-// scenes, places, campaign.json and lore), and every journey asserts the scene file as saved.
+// scenes, places, scenario and lore), and every journey asserts the scene file as saved.
 const CAMPAIGN=new URL('../../../campaigns/caerwyn/',import.meta.url);
 const clerkPath='scenes/hanged-clerk.kmscene';
 const clerkText=await readFile(new URL(clerkPath,CAMPAIGN),'utf8');
 const clerk=()=>JSON.parse(clerkText);
 const SCENES=['caerwyn-afternoon','drowned-rat','hanged-clerk','heron-warehouse','kings-morning','talk','wharf-night'];
+/** The via warnings on each real scene (nine in four scenes: scene-model.test.mjs has them). */
+const WARNINGS:Record<string,number>={'hanged-clerk':2,'drowned-rat':4,'heron-warehouse':1,'kings-morning':1};
 
 const files=(page:Page)=>page.evaluate(()=>({...(window as any).__kingmakerHarness.files}) as Record<string,string>);
 const savedText=(page:Page,path=clerkPath)=>page.evaluate(path=>(window as any).__kingmakerHarness.files[path] as string,path);
@@ -74,7 +76,9 @@ test('every real scene opens as its graph, with no problems, and opening saves n
     await expect(page.locator('.scene-card')).toHaveCount(scene.nodes.length);
     await expect(page.locator('.react-flow__edge')).toHaveCount(new Set(scene.edges.map((e:any)=>`${e.source}>${e.target}`)).size);
     await problems(page,0);
-    await expect(page.locator('.problems-link')).toHaveText('No problems');
+    // The via warnings (M4's: a path via something the scene's place hasn't got) are counted beside the problems.
+    const warned=WARNINGS[id]??0;
+    await expect(page.locator('.problems-link')).toHaveText(`No problems${warned?` · ${warned} warning${warned===1?'':'s'}`:''}`);
     await expect(page.locator('.statusbar')).toContainText(`${scene.nodes.length} nodes`);
   }
   await page.screenshot({path:'dist/screenshots/scene-the-rat.png'});
@@ -434,7 +438,7 @@ test('click a problem and land on it: the scene\'s field, a node\'s, a route\'s 
   await view(page,'Scene').click();
   await page.locator('.scene-view').getByLabel('Premise',{exact:true}).fill('');
   await problems(page,1);
-  await expect(page.locator('.problems-link')).toHaveText('1 problem');
+  await expect(page.locator('.problems-link')).toHaveText('1 problem · 2 warnings');
   await page.locator('.problems-link').click();
   await expect(view(page,'Problems')).toHaveAttribute('aria-selected','true');
   await page.locator('.problem',{hasText:'it has no premise'}).click();
@@ -832,4 +836,32 @@ test('a connection\'s routes move to other ends together, ids kept, merging with
   await expect(page.locator('.route-card')).toHaveCount(2);
   await expect(page.locator('.react-flow__edge-text').filter({hasText:'2 routes'})).toHaveCount(1);
   expect(route(await saved(page),'case-lost').target).toBe('suspicious');
+});
+
+test('a clue path\'s via picked from its scene\'s place\'s things, and one naming something the scene hasn\'t got a warning in the Problems view',async({page})=>{
+  const path=clerkPath;
+  // The warnings are counted under the title beside the problems, not in the view's count (the campaign check's).
+  await problems(page,0);
+  await expect(page.locator('.problems-link')).toHaveText('No problems · 2 warnings');
+  await view(page,'Problems').click();
+  const panel=page.locator('.problems-view');
+  await expect(panel.locator('.warning')).toHaveText([/murder's path 1 is via “the body”/,/murder's path 2 is via “the body”/]);
+  await expect(panel.locator('.problem')).toHaveCount(0);
+  // A warning takes you to its discovery; the path's via picked from the yard's things.
+  await panel.locator('.warning').first().click();
+  const first=page.locator('.node-inspector[data-node="murder"] article.path').first();
+  await expect(first.locator('.via-warning')).toBeVisible();
+  await first.getByLabel('Pick via',{exact:true}).selectOption('Wendell Prout\'s body');
+  await expect(first.getByLabel('Via',{exact:true})).toHaveValue('Wendell Prout\'s body');
+  await expect(first.locator('.via-warning')).toHaveCount(0);
+  const scene=await saved(page,path);
+  expect(scene.nodes.find((n:any)=>n.id==='murder').data.paths[0].via).toBe('Wendell Prout\'s body');
+  await expect(page.locator('.problems-link')).toHaveText('No problems · 1 warning');
+  // The Scene view shows its place's things, and opens the place.
+  await view(page,'Scene').click();
+  const things=page.locator('[data-field="place.things"]');
+  await things.locator('summary').click();
+  await expect(things.locator('li')).toHaveCount(JSON.parse(await readFile(new URL('places/granary-yard.kmplace',CAMPAIGN),'utf8')).things.length);
+  await things.getByRole('button',{name:'Open the place'}).click();
+  await expect(page.locator('.file-path')).toHaveText('places/granary-yard.kmplace');
 });

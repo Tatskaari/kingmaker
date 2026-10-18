@@ -54,8 +54,9 @@ export function SelectField({label,hint,field,value,options,onChange,placeholder
   }</Field>;
 }
 
-/** A whole number: only a whole one is kept (an empty or half-typed field leaves the value as it was, or, when it's optional, takes it out). */
-export function NumberField({label,hint,field,value,onChange,min=0,max=40,disabled,optional}:Common&{value:number|undefined;onChange:(value:number|undefined)=>void;min?:number;max?:number;disabled?:boolean;optional?:boolean}){
+/** A whole number: only a whole one is kept (an empty or half-typed field leaves the value as it was, or, when it's optional, takes it out: only then is undefined reported). */
+type NumberChange={optional?:false;onChange:(value:number)=>void}|{optional:true;onChange:(value:number|undefined)=>void};
+export function NumberField({label,hint,field,value,onChange,min=0,max=40,disabled,optional}:Common&{value:number|undefined;min?:number;max?:number;disabled?:boolean}&NumberChange){
   const session=useContext(EditSession);
   const [text,setText]=useState(value===undefined?'':String(value));
   useEffect(()=>{if((text.trim()===''?undefined:Number(text))!==value)setText(value===undefined?'':String(value))},[value]);
@@ -261,6 +262,14 @@ export function Group({title,children,field,hint,anchor}:{title:string;children:
     {hint&&<p className="group-hint">{hint}</p>}
     {children}
   </section>;
+}
+
+/** A section of an inspector, open or closed, with a count: the scenario editor's inspector (M4) keeps these, where the scene editor's views have groups. */
+export function Section({title,children,open=true,count,field}:{title:string;children:ReactNode;open?:boolean;count?:number|string;field?:string}){
+  return <details className="inspector-section" open={open} data-section={field}>
+    <summary>{title}{count!==undefined&&<span className="count">{count}</span>}</summary>
+    <div className="section-body">{children}</div>
+  </details>;
 }
 
 /** Lore links: each a note of the campaign's lore/ (its name, and its path there), opened in the host or unlinked. */

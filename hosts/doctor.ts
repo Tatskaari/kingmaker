@@ -1,7 +1,6 @@
-import { readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import type { CampaignFile } from "../shared/scene/files.ts";
+import { readCampaign } from "./dev/campaign.ts";
 import { doctor, reportLines } from "./dev/doctor.ts";
 import { readStackFile } from "./dev/stack-file.ts";
 
@@ -16,7 +15,7 @@ import { readStackFile } from "./dev/stack-file.ts";
 const V2 = resolve(import.meta.dirname, "..");
 const { values } = parseArgs({ args: process.argv.slice(2), options: { root: { type: "string" }, campaign: { type: "string" } } });
 const root = resolve(values.root ?? join(V2, "runs", "dev"));
-const campaign = JSON.parse(readFileSync(join(resolve(values.campaign ?? join(V2, "campaigns", "caerwyn")), "campaign.json"), "utf8")) as CampaignFile;
+const campaign = readCampaign(resolve(values.campaign ?? join(V2, "campaigns", "caerwyn")));
 
 const stack = readStackFile(root);
 if (!stack) {

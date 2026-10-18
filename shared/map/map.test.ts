@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { applyOps, buildWorld, type WorldSpec } from "../world/scene-world.ts";
 import type { PlaceFile } from "../scene/files.ts";
+import { loadMap, loadPlace, loadScenario, mapPath, placePath, scenarioPath } from "../scene/scenario.ts";
 import type { MapActor, StoryState, Tile2 } from "./types.ts";
 import { enterScene, interact, leaveScene, move, nearby, newExploration as fresh, pathTo, SCREEN_KEYS, type ExploreState } from "./explore.ts";
 import { CAST } from "./looks.ts";
@@ -15,9 +16,9 @@ import { actorsFromWorld, feetToTile, tileToFeet } from "./reconcile.ts";
 import { isStructure, tileAt, type PlaceRegion } from "./tiles.ts";
 
 const CAMPAIGN = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
-const read = (path: string) => JSON.parse(readFileSync(join(CAMPAIGN, path), "utf8"));
-useMaps((read("campaign.json").maps as string[]).map(key => read(`maps/${key}.json`)));
-const hangedClerkWorld = read("places/granary-yard.json") as PlaceFile;
+const text = (path: string) => readFileSync(join(CAMPAIGN, path), "utf8");
+useMaps((loadScenario(text(scenarioPath("caerwyn"))).maps ?? []).map(key => loadMap(text(mapPath(key)))));
+const hangedClerkWorld: PlaceFile = loadPlace(text(placePath("granary-yard")));
 usePlaces([hangedClerkWorld]);
 
 const MORNING: StoryState = { time: "morning", played: [], lead: "hanged-clerk", flags: {} };

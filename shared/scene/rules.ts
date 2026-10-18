@@ -34,13 +34,13 @@ export interface SceneProblem { message: string; at: ProblemAt }
 export interface SceneContext {
   /** Is this path (under the campaign's lore/: "Cast/Cob/public.md") one of its files? */
   hasLore: (path: string) => boolean;
-  /** The campaign's scenes, by id (campaign.json's `scenes`): where an ending may go on to. */
+  /** The campaign's scenes, by id (the scenario's `scenes`): where an ending may go on to. */
   scenes: string[];
-  /** The talk template's id (campaign.json's `talk`), which is held to the talk's own rules for its cast. */
+  /** The talk template's id (the scenario's `talk`), which is held to the talk's own rules for its cast. */
   talk?: string;
-  /** The campaign's places, each as places/<key>.json has it. */
+  /** The campaign's places, each as the game keeps it (places/<key>.kmplace: scenario.ts asPlaceFile). */
   places: PlaceFile[];
-  /** The story's quests by key (campaign.json's `quests`). */
+  /** The story's quests by key (the scenario's `quests`). */
   quests: Record<string, string>;
   /** The campaign's other scenes as their files have them, whatever their shape: what the story carries between scenes. */
   others: SceneDocument[];
@@ -87,7 +87,7 @@ export function sceneStoryProblems(doc: SceneDocument, sceneIds: ReadonlySet<str
 }
 
 /**
- * The talk template (campaign.json's `talk`, town-design §3.6) held to the talk's own rules, beyond
+ * The talk template (the scenario's `talk`, town-design §3.6) held to the talk's own rules, beyond
  * the scene's: its companion is `{companion}`, its first cast entry whoever walks with the player
  * (`{companion}`, named `{name}`), its start has their opening role (the co-GM's first note), each
  * talk's prep fills the discovery TOLD with the one thing they might confide, saying goodbye or
@@ -286,7 +286,7 @@ function carriedThings(scenes: SceneDocument[]): Set<string> {
 
 /**
  * An exit's effect (or onStart's or onEnd's): an op the story knows, its condition on known facts, the cast or
- * things it names, and a quest campaign.json titles (story-design §4.6).
+ * things it names, and a quest the scenario titles (story-design §4.6).
  */
 function effectProblems(effect: Effect, keys: Set<string>, cast: Set<string>, facts: Record<string, string>, quests: Record<string, string>): string[] {
   const problems: string[] = [];
@@ -304,7 +304,7 @@ function effectProblems(effect: Effect, keys: Set<string>, cast: Set<string>, fa
   } else if (effect.op === "promise") {
     for (const who of [effect.by, effect.to]) if (who !== "$player" && !cast.has(who)) problems.push(`promise names unknown ${who}`);
   } else if (effect.op === "quest") {
-    if (!(effect.quest in quests)) problems.push(`quest ${effect.quest} isn't one of campaign.json's quests`);
+    if (!(effect.quest in quests)) problems.push(`quest ${effect.quest} isn't one of the scenario's quests`);
   } else if (effect.op === "flag") {
     if (!effect.name?.trim()) problems.push("flag has no name");
   } else if (effect.op !== "journal") {

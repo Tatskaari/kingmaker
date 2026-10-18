@@ -11,7 +11,7 @@ const TIMES=['morning','afternoon','evening','night','next-morning'];
 const GROUPS:Array<[string,string]>=[['scene-identity','The scene'],['scene-player','What the player knows'],['scene-prep','The prep'],['scene-when','When and where'],['scene-world','The world'],['scene-story','The story'],['scene-lore','Lore']];
 
 export function SceneView(){
-  const {doc,edit,campaign,loreNames,openLore,pickLore}=useScene();
+  const {doc,edit,campaign,loreNames,openLore,pickLore,place,openPlace}=useScene();
   const set=(key:string,value:unknown)=>edit(scene=>setSceneField(scene,key,value));
   const list=(key:'limits'|'known'|'background'|'assumes')=>doc[key]??[];
   const scenes=storyScenes(campaign,doc.id);
@@ -25,7 +25,7 @@ export function SceneView(){
     <Group title="The scene" anchor="scene-identity" field="identity">
       <TextField label="Title" field="title" value={doc.title} onChange={value=>set('title',value)}/>
       <IdField id={doc.id} label="Scene id" problem={next=>SLUG.test(next)?undefined:'An id is a slug: lower-case letters, digits and dashes, starting with a letter or digit.'} onRename={next=>set('id',next)}
-        warning="It's the file's name: rename the file to match (the problems say until it does), and campaign.json and any ending going on to this scene name it too. Game state keys on it: never rename a scene that's been played."/>
+        warning="It's the file's name: rename the file to match (the problems say until it does), and the scenario and any ending going on to this scene name it too. Game state keys on it: never rename a scene that's been played."/>
       <TextField label="Description" field="description" hint="One line for listings and the map." value={doc.description} onChange={value=>set('description',value)}/>
     </Group>
     <Group title="What the player knows" anchor="scene-player" field="player">
@@ -42,7 +42,12 @@ export function SceneView(){
         <SelectField label="Time" field="time" value={doc.time??''} options={[{value:'',label:'Not set'},...TIMES.map(time=>({value:time,label:time}))]} onChange={value=>set('time',optionalText(value))}/>
         <SelectField label="Rest" field="rest" hint="Time passes before it opens: a short rest (an hour) or a long one (a night)." value={doc.rest??''} options={[{value:'',label:'None'},{value:'short',label:'Short'},{value:'long',label:'Long'}]} onChange={value=>set('rest',optionalText(value))}/>
       </div>
-      <SelectField label="Place" field="place" hint="The place's world (places/<key>.json): its areas, its things and who stands where." value={doc.place??''} options={[{value:'',label:'None'},...places]} onChange={value=>set('place',optionalText(value))}/>
+      <SelectField label="Place" field="place" hint="The place's world (places/<key>.kmplace): its areas, its things and who stands where." value={doc.place??''} options={[{value:'',label:'None'},...places]} onChange={value=>set('place',optionalText(value))}/>
+      {place&&<details className="place-things" data-field="place.things">
+        <summary>{place.name}: its things <span className="count">{place.things.length}</span></summary>
+        <ul>{place.things.map(thing=><li key={thing.id}><b>{thing.name}</b> <code>{thing.id}</code><small>{thing.at?` at ${thing.at[0]}, ${thing.at[1]} ft`:` in ${thing.in}`}</small></li>)}</ul>
+        <button type="button" className="text-button" onClick={()=>openPlace(place.key)}>Open the place</button>
+      </details>}
       <Checkbox label="Interlude" field="interlude" hint="Downtime between scenes, standing in for the map: the story skips it, going on from one of its endings." checked={!!doc.interlude} onChange={checked=>set('interlude',checked?true:undefined)}/>
       <Checkbox label="Milestone" field="milestone" hint="Reaching it is a milestone: the player's character goes up a level as it opens." checked={!!doc.milestone} onChange={checked=>set('milestone',checked?true:undefined)}/>
     </Group>

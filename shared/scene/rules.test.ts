@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { SceneDocument } from "./document.ts";
-import type { CampaignFile, PlaceFile } from "./files.ts";
+import { loadPlace, loadScenario, placePath, scenarioPath } from "./scenario.ts";
 import { sceneRuleProblems, sceneStoryProblems, talkTemplateProblems, type SceneContext } from "./rules.ts";
 
 /**
@@ -14,7 +14,7 @@ import { sceneRuleProblems, sceneStoryProblems, talkTemplateProblems, type Scene
 
 const CAERWYN = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
 const read = (path: string) => readFileSync(join(CAERWYN, path), "utf8");
-const campaign = JSON.parse(read("campaign.json")) as CampaignFile;
+const campaign = loadScenario(read(scenarioPath("caerwyn")));
 const scenes = [...campaign.scenes, campaign.talk!].map(key => JSON.parse(read(`scenes/${key}.kmscene`)) as SceneDocument);
 const loreFiles = new Set(readdirSync(join(CAERWYN, "lore"), { recursive: true, withFileTypes: true }).filter(e => e.isFile()).map(e => join(e.parentPath, e.name).slice(join(CAERWYN, "lore").length + 1)));
 
@@ -23,7 +23,7 @@ function contextFor(doc: SceneDocument): SceneContext {
     hasLore: path => loreFiles.has(path),
     scenes: campaign.scenes,
     talk: campaign.talk!,
-    places: campaign.places.map(key => JSON.parse(read(`places/${key}.json`)) as PlaceFile),
+    places: campaign.places.map(key => loadPlace(read(placePath(key)))),
     quests: campaign.quests ?? {},
     others: scenes.filter(other => other.id !== doc.id),
   };

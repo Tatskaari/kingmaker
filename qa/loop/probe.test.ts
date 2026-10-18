@@ -4,6 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { effectiveScene } from "../../shared/scene/graph.ts";
 import { loadScene } from "../../shared/scene/load.ts";
+import { loadPlace, placePath } from "../../shared/scene/scenario.ts";
 import { CAMPAIGNS } from "./paths.ts";
 import { mouthpieceRules, replySchema, twoPartNow } from "../../ai/gm/two-part.ts";
 import type { TurnView } from "../../ai/gm/view.ts";
@@ -195,7 +196,7 @@ test("the mouthpiece probe's after: a move to show as this checkout writes it, i
 test("the mouthpiece probe's view: the player where the round's world had them, for what's in their reach there", () => {
   const game = { player: { name: "Nim", concept: "a halfling cutpurse" }, entries: [] };
   // The clerk with its place, as the campaign installs it.
-  const placed = { ...clerk, world: JSON.parse(readFileSync(join(CAMPAIGNS, "caerwyn", "places", "granary-yard.json"), "utf8")) } as typeof clerk;
+  const placed = { ...clerk, world: loadPlace(readFileSync(join(CAMPAIGNS, "caerwyn", placePath("granary-yard")), "utf8"), placePath("granary-yard")) } as typeof clerk;
   const note = "## The world right now\nThe yard behind the King's Granary: the player is in the tally loft (above the yard, inside the granary).\nThe player carries: nothing.";
   const view = mouthpieceView(placed, () => undefined, [], "7", 9, game, note);
   assert.equal(view.world!.entities.player!.parent, "loft");

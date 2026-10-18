@@ -1,5 +1,6 @@
 import type { FakeOptions } from "../../ai/llm/fake-openrouter.ts";
 import type { CampaignStore } from "../../ai/service/stores.ts";
+import { loadScenario, scenarioPathIn } from "../../shared/scene/scenario.ts";
 
 /**
  * What the build ships for the server worker alone (browser-design §5): content.json, fetched from
@@ -31,12 +32,14 @@ export async function loadContent(url: URL | string, fetchContent: typeof fetch 
 }
 
 /**
- * The AI service's campaigns, from the build's content (stores.ts's CampaignStore): its one version,
- * read from content.json's files and never written. The install's PUT of that version has nothing
- * to keep; a PUT of another is refused, since only the build's is here.
+ * The AI service's campaigns, from the build's content (stores.ts's CampaignStore): its one version
+ * (its scenario's id and campaign version), read from content.json's files and never written. The
+ * install's PUT of that version has nothing to keep; a PUT of another is refused, since only the
+ * build's is here.
  */
 export function contentCampaigns(files: Record<string, string>): CampaignStore {
-  const { id, version } = JSON.parse(files["campaign.json"] ?? "{}") as { id?: string; version?: string };
+  const scenario = scenarioPathIn(Object.keys(files));
+  const { id, version } = scenario === undefined ? { id: undefined, version: undefined } : loadScenario(files[scenario]!, scenario);
   const served = `${id}@${version}`;
   const reader = { read: (path: string) => files[path], paths: () => Object.keys(files) };
   return {

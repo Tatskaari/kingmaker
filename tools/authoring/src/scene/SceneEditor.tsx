@@ -15,7 +15,7 @@ import {EditSession} from './fields.tsx';
 import {FactsView} from './facts.tsx';
 import {ConnectionInspector,KIND_LABELS,NodeInspector} from './inspectors.tsx';
 import type {SceneHost} from './host.ts';
-import {CARD_SIZE,addNode,addRoute,connectionId,connectionsOf,freePosition,isEnding,isStart,nodeKind,problemsOf,removeNodes,removeRoutes,shapeOf,slugOf,titleOf,uniqueId} from './model.ts';
+import {CARD_SIZE,addNode,addRoute,connectionId,connectionsOf,freePosition,isEnding,isStart,nodeKind,problemsOf,removeNodes,removeRoutes,shapeOf,slugOf,titleOf,uniqueId,viaWarnings} from './model.ts';
 import type {Connection,NewNodeKind,NodeKind,Problem,ProblemAt,SceneDocument,SceneNode} from './model.ts';
 import {ProblemsView} from './ProblemsView.tsx';
 import {SceneView} from './SceneView.tsx';
@@ -152,9 +152,10 @@ function SceneEditor({initial,host}:{initial:SceneDocument;host:SceneHost}){
   const notes=[
     ...(!campaign?['Reading the campaign…']:[]),
     ...(campaign?.error?[`The campaign couldn't be read (${campaign.error}), so what the rules need of it (its scenes, places, quests) is missing.`]:[]),
-    ...(campaign&&!campaign.error&&!isListed(campaign,key)?[`${key} isn't one of campaign.json's scenes, so the game doesn't install it yet: list it there to play it.`]:[]),
+    ...(campaign&&!campaign.error&&!isListed(campaign,key)?[`${key} isn't one of the scenario's scenes (${campaign.scenario?.split('/').at(-1)??'its .kmscenario'}), so the game doesn't install it yet: list it there to play it.`]:[]),
   ];
   const place=useMemo(()=>doc.place?campaign?.places.find(candidate=>candidate.key===doc.place):undefined,[doc.place,campaign]);
+  const warnings=useMemo<Problem[]>(()=>campaign?viaWarnings(deferred,place):[],[deferred,place,campaign]);
   const loreNames=useMemo(()=>new Map((campaign?.lore??[]).map(note=>[note.path,note.name])),[campaign]);
   const selectedNode=selected?.kind==='node'?doc.nodes.find(node=>node.id===selected.id):undefined;
   const selectedConnection=selected?.kind==='connection'?connections.find(connection=>connection.id===selected.id):undefined;
@@ -235,6 +236,7 @@ function SceneEditor({initial,host}:{initial:SceneDocument;host:SceneHost}){
   const ask=(request:Confirmation)=>{confirmFocus.current=(shell.current?.ownerDocument.activeElement as HTMLElement|null)??null;setConfirmation(request)};
   const openLore=(path:string)=>void host.openLore(path).catch(error=>setToast(error instanceof Error?error.message:String(error)));
   const openScene=(id:string)=>void host.openScene(id).catch(error=>setToast(error instanceof Error?error.message:String(error)));
+  const openPlace=(key:string)=>void (host.openPlace?.(key)??Promise.reject(new Error('This host can\'t open a place.'))).catch(error=>setToast(error instanceof Error?error.message:String(error)));
   const cardActions=useRef({openResult:(_id:string)=>{}}).current;
   cardActions.openResult=id=>showNode(id,'result');
 
@@ -316,7 +318,7 @@ function SceneEditor({initial,host}:{initial:SceneDocument;host:SceneHost}){
   });
 
   // ---- What the panels share ----
-  const api:SceneApi={doc,campaign,place,loreNames,edit,openLore,openScene,
+  const api:SceneApi={doc,campaign,place,loreNames,edit,openLore,openScene,openPlace,
     pickLore:request=>setLorePicker(request),confirm:ask,showNode,showRoute,showCast,showFact,showScene,showEffect,renamed,
     connectFrom:id=>{setExpanded(false);setConnecting(id)},editingRoute,setEditingRoute};
 
@@ -371,7 +373,7 @@ function SceneEditor({initial,host}:{initial:SceneDocument;host:SceneHost}){
             <div className="eyebrow">KINGMAKER · SCENE · <code>{doc.id}</code></div>
             <h1>{doc.title||doc.id}</h1>
             <button type="button" className={`problems-link${problems.length?' has-problems':''}`} onClick={()=>setView('problems')}>
-              {!campaign?'Checking…':problems.length?<><AlertTriangle size={13}/>{problems.length} problem{problems.length===1?'':'s'}</>:<><CheckCircle2 size={13}/>No problems</>}
+              {!campaign?'Checking…':<>{problems.length?<><AlertTriangle size={13}/>{problems.length} problem{problems.length===1?'':'s'}</>:<><CheckCircle2 size={13}/>No problems</>}{warnings.length>0&&<span className="warnings-count"> · {warnings.length} warning{warnings.length===1?'':'s'}</span>}</>}
             </button>
           </div>
           {view==='graph'&&<button className="primary" onClick={()=>setDialog('add')}><Plus size={16}/>Add node<kbd>A</kbd></button>}
@@ -422,7 +424,7 @@ function SceneEditor({initial,host}:{initial:SceneDocument;host:SceneHost}){
           {view==='scene'&&<div className="scene-scroll"><SceneView/></div>}
           {view==='cast'&&<div className="scene-scroll"><CastView open={castOpen} onOpen={setCastOpen}/></div>}
           {view==='facts'&&<div className="scene-scroll"><FactsView/></div>}
-          {view==='problems'&&<div className="scene-scroll"><ProblemsView doc={doc} problems={problems} notes={notes} onGo={go} checking={!campaign}/></div>}
+          {view==='problems'&&<div className="scene-scroll"><ProblemsView doc={doc} problems={problems} warnings={warnings} notes={notes} onGo={go} checking={!campaign}/></div>}
         </div>
         <footer className="statusbar"><span>{doc.nodes.length} nodes · {connections.length} connections · {doc.edges.length} routes · {doc.cast.length} people · {Object.keys(doc.facts??{}).length} facts</span><button onClick={()=>setDialog('help')}>Shortcuts <Keyboard size={13}/></button></footer>
       </main>

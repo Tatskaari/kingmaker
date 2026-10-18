@@ -2,7 +2,7 @@
 // Installs the built plugin (dist/plugin) into an Obsidian vault: the game's campaign folder,
 // campaigns/caerwyn, is the one it's made for. Only the plugin's own files are written, and the
 // community plugins list gains it; nothing else in the vault is touched.
-import {copyFile,cp,mkdir,readFile,realpath,stat,writeFile} from 'node:fs/promises';
+import {copyFile,cp,mkdir,readdir,readFile,realpath,stat,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -32,6 +32,7 @@ if(!enabled.includes('kingmaker-authoring')){
 }
 console.log(`Installed Kingmaker Authoring in ${vault}`);
 console.log('Reload Obsidian. If Restricted mode is on, allow community plugins and enable Kingmaker Authoring.');
-console.log(await exists(path.join(vault,'campaign.json'))
-  ?'Open a scene from scenes/ (scenes/hanged-clerk.kmscene is the worked example).'
-  :'This vault has no campaign.json: the scene editor checks scenes against a campaign folder (campaigns/caerwyn), so open that as the vault.');
+const scenario=(await readdir(vault)).find(name=>name.endsWith('.kmscenario'));
+console.log(scenario
+  ?`Open ${scenario} for the story's flow, a map from maps/, or a scene from scenes/ (scenes/hanged-clerk.kmscene is the worked example).`
+  :'This vault has no scenario (<id>.kmscenario): the editors check the files against a campaign folder (campaigns/caerwyn), so open that as the vault.');

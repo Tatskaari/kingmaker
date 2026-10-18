@@ -9,7 +9,7 @@ import type { MapFile } from "../../shared/map/tiles.ts";
 import type { Unheard } from "../../shared/map/town.ts";
 import type { Tile2 } from "../../shared/map/types.ts";
 import type { SceneDocument } from "../../shared/scene/document.ts";
-import type { CampaignFile, PlaceFile } from "../../shared/scene/files.ts";
+import { loadMap, loadPlace, loadScenario, mapPath, placePath, scenarioPath } from "../../shared/scene/scenario.ts";
 import { worldToRows } from "../../shared/world/rows.ts";
 import { buildWorld, joinWorld, type SceneWorld } from "../../shared/world/scene-world.ts";
 import type { ExploreView } from "../explore/rows.ts";
@@ -17,10 +17,11 @@ import { YARD } from "./fixture.ts";
 import { yardKeys, yardWorld, YARD_SCENE } from "./place.ts";
 
 const CAERWYN = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
-const read = <T>(path: string): T => JSON.parse(readFileSync(join(CAERWYN, path), "utf8")) as T;
+const text = (path: string) => readFileSync(join(CAERWYN, path), "utf8");
+const read = <T>(path: string): T => JSON.parse(text(path)) as T;
 
-/** Caerwyn's maps, as its campaign.json lists them: the json the map_def rows hold. */
-export const CAERWYN_MAPS: MapFile[] = (read<CampaignFile>("campaign.json").maps ?? []).map(key => read<MapFile>(`maps/${key}.json`));
+/** Caerwyn's maps, as its scenario lists them: the json the map_def rows hold (maps/<key>.kmmap as the game keeps it). */
+export const CAERWYN_MAPS: MapFile[] = (loadScenario(text(scenarioPath("caerwyn"))).maps ?? []).map(key => loadMap(text(mapPath(key)), mapPath(key)));
 
 /** The yard's scene file: its cast, and what the player calls those whose names they haven't heard. */
 const YARD_FILE = read<SceneDocument>(`scenes/${YARD_SCENE}.kmscene`);
@@ -34,7 +35,7 @@ export const UNHEARD: Unheard = YARD_FILE.cast.filter(c => c.called && !c.enters
  */
 export function useCaerwyn(): void {
   useMaps(CAERWYN_MAPS);
-  usePlaces([read<PlaceFile>("places/granary-yard.json")]);
+  usePlaces([loadPlace(text(placePath("granary-yard")))]);
 }
 
 /**
@@ -44,7 +45,7 @@ export function useCaerwyn(): void {
  */
 export function waitingYard(name = "Pell Marrow"): SceneWorld {
   const present = YARD_FILE.cast.filter(c => !c.enters).map(c => ({ id: c.id, name: c.name }));
-  const world = buildWorld(YARD_SCENE, read<PlaceFile>("places/granary-yard.json"), present, { name });
+  const world = buildWorld(YARD_SCENE, loadPlace(text(placePath("granary-yard"))), present, { name });
   joinWorld(world, present, 0);
   const theirs = (id: string | null): boolean => id === "player" || (!!id && !!world.entities[id] && theirs(world.entities[id]!.parent));
   for (const id of Object.keys(world.entities).filter(theirs)) delete world.entities[id];

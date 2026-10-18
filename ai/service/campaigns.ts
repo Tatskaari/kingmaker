@@ -6,7 +6,8 @@ import { talkScene } from "../gm/talk.ts";
 import type { CreationWorld } from "../../shared/creation/types.ts";
 import type { CampaignPutAnswer } from "../../shared/protocol/ai.ts";
 import { parseScene, SCENE_EXTENSION } from "../../shared/scene/document.ts";
-import type { CampaignFile, PlaceFile } from "../../shared/scene/files.ts";
+import type { CampaignFile } from "../../shared/scene/files.ts";
+import { FormatError, loadPlace, loadScenario, placePath, scenarioPath } from "../../shared/scene/scenario.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
 import { talkOf } from "../../shared/scene/talk.ts";
 import type { Scene } from "../../shared/scene/types.ts";
@@ -16,8 +17,8 @@ import type { CampaignStore, DocsStore, VersionFiles } from "./stores.ts";
 /**
  * The campaigns the AI service has the words of (v0-design §8): each version as the install tool PUT
  * it, the whole folder, since the GM needs the graph as well as the prose. A request names its game's
- * version, and gets each scene with its words, and the world a backstory is written for (campaign.json's
- * `creation`, v1-design §3.9). A version never changes once installed (a release bumps it), so its
+ * version, and gets each scene with its words, and the world a backstory is written for (the scenario's
+ * `creation`, v1-design §3.9: <campaign>.kmscenario, docs/scenario-format.md). A version never changes once installed (a release bumps it), so its
  * scenes are kept once read: the one cache of a game's content the service allows.
  *
  * The docs service has one lore root per process, so V0's service serves one campaign version: the
@@ -113,9 +114,9 @@ function loreOf(files: VersionFiles): DocsVolume {
   };
 }
 
-/** An installed version: its campaign.json now, each scene (or talk) when it's first asked for, the story when it's first read. */
+/** An installed version: its scenario now, each scene (or talk) when it's first asked for, the story when it's first read. */
 function campaignAt(files: VersionFiles, campaign: string, version: string): Campaign {
-  const file = JSON.parse(files.read("campaign.json")!) as CampaignFile;
+  const file = loadScenario(files.read(scenarioPath(campaign))!, scenarioPath(campaign));
   const scenes = new Map<string, Scene>();
   const words = (path: string) => files.read(path);
   const scene = (key: string): Scene => {
@@ -152,12 +153,13 @@ function campaignAt(files: VersionFiles, campaign: string, version: string): Cam
 /** Where a campaign keeps a scene's file: scenes/<id>.kmscene. */
 const scenePath = (key: string) => `scenes/${key}${SCENE_EXTENSION}`;
 
-/** A scene's place as its world (what the story reads of a scene it doesn't play: its places' names), from the place the scene file names. */
+/** A scene's place as its world (what the story reads of a scene it doesn't play: its places' names), from the place the scene file names (places/<key>.kmplace). */
 function placeOf(key: string, read: (path: string) => string | undefined): Pick<Scene, "world"> {
   const place = (JSON.parse(read(scenePath(key)) ?? "{}") as { place?: string }).place;
-  const text = place === undefined ? undefined : read(`places/${place}.json`);
-  if (text === undefined) return {};
-  const { key: _, ...world } = JSON.parse(text) as PlaceFile;
+  const path = place === undefined ? undefined : placePath(place);
+  const text = path === undefined ? undefined : read(path);
+  if (path === undefined || text === undefined) return {};
+  const { key: _, ...world } = loadPlace(text, path);
   return { world };
 }
 
@@ -194,22 +196,24 @@ function sceneFrom(key: string, read: (path: string) => string | undefined): Sce
   }
 }
 
-/** The PUT's campaign.json, with what the service reads of it: its id and version (the PUT's), its title and its scenes' keys. */
+/**
+ * The PUT's scenario (<campaign>.kmscenario, docs/scenario-format.md), as the game keeps it: held to the
+ * format's shape, its id and campaign version the PUT's. What the service reads of it: its title, its
+ * scenes' keys, the talk template's, and the world a backstory is written for.
+ */
 function campaignFileOf(files: Record<string, string>, campaign: string, version: string): CampaignFile {
-  const text = files["campaign.json"];
-  if (text === undefined) throw new Failure(400, "bad_request", "the files have no campaign.json");
+  const path = scenarioPath(campaign);
+  const text = files[path];
+  if (text === undefined) throw new Failure(400, "bad_request", `the files have no ${path}`);
   let file: CampaignFile;
-  try { file = JSON.parse(text) as CampaignFile; } catch { throw new Failure(400, "bad_request", "campaign.json isn't JSON"); }
-  if (!isCampaignFile(file)) throw new Failure(400, "bad_request", "campaign.json isn't a campaign's: it needs an id, a version, a title and a list of its scenes");
-  if (file.id !== campaign || file.version !== version) throw new Failure(400, "bad_request", `campaign.json is ${file.id}@${file.version}, not ${campaign}@${version}`);
+  try {
+    file = loadScenario(text, path);
+  } catch (error) {
+    // A FormatError's message names the file and what's wrong with it.
+    throw new Failure(400, "bad_request", error instanceof FormatError ? error.message : `${path}: ${String(error)}`);
+  }
+  if (file.id !== campaign || file.version !== version) throw new Failure(400, "bad_request", `${path} is ${file.id}@${file.version}, not ${campaign}@${version}`);
   return file;
-}
-
-function isCampaignFile(file: unknown): file is CampaignFile {
-  const f = file as Partial<Record<keyof CampaignFile, unknown>> | null;
-  return !!f && typeof f === "object" && !Array.isArray(f)
-    && typeof f.id === "string" && typeof f.version === "string" && typeof f.title === "string"
-    && Array.isArray(f.scenes) && f.scenes.every(key => typeof key === "string");
 }
 
 /** The creation block as the backstory's calls read it: a 400 for one that isn't, or whose places' words aren't regular expressions. */
@@ -218,7 +222,7 @@ function checkCreation(world: CreationWorld | undefined): void {
   const compiles = (words: unknown) => { try { return typeof words === "string" && !!new RegExp(words, "i"); } catch { return false; } };
   const fits = !!world && typeof world.name === "string" && typeof world.premise === "string" && typeof world.primer === "string" && strings(world.notCanon)
     && Array.isArray(world.places) && world.places.every(p => typeof p?.doc === "string" && compiles(p.words));
-  if (!fits) throw new Failure(400, "bad_request", "campaign.json's creation isn't { name, premise, primer, notCanon: [doc], places: [{ doc, words }] }, each place's words a regular expression");
+  if (!fits) throw new Failure(400, "bad_request", "the scenario's creation isn't { name, premise, primer, notCanon: [doc], places: [{ doc, words }] }, each place's words a regular expression");
 }
 
 /** A campaign's and a version's names make folders: letters, digits, dots, dashes and underscores. */

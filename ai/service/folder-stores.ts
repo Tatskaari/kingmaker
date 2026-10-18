@@ -3,6 +3,7 @@ import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renam
 import { mkdir, open, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join, relative, sep } from "node:path";
 import { folderVolume } from "../docs/volumes.ts";
+import { scenarioPath } from "../../shared/scene/scenario.ts";
 import type { AnswerStore, CampaignStore, Ledger, StoredAnswer, Stores, VersionFiles } from "./stores.ts";
 
 /**
@@ -123,7 +124,7 @@ function parsedLine(text: string): { day: string; costUsd: number } | undefined 
   }
 }
 
-/** A version is installed when its campaign.json is there; re-installing replaces the whole folder. */
+/** A version is installed when its scenario (<campaign>.kmscenario) is there; re-installing replaces the whole folder. */
 function campaignFolder(dir: string): CampaignStore {
   const folder = (campaign: string, version: string) => join(dir, campaign, version);
   return {
@@ -136,10 +137,10 @@ function campaignFolder(dir: string): CampaignStore {
       }
       replaceFolder(staging, target);
     },
-    files: (campaign, version) => (existsSync(join(folder(campaign, version), "campaign.json")) ? filesIn(folder(campaign, version)) : undefined),
+    files: (campaign, version) => (existsSync(join(folder(campaign, version), scenarioPath(campaign))) ? filesIn(folder(campaign, version)) : undefined),
     list() {
       if (!existsSync(dir)) return [];
-      return readdirSync(dir).flatMap(c => readdirSync(join(dir, c)).filter(v => !v.endsWith(".tmp") && existsSync(join(dir, c, v, "campaign.json"))).map(v => `${c}@${v}`)).sort();
+      return readdirSync(dir).flatMap(c => readdirSync(join(dir, c)).filter(v => !v.endsWith(".tmp") && existsSync(join(dir, c, v, scenarioPath(c)))).map(v => `${c}@${v}`)).sort();
     },
   };
 }

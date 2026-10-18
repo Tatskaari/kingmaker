@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { SceneDocument } from "../scene/document.ts";
 import type { PlaceFile } from "../scene/files.ts";
+import { loadMap, loadPlace, loadScenario, mapPath, placePath, scenarioPath } from "../scene/scenario.ts";
 import { sceneOf } from "../scene/load.ts";
 import { strangers } from "../scene/names.ts";
 import { keysFor, pcKey, rowsToWorld, worldToRows, type PlaceRows } from "../world/rows.ts";
@@ -16,9 +17,10 @@ import type { MapFile } from "./tiles.ts";
 import { act, actions, actionsAt, targets, Unavailable } from "./town.ts";
 
 const CAMPAIGN = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
-const read = (path: string) => JSON.parse(readFileSync(join(CAMPAIGN, path), "utf8"));
-const MAPS = (read("campaign.json").maps as string[]).map(key => read(`maps/${key}.json`)) as MapFile[];
-const YARD = read("places/granary-yard.json") as PlaceFile;
+const text = (path: string) => readFileSync(join(CAMPAIGN, path), "utf8");
+const read = (path: string) => JSON.parse(text(path));
+const MAPS: MapFile[] = (loadScenario(text(scenarioPath("caerwyn"))).maps ?? []).map(key => loadMap(text(mapPath(key))));
+const YARD: PlaceFile = loadPlace(text(placePath("granary-yard")));
 const YARD_RECT = { x: 40, y: 11, w: 7, h: 6 };
 const inYard = (p: { x: number; y: number }) => p.x >= YARD_RECT.x && p.y >= YARD_RECT.y && p.x < YARD_RECT.x + YARD_RECT.w && p.y < YARD_RECT.y + YARD_RECT.h;
 

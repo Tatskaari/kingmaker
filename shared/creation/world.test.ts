@@ -2,17 +2,17 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, sep } from "node:path";
-import type { CampaignFile } from "../scene/files.ts";
+import { loadScenario, scenarioPath } from "../scene/scenario.ts";
 import { canonPaths } from "./world.ts";
 
 /**
  * The lore a backstory is checked against (world.ts), on the campaign's own lore, with its
- * campaign.json `creation` block: the same docs the prototype's code chose with its regular
+ * scenario's `creation` block (caerwyn.kmscenario): the same docs the prototype's code chose with its regular
  * expressions, which are the reference here, copied from ai/docs/backstory.ts at 44c6d4a.
  */
 
 const CAMPAIGN = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
-const world = (JSON.parse(readFileSync(join(CAMPAIGN, "campaign.json"), "utf8")) as CampaignFile).creation;
+const world = loadScenario(readFileSync(join(CAMPAIGN, scenarioPath("caerwyn")), "utf8")).creation;
 const paths = readdirSync(join(CAMPAIGN, "lore"), { recursive: true, encoding: "utf8" }).filter(p => p.endsWith(".md")).map(p => p.split(sep).join("/")).sort();
 
 /** The prototype's choice (canonFor's paths, before the docs were read). */
@@ -41,7 +41,7 @@ const STORIES = [
 ];
 
 test("the canon list picks what the prototype's regular expressions picked, on the campaign's lore", () => {
-  assert.ok(world, "campaign.json has a creation block");
+  assert.ok(world, "the scenario has a creation block");
   for (const story of STORIES) assert.deepEqual(canonPaths(paths, story, world), prototypeChose(story), story || "(an empty story)");
 });
 

@@ -6,6 +6,7 @@ import { initialGm } from "../../shared/gm/state.ts";
 import type { PlaceFile } from "../../shared/scene/files.ts";
 import { effectiveScene, presentCast } from "../../shared/scene/graph.ts";
 import { loadScene } from "../../shared/scene/load.ts";
+import { loadPlace, placePath } from "../../shared/scene/scenario.ts";
 import type { Scene } from "../../shared/scene/types.ts";
 import { buildWorld, joinWorld } from "../../shared/world/scene-world.ts";
 import { CAERWYN } from "./fixtures.ts";
@@ -23,7 +24,10 @@ import type { TurnView } from "./view.ts";
 const sceneText = (id: string) => readFileSync(join(CAERWYN, "scenes", `${id}.kmscene`), "utf8");
 const sceneFile = (id: string): Scene => effectiveScene(loadScene(sceneText(id)), []);
 /** A scene's place, as its file names it. */
-const placeOf = (scene: Scene): PlaceFile => JSON.parse(readFileSync(join(CAERWYN, "places", `${(JSON.parse(sceneText(scene.id)) as { place: string }).place}.json`), "utf8")) as PlaceFile;
+const placeOf = (scene: Scene): PlaceFile => {
+  const path = placePath((JSON.parse(sceneText(scene.id)) as { place: string }).place);
+  return loadPlace(readFileSync(join(CAERWYN, path), "utf8"), path);
+};
 
 /** A scene's view at its start, its world as it opens, with these lines said so far. */
 function viewOf(scene: Scene, transcript: TurnView["transcript"] = []): TurnView {

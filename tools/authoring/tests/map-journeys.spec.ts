@@ -1,215 +1,387 @@
 import {test,expect,type Page} from '@playwright/test';
-import {harbourMap} from '../src/map-model';
-const path='Maps/Test map.kmmap';
-const blank={format:'kingmaker',version:1,kind:'map',id:'test-map',title:'The harbour',description:'',nodes:[{id:'entry',type:'story',position:{x:0,y:0},data:{kind:'start',title:'From town',description:'',lore:[]}}],edges:[],lore:[],source:{kept:true}};
-const saved=(page:Page)=>page.evaluate(path=>JSON.parse(window.__kingmakerHarness.files[path]),path);
+import {readFile} from 'node:fs/promises';
+
+// The map editor on the game's own maps (the browser harness's vault is campaigns/caerwyn): painting
+// in the legend's characters, regions, exits and people, the scenario's start, a scene's place laid on
+// its region, and a version 1 map migrated. Every journey asserts the files as saved.
+const CAMPAIGN=new URL('../../../campaigns/caerwyn/',import.meta.url);
+const original=async(path:string)=>JSON.parse(await readFile(new URL(path,CAMPAIGN),'utf8'));
+const savedText=(page:Page,path:string)=>page.evaluate(path=>(window as any).__kingmakerHarness.files[path] as string,path);
+const saved=async(page:Page,path:string)=>JSON.parse(await savedText(page,path));
 const canvas=(page:Page)=>page.locator('.map-stage canvas');
 const settle=(page:Page)=>page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
 const renderStats=(page:Page)=>canvas(page).evaluate(el=>({...((el as any).__kmPixi.stats)}));
-test('Pixi hover and pan do zero per-tile CPU work at both small and maximum map sizes',async({page})=>{
-  for(const length of [16,64]){
-    const doc={...blank,terrain:{version:1,width:length,height:length,tiles:Array(length*length).fill('grass')}};
-    await page.evaluate(({path,doc})=>window.__kingmakerHarness.writeDocument(path,doc as any),{path,doc});
-    await expect(canvas(page)).toHaveAttribute('data-width',String(length));await expect(canvas(page)).toHaveAttribute('data-renderer','pixi');await page.getByRole('button',{name:/^Fit/}).click();await settle(page);
-    const before=await renderStats(page),box=(await canvas(page).boundingBox())!;
-    for(let i=0;i<12;i++)await page.mouse.move(box.x+box.width/2+i*3,box.y+box.height*.56+i);
-    await settle(page);const hovered=await renderStats(page);
-    for(const key of ['fullSyncs','tileChecks','tileUpdates','tileTransforms','tileCollections'])expect(hovered[key]-before[key],`${length}: hover ${key}`).toBe(0);
-    await page.mouse.down({button:'middle'});await page.mouse.move(box.x+box.width/2+130,box.y+box.height*.56+70,{steps:18});await page.mouse.up({button:'middle'});await settle(page);const panned=await renderStats(page);
-    for(const key of ['fullSyncs','tileChecks','tileUpdates','tileTransforms','tileCollections'])expect(panned[key]-hovered[key],`${length}: pan ${key}`).toBe(0);
-    expect(panned.viewUpdates).toBeGreaterThan(hovered.viewUpdates);expect(panned.frames).toBeGreaterThan(hovered.frames);
-    const previousZoom=await canvas(page).getAttribute('data-zoom');await canvas(page).hover();await page.mouse.wheel(0,-100);await expect(canvas(page)).not.toHaveAttribute('data-zoom',previousZoom!);await settle(page);const zoomed=await renderStats(page);
-    for(const key of ['fullSyncs','tileChecks','tileUpdates','tileTransforms','tileCollections'])expect(zoomed[key]-panned[key],`${length}: zoom ${key}`).toBe(0);
-    const idle=await renderStats(page);await settle(page);expect((await renderStats(page)).frames).toBe(idle.frames);expect(await saved(page)).toEqual(doc);
-  }
-});
-test('Pixi brush updates only changed tiles; cancellation and undo restore the visual data',async({page})=>{
-  await expect(canvas(page)).toHaveAttribute('data-renderer','pixi');await settle(page);
-  const before=await renderStats(page);await stroke(page,{x:12,y:12},{x:14,y:12});await settle(page);const after=await renderStats(page);
-  expect(after.tileUpdates-before.tileUpdates).toBe(3);expect(after.tileChecks-before.tileChecks).toBe(3);expect(after.fullSyncs).toBe(before.fullSyncs);
-  expect(after.tileCollections-before.tileCollections).toBe(0);expect(after.tileTransforms-before.tileTransforms).toBeLessThanOrEqual(6);
-  const original=await saved(page);await page.getByRole('button',{name:'Paint Water',exact:true}).click();const a=await point(page,12,12),b=await point(page,14,12);
-  await page.mouse.move(a.x,a.y);await page.mouse.down();await page.mouse.move(b.x,b.y,{steps:4});await page.keyboard.press('Escape');await page.mouse.up();expect(await saved(page)).toEqual(original);
-  await page.getByRole('button',{name:'Undo map edit',exact:true}).click();expect((await saved(page)).terrain).toBeUndefined();await page.getByRole('button',{name:'Redo map edit',exact:true}).click();expect(await saved(page)).toEqual(original);
-});
-test('preview keeps rendering and picking after fractional left and middle drags and view switches',async({page})=>{
-  const original=await saved(page);await canvas(page).press('Tab');await expect(canvas(page)).toHaveAttribute('data-mode','preview');
-  for(const button of ['left','middle'] as const){
-    const box=(await canvas(page).boundingBox())!;await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down({button});await page.mouse.move(box.x+box.width/2+77,box.y+box.height/2+35,{steps:7});await page.mouse.up({button});
-    await expect(page.locator('.map-error')).toHaveCount(0);
-    const filled=await canvas(page).evaluate(el=>{const c=el as HTMLCanvasElement,rgba=c.getContext('2d')!.getImageData(0,0,c.width,c.height).data;let count=0;for(let i=0;i<rgba.length;i+=4)if(rgba[i]!==21||rgba[i+1]!==22||rgba[i+2]!==25)count++;return count});expect(filled).toBeGreaterThan(1000);
-    await canvas(page).hover();await expect(page.locator('.map-hover-tile')).toContainText('Hover:');
-  }
-  await canvas(page).press('Tab');await expect(canvas(page)).toHaveAttribute('data-renderer','pixi');await canvas(page).press('Tab');await expect(page.locator('.map-error')).toHaveCount(0);expect(await saved(page)).toEqual(original);
-});
-test('Pixi camera keeps markers and tile picking aligned; view switches dispose the previous renderer',async({page})=>{
-  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
-  await tileMenu(page);await page.getByRole('menuitem',{name:'Add spawn point…'}).click();await page.getByLabel('Spawn point name').fill('Gate');await page.getByRole('button',{name:'Save spawn point',exact:true}).click();
-  const marker=page.getByRole('button',{name:'Edit spawn point Gate',exact:true}),before=(await marker.boundingBox())!,start=await point(page,16,12);
-  await page.mouse.move(start.x,start.y);await page.mouse.down({button:'middle'});await page.mouse.move(start.x+90,start.y+40,{steps:8});const during=(await marker.boundingBox())!;expect(during.x-before.x).toBeCloseTo(90,0);expect(during.y-before.y).toBeCloseTo(40,0);await page.mouse.up({button:'middle'});const after=(await marker.boundingBox())!;expect(after.x).toBeCloseTo(during.x,0);expect(after.y).toBeCloseTo(during.y,0);
-  const at=await point(page,12,12);await page.mouse.move(at.x,at.y);await expect(page.locator('.map-hover-tile')).toContainText('(12, 12)');
-  for(let i=0;i<4;i++){const previous=(await canvas(page).elementHandle())!;await canvas(page).press('Tab');await expect(canvas(page)).toHaveAttribute('data-mode','preview');expect(await previous.evaluate(el=>Boolean((el as any).__kmPixi))).toBe(false);await previous.dispose();await canvas(page).press('Tab');await expect(canvas(page)).toHaveAttribute('data-renderer','pixi');await expect(page.locator('.map-error')).toHaveCount(0)}
-  expect(errors).toEqual([]);
-});
-async function tileMenu(page:Page,x=12,y=12){const p=await point(page,x,y);await page.mouse.click(p.x,p.y,{button:'right'});await expect(page.getByRole('menu')).toBeVisible()}
-test('tile and marker context menus share dynamic actions; targeted deletion confirms and supports undo',async({page})=>{
-  await page.getByRole('button',{name:'Paint clutter Lamp',exact:true}).click();await stroke(page,{x:12,y:12});
-  await tileMenu(page);await page.getByRole('menuitem',{name:'Add spawn point…'}).click();await page.getByLabel('Spawn point name').fill('Gate');await page.getByRole('button',{name:'Save spawn point',exact:true}).click();
-  await tileMenu(page);await page.getByRole('menuitem',{name:'Add interaction…'}).click();await page.getByLabel('Interaction name').fill('Open gate');await page.getByLabel('Exit port',{exact:true}).fill('Outside');await page.getByRole('button',{name:'Save interaction',exact:true}).click();
-  const original=await saved(page);
-  await tileMenu(page);const actions=await page.getByRole('menuitem').allTextContents();expect(actions).toEqual(['Edit Gate…','Delete Gate…','Edit Open gate…','Delete Open gate…','Delete Lamp clutter…','Add spawn point…','Add interaction…']);await page.keyboard.press('Escape');
-  for(const name of ['Edit spawn point Gate','Edit interaction Open gate']){
-    await page.getByRole('button',{name,exact:true}).click({button:'right'});await expect(page.getByRole('menu',{name:'Tile 12, 12',exact:true})).toBeVisible();expect(await page.getByRole('menuitem').allTextContents()).toEqual(actions);await expect(page.locator('.map-feature-dialog')).toHaveCount(0);await page.keyboard.press('Escape');
-  }
-  await page.getByRole('button',{name:'Edit spawn point Gate',exact:true}).click({button:'right'});await page.getByRole('menuitem',{name:'Delete Gate…',exact:true}).click();await expect(page.getByRole('alertdialog')).toContainText('Scenario transitions');await expect(page.getByRole('button',{name:'Cancel',exact:true})).toBeFocused();expect(await saved(page)).toEqual(original);await page.keyboard.press('Escape');expect(await saved(page)).toEqual(original);await expect(canvas(page)).toBeFocused();
-  await tileMenu(page);await page.getByRole('menuitem',{name:'Delete Gate…',exact:true}).click();await page.getByRole('button',{name:'Delete spawn point',exact:true}).click();const removed=await saved(page);expect(removed.nodes).toEqual(original.nodes.filter((n:any)=>n.data.title!=='Gate'));expect(removed.terrain).toEqual(original.terrain);
-  await canvas(page).press('Control+z');expect(await saved(page)).toEqual(original);await canvas(page).press('Control+Shift+z');expect(await saved(page)).toEqual(removed);
-  await tileMenu(page);await expect(page.getByRole('menuitem',{name:'Delete Gate…',exact:true})).toHaveCount(0);await page.getByRole('menuitem',{name:'Delete Open gate…',exact:true}).click();await page.getByRole('button',{name:'Delete interaction',exact:true}).click();expect((await saved(page)).nodes).toEqual(blank.nodes);await canvas(page).press('Control+z');expect(await saved(page)).toEqual(removed);
-  await tileMenu(page);await page.getByRole('menuitem',{name:'Delete Lamp clutter…'}).click();await page.getByRole('button',{name:'Cancel',exact:true}).click();expect(await saved(page)).toEqual(removed);
-  await tileMenu(page);await page.getByRole('menuitem',{name:'Delete Lamp clutter…'}).click();await page.getByRole('button',{name:'Delete clutter',exact:true}).click();const uncluttered=await saved(page);expect(uncluttered.terrain.clutter[12*32+12]).toBeNull();expect(uncluttered.terrain.tiles).toEqual(removed.terrain.tiles);expect(uncluttered.nodes).toEqual(removed.nodes);await canvas(page).press('Control+z');expect(await saved(page)).toEqual(removed);
-  await tileMenu(page,15,12);expect(await page.getByRole('menuitem').allTextContents()).toEqual(['Add spawn point…','Add interaction…']);await page.keyboard.press('End');await expect(page.getByRole('menuitem',{name:'Add interaction…'})).toBeFocused();await page.keyboard.press('Escape');await expect(page.getByRole('menu')).toHaveCount(0);expect(await saved(page)).toEqual(removed);
-});
+const open=async(page:Page,path:string)=>{
+  await page.getByRole('combobox',{name:'Test file',exact:true}).selectOption(path);
+  await expect(page.locator('.file-path')).toHaveText(path);
+};
+const openMap=async(page:Page,path:string)=>{
+  await open(page,path);
+  await expect(canvas(page)).toHaveAttribute('data-renderer','pixi');
+  // The campaign around the map is read.
+  await expect(page.locator('.km-map[data-campaign="read"]')).toBeVisible();
+};
+/** Where a tile's middle is on the page, as the painter draws it. */
 async function point(page:Page,x:number,y:number){return canvas(page).evaluate((el,{x,y})=>{const c=el as HTMLCanvasElement,b=c.getBoundingClientRect(),z=Number(c.dataset.zoom),cx=Number(c.dataset.cameraX),cy=Number(c.dataset.cameraY);return {x:b.x+b.width/2+(x-cx+y-cy)*18*z,y:b.y+b.height*.56+(y-cy-x+cx)*9*z}},{x,y})}
 async function stroke(page:Page,from:{x:number;y:number},to=from){const a=await point(page,from.x,from.y),b=await point(page,to.x,to.y);await page.mouse.move(a.x,a.y);await page.mouse.down();await page.mouse.move(b.x,b.y,{steps:5});await page.mouse.up()}
-test.beforeEach(async({page})=>{await page.goto('/');await page.evaluate(({path,blank})=>{localStorage.setItem('kingmaker-authoring-test-files-v2',JSON.stringify({[path]:JSON.stringify(blank)}));localStorage.setItem('kingmaker-authoring-test-active-v2',path)},{path,blank});await page.reload();await expect(canvas(page)).toBeVisible()});
-test('right-click authors real spawn and interaction ports, editable and visible on the scenario card',async({page})=>{
-  await tileMenu(page);await page.getByRole('menuitem',{name:'Add spawn point…'}).click();await page.getByLabel('Spawn point name').fill('From the lane');await page.getByRole('button',{name:'Save spawn point',exact:true}).click();
-  let doc=await saved(page),spawn=doc.nodes.find((n:any)=>n.data.mapFeature==='spawn');expect(spawn.data.mapAt).toEqual({x:12,y:12});expect(spawn.data.kind).toBe('start');
-  await tileMenu(page,13,12);await page.getByRole('menuitem',{name:'Add interaction…'}).click();await page.getByLabel('Interaction name').fill('Open door');await page.getByLabel('Event log message').fill('The door creaks open.');await page.getByLabel('Exit port',{exact:true}).fill('To tavern');await page.getByLabel('Script notes').fill('Eventually unlock the door here.');
-  await page.screenshot({path:'dist/screenshots/map-interaction-editor.png'});
-  await page.getByRole('button',{name:'Save interaction',exact:true}).click();doc=await saved(page);const interaction=doc.nodes.find((n:any)=>n.data.mapFeature==='interaction');expect(interaction.data).toMatchObject({title:'Open door',exitPort:'To tavern',eventMessage:'The door creaks open.',kind:'exit',mapAt:{x:13,y:12}});
-  await page.getByRole('button',{name:'Undo map edit',exact:true}).click();expect((await saved(page)).nodes).toHaveLength(2);await page.getByRole('button',{name:'Redo map edit',exact:true}).click();expect(await saved(page)).toEqual(doc);
-  await tileMenu(page,13,12);await page.getByRole('menuitem',{name:'Edit Open door…'}).click();await page.getByLabel('Interaction name').fill('Push door');await page.getByRole('button',{name:'Save interaction',exact:true}).click();expect((await saved(page)).nodes.find((n:any)=>n.id===interaction.id).data.title).toBe('Push door');
-  const scenarioPath='Scenarios/Test.kmscenario';await page.evaluate(({scenarioPath,path})=>window.__kingmakerHarness.writeDocument(scenarioPath,{format:'kingmaker',version:1,kind:'scenario',id:'scenario',title:'Test',description:'',nodes:[],edges:[],lore:[],scenario:{files:[path]}}),{scenarioPath,path});
-  await page.getByLabel('Test file',{exact:true}).selectOption(scenarioPath);const card=page.locator('.scenario-card').filter({has:page.locator(`[data-port-id="${spawn.id}"]`)});await expect(card.locator('.scenario-port-input')).toContainText(['From town','From the lane']);await expect(card.locator('.scenario-port-output')).toHaveText('exitTo tavern');
-  await page.getByLabel('Test file',{exact:true}).selectOption(path);await page.reload();await expect(page.getByRole('button',{name:'Edit interaction Push door',exact:true})).toBeVisible();expect((await saved(page)).nodes.find((n:any)=>n.id===interaction.id).data.script).toBe('Eventually unlock the door here.');
+async function tileMenu(page:Page,x:number,y:number){const p=await point(page,x,y);await page.mouse.click(p.x,p.y,{button:'right'});await expect(page.getByRole('menu',{name:`Tile ${x}, ${y}`})).toBeVisible()}
+const fit=async(page:Page)=>{await page.getByRole('button',{name:/^Fit/}).click();await settle(page)};
+
+test.beforeEach(async({page})=>{
+  await page.goto('/');
+  await expect(page.locator('.file-path')).toHaveText('scenes/hanged-clerk.kmscene');
 });
-test('interaction without an exit stays local; removing an exit and deleting a spawn require confirmation',async({page})=>{
-  await tileMenu(page);await page.getByRole('menuitem',{name:'Add interaction…'}).click();await page.getByLabel('Interaction name').fill('Read sign');await page.getByLabel('Event log message').fill('No trespassing.');await page.getByRole('button',{name:'Save interaction',exact:true}).click();expect((await saved(page)).nodes.at(-1).data.kind).toBe('beat');
-  await page.getByRole('button',{name:'Edit interaction Read sign',exact:true}).click();await page.getByLabel('Exit port',{exact:true}).fill('Continue');await page.getByRole('button',{name:'Save interaction',exact:true}).click();const before=await saved(page);
-  await page.getByRole('button',{name:'Edit interaction Read sign',exact:true}).click();await page.getByLabel('Exit port',{exact:true}).fill('');await page.getByRole('button',{name:'Save interaction',exact:true}).click();await expect(page.getByRole('alert')).toContainText('Remove this exit port?');expect(await saved(page)).toEqual(before);await page.getByRole('button',{name:'Cancel',exact:true}).click();await page.getByRole('button',{name:'Cancel',exact:true}).click();expect(await saved(page)).toEqual(before);
-  await page.getByRole('button',{name:'Edit interaction Read sign',exact:true}).click();await page.getByLabel('Exit port',{exact:true}).fill('');await page.getByRole('button',{name:'Save interaction',exact:true}).click();await page.getByRole('button',{name:'Remove port and save',exact:true}).click();expect((await saved(page)).nodes.at(-1).data.kind).toBe('beat');
-  await tileMenu(page,14,12);await page.getByRole('menuitem',{name:'Add spawn point…'}).click();await page.getByLabel('Spawn point name').fill('Arrival');await page.getByRole('button',{name:'Save spawn point',exact:true}).click();const withSpawn=await saved(page);
-  await page.getByRole('button',{name:'Edit spawn point Arrival',exact:true}).click();await page.getByRole('button',{name:'Delete…',exact:true}).click();await expect(page.getByRole('alert')).toContainText('Delete this spawn point?');await page.keyboard.press('Escape');await page.getByRole('button',{name:'Cancel',exact:true}).click();expect(await saved(page)).toEqual(withSpawn);
-  await page.getByRole('button',{name:'Edit spawn point Arrival',exact:true}).click();await page.getByRole('button',{name:'Delete…',exact:true}).click();await page.getByRole('button',{name:'Delete spawn point',exact:true}).click();expect((await saved(page)).nodes).toHaveLength(2);await canvas(page).press('Control+z');expect(await saved(page)).toEqual(withSpawn);
-});
-test('clutter paints above terrain, erases independently, resizes and persists into the real preview',async({page})=>{
+
+test('every real map opens in the painter with no problems, and opening saves nothing; the town paints and saves a row at a time',async({page})=>{
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.getByRole('button',{name:'Paint Boards',exact:true}).click();await stroke(page,{x:12,y:12},{x:16,y:12});const terrain=(await saved(page)).terrain.tiles;
-  await page.getByRole('button',{name:'Paint clutter Lamp',exact:true}).click();await stroke(page,{x:12,y:12},{x:16,y:12});let doc=await saved(page);expect(doc.terrain.clutter.filter(Boolean)).toHaveLength(5);expect(doc.terrain.tiles).toEqual(terrain);
-  await page.keyboard.down('Control');await stroke(page,{x:14,y:12});await page.keyboard.up('Control');expect((await saved(page)).terrain.clutter[12*32+14]).toBeNull();expect((await saved(page)).terrain.tiles).toEqual(terrain);
-  await page.getByRole('button',{name:'Paint clutter Sign',exact:true}).click();await stroke(page,{x:14,y:12});await page.getByRole('button',{name:'Resize',exact:true}).click();await dragEdge(page,'west',2);doc=await saved(page);expect(doc.terrain.clutter[12*34+16]).toBe('sign');expect(doc.terrain.tiles[12*34+16]).toBe('boards');
-  await page.getByRole('button',{name:'Brush',exact:true}).click();await page.screenshot({path:'dist/screenshots/map-clutter-authoring.png'});await canvas(page).press('Tab');await expect(page.locator('.map-error')).toHaveCount(0);await page.screenshot({path:'dist/screenshots/map-clutter-preview.png'});expect(await saved(page)).toEqual(doc);
-  await page.reload();await expect(canvas(page)).toBeVisible();expect(await saved(page)).toEqual(doc);expect(errors).toEqual([]);
-});
-test('opens a blank map without silently saving dummy data; stroke saves once and undo/redo survives view switches',async({page})=>{
-  expect((await saved(page)).terrain).toBeUndefined();
-  await page.getByRole('button',{name:'Paint Water',exact:true}).click();
-  await stroke(page,{x:12,y:12},{x:17,y:12});
-  let doc=await saved(page);expect(doc.terrain.tiles.filter((t:string)=>t==='water')).toHaveLength(6);expect(doc.nodes).toEqual(blank.nodes);expect(doc.source).toEqual(blank.source);
-  await canvas(page).press('Tab');await expect(canvas(page)).toHaveAttribute('data-mode','preview');
-  await canvas(page).press('Tab');await expect(canvas(page)).toHaveAttribute('data-mode','edit');
-  await canvas(page).press('Control+z');expect((await saved(page)).terrain).toBeUndefined();
-  await canvas(page).press('Control+Shift+z');expect((await saved(page)).terrain.tiles).toEqual(doc.terrain.tiles);
-  await page.reload();await expect(canvas(page)).toBeVisible();expect((await saved(page)).terrain.tiles).toEqual(doc.terrain.tiles);
-});
-test('rectangle, fill, sampling, erase and cancelled drag use the right tiles',async({page})=>{
-  await page.getByRole('button',{name:'Paint Water',exact:true}).click();await canvas(page).press('r');await stroke(page,{x:11,y:10},{x:13,y:12});expect((await saved(page)).terrain.tiles.filter((t:string)=>t==='water')).toHaveLength(9);
-  await page.getByRole('button',{name:'Paint Boards',exact:true}).click();await canvas(page).press('g');await stroke(page,{x:12,y:11});expect((await saved(page)).terrain.tiles.filter((t:string)=>t==='boards')).toHaveLength(9);
-  await canvas(page).press('i');await stroke(page,{x:12,y:11});await expect(page.getByRole('button',{name:'Paint Boards',exact:true})).toHaveAttribute('aria-pressed','true');
-  await canvas(page).press('e');await stroke(page,{x:12,y:11});expect((await saved(page)).terrain.tiles[11*32+12]).toBe('grass');
-  const before=await saved(page),a=await point(page,12,12),b=await point(page,15,12);await canvas(page).press('b');await page.mouse.move(a.x,a.y);await page.mouse.down();await page.mouse.move(b.x,b.y);await page.keyboard.press('Escape');await page.mouse.up();expect(await saved(page)).toEqual(before);
-});
-test('bulk replacement actions are absent; real game preview renders without editing terrain or ports',async({page})=>{
-  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
-  await expect(page.getByRole('button',{name:'Load harbour example',exact:true})).toHaveCount(0);await expect(page.getByRole('button',{name:'Clear terrain…',exact:true})).toHaveCount(0);await expect(page.locator('.map-palette-bottom')).toHaveCount(0);
-  await page.evaluate(({path,document})=>window.__kingmakerHarness.writeDocument(path,document as any),{path,document:{...blank,terrain:harbourMap()}});await expect(canvas(page)).toBeVisible();const example=await saved(page);expect(example.terrain.tiles).toContain('roof');expect(example.nodes).toEqual(blank.nodes);
-  await page.getByRole('button',{name:/^Fit/}).click();await page.screenshot({path:'dist/screenshots/map-isometric-authoring.png'});
-  await canvas(page).focus();await canvas(page).press('Tab');await page.getByRole('button',{name:/^Fit/}).click();
-  await expect(page.locator('.map-error')).toHaveCount(0);
-  // A real render contains hundreds of differently coloured cells, not an error message on a blank canvas.
-  const colors=await canvas(page).evaluate(el=>{const c=el as HTMLCanvasElement,data=c.getContext('2d')!.getImageData(0,0,c.width,c.height).data,s=new Set<string>();for(let i=0;i<data.length;i+=4)s.add(`${data[i]},${data[i+1]},${data[i+2]}`);return s.size});expect(colors).toBeGreaterThan(100);
-  await page.screenshot({path:'dist/screenshots/map-isometric-game-preview.png'});
-  await page.getByLabel('Night lighting').check();await page.getByLabel('Lift roofs').check();expect(await saved(page)).toEqual(example);
-  await expect(page.getByRole('button',{name:'Ports',exact:true})).toHaveCount(0);expect((await saved(page)).nodes).toEqual(blank.nodes);
-  await page.getByRole('button',{name:'Paint',exact:true}).click();expect(await saved(page)).toEqual(example);
-  expect(await saved(page)).toEqual(example);expect(errors).toEqual([]);
-});
-test('pan/zoom are view-only and shortcuts do not hijack controls',async({page})=>{
-  await page.getByRole('button',{name:'Pan',exact:true}).click();const a=await point(page,15,12);await page.mouse.move(a.x,a.y);await page.mouse.down();await page.mouse.move(a.x+80,a.y+30);await page.mouse.up();expect((await saved(page)).terrain).toBeUndefined();
-  const old=await canvas(page).getAttribute('data-zoom');await canvas(page).hover();await page.mouse.wheel(0,-160);await expect(canvas(page)).not.toHaveAttribute('data-zoom',old!);
-  await page.getByLabel('Brush size').focus();await page.keyboard.press('Tab');await expect(canvas(page)).toHaveAttribute('data-mode','edit');
-});
-test('external file reload replaces terrain and preview does not replace the host process',async({page})=>{
-  await page.addInitScript(()=>{(window as any).process={sentinel:'host-process',env:{SENTINEL:'keep'}}});
-  await page.reload();await expect(canvas(page)).toBeVisible();
-  const terrain={version:1,width:8,height:8,tiles:Array(64).fill('water')};
-  await page.evaluate(({path,blank,terrain})=>window.__kingmakerHarness.writeDocument(path,{...blank,terrain} as any),{path,blank,terrain});
-  await expect(canvas(page)).toHaveAttribute('data-width','8');await canvas(page).press('Tab');await expect(page.locator('.map-error')).toHaveCount(0);
-  expect(await page.evaluate(()=>(window as any).process)).toEqual({sentinel:'host-process',env:{SENTINEL:'keep'}});
-  expect((await saved(page)).terrain).toEqual(terrain);
-});
-test('bottom-left identifies hovered terrain independently of the brush, including raised preview walls',async({page})=>{
-  await page.getByRole('button',{name:'Paint Water',exact:true}).click();await stroke(page,{x:12,y:12});
-  await page.getByRole('button',{name:'Paint Boards',exact:true}).click();const at=await point(page,12,12);await page.mouse.move(at.x,at.y);
-  await expect(page.locator('.map-hover-tile')).toHaveText(' · Hover: Water (12, 12)');
-  const grass=await point(page,13,12);await page.mouse.move(grass.x,grass.y);await expect(page.locator('.map-hover-tile')).toHaveText(' · Hover: Grass (13, 12)');
-  await page.getByRole('button',{name:'Paint Stone wall',exact:true}).click();await stroke(page,{x:12,y:12});
-  await canvas(page).press('Tab');await expect(canvas(page)).toHaveAttribute('data-mode','preview');
-  const wall=await canvas(page).evaluate(el=>{const c=el as HTMLCanvasElement,b=c.getBoundingClientRect(),z=Number(c.dataset.zoom),cx=Number(c.dataset.cameraX),cy=Number(c.dataset.cameraY),cw=6*z,ch=12*z,w=Math.min(400,Math.ceil(b.width/cw)),h=Math.min(220,Math.ceil(b.height/ch));return {x:b.x+(b.width-w*cw)/2+(Math.floor(w/2)-2*(cx+cy)+48+.5)*cw,y:b.y+(b.height-h*ch)*.56+(Math.floor(h*.56)-(cy-cx)-3+.5)*ch}});
-  await page.mouse.move(wall.x,wall.y);await expect(page.locator('.map-hover-tile')).toHaveText(' · Hover: Stone wall (12, 12)');
-  const before=await saved(page);await page.getByRole('button',{name:'Paint',exact:true}).hover();await expect(page.locator('.map-hover-tile')).toHaveCount(0);expect(await saved(page)).toEqual(before);
-});
-const edgeHandle=(page:Page,edge:string)=>page.getByRole('button',{name:`Resize ${edge} edge`,exact:true});
-async function dragEdge(page:Page,edge:string,amount:number,release=true){
-  const handle=edgeHandle(page,edge),b=(await handle.boundingBox())!,z=Number(await canvas(page).getAttribute('data-zoom'));
-  const dx=(edge==='east'?amount:edge==='west'?-amount:0),dy=(edge==='south'?amount:edge==='north'?-amount:0);
-  await page.mouse.move(b.x+b.width/2,b.y+b.height/2);await page.mouse.down();await page.mouse.move(b.x+b.width/2+(dx+dy)*18*z,b.y+b.height/2+(dy-dx)*9*z,{steps:6});if(release)await page.mouse.up();
-}
-test('four isometric handles extend the map; north/west keep terrain in place and resize is one undo step',async({page})=>{
-  await page.getByRole('button',{name:'Paint Water',exact:true}).click();await stroke(page,{x:12,y:12});
-  await page.getByRole('button',{name:'Resize',exact:true}).click();await expect(page.locator('.map-resize-handle')).toHaveCount(4);
-  let marker={x:12,y:12};
-  for(const edge of ['east','south','west','north']){
-    const before=await saved(page),position=await point(page,marker.x,marker.y);
-    await dragEdge(page,edge,2,false);expect(await saved(page)).toEqual(before);await expect(page.locator('.map-resize-guide')).toContainText(`+2 ${edge}`);await page.mouse.up();
-    const after=await saved(page),horizontal=edge==='east'||edge==='west';expect(after.terrain.width).toBe(before.terrain.width+(horizontal?2:0));expect(after.terrain.height).toBe(before.terrain.height+(horizontal?0:2));
-    const shifted={x:marker.x+(edge==='west'?2:0),y:marker.y+(edge==='north'?2:0)};expect(after.terrain.tiles[shifted.y*after.terrain.width+shifted.x]).toBe('water');expect(after.nodes).toEqual(before.nodes);expect(after.source).toEqual(before.source);
-    const nextPosition=await point(page,shifted.x,shifted.y);expect(nextPosition.x).toBeCloseTo(position.x,1);expect(nextPosition.y).toBeCloseTo(position.y,1);
-    await page.getByRole('button',{name:'Undo map edit',exact:true}).click();expect(await saved(page)).toEqual(before);await page.getByRole('button',{name:'Redo map edit',exact:true}).click();expect(await saved(page)).toEqual(after);marker=shifted;
+  const before=await page.evaluate(()=>({...(window as any).__kingmakerHarness.files}));
+  for(const id of ['caerwyn','drowned-rat','heron','palace']){
+    await openMap(page,`maps/${id}.kmmap`);
+    await expect(page.getByRole('tab',{name:'Problems (0)'})).toBeVisible();
+    const map=await original(`maps/${id}.kmmap`);
+    await expect(page.getByRole('heading',{level:1})).toHaveText(map.title);
+    await expect(canvas(page)).toHaveAttribute('data-width',String(Math.max(...map.grid.map((row:string)=>[...row].length))));
+    await expect(page.getByRole('list',{name:'Legend'}).getByRole('listitem')).toHaveCount(Object.keys(map.legend).length+1);
   }
-  await page.getByRole('button',{name:/^Fit/}).click();await page.screenshot({path:'dist/screenshots/map-resize-handles.png'});
-  const resized=await saved(page);await page.reload();await expect(canvas(page)).toBeVisible();expect(await saved(page)).toEqual(resized);
+  expect(await page.evaluate(()=>({...(window as any).__kingmakerHarness.files}))).toEqual(before);
+  // The town: 64 by 46, 52 legend entries, 21 regions, 30 people. Paint the river a stroke at a time.
+  await openMap(page,'maps/caerwyn.kmmap');
+  await fit(page);
+  const town=await original('maps/caerwyn.kmmap');
+  const stats=await renderStats(page);
+  await page.getByRole('button',{name:/^Paint “_” Boards$/}).click();
+  await stroke(page,{x:20,y:43},{x:24,y:43});
+  await settle(page);
+  const painted=await renderStats(page);
+  expect(painted.fullSyncs-stats.fullSyncs,'one sync, when the stroke is saved').toBeLessThanOrEqual(1);
+  const after=await saved(page,'maps/caerwyn.kmmap');
+  expect(after.grid[43]).toBe(town.grid[43].slice(0,20)+'_____'+town.grid[43].slice(25));
+  after.grid.forEach((row:string,y:number)=>{if(y!==43)expect(row,`row ${y}`).toBe(town.grid[y])});
+  expect({...after,grid:town.grid}).toEqual(town);
+  // Hover and pan do no work a tile.
+  const idle=await renderStats(page),box=(await canvas(page).boundingBox())!;
+  for(let i=0;i<10;i++)await page.mouse.move(box.x+box.width/2+i*3,box.y+box.height*.56+i);
+  await page.mouse.down({button:'middle'});await page.mouse.move(box.x+box.width/2+120,box.y+box.height*.56+60,{steps:10});await page.mouse.up({button:'middle'});
+  await settle(page);
+  const moved=await renderStats(page);
+  for(const key of ['fullSyncs','tileChecks','tileUpdates','tileCollections'])expect(moved[key]-idle[key],key).toBe(0);
+  expect(moved.viewUpdates).toBeGreaterThan(idle.viewUpdates);
+  // Undo puts the row back, byte for byte, and redo paints it again.
+  await page.getByRole('button',{name:'Undo map edit'}).click();
+  expect(await savedText(page,'maps/caerwyn.kmmap')).toBe(await readFile(new URL('maps/caerwyn.kmmap',CAMPAIGN),'utf8'));
+  await page.getByRole('button',{name:'Redo map edit'}).click();
+  expect((await saved(page,'maps/caerwyn.kmmap')).grid[43]).toBe(after.grid[43]);
+  await page.screenshot({path:'dist/screenshots/map-town.png'});
+  expect(errors).toEqual([]);
 });
-test('crop requires confirmation; Escape and pointer cancellation leave content unchanged',async({page})=>{
-  await page.getByRole('button',{name:'Resize',exact:true}).click();const before=await saved(page);
-  await dragEdge(page,'west',-2);await expect(page.getByRole('alertdialog')).toContainText('48 tiles from the west edge');expect(await saved(page)).toEqual(before);await page.getByRole('button',{name:'Cancel',exact:true}).click();expect(await saved(page)).toEqual(before);
-  await dragEdge(page,'west',-2);await page.getByRole('button',{name:'Crop map',exact:true}).click();expect((await saved(page)).terrain.width).toBe(30);await page.getByRole('button',{name:'Undo map edit',exact:true}).click();expect(await saved(page)).toEqual(before);
-  await dragEdge(page,'north',3,false);await page.keyboard.press('Escape');await page.mouse.up();expect(await saved(page)).toEqual(before);await expect(canvas(page)).toHaveAttribute('data-height','24');
-  await dragEdge(page,'east',3,false);await edgeHandle(page,'east').dispatchEvent('pointercancel');await page.mouse.up();expect(await saved(page)).toEqual(before);
-  await edgeHandle(page,'south').focus();await page.keyboard.press('+');expect((await saved(page)).terrain.height).toBe(25);
+
+test('painting with a new legend entry: its fields from the editor, the palette is the legend, and the rows painted are the rows written',async({page})=>{
+  await openMap(page,'maps/palace.kmmap');
+  await fit(page);
+  const palace=await original('maps/palace.kmmap');
+  await page.getByRole('button',{name:'New entry'}).click();
+  const dialog=page.getByRole('dialog',{name:'New legend entry'});
+  await dialog.getByLabel('Character',{exact:true}).fill('c');
+  await dialog.getByLabel('Terrain',{exact:true}).selectOption('floor');
+  await dialog.getByLabel('Style',{exact:true}).fill('carpet');
+  await dialog.getByLabel('Roof',{exact:true}).fill('palace');
+  await dialog.getByLabel('Roof height',{exact:true}).fill('4');
+  await dialog.getByRole('button',{name:'Something stands on it'}).click();
+  await dialog.getByLabel('Decor name',{exact:true}).fill('a candelabrum');
+  await dialog.getByLabel('Glyph',{exact:true}).fill('Ψ');
+  await dialog.getByLabel('Colour',{exact:true}).fill('#ffd27f');
+  await dialog.getByLabel('Decor text',{exact:true}).fill('Seven candles, four of them lit.');
+  await dialog.getByLabel('Decor blocks the way').check();
+  await page.screenshot({path:'dist/screenshots/map-new-legend-entry.png'});
+  await dialog.getByRole('button',{name:'Add entry'}).click();
+  let doc=await saved(page,'maps/palace.kmmap');
+  expect(doc.legend.c).toEqual({terrain:'floor',style:'carpet',roof:'palace',roofHeight:4,decor:{name:'a candelabrum',glyph:'Ψ',color:'#ffd27f',blocks:true,text:'Seven candles, four of them lit.'}});
+  expect(Object.keys(doc.legend)).toEqual([...Object.keys(palace.legend),'c']);
+  expect(doc.grid).toEqual(palace.grid);
+  // It's the paint material now: three tiles of the dressing room.
+  await expect(page.getByRole('button',{name:'Choose paint material'})).toContainText('“c” A candelabrum');
+  await stroke(page,{x:6,y:3},{x:8,y:3});
+  doc=await saved(page,'maps/palace.kmmap');
+  expect(doc.grid[3]).toBe('PaaaPfcccffffp');
+  doc.grid.forEach((row:string,y:number)=>{if(y!==3)expect(row).toBe(palace.grid[y])});
+  // The eyedropper and the eraser: erase is the most used ground, the carpet.
+  await canvas(page).press('i');await stroke(page,{x:1,y:5});
+  await expect(page.getByRole('button',{name:'Choose paint material'})).toContainText('“q” A portrait');
+  await canvas(page).press('e');await stroke(page,{x:7,y:3});
+  expect((await saved(page,'maps/palace.kmmap')).grid[3]).toBe('PaaaPfcfcffffp');
+  // The entry edited in the inspector, where it is in the legend; then deleted, its tiles painted over.
+  await page.getByRole('button',{name:'Edit legend entry “c”'}).click();
+  await page.locator('.legend-inspector').getByLabel('Decor name',{exact:true}).fill('a candlestick');
+  doc=await saved(page,'maps/palace.kmmap');
+  expect(doc.legend.c.decor.name).toBe('a candlestick');
+  await page.locator('.legend-inspector').getByRole('button',{name:'Delete entry…'}).click();
+  const remove=page.getByRole('dialog',{name:'Delete legend entry'});
+  await remove.getByLabel('Paint its tiles with').selectOption('f');
+  await remove.getByRole('button',{name:'Delete entry'}).click();
+  doc=await saved(page,'maps/palace.kmmap');
+  expect('c' in doc.legend).toBe(false);
+  expect(doc.grid[3]).toBe(palace.grid[3]);
+  // The game builds what was painted: no problems.
+  await expect(page.getByRole('tab',{name:'Problems (0)'})).toBeVisible();
 });
-test('paint/erase swatches, temporary secondary painting, eraser and swap share undoable terrain edits',async({page})=>{
-  const untouched=await saved(page),paintSlot=page.getByRole('button',{name:'Choose paint material',exact:true}),eraseSlot=page.getByRole('button',{name:'Choose erase material',exact:true});
-  await page.getByRole('button',{name:'Paint Water',exact:true}).click();await eraseSlot.click();await page.getByRole('button',{name:'Erase Dirt',exact:true}).click();
-  await expect(paintSlot).toContainText('Water');await expect(eraseSlot).toContainText('Dirt');expect(await saved(page)).toEqual(untouched);
-  await stroke(page,{x:12,y:12});expect((await saved(page)).terrain.tiles[12*32+12]).toBe('water');
-  await page.keyboard.down('Control');await stroke(page,{x:13,y:12},{x:15,y:12});await page.keyboard.up('Control');
-  let doc=await saved(page);for(let x=13;x<=15;x++)expect(doc.terrain.tiles[12*32+x]).toBe('dirt');await expect(page.getByRole('button',{name:'Brush',exact:true})).toHaveAttribute('aria-pressed','true');
-  await canvas(page).press('Control+z');expect((await saved(page)).terrain.tiles[12*32+13]).toBe('grass');await canvas(page).press('Control+Shift+z');expect(await saved(page)).toEqual(doc);
-  await stroke(page,{x:16,y:12});expect((await saved(page)).terrain.tiles[12*32+16]).toBe('water');
-  await canvas(page).press('e');await stroke(page,{x:12,y:12});expect((await saved(page)).terrain.tiles[12*32+12]).toBe('dirt');
-  const beforeSwap=await saved(page);await canvas(page).press('x');await expect(paintSlot).toContainText('Dirt');await expect(eraseSlot).toContainText('Water');expect(await saved(page)).toEqual(beforeSwap);
-  await canvas(page).press('b');await stroke(page,{x:12,y:11});expect((await saved(page)).terrain.tiles[11*32+12]).toBe('dirt');
-  await page.keyboard.down('Meta');await stroke(page,{x:13,y:11});await page.keyboard.up('Meta');expect((await saved(page)).terrain.tiles[11*32+13]).toBe('water');
-  await page.screenshot({path:'dist/screenshots/map-paint-erase-swatches.png'});
-  const beforeReset=await saved(page);await canvas(page).press('d');await expect(paintSlot).toContainText('Cobbles');await expect(eraseSlot).toContainText('Grass');expect(await saved(page)).toEqual(beforeReset);
+
+test('an exit and a person added from a tile\'s menu, each edited in the inspector, and the story\'s start set on a tile',async({page})=>{
+  await openMap(page,'maps/palace.kmmap');
+  await fit(page);
+  const palace=await original('maps/palace.kmmap');
+  await tileMenu(page,12,3);
+  expect(await page.getByRole('menuitem').allTextContents()).toEqual(['Edit region the King\'s dressing room…','Delete region the King\'s dressing room…','Add region here…','Add exit here…','Add person here…','Start the story here']);
+  await page.keyboard.press('Escape');
+  // An exit: out of a window onto the town (landing just inside the town's way back to the palace).
+  await tileMenu(page,13,6);
+  await page.getByRole('menuitem',{name:'Add exit here…'}).click();
+  const exit=page.getByRole('dialog',{name:'New exit'});
+  await exit.getByLabel('Label',{exact:true}).fill('Out of the window');
+  await exit.getByLabel('To map',{exact:true}).selectOption('caerwyn');
+  await exit.getByRole('button',{name:'Add exit'}).click();
+  let doc=await saved(page,'maps/palace.kmmap');
+  expect(doc.exits).toEqual([...palace.exits,{at:{x:13,y:6},to:{map:'caerwyn',at:{x:11,y:13}},label:'Out of the window'}]);
+  await page.locator('.exit-inspector').getByLabel('Label',{exact:true}).fill('Out of the gallery window');
+  expect((await saved(page,'maps/palace.kmmap')).exits.at(-1).label).toBe('Out of the gallery window');
+  // A person: a footman in the gallery, about in the morning only.
+  await tileMenu(page,2,4);
+  await page.getByRole('menuitem',{name:'Add person here…'}).click();
+  const person=page.getByRole('dialog',{name:'New person'});
+  await person.getByLabel('Name',{exact:true}).fill('a footman');
+  await person.getByLabel('Glyph',{exact:true}).fill('f');
+  await person.getByRole('button',{name:'Add'}).click();
+  doc=await saved(page,'maps/palace.kmmap');
+  expect(doc.people).toEqual([{name:'a footman',times:['morning','afternoon','evening','night','next-morning'],glyph:'f',at:{x:2,y:4},text:''}]);
+  const inspector=page.locator('.person-inspector');
+  await inspector.getByLabel('Text',{exact:true}).fill('“The King is not receiving.”');
+  for(const time of ['afternoon','evening','night','next morning'])await inspector.getByLabel(time,{exact:true}).uncheck();
+  await inspector.getByLabel('Out of the way').check();
+  doc=await saved(page,'maps/palace.kmmap');
+  expect(doc.people).toEqual([{name:'a footman',times:['morning'],glyph:'f',at:{x:2,y:4},text:'“The King is not receiving.”',blocks:false}]);
+  expect(Object.keys(doc)).toEqual([...Object.keys(palace),'people']);
+  // The person and the exit are on the map: dragged a tile, they move there.
+  const marker=page.getByRole('button',{name:'Person a footman at 2, 4'});
+  const from=await point(page,2,4),to=await point(page,2,5);
+  await page.mouse.move(from.x,from.y);await page.mouse.down();await page.mouse.move(to.x,to.y,{steps:6});await page.mouse.up();
+  await expect(page.getByRole('button',{name:'Person a footman at 2, 5'})).toBeVisible();
+  expect((await saved(page,'maps/palace.kmmap')).people[0].at).toEqual({x:2,y:5});
+  await expect(marker).toHaveCount(0);
+  // The story's start: on a tile of this map, written in the scenario.
+  await tileMenu(page,3,5);
+  await page.getByRole('menuitem',{name:'Start the story here'}).click();
+  await expect(page.getByRole('button',{name:'The story\'s start at 3, 5'})).toBeVisible();
+  const scenario=await saved(page,'caerwyn.kmscenario');
+  expect(scenario.start).toEqual({day:1,time:'morning',map:'palace',at:[3,5]});
+  expect({...scenario,start:undefined}).toEqual({...await original('caerwyn.kmscenario'),start:undefined});
+  // Undo takes the start back, in the scenario's file.
+  await page.getByRole('button',{name:'Undo map edit'}).click();
+  await expect(page.getByRole('button',{name:'The story\'s start at 3, 5'})).toHaveCount(0);
+  expect(await savedText(page,'caerwyn.kmscenario')).toBe(await readFile(new URL('caerwyn.kmscenario',CAMPAIGN),'utf8'));
+  await expect(page.getByRole('tab',{name:'Problems (0)'})).toBeVisible();
 });
-test('secondary material works with rectangle/fill and sampling targets the selected swatch',async({page})=>{
-  const eraseSlot=page.getByRole('button',{name:'Choose erase material',exact:true});await eraseSlot.click();await page.getByRole('button',{name:'Erase Water',exact:true}).click();
-  await canvas(page).press('r');await page.keyboard.down('Control');await stroke(page,{x:11,y:10},{x:13,y:12});await page.keyboard.up('Control');expect((await saved(page)).terrain.tiles.filter((t:string)=>t==='water')).toHaveLength(9);
-  await eraseSlot.click();await page.getByRole('button',{name:'Erase Boards',exact:true}).click();await canvas(page).press('g');await page.keyboard.down('Control');await stroke(page,{x:12,y:11});await page.keyboard.up('Control');expect((await saved(page)).terrain.tiles.filter((t:string)=>t==='boards')).toHaveLength(9);
-  const before=await saved(page);await eraseSlot.click();await page.keyboard.down('Alt');await stroke(page,{x:14,y:11});await page.keyboard.up('Alt');await expect(eraseSlot).toContainText('Grass');expect(await saved(page)).toEqual(before);
-  await page.getByRole('button',{name:'Choose paint material',exact:true}).click();await canvas(page).press('i');await stroke(page,{x:12,y:11});await expect(page.getByRole('button',{name:'Choose paint material',exact:true})).toContainText('Boards');expect(await saved(page)).toEqual(before);
-  await page.getByRole('button',{name:'Swap paint and erase materials',exact:true}).click();await expect(eraseSlot).toContainText('Boards');expect(await saved(page)).toEqual(before);
+
+test('a region tied to a scene lays its place on the map, and a thing of the place moved there is moved in the place\'s file',async({page})=>{
+  await openMap(page,'maps/palace.kmmap');
+  await fit(page);
+  const palace=await original('maps/palace.kmmap'),room=await original('places/dressing-room.kmplace');
+  // A new region, drawn with the region tool: the King's closet.
+  await page.getByRole('button',{name:'Region',exact:true}).click();
+  await stroke(page,{x:5,y:2},{x:12,y:7});
+  const dialog=page.getByRole('dialog',{name:'New region'});
+  await expect(dialog.getByLabel('w',{exact:true})).toHaveValue('8');
+  await dialog.getByLabel('Name',{exact:true}).fill('the King\'s closet');
+  await expect(dialog.getByLabel('Id',{exact:true})).toHaveAttribute('placeholder','the-kings-closet');
+  await dialog.getByRole('button',{name:'Add region'}).click();
+  let doc=await saved(page,'maps/palace.kmmap');
+  expect(doc.regions.at(-1)).toEqual({id:'the-kings-closet',name:'the King\'s closet',rect:{x:5,y:2,w:8,h:6}});
+  // Tied to the King's morning, its place laid here from the region's corner.
+  const inspector=page.locator('.region-inspector');
+  await inspector.getByRole('button',{name:'Play a scene here'}).click();
+  await inspector.getByLabel('Scene',{exact:true}).selectOption('kings-morning');
+  await inspector.getByLabel('Its scene\'s place is laid here').check();
+  await inspector.getByLabel('Trigger',{exact:true}).selectOption('enter');
+  doc=await saved(page,'maps/palace.kmmap');
+  expect(doc.regions.at(-1)).toEqual({id:'the-kings-closet',name:'the King\'s closet',rect:{x:5,y:2,w:8,h:6},sceneId:'kings-morning',worldOrigin:{x:5,y:2},trigger:'enter'});
+  expect(doc.regions.slice(0,-1)).toEqual(palace.regions);
+  // The region selected, its place is shown as soon as it lays it, with no button to press (and the button hides it).
+  await expect(page.locator('.map-place-note')).toContainText('places/dressing-room.kmplace');
+  await expect(inspector.getByRole('button',{name:'Hide its place'})).toBeVisible();
+  await expect(page.locator('.map-marker-thing')).toHaveCount(room.things.filter((t:any)=>t.at).length);
+  await expect(page.locator('.map-marker-cast')).toHaveCount(Object.keys(room.people).length);
+  await page.screenshot({path:'dist/screenshots/map-place-layer.png'});
+  // The long mirror, at 42, 7 feet (tile 13, 3 from the corner at 5, 2), dragged a tile south.
+  const mirror=page.getByRole('button',{name:'Thing a long mirror'});
+  const box=(await mirror.boundingBox())!,to=await point(page,13,4);
+  await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();await page.mouse.move(to.x,to.y,{steps:6});await page.mouse.up();
+  await expect.poll(async()=>(await saved(page,'places/dressing-room.kmplace')).things.find((t:any)=>t.id==='mirror').at).toEqual([42,12]);
+  const place=await saved(page,'places/dressing-room.kmplace');
+  expect({...place,things:place.things.filter((t:any)=>t.id!=='mirror')}).toEqual({...room,things:room.things.filter((t:any)=>t.id!=='mirror')});
+  expect(place.things.find((t:any)=>t.id==='mirror')).toEqual({...room.things.find((t:any)=>t.id==='mirror'),at:[42,12]});
+  // Selected, the thing's inspector edits the place: its name and states.
+  await page.getByRole('button',{name:'Thing a long mirror'}).click();
+  const thing=page.locator('.place-inspector[data-place-part="thing:mirror"]');
+  // Typed a key at a time, each a write of the place's file: they queue, and none is lost.
+  const name=thing.getByLabel('Name',{exact:true});
+  await name.fill('');
+  await name.pressSequentially('a cheval glass');
+  await expect(name).toHaveValue('a cheval glass');
+  await expect.poll(async()=>(await saved(page,'places/dressing-room.kmplace')).things.find((t:any)=>t.id==='mirror').name).toBe('a cheval glass');
+  // Undo puts the place back as it was, a step at a time: the name typed in one go is one step.
+  await page.getByRole('button',{name:'Undo map edit'}).click();
+  await expect.poll(async()=>(await saved(page,'places/dressing-room.kmplace')).things.find((t:any)=>t.id==='mirror').name).toBe('a long mirror');
+  await page.getByRole('button',{name:'Undo map edit'}).click();
+  await expect.poll(()=>savedText(page,'places/dressing-room.kmplace')).toBe(await readFile(new URL('places/dressing-room.kmplace',CAMPAIGN),'utf8'));
+  expect((await saved(page,'maps/palace.kmmap')).regions.at(-1).worldOrigin).toEqual({x:5,y:2});
+  // On the town, selecting the granary yard's region shows the yard; a thing added from a tile's menu is the place's.
+  await openMap(page,'maps/caerwyn.kmmap');
+  await page.getByRole('tab',{name:/^Regions/}).click();
+  await page.locator('.list-view').getByRole('button',{name:/^the yard behind the King's Granary/}).click();
+  await expect(page.locator('.list-view .doc-card')).toContainText('The yard behind the King\'s Granary');
+  await page.locator('.list-view .doc-card').getByRole('button',{name:'Show on the map'}).click();
+  await expect(page.locator('.map-place-note')).toContainText('places/granary-yard.kmplace');
+  await expect(page.locator('.region-inspector[data-region="granary-yard"]')).toBeVisible();
+  await tileMenu(page,44,14);
+  await page.getByRole('menuitem',{name:'Add a thing of The yard behind the King\'s Granary here…'}).click();
+  const pigeon=page.getByRole('dialog',{name:'New thing'});
+  await pigeon.getByLabel('Name',{exact:true}).fill('a dead pigeon');
+  await pigeon.getByRole('button',{name:'Add thing'}).click();
+  await expect.poll(async()=>(await saved(page,'places/granary-yard.kmplace')).things.at(-1)).toEqual({id:'a-dead-pigeon',name:'a dead pigeon',in:'yard',at:[22,27]});
+  await expect(page.getByRole('button',{name:'Thing a dead pigeon'})).toBeVisible();
+  // Off the yard's tiles (laid at 40, 9, eleven by eight) nothing of it is offered; on its last column, part of a tile (50 to 52 feet), a thing stands on its floor.
+  await tileMenu(page,38,12);
+  await expect(page.getByRole('menuitem',{name:/^Add a thing of/})).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).toHaveCount(0);
+  await tileMenu(page,50,15);
+  await page.getByRole('menuitem',{name:'Add a thing of The yard behind the King\'s Granary here…'}).click();
+  const crate=page.getByRole('dialog',{name:'New thing'});
+  await crate.getByLabel('Name',{exact:true}).fill('a crate');
+  await crate.getByRole('button',{name:'Add thing'}).click();
+  await expect.poll(async()=>(await saved(page,'places/granary-yard.kmplace')).things.at(-1)).toEqual({id:'a-crate',name:'a crate',in:'loft',at:[51,32]});
+});
+
+test('resizing grows the map and moves what stands on it; the scenario\'s start and other maps\' ways in move with a north edge',async({page})=>{
+  await openMap(page,'maps/palace.kmmap');
+  await fit(page);
+  const palace=await original('maps/palace.kmmap'),town=await original('maps/caerwyn.kmmap');
+  await page.getByRole('button',{name:'Resize',exact:true}).click();
+  await page.getByRole('button',{name:'Resize north edge'}).focus();
+  await page.keyboard.press('+');
+  const doc=await saved(page,'maps/palace.kmmap');
+  expect(doc.grid.length).toBe(13);
+  expect(doc.grid.slice(1)).toEqual(palace.grid);
+  expect(doc.regions[0].rect).toEqual({...palace.regions[0].rect,y:3});
+  expect(doc.regions[0].worldOrigin).toEqual({x:1,y:2});
+  expect(doc.exits[0].at).toEqual({x:2,y:12});
+  // The town's way in through the palace gate lands a tile further south, as the tiles moved.
+  const after=await saved(page,'maps/caerwyn.kmmap');
+  expect(after.exits[0].to.at).toEqual({x:2,y:11});
+  expect({...after,exits:town.exits}).toEqual(town);
+  await page.getByRole('button',{name:'Undo map edit'}).click();
+  expect(await savedText(page,'maps/palace.kmmap')).toBe(await readFile(new URL('maps/palace.kmmap',CAMPAIGN),'utf8'));
+  expect(await savedText(page,'maps/caerwyn.kmmap')).toBe(await readFile(new URL('maps/caerwyn.kmmap',CAMPAIGN),'utf8'));
+  // Cropping from the keyboard asks once: pressed again on the same edge, while it keeps the focus, it crops on without asking.
+  const width=async()=>Math.max(...(await saved(page,'maps/palace.kmmap')).grid.map((row:string)=>[...row].length));
+  const east=page.getByRole('button',{name:'Resize east edge'});
+  await east.focus();
+  await page.keyboard.press('-');
+  await expect(page.getByRole('alertdialog')).toContainText('Pressing − again on this edge crops on without asking');
+  await page.getByRole('button',{name:'Crop map'}).click();
+  await expect.poll(width).toBe(13);
+  await expect(east).toBeFocused();
+  await page.keyboard.press('-');
+  await expect.poll(width).toBe(12);
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  // Left and come back to, the edge asks again.
+  await page.getByRole('button',{name:'Resize north edge'}).focus();
+  await east.focus();
+  await page.keyboard.press('-');
+  await expect(page.getByRole('alertdialog')).toContainText('Crop the map?');
+  await page.getByRole('button',{name:'Cancel'}).click();
+  expect(await width()).toBe(12);
+});
+
+test('the Game preview is the game\'s renderer on the map as the game builds it, with the people about at an hour, and saves nothing',async({page})=>{
+  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+  await openMap(page,'maps/caerwyn.kmmap');
+  const before=await savedText(page,'maps/caerwyn.kmmap');
+  await canvas(page).press('Tab');
+  await expect(canvas(page)).toHaveAttribute('data-mode','preview');
+  await page.getByRole('button',{name:/^Fit/}).click();
+  await expect(page.locator('.map-error')).toHaveCount(0);
+  const colours=async()=>canvas(page).evaluate(el=>{const c=el as HTMLCanvasElement,data=c.getContext('2d')!.getImageData(0,0,c.width,c.height).data,s=new Set<string>();for(let i=0;i<data.length;i+=4)s.add(`${data[i]},${data[i+1]},${data[i+2]}`);return s.size});
+  expect(await colours()).toBeGreaterThan(100);
+  await page.screenshot({path:'dist/screenshots/map-town-preview.png'});
+  await page.getByLabel('Time of day').selectOption('night');
+  await page.getByLabel('Lift roofs').check();
+  await expect(page.locator('.map-error')).toHaveCount(0);
+  await canvas(page).hover();
+  await expect(page.locator('.map-hover-tile')).toContainText('Hover:');
+  await page.getByRole('tab',{name:'Paint',exact:true}).click();
+  await expect(canvas(page)).toHaveAttribute('data-renderer','pixi');
+  expect(await savedText(page,'maps/caerwyn.kmmap')).toBe(before);
+  expect(errors).toEqual([]);
+});
+
+test('a map as big as the format allows, 160 by 120, opens, paints and saves',async({page})=>{
+  const map={format:'kingmaker',version:2,kind:'map',id:'big',title:'Big',description:'The biggest map.',grid:Array.from({length:120},()=>','.repeat(160)),legend:{',':{terrain:'grass'},'.':{terrain:'cobbles'}},regions:[],exits:[]};
+  await page.evaluate(map=>(window as any).__kingmakerHarness.writeDocument('maps/big.kmmap',map),map);
+  await openMap(page,'maps/big.kmmap');
+  await expect(canvas(page)).toHaveAttribute('data-width','160');
+  await expect(canvas(page)).toHaveAttribute('data-height','120');
+  await page.getByRole('button',{name:/^Paint “\.” Cobbles$/}).click();
+  const stats=await renderStats(page);
+  await stroke(page,{x:80,y:60},{x:84,y:60});
+  await settle(page);
+  const after=await renderStats(page);
+  expect(after.tileUpdates-stats.tileUpdates).toBeLessThan(40);
+  const doc=await saved(page,'maps/big.kmmap');
+  expect(doc.grid[60]).toBe(','.repeat(80)+'.....'+','.repeat(75));
+  expect(doc.grid.filter((row:string)=>row!==','.repeat(160))).toHaveLength(1);
+});
+
+test('a version 1 map migrated: the user\'s harbour study, its spawn point made the scenario\'s start, opens as a map of the format',async({page})=>{
+  const study=await readFile(new URL('fixtures/v1-study/Harbour study.kmmap',import.meta.url),'utf8');
+  await page.evaluate(study=>(window as any).__kingmakerHarness.writeDocument('maps/harbour-study.kmmap',study),study);
+  await open(page,'maps/harbour-study.kmmap');
+  const offer=page.getByRole('region',{name:'A version 1 map'});
+  await expect(offer).toContainText('This is a version 1 map');
+  await expect(offer).toContainText('64 × 50 tiles');
+  await expect(offer.locator('.migration-legend li')).toHaveCount(15);
+  await offer.getByLabel(/Make “docks” \(46, 40\) the scenario's start, and list harbour-study among its maps/).check();
+  await page.screenshot({path:'dist/screenshots/map-migration.png'});
+  expect(await savedText(page,'maps/harbour-study.kmmap')).toBe(study);
+  await offer.getByRole('button',{name:'Migrate to version 2'}).click();
+  // The map editor opens it: the file is the format's now.
+  await expect(canvas(page)).toHaveAttribute('data-renderer','pixi');
+  await expect(canvas(page)).toHaveAttribute('data-width','64');
+  const doc=await saved(page,'maps/harbour-study.kmmap');
+  expect([doc.format,doc.version,doc.kind,doc.id,doc.title]).toEqual(['kingmaker',2,'map','harbour-study','Harbour study']);
+  expect(doc.grid).toHaveLength(50);
+  expect(Object.keys(doc.legend)).toEqual([',','L',':','.','l','s','_','~','w','#','W','+','o','r','t']);
+  expect(doc.regions).toEqual([{id:'asdf',name:'asdf',rect:{x:36,y:41,w:1,h:1}}]);
+  expect(doc.exits).toEqual([]);
+  // Tile for tile what the version 1 map was.
+  const v1=JSON.parse(study),chars:Record<string,string>={grass:',',dirt:':',cobbles:'.',boards:'_',water:'~','deep-water':'w',stone:'#',timber:'W',door:'+',window:'o',roof:'r',tree:'t'};
+  const pairs:Record<string,string>={'grass|lamp':'L','cobbles|lamp':'l','cobbles|sign':'s'};
+  v1.terrain.tiles.forEach((id:string,i:number)=>{const clutter=v1.terrain.clutter?.[i];expect([...doc.grid[Math.floor(i/64)]][i%64]).toBe(clutter?pairs[`${id}|${clutter}`]:chars[id])});
+  const scenario=await saved(page,'caerwyn.kmscenario');
+  expect(scenario.start).toEqual({day:1,time:'morning',map:'harbour-study',at:[46,40]});
+  expect(scenario.maps).toEqual(['caerwyn','drowned-rat','heron','palace','harbour-study']);
+  await expect(page.getByRole('button',{name:'The story\'s start at 46, 40'})).toBeVisible();
+});
+
+test('a key the format doesn\'t know, a migrated region\'s notes, is shown on the region\'s card, edited and taken out',async({page})=>{
+  const palace=await original('maps/palace.kmmap');
+  const withNotes={...palace,regions:palace.regions.map((r:any,i:number)=>i===0?{...r,notes:'Script: the guard turns away.'}:r)};
+  await page.evaluate(map=>(window as any).__kingmakerHarness.writeDocument('maps/palace.kmmap',map),withNotes);
+  await openMap(page,'maps/palace.kmmap');
+  await page.getByRole('tab',{name:/^Regions/}).click();
+  const card=page.locator('.list-view .doc-card');
+  await expect(card.locator('[data-field="other"]')).toContainText('notes');
+  await card.getByLabel('notes',{exact:true}).fill('Script: the guard salutes.');
+  expect((await saved(page,'maps/palace.kmmap')).regions[0].notes).toBe('Script: the guard salutes.');
+  await card.getByRole('button',{name:'Remove notes'}).click();
+  expect(await savedText(page,'maps/palace.kmmap')).toBe(await readFile(new URL('maps/palace.kmmap',CAMPAIGN),'utf8'));
+  await expect(card.locator('[data-field="other"]')).toHaveCount(0);
 });

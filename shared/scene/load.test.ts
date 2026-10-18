@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { SceneDocument } from "./document.ts";
-import type { CampaignFile, PlaceFile } from "./files.ts";
+import { loadPlace, loadScenario, placePath, scenarioPath } from "./scenario.ts";
 import { effectiveScene, IMPROVISED_EXIT_ID } from "./graph.ts";
 import { loadScene, sceneOf } from "./load.ts";
 import { validateScene } from "./types.ts";
@@ -12,7 +12,7 @@ import { validateScene } from "./types.ts";
 
 const CAERWYN = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
 const read = (path: string) => readFileSync(join(CAERWYN, path), "utf8");
-const campaign = JSON.parse(read("campaign.json")) as CampaignFile;
+const campaign = loadScenario(read(scenarioPath("caerwyn")));
 const keys = [...campaign.scenes, campaign.talk!];
 const doc = (key: string) => JSON.parse(read(`scenes/${key}.kmscene`)) as SceneDocument;
 
@@ -20,7 +20,7 @@ test("each of the campaign's scenes and its talk template loads, holds together,
   for (const key of keys) {
     const scene = loadScene(read(`scenes/${key}.kmscene`), `${key}.kmscene`);
     // (Its place as its world would say the Rat's page isn't its own: the story carries it in, with Cob.)
-    const place = doc(key).place ? (JSON.parse(read(`places/${doc(key).place}.json`)) as PlaceFile) : undefined;
+    const place = doc(key).place ? loadPlace(read(placePath(doc(key).place!))) : undefined;
     assert.equal(scene.id, key);
     assert.equal(place?.key, doc(key).place, key);
     assert.deepEqual(validateScene(scene), [], key);

@@ -7,6 +7,7 @@ import { endingNeeds, endingOf, enteringAt, limitOf, openRoutes, oweName, owedLe
 import type { SceneDocument } from "./document.ts";
 import { presentCast } from "./graph.ts";
 import { sceneOf } from "./load.ts";
+import { loadScenario, scenarioPath } from "./scenario.ts";
 
 /** Where the scene is (docs/two-part-design.md "Where the scene is"), on the hanged clerk as the campaign has it. */
 
@@ -168,7 +169,7 @@ test("a thorough end's discoveries: each the scene can reach taken through its o
 
 test("a thorough end on every scene of the story: every discovery reached but one behind an event (the King's Sallow, once he's sent for), every carried one landed", () => {
   const dir = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
-  const campaign = JSON.parse(readFileSync(join(dir, "campaign.json"), "utf8")) as { scenes: string[] };
+  const campaign = loadScenario(readFileSync(join(dir, scenarioPath("caerwyn")), "utf8"), scenarioPath("caerwyn"));
   for (const key of campaign.scenes) {
     const each = sceneOf(JSON.parse(readFileSync(join(dir, "scenes", `${key}.kmscene`), "utf8")) as SceneDocument);
     const done = reachDiscoveries(each, initialGm(each), 1).gm;

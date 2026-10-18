@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
+import { scenarioPathIn } from "../../shared/scene/scenario.ts";
 import { allowed, CONTENT, contentPaths, type Content } from "./content.ts";
 
 /**
@@ -155,7 +156,7 @@ function contentProblems(site: Site): string[] {
   return [
     ...(strays.length ? [`content.json holds what the allowlist doesn't let in: ${strays.slice(0, 5).join(", ")}`] : []),
     ...(absent.length ? [`content.json has none of ${absent.join(", ")}`] : []),
-    ...(content.campaign?.["campaign.json"] && content.prompts?.["gm"] ? [] : ["content.json has no campaign.json or no GM's prompt"]),
+    ...(scenarioPathIn(Object.keys(content.campaign ?? {})) && content.prompts?.["gm"] ? [] : ["content.json has no scenario (<id>.kmscenario) or no GM's prompt"]),
   ];
 }
 

@@ -15,7 +15,7 @@ import { mapFilesOf, mapPlaceOf, originOf } from "./rows.ts";
 import { keepTicking } from "./tick.ts";
 
 /**
- * The start on the map (map-design §3.3). When the campaign's start names a map (campaign.json's
+ * The start on the map (map-design §3.3). When the campaign's start names a map (its scenario's
  * start.map and start.at), new_game and begin put the host on it in place of opening the first
  * scene: the map's own place (map:caerwyn), the host's seat in it, their explore row on the start's
  * tile facing south (the prototype's newExploration), the lead (the first scene), and the lead's
@@ -88,5 +88,5 @@ function regionOf(tx: TxCtx, game: GameRow, sceneKey: string): ReturnType<typeof
   return place && files.some(f => f.id === place.map) ? regionForScene(sceneKey) : undefined;
 }
 
-/** campaign.json's start.at as a tile; the prototype's lane by the granary gate when it has none. */
+/** The scenario's start.at as a tile; the prototype's lane by the granary gate when it has none. */
 const startTile = (at: [number, number] | undefined): Tile2 => (at ? { x: at[0], y: at[1] } : { x: 42, y: 9 });

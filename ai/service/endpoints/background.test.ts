@@ -9,6 +9,7 @@ import { prompt } from "../../prompts/index.ts";
 import { initialGm, type GmState } from "../../../shared/gm/state.ts";
 import type { Entry, RememberRequest, SceneContext } from "../../../shared/protocol/ai.ts";
 import type { PlaceFile } from "../../../shared/scene/files.ts";
+import { loadPlace, placePath } from "../../../shared/scene/scenario.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import { keysFor, worldToRows } from "../../../shared/world/rows.ts";
 import { buildWorld, joinWorld } from "../../../shared/world/scene-world.ts";
@@ -59,7 +60,7 @@ async function setUp(options: FakeOptions) {
 
 /** The scene once turn `n` is over, as the simulation sends it to a job after the turn. */
 function sceneOf(campaign: Awaited<ReturnType<typeof setUp>>["campaign"], n: number, gm: GmState, transcript: Entry[]): SceneContext {
-  const place = JSON.parse(readFileSync(join(CAERWYN, "places", "granary-yard.json"), "utf8")) as PlaceFile;
+  const place: PlaceFile = loadPlace(readFileSync(join(CAERWYN, placePath("granary-yard")), "utf8"));
   const people = presentCast(campaign.scene("hanged-clerk"), gm).map(c => ({ id: c.id, name: c.name }));
   const world = buildWorld("hanged-clerk", place, people, { name: "Wren Ashdown" });
   joinWorld(world, people, 0);

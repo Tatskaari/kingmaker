@@ -16,6 +16,7 @@ import { roundReport, type ReportDeps } from "../qa/loop/report.ts";
 import { checkReviewFile, reviewPack } from "../qa/loop/review.ts";
 import { loadRound, newRound, parseArms, parseScenes, personas } from "../qa/loop/round.ts";
 import { campaignAt, endingsOf, playable, sceneOf, type Loaded } from "../qa/loop/scenes.ts";
+import { scenarioPath } from "../shared/scene/scenario.ts";
 import { triageSheet } from "../qa/loop/triage.ts";
 import { effectiveScene } from "../shared/scene/graph.ts";
 import { loadScene } from "../shared/scene/load.ts";
@@ -220,7 +221,7 @@ function playDeps(): PlayDeps {
     },
     campaign(stack, id, version) {
       const installed = join(resolve(REPO, stack), "ai", "campaigns", id, version);
-      const dir = version && existsSync(join(installed, "campaign.json")) ? installed : join(CAMPAIGNS, id || "caerwyn");
+      const dir = version && existsSync(join(installed, scenarioPath(id))) ? installed : join(CAMPAIGNS, id || "caerwyn");
       if (!loaded.has(dir)) loaded.set(dir, campaignAt(dir));
       return loaded.get(dir)!;
     },

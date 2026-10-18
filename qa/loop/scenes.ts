@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { campaigns, type Campaign } from "../../ai/service/campaigns.ts";
 import { memoryStores } from "../../ai/service/memory-stores.ts";
+import { loadScenario, scenarioPathIn, SCENARIO_EXTENSION } from "../../shared/scene/scenario.ts";
 import type { Exit, Scene } from "../../shared/scene/types.ts";
 
 /**
@@ -11,18 +12,20 @@ import type { Exit, Scene } from "../../shared/scene/types.ts";
  * loop reads a scene as the GM had it: the runtime Scene its .kmscene file makes (shared/scene/load.ts).
  */
 
-/** A campaign version loaded, and its story's scenes in order (campaign.json's). */
+/** A campaign version loaded, and its story's scenes in order (its scenario's). */
 export interface Loaded { campaign: Campaign; keys: string[] }
 
 /**
  * The campaign in a folder, loaded as the AI service loads one PUT to it (in memory): a campaign
  * folder (campaigns/caerwyn) or the copy a stack's AI service keeps of a version it was given
- * (<stack>/ai/campaigns/caerwyn/0.1.0), which is the same files.
+ * (<stack>/ai/campaigns/caerwyn/0.1.0), which is the same files. Its id, version and scenes are its
+ * scenario's (its one <id>.kmscenario at the root, docs/scenario-format.md).
  */
 export async function campaignAt(dir: string): Promise<Loaded> {
   const files = filesIn(dir);
-  const file = JSON.parse(files["campaign.json"] ?? "{}") as { id?: string; version?: string; scenes?: string[] };
-  if (!file.id || !file.version) throw new Error(`${dir} has no campaign.json with an id and a version.`);
+  const path = scenarioPathIn(Object.keys(files));
+  if (!path) throw new Error(`${dir} has no scenario (its one <id>${SCENARIO_EXTENSION} at the root).`);
+  const file = loadScenario(files[path]!, path);
 
   const stores = memoryStores();
   const loader = campaigns(stores.campaigns, stores.docs);

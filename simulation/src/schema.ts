@@ -671,7 +671,7 @@ export const campaign = table({ name: "campaign", public: true }, {
   key: t.string(),
   version: t.string(),
   title: t.string(),
-  /** campaign.json */
+  /** The campaign as the game keeps it (its scenario, <id>.kmscenario, as shared/scene/scenario.ts asCampaignFile makes it: shared/scene/files.ts CampaignFile) */
   json: t.string(),
   /** builds.json */
   builds: t.string(),
@@ -696,17 +696,17 @@ export const placeDef = table({ name: "place_def" }, {
   id: t.string().primaryKey(),
   campaignId: t.string().index("btree"),
   key: t.string(),
-  /** places/<key>.json */
+  /** The place as the game keeps it (places/<key>.kmplace, as shared/scene/scenario.ts asPlaceFile makes it: shared/scene/files.ts PlaceFile) */
   json: t.string(),
 });
 
-/** A campaign version's map (maps/<key>.json), which the client and the simulation both build (shared/map mapOf). Public: the map is what anyone sees. */
+/** A campaign version's map (maps/<key>.kmmap), which the client and the simulation both build (shared/map mapOf). Public: the map is what anyone sees. */
 export const mapDef = table({ name: "map_def", public: true }, {
   /** caerwyn@0.1.0/caerwyn */
   id: t.string().primaryKey(),
   campaignId: t.string().index("btree"),
   key: t.string(),
-  /** maps/<key>.json whole */
+  /** The map as the game keeps it (maps/<key>.kmmap, as shared/scene/scenario.ts asMapFile makes it: shared/map/tiles.ts MapFile) */
   json: t.string(),
 });
 

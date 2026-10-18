@@ -213,8 +213,8 @@ function procedures(local: LocalHost, t: TestContext) {
 const rowsOf = (local: LocalHost) => all(local.sim.db.sceneSuggestion).sort((a, b) => a.ord - b.ord);
 
 /**
- * The two-part GM on the local host (docs/two-part-design.md), on the campaign's own hanged clerk
- * (campaign.json names no GM: its scenes are the two-part GM's), every body through JSON: the
+ * The two-part GM on the local host (docs/two-part-design.md), on the campaign's own hanged clerk,
+ * every body through JSON: the
  * opening's roles as note -1; each line replied by the mouthpiece and settled by the stage manager
  * and the co-GM side by side, the co-GM's walk to murder by persons unknown (fake.json's: its required
  * discovery first, a route a line) taken again on the rows; a check the mouthpiece calls rolled from

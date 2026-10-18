@@ -1,4 +1,4 @@
-// Copied from the prototype's src/game/map/places.ts at 44c6d4a. Each place names its place file (`place: "granary-yard"`, places/<key>.json) in place of its world, whose spec comes from place_def rows (usePlaces: the simulation's, for sceneStart; the client has no place files and never needs one); storyFromSession is cut (the story is rows: rows.ts exploreOf). Imports from v2/shared.
+// Copied from the prototype's src/game/map/places.ts at 44c6d4a. Each place names its place file (`place: "granary-yard"`, places/<key>.json, now places/<key>.kmplace) in place of its world, whose spec comes from place_def rows (usePlaces: the simulation's, for sceneStart; the client has no place files and never needs one); storyFromSession is cut (the story is rows: rows.ts exploreOf). Imports from v2/shared.
 import type { PlaceFile } from "../scene/files.ts";
 import type { WorldSpec } from "../world/scene-world.ts";
 import type { StoryState, Tile2, TileMap } from "./types.ts";
@@ -17,7 +17,7 @@ export interface ScenePlace {
   /** Where it's played. */
   map: string;
   region: string;
-  /** Its place file's key (places/<key>.json): its world, where the player starts (sceneStart). v2: the world shown before the scene opens is its place's rows (ExploreState.waiting). */
+  /** Its place file's key (places/<key>.kmplace): its world, where the player starts (sceneStart). v2: the world shown before the scene opens is its place's rows (ExploreState.waiting). */
   place: string;
   /** Cast ids there before the player arrives (Kell comes with the player after the first scene). */
   present: string[];

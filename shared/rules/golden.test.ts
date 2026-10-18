@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { loadScenario } from "../scene/scenario.ts";
 import "./shim.ts";
 import * as E from "../../vendor/dnd-srd-engine/dnd-srd-engine.module.js";
 import type { RollResult } from "../dice.ts";
@@ -19,7 +20,7 @@ import { masked } from "./golden/masked.ts";
 
 const read = (path: string) => JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8")) as unknown;
 const rules = rulesFrom(E, read("../../vendor/dnd-srd-engine/starter-pack.json"), read("../../vendor/srd-spells/spells.json") as SrdFile);
-const PURSE = (read("../../campaigns/caerwyn/campaign.json") as { startingPurse: Array<{ name: string; quantity: number }> }).startingPurse;
+const PURSE = loadScenario(readFileSync(new URL("../../campaigns/caerwyn/caerwyn.kmscenario", import.meta.url), "utf8")).startingPurse;
 
 interface Golden {
   case: string; name: string; concept: string; build: Build; seed: number; level: number;

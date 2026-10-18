@@ -17,7 +17,7 @@ The investigator works for **King Aldren**, with **Sergeant Agnes Kell** lent to
 
 ## Threads
 
-- **Quests** (campaign.json `quests`). Keep these keys:
+- **Quests** (the scenario's `quests`, in caerwyn.kmscenario). Keep these keys:
   - `hanged-clerk`: Prout's death. It starts at the story's start, and the first scene's endings advance, complete or fail it.
   - `purveyors-man`: Sallow. It starts when the player first has his name tied to the theft: the hanged clerk's motive discovery, if they read the page or heard Kell; otherwise the Rat. It advances at the Rat and the Heron, and completes at the King's morning.
   - `heron-ledger`: the true book. It starts at the Rat and completes at the Heron.

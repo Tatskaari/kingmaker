@@ -222,11 +222,11 @@ test('a new scene written from nothing, every value through a control: the campa
   await connection(page,'Hale takes the blame');
   await write(routeCard(page,'to-hale-blamed'),'Condition','The cart leaves with the short sacks.');
 
-  // No problems: the campaign check's rules find nothing; only the note that campaign.json doesn't list it yet.
+  // No problems: the campaign check's rules find nothing; only the note that the scenario doesn't list it yet.
   await expect(view(page,'Problems')).toHaveAttribute('aria-label','Problems (0)');
   await view(page,'Problems').click();
   await expect(page.locator('.problems-view')).toContainText('No problems');
-  await expect(page.locator('.problems-view')).toContainText('the-short-weight isn\'t one of campaign.json\'s scenes');
+  await expect(page.locator('.problems-view')).toContainText('the-short-weight isn\'t one of the scenario\'s scenes (caerwyn.kmscenario)');
   await page.screenshot({path:'dist/screenshots/new-scene.png'});
 
   // The file, as the game will read it.
@@ -253,11 +253,11 @@ test('a new scene written from nothing, every value through a control: the campa
     ['to-tam-owns-up','tam-swaps','tam-owns-up','Tam owns up',['tam-swaps'],'persuasion'],
   ]);
 
-  // And the story can be sent to it from another scene before campaign.json lists it: offered, and the problems say it isn't listed yet.
+  // And the story can be sent to it from another scene before the scenario lists it: offered, and the problems say it isn't listed yet.
   await page.getByRole('combobox',{name:'Test file',exact:true}).selectOption('scenes/hanged-clerk.kmscene');
   await expect(page.locator('.file-path')).toHaveText('scenes/hanged-clerk.kmscene');
   await select(page,'failed');
-  await inspector(page).getByLabel('Next scene',{exact:true}).selectOption({label:'the-short-weight (a scene file campaign.json doesn\'t list yet)'});
+  await inspector(page).getByLabel('Next scene',{exact:true}).selectOption({label:'the-short-weight (a scene file the scenario doesn\'t list yet)'});
   await expect.poll(async()=>JSON.parse(await page.evaluate(()=>(window as any).__kingmakerHarness.files['scenes/hanged-clerk.kmscene'])).nodes.find((node:any)=>node.id==='failed').data.next).toBe('the-short-weight');
   await view(page,'Problems').click();
   await expect(page.locator('.problems-view .problem')).toHaveText([/ending failed goes on to the-short-weight, which isn't one of the campaign's scenes/]);
