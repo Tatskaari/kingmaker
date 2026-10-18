@@ -50,7 +50,7 @@ test("the player's turn: what's left of it, the order with hit points, the board
   assert.equal(myTurn(view), true);
   const text = fightText(view);
   assert.match(text, /^MODE: fight\n\nA test ring \(the Arena\): your turn\. 30 ft to move, action ready, bonus action spent\.\n\n/);
-  assert.match(text, /Order, round 2:\n▶ 15  @  you \(Wren Ashdown\) +7\/10 HP\n {2}12 {2}B {2}a bandit +4\/11 HP \(prone\)\n/);
+  assert.match(text, /Order, round 2:\n▶ 15  @  you \(Wren Ashdown\) +7\/10 HP\n {2}12 {2}B {2}a bandit +foe +4\/11 HP \(prone\)\n/, "whose side each is on beside their name");
   assert.match(text, /\n {3}01234\n 0 #####\n 1 #@·\.#\n 2 #\.·B#\n 3 ##\+##\n/, "the board, the reachable tiles marked");
   assert.match(text, /What happened:\nA bandit swings at you: 3 damage\.\n {4}▸ swing at you\n {4}Scimitar: a bandit's attack on you: 14 \+3 = 17 vs AC 12: hit\n/, "the caption, what the screen plays of it, its dice");
   assert.match(text, /\n\nACTIONS:\n- walk@2,2: Close in on a bandit \(5 ft\)\n- end_turn: End your turn\n- walk@x,y: Move to any tile marked · \(30 ft left\), a tile at a time$/);
@@ -80,8 +80,8 @@ test("each moment as the screen plays it, a line under its caption: the walk's t
   assert.equal(lines[lines.indexOf("A grey wolf closes in on you, 30 ft.") + 1], "    ▸ walks 3,2 → 3,3 → 3,4 → 3,5 → 3,6 → 3,7 → 3,8");
   const bite = lines.indexOf("A lean grey wolf bites you: 8 damage.");
   assert.equal(lines[bite + 1], "    ▸ wolf bite swing at you · you hit: 8 piercing · you now prone");
-  assert.equal(lines[bite + 2], "    Wolf Bite: a lean grey wolf's attack on you: 18/10 (advantage) +4 = 22 vs AC 18: hit", "then its dice");
-  assert.ok(lines.some(l => /^ {4}▸ longsword swing at a big grey wolf · a big grey wolf hit: 11 slashing, critical · a big grey wolf now unconscious · a big grey wolf goes down$/.test(l)), "a critical that puts one down");
+  assert.equal(lines[bite + 2], "    Wolf Bite: a lean grey wolf's attack on you: 18/10 (advantage: Pack Tactics, a friend beside them) +4 = 22 vs AC 18: hit", "then its dice, with why it had advantage");
+  assert.ok(lines.some(l => /^ {4}▸ longsword swing at a big grey wolf · a big grey wolf hit: 11 slashing, critical · a big grey wolf goes down$/.test(l)), "a critical that puts one down");
   assert.ok(lines.some(l => l === "    ▸ a grey wolf gives up"), "a wolf yielding");
   // observe's What happened has them too.
   assert.match(fightText(view), /What happened:[\s\S]*▸ /);

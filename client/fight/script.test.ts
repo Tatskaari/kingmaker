@@ -14,14 +14,16 @@ import { scriptLine, scriptOf, type Beat } from "./script.ts";
  */
 
 const moment = (seq: number): FightEvent => WOLVES.events.find(e => e.seq === seq)!;
-const kinds = (beats: Beat[]) => beats.map(b => b.kind);
+/** The beats that show something (a caption's hold up to its least time aside). */
+const shown = (beats: Beat[]) => beats.filter(b => b.kind !== "hold");
+const kinds = (beats: Beat[]) => shown(beats).map(b => b.kind);
 const name = (id: string) => (id === "player" ? "you" : id);
 
 test("a wolf's walk: a step a tile, each a tile's time after the last, numbered; the walk the moment's time", () => {
   const walk = moment(8);
   const s = scriptOf(walk);
-  assert.deepEqual(s.beats.map(b => (b.kind === "step" ? [b.t, b.n, b.to.x, b.to.y] : b.kind)), walk.detail.path!.map((t, i) => [i * PACE.tile, i + 1, t.x, t.y]));
-  assert.equal(s.ms, 6 * PACE.tile);
+  assert.deepEqual(shown(s.beats).map(b => (b.kind === "step" ? [b.t, b.n, b.to.x, b.to.y] : b.kind)), walk.detail.path!.map((t, i) => [i * PACE.tile, i + 1, t.x, t.y]));
+  assert.equal(s.ms, Math.max(PACE.caption, 6 * PACE.tile), "the walk's time, or its caption's least time if that's longer");
   assert.equal(scriptLine(walk, name), "▸ walks 3,2 → 3,3 → 3,4 → 3,5 → 3,6 → 3,7 → 3,8");
 });
 
@@ -29,7 +31,7 @@ test("a bite that lands: the flash between them, then what it did all at once (t
   const bite = moment(14);
   const s = scriptOf(bite);
   assert.deepEqual(kinds(s.beats), ["swing", "hit", "tag"]);
-  const [swing, hit, tag] = s.beats as [Extract<Beat, { kind: "swing" }>, Extract<Beat, { kind: "hit" }>, Extract<Beat, { kind: "tag" }>];
+  const [swing, hit, tag] = shown(s.beats) as [Extract<Beat, { kind: "swing" }>, Extract<Beat, { kind: "hit" }>, Extract<Beat, { kind: "tag" }>];
   assert.deepEqual([swing.t, swing.ms, swing.by, swing.target, swing.with], [0, PACE.swing, "wolf-3", "player", "Wolf Bite"]);
   assert.deepEqual(swing.to, { x: 4, y: 9 });
   assert.deepEqual([hit.t, hit.unit, hit.amount, hit.type, hit.critical], [PACE.swing, "player", 8, "piercing", false]);
@@ -40,9 +42,9 @@ test("a bite that lands: the flash between them, then what it did all at once (t
 
 test("a miss puffs off them; a turn has its beat before the bar moves on; a wolf that gives up says so", () => {
   const miss = scriptOf(moment(4));
-  assert.deepEqual(miss.beats.map(b => (b.kind === "miss" ? `${b.kind}:${b.unit}:${b.word}` : b.kind)), ["swing", "miss:player:miss"]);
+  assert.deepEqual(shown(miss.beats).map(b => (b.kind === "miss" ? `${b.kind}:${b.unit}:${b.word}` : b.kind)), ["swing", "miss:player:miss"]);
   const turn = scriptOf(moment(5));
-  assert.deepEqual(turn.beats.map(b => [b.kind, b.t, b.ms]), [["pause", 0, PACE.beat], ["turn", PACE.beat, PACE.turn]]);
+  assert.deepEqual(shown(turn.beats).map(b => [b.kind, b.t, b.ms]), [["pause", 0, PACE.beat], ["turn", PACE.beat, PACE.turn]]);
   assert.equal(turn.turnAt, PACE.beat);
   assert.equal((turn.beats[1] as Extract<Beat, { kind: "turn" }>).unit, "player");
   const yielded = scriptOf(moment(18));
@@ -50,13 +52,14 @@ test("a miss puffs off them; a turn has its beat before the bar moves on; a wolf
   assert.equal(yielded.ms, Math.max(PACE.caption, PACE.hit));
 });
 
-test("a critical that puts a wolf down: the swing, the hit (a critical), then the fall, in turn", () => {
+test("a critical that puts a wolf down: the swing, the hit (a critical), then the fall, in turn (out cold goes without saying: the fall says it)", () => {
   const s = scriptOf(moment(30));
-  assert.deepEqual(kinds(s.beats), ["swing", "hit", "tag", "fall"]);
-  const hit = s.beats[1] as Extract<Beat, { kind: "hit" }>, fall = s.beats[3] as Extract<Beat, { kind: "fall" }>;
+  assert.deepEqual(kinds(s.beats), ["swing", "hit", "fall"]);
+  const hit = s.beats[1] as Extract<Beat, { kind: "hit" }>, fall = s.beats[2] as Extract<Beat, { kind: "fall" }>;
   assert.deepEqual([hit.amount, hit.critical], [11, true]);
   assert.deepEqual([fall.t, fall.ms, fall.unit, fall.state], [PACE.swing + PACE.hit, PACE.fall, "wolf-2", "down"]);
-  assert.match(scriptLine(moment(30), name)!, /^▸ longsword swing at wolf-2 · wolf-2 hit: 11 slashing, critical · wolf-2 now unconscious · wolf-2 goes down$/);
+  assert.match(scriptLine(moment(30), name)!, /^▸ longsword swing at wolf-2 · wolf-2 hit: 11 slashing, critical · wolf-2 goes down$/);
+  assert.match(scriptLine(moment(30), id => (id === "wolf-2" ? "you" : id))!, / · you hit: 11 slashing, critical · you go down$/, "said of the player, the player's verb");
 });
 
 test("an area: its tiles lit, then everyone it caught at once (a save among them), then each fall in turn", () => {

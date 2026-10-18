@@ -11,7 +11,7 @@ const RECENT = 14;
 export function fightText(view: FightView, recent: FightEvent[] = view.events.slice(-RECENT)): string {
   const options = view.options;
   const text = [
-    `${view.title} (${view.place}): ${head(view)}`,
+    `${view.title}${view.place.toLowerCase() === view.title.toLowerCase() ? "" : ` (${view.place})`}: ${head(view)}`,
     `Order, round ${view.round}:\n${orderLines(view.board, view.status === "on" ? view.turn : "").join("\n")}`,
     gridText(view.board, view.map, options?.moves ?? []),
     KEY,
@@ -25,7 +25,7 @@ export function fightText(view: FightView, recent: FightEvent[] = view.events.sl
 
 /** Whose turn, and what the player has left of theirs; or how it went. */
 function head(view: FightView): string {
-  if (view.status !== "on") return `it's over (${view.outcome ?? "?"}). ${view.result?.summary ?? ""}`.trim();
+  if (view.status !== "on") return `it's over (${view.outcome ?? "?"}). ${view.result?.told ?? view.result?.summary ?? ""}`.trim();
   const turn = view.board.units[view.turn];
   const o = view.options;
   if (o) return `your turn. ${o.movementLeft} ft to move, action ${o.actionUsed ? "spent" : "ready"}, bonus action ${o.bonusActionUsed ? "spent" : "ready"}.`;

@@ -161,7 +161,7 @@ function tellTheMap(tx: TxCtx, player: PlayerRow, fight: FightRow): void {
   const walker = walkerOf(tx, game);
   if (!walker) return;
   const result = fight.result ? (JSON.parse(fight.result) as FightResult) : undefined;
-  const said = `${fight.title}: ${result?.summary ?? "it's over."}`;
+  const said = `${fight.title}: ${result?.told ?? result?.summary ?? "it's over."}`;
   const rows = mapRowsOf(tx, game, walker);
   const written = exploreRowOf(exploreOf(rows), rows.explore, said);
   writeExplore(tx, { ...written, log: [...rows.explore.log, said].slice(-LOG_LINES) });

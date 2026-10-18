@@ -7,6 +7,8 @@ import { all, hostWithCampaign, identity } from "../host/testing.ts";
 import type { MemoryHost } from "../host/memory.ts";
 import { playerRow } from "../rows.ts";
 import { RINGS } from "../../../shared/zoo/rings.ts";
+import { orderLines } from "../../../shared/fight/board.ts";
+import { steps } from "../../../shared/fight/grid.ts";
 import { decide, freshMemo } from "./ai.ts";
 import { boardOfRow, eventsOf, fightOf, peek, type FightRow } from "./rows.ts";
 import { startFight } from "./start.ts";
@@ -187,6 +189,19 @@ test("walking out of someone's reach gives them an opportunity attack, which spl
   assert.match(quiet[0]!.caption, /^You disengage: no swings as you move away\.$/);
 });
 
+test("a walk's option says it draws a swing only when it does: backing off from someone beside you does, until you disengage", () => {
+  const { host, playerId, game, wren } = onMap();
+  started(host, playerId, room([{ id: "bandit", at: { x: 4, y: 3 } }], { x: 3, y: 3 }));
+  toPlayer(host, game.id);
+  const back = () => options(host, game.id)!.actions.find(a => a.name === "Back off")!;
+  if (board(host, game.id).units["bandit"]!.state !== "fighting") return;
+  assert.match(back().label, /^Back off \(\d+ ft; it draws a swing at you, unless you disengage first\)$/);
+  assert.ok(options(host, game.id)!.swings?.some(t => t.x === back().at!.x && t.y === back().at!.y), "where the board marks a swing");
+  assert.equal(host.as(wren).fightTurn({ act: "disengage" }), undefined);
+  assert.match(back().label, /^Back off \(\d+ ft\)$/, "disengaged: no swing to warn of");
+  assert.equal(options(host, game.id)!.swings, undefined);
+});
+
 test("the AI's choice: a bruiser beside you swings, one across the room closes in, an archer with a clear shot shoots, and a coward says his piece and runs", () => {
   const { host, playerId, game } = onMap();
   started(host, playerId, room([
@@ -312,11 +327,12 @@ test("a fight's end: the last of them down is a victory, its moment and how it w
   const result = JSON.parse(fight.result!) as FightResult;
   assert.equal(result.outcome, fight.outcome);
   assert.match(result.summary, /A bandit (went down|gave up)\. The player ended the fight on \d+ of \d+ hit points\. It took \d+ rounds?\./);
+  assert.match(result.told ?? "", /A bandit (went down|gave up)\. You ended the fight on \d+ of \d+ hit points\. It took \d+ rounds?\./, "and told to the player as theirs");
   // The map's moves wait for out; out goes back to the map, the fight done and its end the map's words.
   assert.match(host.as(wren).interact({ verb: "look" })?.text ?? "", /The fight's over: out goes back to the map/);
   assert.equal(host.as(wren).walk({ toward: "out" }), undefined);
   assert.equal(fightNow(host, game.id).status, "done");
-  assert.match(host.db.explore.playerId.find(playerId)!.said, /^A test: A bandit (went down|gave up)\./);
+  assert.match(host.db.explore.playerId.find(playerId)!.said, /^A test: A bandit (went down|gave up)\. You ended the fight/);
   assert.equal(host.as(wren).walk({ toward: "east" }), undefined, "and the map is the map again");
 });
 
@@ -502,4 +518,31 @@ test("hurry, the screen's skip to your turn: the other side's turns before the p
   for (const id of ["bandit-1", "bandit-2"]) assert.ok(played.some(e => e.actor === id && e.kind !== "turn") || board(host, game.id).units[id]!.state !== "fighting", `${id}'s turn was played`);
   if (back.options) assert.equal(played[played.length - 1]!.kind === "turn" && played[played.length - 1]!.actor, "player");
   assert.equal(host.fightSteps(), 0, "the step on the clock finds nothing to do");
+});
+
+test("Sleep: its caption says who it put to sleep, a sleeper's turn says they're asleep, and the order says so", () => {
+  // Two bandits apart when the wizard's turn comes (the first seed that has them so), so Sleep catches one and the other fights on.
+  const at = (seed: number) => {
+    const set = onMap("wizard", seed);
+    started(set.host, set.playerId, room([{ id: "bandit-1", at: { x: 6, y: 1 } }, { id: "bandit-2", name: "another bandit", at: { x: 10, y: 6 } }], { x: 1, y: 3 }));
+    toPlayer(set.host, set.game.id);
+    return set;
+  };
+  const apart = (set: ReturnType<typeof at>) => { const u = board(set.host, set.game.id).units; return u["bandit-1"]!.state === "fighting" && u["bandit-2"]!.state === "fighting" && steps(u["bandit-1"]!.at, u["bandit-2"]!.at) > 2 && steps(u["bandit-1"]!.at, u["player"]!.at) > 1; };
+  const { host, game, wren } = [7, 1, 2, 3, 4, 5, 6, 8, 9, 10].map(at).find(apart)!;
+  const target = board(host, game.id).units["bandit-1"]!.at;
+  const seen = fightNow(host, game.id).seq;
+  assert.equal(host.as(wren).cast({ spell: "sleep", at: target }), undefined);
+  const cast = events(host, fightNow(host, game.id)).filter(e => e.seq > seen && e.kind === "cast")[0]!;
+  const slept = cast.detail.hits.filter(h => h.gained.includes("unconscious") && h.state === "fighting");
+  assert.deepEqual(slept.map(h => h.unit), ["bandit-1"], cast.detail.lines.join(" / "));
+  assert.match(cast.caption, /^You cast Sleep, catching a bandit \(asleep\)\.$/);
+  // The order says so, and so does the sleeper's turn as it comes round.
+  const b = board(host, game.id);
+  assert.ok(orderLines(b, "").some(l => l.includes("a bandit") && /\(asleep\)$/.test(l)), orderLines(b, "").join("\n"));
+  host.as(wren).fightTurn({ act: "end_turn" });
+  toPlayer(host, game.id);
+  const turn = events(host, fightNow(host, game.id)).find(e => e.kind === "turn" && e.actor === "bandit-1" && e.seq > seen);
+  assert.ok(turn, "the sleeper's turn came round");
+  assert.match(turn.caption, /^Round \d+: a bandit's turn, and they're asleep\.$/);
 });

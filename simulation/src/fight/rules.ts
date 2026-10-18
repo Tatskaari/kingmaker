@@ -181,38 +181,58 @@ const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 const possessive = (name: string) => (name === "you" ? "your" : name.endsWith("s") ? `${name}'` : `${name}'s`);
 
 /** The engine's events as the player sees them. */
-export function diceLines(table: Table, events: Dnd.EngineEvent[], names: Namer, label?: string): string[] {
+export function diceLines(table: Table, events: Dnd.EngineEvent[], names: Namer, label?: string, why?: { advantage?: string; disadvantage?: string }): string[] {
   const lines: string[] = [];
-  for (const e of events) {
+  // Each target's hit points as the lines go: from how they stood before these events (the fight's
+  // own count, not yet refreshed), so a second hit's line says what the first left; the engine's
+  // after them when the fight doesn't know them.
+  const hp = new Map<string, number>();
+  const hpOf = (id: string) => hp.get(id) ?? names.hp(id)?.hp ?? Math.max(0, table.char(id)?.hp.current ?? 0);
+  // Extra damage a feature brings (a triggered effect: Sneak Attack), by the trigger that fired it.
+  const triggered = new Map<string, string>();
+  for (const [i, e] of events.entries()) {
     const who = (k: string) => names.called(String(e[k]));
     switch (e.type) {
       case "AttackRolled": {
         const d20 = (e["d20"] as number[]).join("/");
-        const adv = e["used"] && e["used"] !== "none" ? ` (${e["used"]})` : "";
+        const used = e["used"] && e["used"] !== "none" ? String(e["used"]) : "";
+        const reason = used === "advantage" ? why?.advantage : used === "disadvantage" ? why?.disadvantage : undefined;
+        const adv = used ? ` (${used}${reason ? `: ${reason}` : ""})` : "";
         const verdict = e["critical"] ? "critical hit!" : e["hit"] ? "hit" : "miss";
         const what = label ?? names.weapon(String(e["weaponInstanceId"]));
         const oa = e["isOpportunityAttack"] ? " (opportunity attack)" : "";
         lines.push(`${what}: ${possessive(who("attackerId"))} attack on ${who("targetId")}${oa}: ${d20}${adv} ${signed(Number(e["attackBonus"]))} = ${e["total"]} vs AC ${e["targetAC"]}: ${verdict}`);
         break;
       }
+      case "TriggerFired":
+        triggered.set(e.id, featureName(String(e["triggerId"] ?? "")));
+        break;
       case "DamageRolled": {
         lines.push(damageLine(e["rolls"] as DamageRoll[]));
         break;
       }
       case "DamageApplied": {
-        const amount = (e["components"] as Array<{ amount: number; type: string }>).map(c => `${c.amount} ${c.type}`).join(" and ");
+        const components = e["components"] as Array<{ amount: number; type: string }>;
+        const amount = components.map(c => `${c.amount} ${c.type}`).join(" and ");
         const target = String(e["targetId"]);
-        const c = table.char(target);
-        if (names.isPc(target)) lines.push(`You take ${amount} damage (HP ${Math.max(0, c?.hp.current ?? 0)}/${c?.hp.max ?? "?"})`);
-        else lines.push(`${cap(who("targetId"))} takes ${amount} damage (HP ${Math.max(0, c?.hp.current ?? 0)}/${c?.hp.max ?? "?"})`);
+        const left = Math.max(0, hpOf(target) - components.reduce((n, c) => n + c.amount, 0));
+        hp.set(target, left);
+        const max = table.char(target)?.hp.max ?? "?";
+        const feature = triggered.get(String(e["causedByEventId"] ?? ""));
+        const takes = `${names.isPc(target) ? "you take" : `${who("targetId")} takes`} ${amount} damage (HP ${left}/${max})`;
+        lines.push(feature ? `${feature}: ${takes}` : cap(takes));
         break;
       }
       case "SaveRolled": {
         const d20 = (e["d20"] as number[]).join("/");
         const ability = ABILITY_NAME[String(e["ability"]) as Dnd.Ability] ?? String(e["ability"]);
-        lines.push(`${cap(possessive(who("targetId")))} ${ability} save: ${d20} ${signed(Number(e["bonus"]))} = ${e["total"]} vs DC ${e["dc"]}: ${e["success"] ? "saved" : "failed"}`);
+        const keeping = concentrationSave(events, i, table) ? " to keep concentrating" : "";
+        lines.push(`${cap(possessive(who("targetId")))} ${ability} save${keeping}: ${d20} ${signed(Number(e["bonus"]))} = ${e["total"]} vs DC ${e["dc"]}: ${e["success"] ? "saved" : "failed"}`);
         break;
       }
+      case "ConcentrationBroken":
+        if (e["reason"] !== "newConcentrationSpell") lines.push(`${cap(possessive(who("casterId")))} concentration breaks${e["reason"] === "unconscious" ? ", out cold" : ""}: the spell ends`);
+        break;
       case "DeathSaveRolled": {
         const target = String(e["targetId"]);
         const c = table.char(target);
@@ -229,7 +249,10 @@ export function diceLines(table: Table, events: Dnd.EngineEvent[], names: Namer,
       case "Healed": {
         const target = String(e["targetId"]);
         const c = table.char(target);
-        lines.push(`${cap(who("targetId"))} regain${names.isPc(target) ? "" : "s"} ${e["amount"]} HP${c ? ` (HP ${c.hp.current}/${c.hp.max})` : ""}`);
+        const max = c?.hp.max;
+        const now = Math.min(max ?? Infinity, hpOf(target) + Number(e["amount"] ?? 0));
+        hp.set(target, now);
+        lines.push(`${cap(who("targetId"))} regain${names.isPc(target) ? "" : "s"} ${e["amount"]} HP${max !== undefined ? ` (HP ${now}/${max})` : ""}`);
         break;
       }
       case "CreaturePushed":
@@ -238,4 +261,24 @@ export function diceLines(table: Table, events: Dnd.EngineEvent[], names: Namer,
     }
   }
   return lines;
+}
+
+/** A feature's name from the trigger that fired it ("rogue:sneak-attack" → "Sneak Attack"). */
+function featureName(triggerId: string): string {
+  const id = triggerId.split(":").filter(Boolean).pop() ?? triggerId;
+  return id.split("-").map(w => cap(w)).join(" ");
+}
+
+/**
+ * A Constitution save that's a caster's to keep a spell going: rolled right after they took damage
+ * in these events, while they're concentrating (or it broke on it).
+ */
+function concentrationSave(events: Dnd.EngineEvent[], i: number, table: Table): boolean {
+  const e = events[i]!;
+  if (e["ability"] !== "CON") return false;
+  const target = String(e["targetId"]);
+  const hurt = events.slice(0, i).some(p => p.type === "DamageApplied" && String(p["targetId"]) === target);
+  if (!hurt) return false;
+  const broke = events.slice(i + 1).some(n => n.type === "ConcentrationBroken" && String(n["casterId"]) === target);
+  return broke || table.char(target)?.concentrationEffectId !== undefined;
 }

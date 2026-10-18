@@ -21,16 +21,16 @@ export function optionsOf(s: Skirmish): FightOptions {
   const bonusActionUsed = !use || use.bonusActionUsed;
   const movementLeft = s.movementLeft(u);
   const moves = movementLeft >= FEET ? s.moveTargets(u) : [];
+  const swings = swingTiles(s, u, movementLeft);
   const all: FightAction[] = [
     ...attacks(s, u),
     ...spells(s, u),
     ...wrestles(s, u),
-    ...named(s, u, movementLeft),
+    ...named(s, u, movementLeft, swings),
     ...turnActs(s, u, actionUsed),
   ];
   // One choice an id: a lantern hanging over someone is the someone (the act takes whoever's there first).
   const actions = all.filter((a, i) => all.findIndex(b => b.id === a.id) === i);
-  const swings = swingTiles(s, u, movementLeft);
   return { movementLeft, speed: u.speed * (use?.dashed ? 2 : 1), actionUsed, bonusActionUsed, moves, ...(swings.length ? { swings } : {}), actions };
 }
 
@@ -70,7 +70,10 @@ function attacks(s: Skirmish, u: Unit): FightAction[] {
     const w = u.weapons.find(w => !s.attackCheck(u, v, w).error);
     if (!w) continue;
     const check = s.attackCheck(u, v, w);
-    const notes = [check.advantage, check.cover ? "half cover" : undefined, `${feetBetween(u.at, v.at)} ft`].filter(Boolean).join(", ");
+    // The odds as the dice will have them, and why where the fight can tell ("disadvantage: someone's beside you").
+    const why = s.attackWhy(u, v, check);
+    const odds = [why.advantage ? `advantage: ${why.advantage}` : "", why.disadvantage ? `disadvantage: ${why.disadvantage}` : ""].filter(Boolean);
+    const notes = [...(odds.length ? odds : [check.advantage]), check.cover ? "half cover" : undefined, `${feetBetween(u.at, v.at)} ft`].filter(Boolean).join(", ");
     out.push({ id: `attack@${at(v.at)}`, label: `Attack ${v.name} (${s.namer().weapon(w)} ${signed(attackBonus(sheet, w))}; ${notes})`, kind: "attack", name: "Attack", cost: "action", at: { ...v.at }, target: v.id, range: reachOf(s, w) });
   }
   for (const p of Object.values(s.G.props).filter(p => p.kind === "lantern" && p.state === "standing" && !p.carriedBy)) {
@@ -119,25 +122,30 @@ function wrestles(s: Skirmish, u: Unit): FightAction[] {
   return out;
 }
 
-/** Moves by name (where walk@x,y would take them): closer to each of the other side, away from them, to the way out. */
-function named(s: Skirmish, u: Unit, left: number): FightAction[] {
+/**
+ * Moves by name (where walk@x,y would take them): closer to each of the other side, away from them,
+ * to the way out; each saying when the way there draws a swing at you (`swings`: none once you've
+ * disengaged, or with nobody able to swing).
+ */
+function named(s: Skirmish, u: Unit, left: number, swings: Tile2[]): FightAction[] {
   if (left < FEET) return [];
   const out: FightAction[] = [];
   const footing = { at: u.at, left };
+  const swing = (to: Tile2) => (swings.some(t => same(t, to)) ? "; it draws a swing at you, unless you disengage first" : "");
   const walk = (to: { at: Tile2; feet: number }, name: string, label: string): FightAction => ({ id: `walk@${at(to.at)}`, label, kind: "move", name, cost: "move", at: { ...to.at }, feet: to.feet });
   for (const v of s.units.filter(v => v.state === "fighting" && s.hostile(u, v) && steps(v.at, u.at) > 1)) {
     const best = moveChoices(s, u, footing, { kind: "close", at: v.at })[0];
-    if (best && !same(best.at, u.at)) out.push(walk(best, `Close in on ${v.name}`, `Close in on ${v.name} (${best.feet} ft${steps(best.at, v.at) > 1 ? ", not all the way" : ""})`));
+    if (best && !same(best.at, u.at)) out.push(walk(best, `Close in on ${v.name}`, `Close in on ${v.name} (${best.feet} ft${steps(best.at, v.at) > 1 ? ", not all the way" : ""}${swing(best.at)})`));
   }
   if (s.units.some(v => v.state === "fighting" && s.hostile(u, v) && steps(v.at, u.at) <= 1)) {
     const back = moveChoices(s, u, footing, { kind: "back" })[0];
-    if (back) out.push(walk(back, "Back off", `Back off (${back.feet} ft; a swing at you unless you disengage first)`));
+    if (back) out.push(walk(back, "Back off", `Back off (${back.feet} ft${swing(back.at)})`));
   }
   const exit = nearestExit(s, u.at);
   const way = exit ? s.G.exits.find(e => same(e.at, exit)) : undefined;
   if (exit && way && !same(exit, u.at)) {
     const door = moveChoices(s, u, footing, { kind: "door" })[0];
-    if (door && !same(door.at, u.at)) out.push(walk(door, `Make for ${way.label}`, `Make for ${way.label} (${door.feet} ft${same(door.at, exit) ? "" : ", not all the way"})`));
+    if (door && !same(door.at, u.at)) out.push(walk(door, `Make for ${way.label}`, `Make for ${way.label} (${door.feet} ft${same(door.at, exit) ? "" : ", not all the way"}${swing(door.at)})`));
   }
   // Every named move is a walk to a tile: two names for one tile are one choice.
   return out.filter((a, i) => out.findIndex(b => b.id === a.id) === i);

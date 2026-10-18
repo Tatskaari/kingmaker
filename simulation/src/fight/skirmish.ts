@@ -224,10 +224,34 @@ export class Skirmish {
   }
 
   /** The engine's events: their dice lines in the moment, and what they did (the rolls, the damage, the saves, the healing) in its details. */
-  dice(events: Dnd.EngineEvent[], label?: string): void {
+  dice(events: Dnd.EngineEvent[], label?: string, why?: { advantage?: string; disadvantage?: string }): void {
     const d = this.draft();
     for (const e of events) this.note(d, e, label);
-    for (const line of diceLines(this.t, events, this.namer(), label)) this.log("dice", line);
+    for (const line of diceLines(this.t, events, this.namer(), label, why)) this.log("dice", line);
+  }
+
+  /**
+   * Why a blow from u at the target would have advantage or disadvantage, as far as the fight can
+   * tell (the engine says only which it had): for advantage, a pack's friend beside the target (Pack
+   * Tactics, the Crakes' and the wolves'), the target on the floor or out cold within reach; for
+   * disadvantage, a shot at long range or with someone beside the shooter, at someone on the floor,
+   * at someone dodging, or from the floor. Each undefined when it knows of nothing.
+   */
+  attackWhy(u: Unit, target: Unit, check: { melee: boolean; packed: boolean; advantage?: "advantage" | "disadvantage" }): { advantage?: string; disadvantage?: string } {
+    const they = target.id === this.G.pc ? "you're" : "they're";
+    const up: string[] = [], down: string[] = [];
+    const me = this.t.char(u.engineId);
+    const traits = ((me?.statblockId ? this.t.kit.engine.content.monsters.get(me.statblockId)?.traits : undefined) ?? []) as unknown[];
+    if (check.packed && traits.some(tr => JSON.stringify(tr).includes("attackerHasAllyAdjacentToTarget"))) up.push("Pack Tactics, a friend beside them");
+    const close = check.melee && steps(u.at, target.at) <= 1;
+    if (close && target.conditions.includes("unconscious")) up.push(`${they} out cold`);
+    else if (close && target.conditions.includes("prone")) up.push(`${they} on the floor`);
+    if (!check.melee && check.advantage === "disadvantage") down.push("long range");
+    if (!check.melee && this.units.some(v => this.hostile(u, v) && this.able(v) && steps(v.at, u.at) <= 1)) down.push(`${u.id === this.G.pc ? "someone's" : "a foe's"} beside ${u.id === this.G.pc ? "you" : "them"}`);
+    if (!check.melee && target.conditions.includes("prone")) down.push(`${they} on the floor`);
+    if (target.conditions.some(c => c === "dodged" || c === "dodging")) down.push(`${they} dodging`);
+    if (u.conditions.includes("prone")) down.push(`${check.melee ? "swinging" : "shooting"} from the floor`);
+    return { ...(up.length ? { advantage: up.join("; ") } : {}), ...(down.length ? { disadvantage: down.join("; ") } : {}) };
   }
 
   private note(d: Draft, e: Dnd.EngineEvent, label?: string): void {
@@ -546,6 +570,7 @@ export class Skirmish {
     const check = this.attackCheck(u, target, weapon);
     if (check.error) return check.error;
     const advantage = check.advantage;
+    const why = this.attackWhy(u, target, check);
     const intent: Record<string, unknown> = {
       attackerId: u.engineId, targetId: target.engineId, weaponInstanceId: weapon, attackerHasAllyAdjacentToTarget: check.packed,
       ...(advantage ? { advantage } : {}), ...(check.cover ? { cover: check.cover } : {}),
@@ -571,7 +596,7 @@ export class Skirmish {
         for (const l of rest) this.log("dice", l);
         this.log("narration", `${cap(target.called)} turns the blow aside with a flick of the ${(target.weaponName ?? "blade").toLowerCase()}, and looks faintly bored about it.`, target.id);
       } else {
-        this.dice(rolled.events, label);
+        this.dice(rolled.events, label, why);
         const dmg = (this.t.kit.plan["attackDamage"] as unknown as (r: unknown) => { events: Dnd.EngineEvent[] })(rolled.roll);
         this.t.apply(dmg.events);
         this.dice(dmg.events);
@@ -579,7 +604,7 @@ export class Skirmish {
     } else {
       let events: Dnd.EngineEvent[];
       try { events = this.t.plan("attack", intent); } catch (e) { this.current = undefined; return reason(e); }
-      this.dice(events, label);
+      this.dice(events, label, why);
     }
     this.settle();
     return undefined;

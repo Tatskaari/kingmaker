@@ -80,7 +80,8 @@ function outcomes(e: Pick<FightEvent, "kind" | "actor" | "detail">, t: number, m
     if (amount > 0) out.push({ kind: "hit", t, ms, unit: h.unit, amount, ...(h.damage[0] ? { type: h.damage[0].type } : {}), critical });
     if (h.healed > 0) out.push({ kind: "heal", t, ms, unit: h.unit, amount: h.healed });
     if (h.saved !== undefined) out.push({ kind: "save", t, ms, unit: h.unit, saved: h.saved });
-    for (const c of h.gained) out.push({ kind: "tag", t, ms, unit: h.unit, condition: c, gained: true });
+    // Out cold as they fall goes without saying (the fall says it).
+    for (const c of h.gained) if (!(c === "unconscious" && h.fell)) out.push({ kind: "tag", t, ms, unit: h.unit, condition: c, gained: true });
     for (const c of h.lost) out.push({ kind: "tag", t, ms, unit: h.unit, condition: c, gained: false });
     if (h.movedTo) out.push({ kind: "push", t, ms, unit: h.unit, to: { ...h.movedTo } });
     if (!h.fell && (h.state === "fled" || h.state === "surrendered") && h.was?.state !== h.state) out.push({ kind: "gone", t, ms, unit: h.unit, state: h.state });
@@ -105,6 +106,8 @@ type NameOf = (id: string) => string;
 export function scriptLine(e: Pick<FightEvent, "kind" | "actor" | "target" | "turn" | "detail">, name: NameOf): string | undefined {
   const parts: string[] = [];
   const steps: Tile2[] = [];
+  // A verb for whoever it is: "you save", "the wolf saves".
+  const v = (id: string, you: string, them: string) => `${name(id)} ${name(id) === "you" ? you : them}`;
   for (const b of scriptOf(e).beats) {
     switch (b.kind) {
       case "step": steps.push(b.to); break;
@@ -115,11 +118,11 @@ export function scriptLine(e: Pick<FightEvent, "kind" | "actor" | "target" | "tu
       case "hit": parts.push(`${name(b.unit)} hit: ${b.amount}${b.type ? ` ${b.type}` : ""}${b.critical ? ", critical" : ""}`); break;
       case "heal": parts.push(`${name(b.unit)} +${b.amount} HP`); break;
       case "miss": parts.push(`${name(b.unit)}: ${b.word}`); break;
-      case "save": parts.push(`${name(b.unit)} ${b.saved ? "saves" : "fails the save"}`); break;
-      case "tag": parts.push(`${name(b.unit)} ${b.gained ? "now" : "no longer"} ${b.condition}`); break;
+      case "save": parts.push(b.saved ? v(b.unit, "save", "saves") : v(b.unit, "fail the save", "fails the save")); break;
+      case "tag": parts.push(`${name(b.unit)} ${b.gained ? "now" : "no longer"} ${b.condition === "unconscious" ? "asleep" : b.condition}`); break;
       case "push": parts.push(`${name(b.unit)} pushed to ${tile(b.to)}`); break;
-      case "fall": parts.push(`${name(b.unit)} ${b.state === "dead" ? "dies" : "goes down"}`); break;
-      case "gone": parts.push(`${name(b.unit)} ${b.state === "fled" ? "is gone" : "gives up"}`); break;
+      case "fall": parts.push(b.state === "dead" ? v(b.unit, "die", "dies") : v(b.unit, "go down", "goes down")); break;
+      case "gone": parts.push(b.state === "fled" ? v(b.unit, "are gone", "is gone") : v(b.unit, "give up", "gives up")); break;
       default: break;
     }
   }

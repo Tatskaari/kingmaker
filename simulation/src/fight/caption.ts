@@ -77,8 +77,8 @@ class Caption {
   turn(): string {
     const u = this.actor;
     const whose = this.you ? "your" : possessive(this.name(this.m.actor));
-    const down = u && u.state === "down" ? ", on the floor" : "";
-    return `Round ${this.m.round}: ${whose} turn${down}.`;
+    const how = u && u.state === "down" ? ", on the floor" : u && u.state === "fighting" && u.conditions.includes("unconscious") ? `, and ${this.you ? "you're" : "they're"} asleep` : "";
+    return `Round ${this.m.round}: ${whose} turn${how}.`;
   }
 
   move(): string {
@@ -128,9 +128,17 @@ class Caption {
     const rolls = this.m.detail.rolls;
     const cast = `${this.Who} ${this.s("cast")} ${spell}`;
     if (this.m.detail.area) {
-      if (!hits.length) return `${cast}, catching nobody.${this.lit()}`;
-      const each = hits.map(h => `${this.name(h.unit)} (${total(h)}${h.saved ? ", saved" : ""})`);
-      return `${cast}, catching ${listing(each)}.${hits.filter(h => h.fell).map(h => this.fall(h)).join("")}${this.lit()}`;
+      // Who it caught: their damage (and a save), or what it did to them (asleep, prone).
+      const caught = this.m.detail.hits.filter(h => h.damage.length || h.healed || h.saved !== undefined || h.gained.some(c => CONDITION[c]));
+      if (!caught.length) {
+        const there = this.inArea();
+        return there.length ? `${cast} over ${listing(there.map(id => this.name(id)))}, to no effect.${this.lit()}` : `${cast}, catching nobody.${this.lit()}`;
+      }
+      const each = caught.map(h => {
+        const what = [...(h.damage.length ? [`${total(h)}`] : []), ...(h.saved ? ["saved"] : []), ...h.gained.flatMap(c => (CONDITION[c] && !(c === "unconscious" && h.fell) ? [CONDITION[c]!] : []))];
+        return `${this.name(h.unit)}${what.length ? ` (${what.join(", ")})` : ""}`;
+      });
+      return `${cast}, catching ${listing(each)}.${caught.filter(h => h.fell).map(h => this.fall(h)).join("")}${this.lit()}`;
     }
     const target = this.m.target;
     const hit = this.hitOn(target);
@@ -179,6 +187,12 @@ class Caption {
     return /sets the sacks alight/.test(lines) ? " The sacks catch fire." : "";
   }
 
+  /** Who stands in the moment's area (an area spell's tiles), up and about. */
+  private inArea(): string[] {
+    const area = this.m.detail.area ?? [];
+    return Object.values(this.G.units).filter(u => u.state === "fighting" && area.some(t => t.x === u.at.x && t.y === u.at.y)).map(u => u.id);
+  }
+
   private hitOn(id: string | undefined): FightHit | undefined {
     return this.m.detail.hits.find(h => h.unit === id);
   }
@@ -188,6 +202,9 @@ class Caption {
     return team(a) !== 0 && team(b) !== 0 && team(a) !== team(b);
   }
 }
+
+/** What a spell's conditions do to someone, in a word for a caption ("asleep"): the ones a caption names. */
+const CONDITION: Record<string, string> = { unconscious: "asleep", prone: "knocked down", restrained: "held fast", grappled: "held", blinded: "blinded", frightened: "frightened", charmed: "charmed", stunned: "stunned", paralyzed: "paralysed", incapacitated: "reeling", poisoned: "poisoned" };
 
 /** A hit's damage, all types together. */
 const total = (h: FightHit) => h.damage.reduce((n, d) => n + d.amount, 0);

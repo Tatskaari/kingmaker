@@ -13,7 +13,7 @@ export function gridText(board: FightBoard, map: TileMap, marks: Tile2[] = []): 
 }
 
 /** What each character on the grid is. */
-export const KEY = "Key: @ you, letters the others (small: your side), x down, ! gave up, # wall, + door or gate, | glass, = fence, ♣ tree, % stacked sacks, : grain dust, ^ fire, & brazier, o lantern, · where you can move";
+export const KEY = "Key: @ you, a letter each for the others (the order says who's who, and whose side they're on), x down, ! gave up, # wall, + door or gate, | glass, = fence, ♣ tree, % stacked sacks, : grain dust, ^ fire, & brazier, o lantern, · where you can move";
 
 /** What a unit is on the grid: their letter while they fight, x down, + dead, ! surrendered. */
 export function glyphOf(u: Unit): string {
@@ -46,13 +46,17 @@ function cell(G: FightBoard, map: TileMap, t: Tile2, marked: Set<string>): strin
   return ".";
 }
 
-/** Who's who, in initiative order: whose turn (▶), initiative, letter, name, hit points, how they are. */
+/** Whose side someone's on, in a word for the order: the player's own line says "you". */
+const SIDE: Record<Unit["side"], string> = { player: "", ally: "ally", enemy: "foe", neutral: "" };
+
+/** Who's who, in initiative order: whose turn (▶), initiative, letter, name, whose side, hit points, how they are (asleep, prone, dodging...). */
 export function orderLines(G: FightBoard, active: string): string[] {
   return G.order.map(id => {
     const u = G.units[id]!;
     const name = u.id === G.pc ? `you (${u.name})` : u.name;
     const how = u.state === "fighting" ? `${u.hp}/${u.maxHp} HP` : u.state === "surrendered" ? "gave up" : u.state === "fled" ? (G.flags[`walked:${u.id}`] ? "walked off" : "gone") : u.state === "dead" ? "dead" : `down (${u.hp}/${u.maxHp} HP)`;
-    const extra = [u.arrested ? "arrested" : "", ...u.conditions.filter(c => !/active$|unconscious/.test(c)).map(c => (c === "dodged" ? "dodging" : c))].filter(Boolean);
-    return `${id === active ? "▶" : " "} ${String(u.initiative).padStart(2)}  ${glyphOf(u)}  ${name.padEnd(30)} ${how}${extra.length ? ` (${extra.join(", ")})` : ""}`;
+    // Out cold is "down" once they're down; on their feet's count (a Sleep spell), asleep.
+    const extra = [u.arrested ? "arrested" : "", ...u.conditions.filter(c => !/active$/.test(c) && !(c === "unconscious" && u.state !== "fighting")).map(c => (c === "dodged" ? "dodging" : c === "unconscious" ? "asleep" : c))].filter(Boolean);
+    return `${id === active ? "▶" : " "} ${String(u.initiative).padStart(2)}  ${glyphOf(u)}  ${name.padEnd(30)} ${(u.id === G.pc ? "" : SIDE[u.side]).padEnd(4)} ${how}${extra.length ? ` (${extra.join(", ")})` : ""}`;
   });
 }

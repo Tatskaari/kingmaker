@@ -312,7 +312,10 @@ export const isFightAct = (id: string): id is FightAct => (FIGHT_ACTS as readonl
 /** How a fight ended, for the story (the prototype's CombatResult): the outcome, a summary, everyone's fate, the rounds, where everyone ended up. */
 export interface FightResult {
   outcome: FightOutcome;
+  /** How it went, for the story (the GM's aftermath): "The player was knocked out." */
   summary: string;
+  /** The same told to the player, on their screen and headless: "You were knocked out." (Older rows have none: the summary then.) */
+  told?: string;
   casualties: Array<{ id: string; name: string; state: UnitState | "standing" }>;
   rounds: number;
   flags: Record<string, string | number | boolean>;

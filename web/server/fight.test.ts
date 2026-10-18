@@ -61,7 +61,7 @@ test("a fight played headless against the page host: ring, observe's MODE: fight
   assert.match(first, /^MODE: fight\n\nThe practice ring \(the Arena\): your turn\. 35 ft to move, action ready, bonus action ready\./);
   assert.match(first, /Order, round 1:\n[▶ ] +\d+ {2}[@B] /);
   assert.match(first, /you \(Wren Ashdown\) +28\/28 HP/);
-  assert.match(first, /a bandit +11\/11 HP/);
+  assert.match(first, /a bandit +foe +11\/11 HP/);
   assert.match(first, /\n {3}0123456789/, "the board, with its rulers");
   assert.match(first, /What happened:\nRoll for initiative! /);
   // The page host's dice are its own: the bandit may have won initiative and closed in already, and then there's no closing in, but a blow.
