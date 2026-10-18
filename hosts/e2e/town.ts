@@ -6,15 +6,16 @@ import { FAREWELL } from "../../shared/scene/talk.ts";
 import * as verbs from "../../client/headless.ts";
 import { onTop } from "../dev/fake.ts";
 import type { Stack } from "../dev/stack.ts";
-import { bigints, callLog, check, doneTurn, mapUntil, moduleLog, nextTurn, note, ok, pause, restartAi, seconds, step, until, type Player } from "./kit.ts";
+import { bigints, callLog, check, doneTurn, fixDice, mapUntil, moduleLog, nextTurn, note, ok, pause, restartAi, seconds, step, until, type Player } from "./kit.ts";
 
 /**
  * The e2e's steps for the town between scenes (town-design §4, the integrator's): a new wizard's
- * game on the map, through the client's connection. A Fire Bolt with no clear line from the lane,
- * refused in the prototype's words and writing nothing; from the street, the watch house door alight
- * in the place's town, the guards shouting, a spectator's map drawing it, and the town's clock
- * (tick_place, SpacetimeDB's schedule) burning it on. Ray of Frost at Kell from the lane: the hanged
- * clerk opens as walking in does, and once the opening's in the act is turn 1, its mechanic on the
+ * game on the map, through the client's connection, its dice fixed as it's made. A Fire Bolt with
+ * no clear line from the lane, refused in the prototype's words and writing nothing; from the
+ * street, the watch house door alight at the first cast (the fixed dice hit) in the place's town,
+ * the guards shouting, a spectator's map drawing it, and the town's clock (tick_place,
+ * SpacetimeDB's schedule) burning it on. Ray of Frost at Kell from the lane: the hanged clerk opens
+ * as walking in does, and once the opening's in the act is turn 1, its mechanic on the
  * turn's row. A thing the stage manager makes in the yard gets a look of its own (look.invent).
  * Then, the yard ended, a word with Kell between scenes, played on the two-part GM: a talk opens with
  * her greeting (the mouthpiece's, from her opening role) and lines to choose, told the GM's notes on
@@ -25,6 +26,8 @@ import { bigints, callLog, check, doneTurn, mapUntil, moduleLog, nextTurn, note,
  */
 
 const WREN = { campaign: "caerwyn", name: "Wren Ashdown", concept: "a hedge wizard who has read about fire extensively", build: "wizard" };
+/** The town's game's dice, fixed just before it's made, whatever the steps before made: its first Fire Bolt at the door hits (a d20 of 17: 22 against the door's AC 15). */
+const TOWN_DICE = 19;
 /** The watch house door, up the street (town-design §1.1 step 2), and the street outside it, where the bolt has a clear line (from the lane it hasn't). */
 const DOOR = { x: 25, y: 6 };
 const STREET = { x: 22, y: 8 };
@@ -61,7 +64,8 @@ export async function theTown(stack: Stack, root: string, lead: Player, b: Playe
   const quiet = onTop(fake, { streamMs: 0, suggestDelayMs: 0 });
   await restartAi(stack, quiet, RAISED);
   const was = lead.conn.explore()?.game;
-  check(`${lead.name}'s new_game (${WREN.name}, the ready-made ${WREN.build}) is made`, (await lead.conn.newGame(WREN)) === undefined);
+  await fixDice(stack, TOWN_DICE);
+  check(`${lead.name}'s new_game (${WREN.name}, the ready-made ${WREN.build}) is made, its dice fixed (set_dice_seed ${TOWN_DICE})`, (await lead.conn.newGame(WREN)) === undefined);
   const start = await mapUntil(lead, `${lead.name}'s new game on the map, in the lane`, 10_000, v => v.game !== was && !v.ex.scene && v.catalogue && v);
   const game = start.game;
   check(`the sheet carries the menu's catalogue: ${start.catalogue!.sections.map(s => s.title).join(", ")}`, start.catalogue!.sections.some(s => s.title === "Cantrips") && start.catalogue!.sections.some(s => s.title === "Actions"));
@@ -75,15 +79,11 @@ export async function theTown(stack: Stack, root: string, lead: Player, b: Playe
   check("it wrote nothing: the town's changes empty, no move counted", unmoved.town === "" && lead.conn.explore()!.acts === start.acts);
 
   await acted(lead, `${lead.name} walks up the street (walk to ${STREET.x},${STREET.y})`, () => lead.conn.walk({ to: STREET }));
-  // The dice are the game's: a miss is a miss, and a cantrip can be cast again, as a player would.
-  let cast: ExploreView | undefined;
-  for (let n = 1; n <= 6 && !cast?.said.includes("catches fire"); n++) {
-    cast = await acted(lead, `Fire Bolt at the watch house door (cast fire-bolt at ${DOOR.x},${DOOR.y})${n > 1 ? `, try ${n}` : ""}`, () => lead.conn.act("cast", { spell: "fire-bolt", at: DOOR, self: undefined }));
-    note(cast.said.split("\n")[1] ?? cast.said);
-  }
-  const said = cast!.said.split("\n");
-  check(`it says the prototype's lines: "${said.slice(0, 2).join(" / ")}", the door catches fire, and the town reacts: "${said.find(l => /shout/.test(l))}"`,
-    /^Cast Fire Bolt \(cantrip\) on the door of the watch house$/.test(said[0] ?? "") && said.includes("The door of the watch house catches fire") && said.some(l => /shout at you to stop it/.test(l)));
+  const cast = await acted(lead, `Fire Bolt at the watch house door (cast fire-bolt at ${DOOR.x},${DOOR.y})`, () => lead.conn.act("cast", { spell: "fire-bolt", at: DOOR, self: undefined }));
+  const said = cast.said.split("\n");
+  check(`it says the prototype's lines: "${said.slice(0, 2).join(" / ")}", the fixed dice's hit, the door catches fire, and the town reacts: "${said.find(l => /shout/.test(l))}"`,
+    /^Cast Fire Bolt \(cantrip\) on the door of the watch house$/.test(said[0] ?? "") && /^Fire Bolt at the door of the watch house: .*: hit$/.test(said[1] ?? "")
+    && said.includes("The door of the watch house catches fire") && said.some(l => /shout at you to stop it/.test(l)));
   const lit = await townRow(stack, game);
   check(`the town keeps it: the door ${doorIn(String(lit.town))?.states.join(", ")} in place.town, the clock started`, !!doorIn(String(lit.town))?.states.includes("burning") && lit.ticked_at !== null && lit.ticked_at !== undefined);
   await mapUntil(b, "B's map to draw the door alight", 10_000, v => v.game === game && actorsHere(v.ex).some(a => a.id === "caerwyn:door@25,6" && a.states?.includes("burning")));

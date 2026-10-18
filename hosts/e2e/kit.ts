@@ -134,6 +134,16 @@ export function nextTurn(p: Player): number {
 // ---------------------------------------------------------------------------------------------
 // The stack: the AI service restarted with other options, the logs, the call log.
 
+/**
+ * The dice fixed, as the owner (set_dice_seed: simulation/src/dice-seed.ts): the next game made gets
+ * this seed, the one after it the seed plus one, and so on. Step 1 fixes them for the whole run; a
+ * step that checks what its own dice gave fixes them again just before it makes its game, so the
+ * games the steps before it made don't move its rolls.
+ */
+export async function fixDice(stack: Stack, seed: number): Promise<void> {
+  await stack.call("set_dice_seed", { seed: { some: seed } });
+}
+
 /** The AI service stopped (SIGTERM: what's in flight finishes) and started with the fake model's options and anything else. */
 export async function restartAi(stack: Stack, fake: FakeOptions, env: Record<string, string> = {}): Promise<void> {
   await stack.ai.stop();
