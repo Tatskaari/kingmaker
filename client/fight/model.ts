@@ -8,6 +8,7 @@ import type { Rejection } from "../backend.ts";
 import { screenOf, type Viewport } from "../map/render.ts";
 import { pacing } from "../pace.ts";
 import type { SheetShown } from "../scene/model.ts";
+import { ui } from "../sound/cues.ts";
 import type { MenuGroup } from "../ui/actions.tsx";
 import type { FightZoo } from "../zoo/zoo.ts";
 import { FightPlayer, type PlayFrame } from "./player.ts";
@@ -201,7 +202,8 @@ export class FightModel {
     const menu = this.menu;
     const entry = menu?.entries[index];
     if (!menu || !entry) return;
-    if (entry.why) { menu.index = index; this.emit(); return; }
+    if (entry.why) { ui("denied"); menu.index = index; this.emit(); return; }
+    ui("choose");
     this.menu = undefined;
     if (entry.aims) this.startAim(entry, menu.at);
     else void this.act(entry.options[0]!.id);
@@ -265,6 +267,7 @@ export class FightModel {
   fire(): void {
     const o = this.aimed();
     if (!o) return;
+    ui("choose");
     this.aim = undefined;
     if (o.target && o.target !== this.view.board.pc) this.lastTarget = o.target;
     void this.act(o.id);
@@ -297,6 +300,7 @@ export class FightModel {
 
   endTurn(): void {
     if (!this.canAct()) { this.say(this.notYet()); return; }
+    ui("choose");
     void this.act("end_turn");
   }
 

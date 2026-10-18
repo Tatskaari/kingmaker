@@ -30,6 +30,8 @@ test("the build's site keeps every rule, and each rule catches what it's for", (
     ["an import without the stamp", s => edit(s, "page.js", js => js.replace(`./transport.js?v=${stamp}`, "./transport.js")), /page\.js's imports aren't all stamped \(\.\/transport\.js\)/],
     ["the doors' import without the stamp (M5)", s => edit(s, "page.js", js => js.replace(`./doors.js?v=${stamp}`, "./doors.js")), /page\.js's imports aren't all stamped \(\.\/doors\.js\)/],
     ["the doors' pictures left out (M5)", s => s.delete("doors.js"), /the site is missing doors\.js/],
+    ["the sound left out", s => s.delete("sound.js"), /the site is missing sound\.js/],
+    ["the sound's engine left out", s => s.delete("sound-worklet.js"), /the site is missing sound-worklet\.js/],
     ["the content left out of the preload list", s => edit(s, "index.html", html => html.replace(` content.json?v=${stamp}`, "")), /the preload list misses content\.json/],
     ["a file the allowlist doesn't let in", s => edit(s, "content.json", json => JSON.stringify({ ...JSON.parse(json), campaign: { ...JSON.parse(json).campaign, "notes.txt": "x" } })), /allowlist doesn't let in: campaigns\/caerwyn\/notes\.txt/],
     ["a stray file", s => s.set("notes.md", new Uint8Array()), /holds what it shouldn't: notes\.md/],

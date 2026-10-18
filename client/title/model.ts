@@ -1,11 +1,19 @@
-// The prototype's src/app/game.ts:469-492 at 44c6d4a (loadSaves, deleteSave, newCharacter) and src/app/ui/title.tsx:24-38 (ago, describe), as a model over my_games: saves are rows, resume is continue_game, deleteSave is delete_game. The zoo is v2's own (M6: the prototype's Game.zoo carried a visit on; here a visit opens an exhibit afresh, its exhibits and builds from the installed zoo's row: client/zoo/zoo.ts).
+// The prototype's src/app/game.ts:469-492 at 44c6d4a (loadSaves, deleteSave, newCharacter) and src/app/ui/title.tsx:24-38 (ago, describe), as a model over my_games: saves are rows, resume is continue_game, deleteSave is delete_game. The zoo is v2's own (M6: the prototype's Game.zoo carried a visit on; here a visit opens an exhibit afresh, its exhibits and builds from the installed zoo's row: client/zoo/zoo.ts), with its sound board (client/sound/board.ts: every sound, by kind).
 import type { AppPart } from "../app/model.ts";
 import type { GameRow } from "../backend.ts";
 import { timeWords } from "../creation/words.ts";
+import { leaveBoard } from "../sound/board.ts";
+import { soundOn } from "../sound/cues.ts";
 import { isVisit, visit, zooOf, type VisitWith, type Zoo } from "../zoo/zoo.ts";
 
-/** The zoo's menu on the title (z): its exhibits; then, an exhibit picked, who to be. */
-export type ZooMenu = { step: "exhibits" } | { step: "builds"; exhibit: string };
+/**
+ * The zoo's menu on the title (z): its exhibits; then, an exhibit picked, who to be. Or its sound
+ * board: the kinds of sound, then a kind's sounds, each played as it's chosen.
+ */
+export type ZooMenu = { step: "exhibits" } | { step: "builds"; exhibit: string } | { step: "sounds" } | { step: "sound"; kind: string };
+
+/** What the sound board says where nothing plays it: a terminal (the sound is the page's), the headless client. */
+export const NO_SOUND = "(There's no sound here: it plays on the game's page, from the first key or click.)";
 
 /** What the title says when the server hasn't the zoo installed. */
 export const NO_ZOO = "(The zoo isn't installed on this server: the dev stack installs it as it starts.)";
@@ -57,10 +65,25 @@ export class TitleModel {
     this.app.emit();
   }
 
-  /** Back a step in the zoo's menu: from who to be to the exhibits, from the exhibits to the title. */
+  /** The sound board, from the zoo's menu: its kinds of sound. */
+  openSounds(): void {
+    this.zooMenu = { step: "sounds" };
+    this.zooNote = soundOn() ? undefined : NO_SOUND;
+    this.app.emit();
+  }
+
+  /** A kind of sound picked on the board: its sounds. */
+  pickSounds(kind: string): void {
+    this.zooMenu = { step: "sound", kind };
+    this.app.emit();
+  }
+
+  /** Back a step in the zoo's menu: from who to be to the exhibits, from a kind of sound to the board's kinds, from the board to the exhibits (its music let go), from the exhibits to the title. */
   zooBack(): void {
-    this.zooMenu = this.zooMenu?.step === "builds" ? { step: "exhibits" } : undefined;
-    this.zooNote = undefined;
+    const step = this.zooMenu?.step;
+    if (step === "sounds") leaveBoard();
+    this.zooMenu = step === "builds" || step === "sounds" ? { step: "exhibits" } : step === "sound" ? { step: "sounds" } : undefined;
+    this.zooNote = step === "sound" && !soundOn() ? NO_SOUND : undefined;
     this.app.emit();
   }
 

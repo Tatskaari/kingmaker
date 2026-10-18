@@ -19,6 +19,7 @@ import { actorLook } from "../look/map.ts";
 import type { LookCanvasRenderable } from "../look/opentui.ts";
 import { mapDoors, overlayWanted } from "../look/overlay.ts";
 import { Picks } from "../map/render.ts";
+import { ui } from "../sound/cues.ts";
 import { C } from "../theme.ts";
 import { ActionMenu, menuKey, menuLayout } from "./actions.tsx";
 import { BOLD, Clickable, fit, FPS, isEnter, ITALIC, Keys, SCROLLBAR, useStore, wrap, type KeyHint } from "./common.tsx";
@@ -505,6 +506,7 @@ function FightOverlay({ model }: { model: FightModel }) {
 
 /** The menu's choices: back to the fight, motion full or reduced, the title, or report a problem (over the fight as it was before the menu). */
 function pickFightMenu(model: FightModel, index: number): void {
+  ui("choose");
   if (index === 1) { model.reduced = !model.reduced; model.emit(); return; }
   model.closeOverlay();
   if (index === 2) model.quit();

@@ -1,4 +1,4 @@
-// After the prototype's src/web/static/worker.ts at 44c6d4a, its terminal half (write :69-81, scrub :83-94, the messages :275-316, and a report's :254-258), and its game.tsx (startGame, :36-77, with its report sink :50-57 and the doors' overlay :47-48, M5): the App over an AppModel on the Replica over a port, where the prototype's was over its Game; the key, the saves, the lock, the content and the jobs are the server worker's, and a report goes to the page from here (M5), the game in it the server worker's answer.
+// After the prototype's src/web/static/worker.ts at 44c6d4a, its terminal half (write :69-81, scrub :83-94, the messages :275-316, and a report's :254-258), and its game.tsx (startGame, :36-77, with its report sink :50-57 and the doors' overlay :47-48, M5): the App over an AppModel on the Replica over a port, where the prototype's was over its Game; the key, the saves, the lock, the content and the jobs are the server worker's, and a report goes to the page from here (M5), the game in it the server worker's answer. New: the game's sound goes to the page too (client/sound: what to play, which the page's audio thread makes).
 import { App } from "../../client/app.tsx";
 import { AppModel } from "../../client/app/model.ts";
 import { GLYPH_SETS, glyphSet, setGlyphSet, type GlyphSet } from "../../client/look/glyphs.ts";
@@ -7,6 +7,9 @@ import { attachOverlay, registerLookCanvas } from "../../client/look/opentui.ts"
 import { portLink, type MessagePortLike } from "../../client/net/port.ts";
 import { Replica } from "../../client/net/replica.ts";
 import { attachReporting } from "../../client/report/attach.ts";
+import { attachSound } from "../../client/sound/attach.ts";
+import { setSoundOut } from "../../client/sound/cues.ts";
+import type { SoundMessage } from "../../client/sound/engine.ts";
 import type { Reporting } from "../../client/report/file.ts";
 import { visit } from "../../client/zoo/zoo.ts";
 import { stampOf } from "../../shared/report/format.ts";
@@ -21,7 +24,8 @@ import { createCliRenderer, type CliRenderer } from "../../web/tui/renderer.ts";
  *   page -> worker   {type: "start", port, cols, rows, glyphs?, reducedMotion?, zoo?, build?, foes?, doors?} (the port transferred), then
  *                    {type: "input", data}, {type: "resize", cols, rows}, {type: "redraw"}, {type: "quit"}
  *   worker -> page   {type: "started"}, {type: "output", data}, {type: "exit"}, {type: "error", message},
- *                    {type: "report", name, data} (a report of a problem, gzipped: the page downloads it)
+ *                    {type: "report", name, data} (a report of a problem, gzipped: the page downloads it),
+ *                    {type: "sound", messages} (what the game's sound engine is to play: web/page/sound.ts)
  *
  * The port is the client's end of the page's MessageChannel: the server worker has the other end.
  * The client never sees the player's key (the server worker holds it), and a key pasted into the
@@ -58,6 +62,7 @@ interface Page {
   exit(): void;
   fail(error: unknown): void;
   report(name: string, bytes: Uint8Array): void;
+  sound(messages: SoundMessage[]): void;
 }
 
 /** The client, running: what the page's later messages reach. */
@@ -85,6 +90,9 @@ export async function runClient(start: Start, page: Page): Promise<Running> {
   const root = createRoot(renderer);
   const app = new AppModel(game, { campaign: "caerwyn", intent: start.zoo && !visited ? "game" : "title", surface: "page", onQuit: leaving(root, renderer, game, page), reporting: pageReporting(start, renderer, page) });
   attachReporting(app, renderer);
+  // The game's sound, played by the page (web/page/sound.ts): its music, its voices, its effects.
+  setSoundOut({ send: messages => page.sound(messages) });
+  attachSound(app);
   // ?zoo: the zoo's menu on the title; a visit refused (an exhibit it hasn't got), the menu with why.
   if (start.zoo === "" || visited) app.title.openZoo();
   if (visited) { app.title.zooNote = visited.text; app.emit(); }
@@ -165,6 +173,7 @@ function pageOf(post: (message: unknown) => void): Page {
     exit: () => { flush(); post({ type: "exit" }); },
     fail: error => post({ type: "error", message: error instanceof Error ? error.message : String(error) }),
     report: (name, bytes) => post({ type: "report", name, data: bytes }),
+    sound: messages => post({ type: "sound", messages }),
   };
 }
 

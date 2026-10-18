@@ -1,4 +1,4 @@
-// Copied from the prototype's src/game/look/effects.ts at 44c6d4a, whole; new (M6's fight screen): a blow's slash between two anchors, a flight's time given (`ms`, a fight's pace fitting it to its beat) and a thrown thing's arc (`arc`: an arrow flies flat).
+// Copied from the prototype's src/game/look/effects.ts at 44c6d4a, whole; new (M6's fight screen): a blow's slash between two anchors, a flight's time given (`ms`, a fight's pace fitting it to its beat) and a thrown thing's arc (`arc`: an arrow flies flat); and when a flight lands (`lands`, for its sound to: client/sound).
 import { DAMAGE_COLOR, FLAME_LIGHT, FLAME_RAMPS, mix, ramp, rgbOf, type FlameName, type RGB } from "./color.ts";
 import { clamp01, hash01, noise3, rng, smoothstep } from "./noise.ts";
 
@@ -118,6 +118,8 @@ export class Effects {
   private lights: LightFx[] = [];
   private shakes: ShakeFx[] = [];
   private seq = 0;
+  /** When the flight an effect has just started lands (a fireball's, a bolt's, a thrown thing's): effect() says so. */
+  private landing = 0;
   private readonly seed: number;
   /** The clock (ms). Pass your own for replays and tests. */
   now: () => number;
@@ -129,12 +131,13 @@ export class Effects {
     this.seed = options.seed ?? 1;
   }
 
-  /** Start an effect. Returns when it's over (callers that want the story to wait can). */
-  effect(kind: EffectKind, opts: EffectOptions = {}, when?: number): { duration: number; endsAt: number } {
+  /** Start an effect. Returns when it's over (callers that want the story to wait can), and when what it throws lands (its start, for one that throws nothing). */
+  effect(kind: EffectKind, opts: EffectOptions = {}, when?: number): { duration: number; endsAt: number; lands: number } {
     const t0 = (when ?? this.now()) + (opts.delay ?? 0);
     const random = rng((opts.seed ?? this.seed) * 7919 + ++this.seq * 104729);
+    this.landing = t0;
     const duration = this.spawn(kind, opts, t0, random);
-    return { duration, endsAt: t0 + duration };
+    return { duration, endsAt: t0 + duration, lands: this.landing };
   }
 
   /** A number or a word that rises from someone or something and fades (damage, healing, "unharmed"). */
@@ -409,6 +412,7 @@ export class Effects {
     const a = isId(from) ? undefined : from, b = isId(to) ? undefined : to;
     const dist = a && b ? Math.hypot(b.x - a.x, b.y - a.y) : 30;
     const travel = o.ms ?? Math.max(140, Math.min(900, (dist / o.speed) * 1000));
+    this.landing = Math.max(this.landing, t0 + travel);
     this.particles.push({ ...this.p(t0, travel, from, { glyphs: o.glyph, colors: o.colors, glow: o.glow, layer: 1 }), path: { from, to, arc: o.arc }, z: 2, fade: false });
     if (o.glow && o.trail) {
       // A comet's head: a dimmer cell either side of the bright one, so it reads at speed.
