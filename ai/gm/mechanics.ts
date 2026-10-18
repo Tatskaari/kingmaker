@@ -2,7 +2,8 @@
 
 import type { ChoiceQuestion, Decider, Decision } from "../llm/decide.ts";
 import { titleCase } from "../../shared/dice.ts";
-import type { Act, ActFrom, Jumping, Mechanic, Reaction, SpellRef, WeaponRef } from "../../shared/rules/types.ts";
+import type { Act, ActFrom, Jumping, Mechanic, Reaction, SpellFacts, WeaponRef } from "../../shared/rules/types.ts";
+import { deedsIn, spellNamed } from "../../shared/rules/acting.ts";
 import { presentCast } from "../../shared/scene/graph.ts";
 import type { Scene, Transition } from "../../shared/scene/types.ts";
 import { heldBy, within, worldView, type Entity } from "../../shared/world/scene-world.ts";
@@ -19,7 +20,8 @@ import type { TurnView } from "./view.ts";
 
 /** The player's spells and weapons, and what's around them in the world, for the decider (rules sessions only). */
 export interface RulesOptions {
-  spells: SpellRef[];
+  /** With what the rules say of each one's reach, when the sheet has worked it out (needsAim reads it). */
+  spells: SpellFacts[];
   weapons: WeaponRef[];
   /** Class features they can use (Second Wind, Rage...). */
   features?: Array<{ id: string; name: string; target: "self" | "creature" }>;
@@ -76,9 +78,10 @@ export function meansQuestion(act: RuledAct): ChoiceQuestion {
 
 /**
  * Which spell, at whom; or which blow, at whom: a second small call, only on those turns. Any
- * `extra` questions about the same turn ride along in it.
+ * `extra` questions about the same turn ride along in it. `named`: the spell the player's words cast
+ * by its name (acting.ts castNamed), which is the spell, with no question for which.
  */
-export async function mechanicDetails(decider: Decider, scene: Scene, state: TurnView, playerTurn: string, kind: RuledAct, rules: RulesOptions, extra: Record<string, ChoiceQuestion> = {}): Promise<{ mechanic?: Mechanic; decision: Decision }> {
+export async function mechanicDetails(decider: Decider, scene: Scene, state: TurnView, playerTurn: string, kind: RuledAct, rules: RulesOptions, extra: Record<string, ChoiceQuestion> = {}, named?: SpellFacts): Promise<{ mechanic?: Mechanic; decision: Decision }> {
   if (kind === "jump") return jumpDetails(decider, scene, state, playerTurn, rules, extra);
   const present = [...presentCast(scene, state), ...(rules.bystanders ?? []).map(b => ({ ...b, group: undefined }))];
   if (kind === "feature") {
@@ -98,7 +101,7 @@ export async function mechanicDetails(decider: Decider, scene: Scene, state: Tur
   const things = rules.things ?? [];
   const q: Record<string, ChoiceQuestion> = { ...extra };
   if (kind === "cast") {
-    q.spell = {
+    if (!named) q.spell = {
       instructions: "The player is casting a spell in their latest turn. Which of their spells is it?",
       criteria: { ...Object.fromEntries(rules.spells.map(sp => [sp.id, `${sp.name} (${ORDINAL[sp.level]})`])), not_theirs: "A spell or kind of magic that isn't one of these." },
     };
@@ -154,13 +157,28 @@ export async function mechanicDetails(decider: Decider, scene: Scene, state: Tur
     return Object.keys(from).length ? from : undefined;
   };
   if (kind === "cast") {
-    const spell = decision.answers.spell?.choice;
+    const spell = named?.id ?? decision.answers.spell?.choice;
     if (!spell) return { decision };
-    const people = aimedPeople(decision, present);
     const thing = aimedThing(decision, things, playerTurn);
+    // Aimed at the thing the player's words name, a person is a target too only on a sure read or by
+    // name: the elm the player named had burned down, and Cob at .66 took the Fire Bolt.
+    const aimedAt = aimedPeople(decision, present, thing && thing === namedThing(things, playerTurn) ? playerTurn : undefined);
+    // Nobody read as aimed at, and nothing: whoever the player's deeds name, for a spell that's aimed
+    // or fills an area. "(I cast thunderwave at the constables)" read no for Tull's group at .77 (a
+    // spell from the caster "targets" nobody), and the cube went off round the player.
+    const facts = rules.spells.find(sp => sp.id === spell);
+    const deeds = deedsIn(playerTurn).join(" ");
+    const people = aimedAt.length || thing || decision.answers.aim_self?.choice === "yes" || !(needsAim(facts) || facts?.area) ? aimedAt : present.filter(c => namesPerson(c, deeds)).map(c => c.id);
     // The thing first: an area spell centres on what it's aimed at.
     const targets = [...(thing ? [thing] : []), ...people, ...(decision.answers.aim_self?.choice === "yes" ? ["self"] : [])];
     const from = actFrom(targets.find(t => t !== "self"));
+    if (!targets.length && needsAim(facts)) {
+      // A spell that has to be aimed, at nothing: by its name, the rules ask at what; read from words
+      // that don't name it ("I summon some fire to my fingertips"), it's the GM's to narrate, not a
+      // Fire Bolt loosed at nobody.
+      if (!named && !spellNamed(rules.spells, playerTurn)) return { decision };
+      return { mechanic: { kind, spell, targets, ...(from ? { from } : {}), unclear: true }, decision };
+    }
     // Aimed at a thing, on a read too weak to act on, and nothing the player named: ask, rather than hit the wrong one.
     const unclear = !targets.length && decision.answers.aim_thing?.choice !== undefined && decision.answers.aim_thing.choice !== "none";
     return { mechanic: { kind, spell, targets, ...(from ? { from } : {}), ...(unclear ? { unclear: true } : {}) }, decision };
@@ -177,12 +195,41 @@ export async function mechanicDetails(decider: Decider, scene: Scene, state: Tur
   return { mechanic: { kind, target, ...(weapon === "other" ? { weapon: "improvised" } : weapon ? { weapon } : {}), ...(from ? { from } : {}) }, decision };
 }
 
-/** Who a spell is aimed at: a sure yes; and with someone surely aimed at, a doubtful yes is dropped (Magic Missile at the Crake, not split onto Sallow at .56). */
-function aimedPeople(decision: Decision, present: Array<{ id: string }>): string[] {
+/**
+ * Who a spell is aimed at: a sure yes; and with someone surely aimed at, a doubtful yes is dropped
+ * (Magic Missile at the Crake, not split onto Sallow at .56). With a thing aimed at (`said`: the
+ * player's words), a doubtful yes is dropped too unless the words name them: "(I cast a firebolt at
+ * the elm)" isn't at Cob, read at .66.
+ */
+function aimedPeople(decision: Decision, present: Array<{ id: string; name: string; group?: string }>, said?: string): string[] {
   const yes = (id: string) => { const a = decision.answers[`aim_${id}`]; return a?.choice === "yes" ? a.probabilities?.yes ?? 1 : 0; };
-  const aimed = present.filter(c => yes(c.id) >= 0.5);
+  const aimed = present.filter(c => yes(c.id) >= 0.5 && (said === undefined || yes(c.id) >= 0.9 || namesPerson(c, said)));
   return (aimed.some(c => yes(c.id) >= 0.9) ? aimed.filter(c => yes(c.id) >= 0.7) : aimed).map(c => c.id);
 }
+
+/**
+ * Whether the words name someone: a word of their name or their group's ("Kell", "the constables";
+ * not what the group comes "with": the dead-cart isn't Tull), not a title or a little word.
+ */
+function namesPerson(c: { name: string; group?: string }, said: string): boolean {
+  const words = new Set(said.toLowerCase().split(/[^a-z]+/).map(w => w.replace(/(?<=..)s$/, "")));
+  const own = `${c.name} ${c.group?.split(/\bwith\b/i)[0] ?? ""}`.toLowerCase().split(/[^a-z]+/).filter(w => w.length > 2 && !NOT_A_NAME.has(w)).map(w => w.replace(/(?<=..)s$/, ""));
+  return own.some(w => words.has(w));
+}
+
+const NOT_A_NAME = new Set(["the", "and", "with", "for", "two", "three", "four", "sergeant", "corporal", "captain", "master", "mistress", "old", "young"]);
+
+/**
+ * Whether a spell has to be aimed at someone or something to do anything: one with a range beyond
+ * the caster (not Self) that attacks, strikes, or makes someone save or fall (Fire Bolt, Magic
+ * Missile, Sleep, Hold Person). Not one that works from the caster (Thunderwave, Shield), nor one
+ * whose reach the sheet hasn't worked out.
+ */
+export function needsAim(spell: SpellFacts | undefined): boolean {
+  return !!spell?.range && !/^self\b/i.test(spell.range) && (spell.effects ?? []).some(e => AIMED_EFFECTS.has(e));
+}
+
+const AIMED_EFFECTS = new Set(["attack", "auto-hit", "save", "hp-pool-knockout", "hp-threshold"]);
 
 /**
  * The thing a spell is aimed at. A read under one in two isn't acted on as it stands: the thing the
@@ -330,9 +377,11 @@ export function aimable(scene: Scene, state: TurnView, said = ""): { things: Arr
   const inOthersHands = (e: Entity) => { const h = heldBy(world, e); return !!h && (h.kind === "person" || h.kind === "creature") && !h.player; };
   // Not what the player carries (their coins took the slots), nor what nobody can see yet.
   const ownOrHidden = (e: Entity) => !!heldBy(world, e)?.player || e.states.includes("hidden") || e.tags.includes("hidden");
-  const near = within(world, "player", 60, e => (e.kind === "object" || e.kind === "item" || e.kind === "feature" || e.kind === "surface") && !e.states.includes("destroyed") && !inOthersHands(e) && !ownOrHidden(e))
-    .map(e => ({ id: e.id, name: e.name }));
-  const named = namedThing(near, said);
+  const reach = within(world, "player", 60, e => (e.kind === "object" || e.kind === "item" || e.kind === "feature" || e.kind === "surface") && !inOthersHands(e) && !ownOrHidden(e));
+  // What's destroyed is no aim, but for the one the player's words name: the old elm burned down at
+  // the turn's start, and a Fire Bolt "at the elm" went to Cob for want of it.
+  const named = namedThing(reach.map(e => ({ id: e.id, name: e.name })), said);
+  const near = reach.filter(e => e.id === named || !e.states.includes("destroyed")).map(e => ({ id: e.id, name: e.name }));
   const things = [...near.filter(t => t.id === named), ...near.filter(t => t.id !== named)].slice(0, 16);
   const bystanders = Object.values(world.entities).filter(e => (e.kind === "person" || e.kind === "creature") && !e.player && !cast.has(e.id) && !e.states.includes("gone"))
     .map(e => ({ id: e.id, name: e.name }));

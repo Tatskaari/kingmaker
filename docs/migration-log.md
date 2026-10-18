@@ -2041,3 +2041,33 @@ On ports of its own (never 3330 or 8817): `npm run check` (the type check clean,
 - **The stage manager can bring back someone who fled** (the live run's "girl in a shawl" appearing after Moll ran, as on 2026-10-16): the world's, not this change's.
 - **A talk's spells** are the GM's to narrate, as before.
 - **M6's page-host fight test** fails now and then on its random initiative (M5's Open).
+
+## After the migration: the act step's reads, tuned on the user's report
+
+The user played the hanged clerk as the ready-made wizard (kingmaker-report-20261018-144627: "a few cases of wrong target, or not picking up the action"). Of her spell turns, the act step read three wrong and one by the rules' own lights:
+
+| Turn | The line | What happened | Why |
+|---|---|---|---|
+| 11 | "(I summon some fire to my fingertips)" | Fire Bolt cast at nothing | `director.rules` read cast (.89), the details Fire Bolt, aimed at nobody (Cob .48): the rules cast it anyway |
+| 12 | "(I cast a firebolt at the elm in rage)" | Fire Bolt at Cob, who went down | the elm burned down at the turn's start (turn 1's fire), so `aimable` left it out; Cob read yes at .66, which counted |
+| 13 | "(I cast thunderwave at the constables)" | narrated, no rules | `director.rules` read cast at .58, under the bar (0.6) |
+| 4 | "(I cast sleep on the boy)" | Kell slept too, and the line says "catching you" | the pack's Sleep: a 5-foot sphere, its HP pool by lowest HP, and Wren and Kell were within 5 feet of Cob. The rules as written, not a misread |
+
+### What changed
+
+- **A spell cast by its name is a cast:** a casting word and one of the sheet's spells, named in the same deed (a bracket, *asterisks*, a first-person sentence; an everyday name like Sleep straight after "cast"), skips `director.rules` and the details aren't asked which spell (`shared/rules/acting.ts castNamed`). On the QA rounds' 561 lines it takes 7, every one a real cast (Floating Disk, Detect Magic, Grease, Mage Hand, Message, Detect Evil and Good, Minor Illusion), and saves their first call.
+- **The thing the player names stays an aim when it's destroyed** (`aimable`): a charred elm is still there to hit. Other destroyed things aren't offered.
+- **A doubtful person beside the thing named isn't a target:** aimed at the thing the player's words name, a person counts only read at .9 or named in the words.
+- **Who the deeds name is the aim when nobody's read as one:** for a spell that's aimed or fills an area. The real model reads no for Tull's group at .77 on turn 13 (a spell from the caster "targets" nobody), and the cube would have gone off round the player. A group's words count before its "with" (the dead-cart isn't Tull).
+- **A spell that has to be aimed, at nothing, isn't cast at nothing** (`needsAim`: a range beyond Self, and an attack, a dart, a save or a knockout): named, the rules ask at what, nothing spent; read from words that don't name it, it's no act, and the GM narrates the flourish. Thunderwave, Shield and Light go off as before.
+- **The act step is told each spell's reach:** the simulation sends the sheet's spellFacts (range, effects' kinds, area) in place of the bare spells (`requests.ts spellsOf`); a sheet whose facts aren't worked out sends the spells as before, and `needsAim` says no.
+
+### Checked
+
+The report's three turns replayed through `mechanicOf` on the fixture's yard at the dead-cart beat, the real decision model (`luna-decisions`) answering the new questions on the report's own recorded state (transcript and world), five runs each, identical every run: turn 11 no act; turn 12 Fire Bolt at the elm (the elm offered, read at 1.00; Cob's .66 dropped); turn 13 Thunderwave at Tull's group, with no `director.rules` call. The type check clean; 410 targeted tests of 410 (ai, shared/rules, shared/protocol, the simulation's world and opening moves, the report tool), the report's turns among them on the model's recorded answers.
+
+### Open
+
+- **Sleep catches the caster and anyone beside the aim**, as the pack has it (no "creatures of your choice"): a rules choice, left as it is.
+- **A spell named but not the sheet's** still goes through `director.rules`, as before: the rogue's Fire Bolt is refused there.
+- **"The boy" isn't Cob by name:** a person the words call by a role counts only on the model's read.

@@ -5,7 +5,7 @@ import type { ChoiceQuestion, Decider } from "../llm/decide.ts";
 import { JevDecider } from "../llm/decide.ts";
 import { EVERY_ACT, mechanicOf, mechanicQuestion, readThreat, SCENE_ACTS, threatQuestions } from "./director.ts";
 import { hangedClerk, viewAt } from "./fixtures.ts";
-import { alsoQuestion, meansQuestion, namedThing, type RulesOptions } from "./mechanics.ts";
+import { alsoQuestion, meansQuestion, namedThing, rulesOptions, type RulesOptions } from "./mechanics.ts";
 import type { TurnView } from "./view.ts";
 
 /** A decider that answers from a script (choice, its probability, the others'), and keeps what it was asked. */
@@ -97,6 +97,65 @@ test("a spell's aim on a weak read is what the player named, a doubtful second t
   assert.deepEqual(await cast("*I hurl a Fire Bolt up there*", { spell: ["fire-bolt", 0.99], aim_thing: ["loft-door", 0.29, { "yard-doors": 0.25 }] }), { kind: "cast", spell: "fire-bolt", targets: [], unclear: true });
   // Magic Missile into the boy (.99), and Kell at .56 is dropped.
   assert.deepEqual(await cast("*Magic Missile straight into the boy*", { spell: ["magic-missile", 0.9], aim_cob: ["yes", 0.99], aim_kell: ["yes", 0.56] }), { kind: "cast", spell: "magic-missile", targets: ["cob"] });
+});
+
+/** The report's wizard (kingmaker-report-20261018-144627): Wren Ashdown's spells, with what the rules say of each one's reach (the sheet's spellFacts). */
+const WREN: RulesOptions["spells"] = [
+  { id: "fire-bolt", name: "Fire Bolt", level: 0, range: "120 feet", effects: ["attack"] },
+  { id: "light", name: "Light", level: 0, range: "Touch", effects: [] },
+  { id: "shield", name: "Shield", level: 1, range: "Self", effects: [] },
+  { id: "sleep", name: "Sleep", level: 1, range: "60 feet", effects: ["hp-pool-knockout"], area: true },
+  { id: "thunderwave", name: "Thunderwave", level: 1, range: "Self (15-foot cube)", effects: ["save"], area: true },
+];
+
+test("the report's wizard: a spell cast by its name needs no question, the elm she named stays her aim though it burned down, and fire at her fingertips aimed at nothing is the GM's", async () => {
+  /** The dead-cart beat, as the report had it: Tull and his constables in, the old elm burned to a charred heap at the turn's start. */
+  const yardAt = (burned: boolean): TurnView => {
+    const view = viewAt(scene, "dead-cart", { rules: { spells: WREN, weapons: [] } });
+    if (burned) view.world!.entities.elm!.states.push("destroyed");
+    return view;
+  };
+  const read = async (said: string, picks: Parameters<typeof scripted>[0], burned = false) => {
+    const view = yardAt(burned);
+    const decider = scripted({ act_from: ["here", 1], ...picks });
+    const { mechanic } = await mechanicOf(decider, scene, view, said, rulesOptions(scene, view, said)!, {}, SCENE_ACTS);
+    return { mechanic, asked: decider.asked };
+  };
+
+  // Turn 12, as answered: the elm wasn't offered (burned down), so Cob at .66 took the Fire Bolt.
+  const elm = await read("(I cast a firebolt at the elm in rage)", { aim_cob: ["yes", 0.66], aim_thing: ["none", 0.5, { "hoist-beam": 0.11 }] }, true);
+  assert.deepEqual(elm.mechanic, { kind: "cast", spell: "fire-bolt", targets: ["elm"] });
+  assert.equal(elm.asked.length, 1, "Fire Bolt by its name: no question whether it's a spell");
+  assert.equal(elm.asked[0]!.spell, undefined, "nor which spell");
+  assert.equal(Object.keys(elm.asked[0]!.aim_thing!.criteria)[0], "elm", "the thing she named, burned down or not");
+  // A burned-down thing she doesn't name isn't offered.
+  const other = await read("(I cast Fire Bolt at the hoist rope)", { aim_thing: ["hoist-rope", 0.9] }, true);
+  assert.equal(other.asked[0]!.aim_thing!.criteria.elm, undefined);
+  // Aimed at what she named, Kell named too still counts; Cob, unnamed and doubtful, doesn't; sure of Cob, he does.
+  assert.deepEqual((await read("(I cast Fire Bolt at the elm, then Kell)", { aim_kell: ["yes", 0.6], aim_cob: ["yes", 0.66], aim_thing: ["elm", 0.9] })).mechanic, { kind: "cast", spell: "fire-bolt", targets: ["elm", "kell"] });
+  assert.deepEqual((await read("(I cast Fire Bolt at the elm and the boy)", { aim_cob: ["yes", 0.95], aim_thing: ["elm", 0.9] })).mechanic, { kind: "cast", spell: "fire-bolt", targets: ["elm", "cob"] });
+
+  // Turn 13: "is this a spell?" read cast at .58, under the bar, and the Thunderwave went unruled.
+  const wave = await read("You'll never take me alive! (I cast thunderwave at the constables)", { mechanic: ["cast", 0.58], aim_tull: ["yes", 0.9] });
+  assert.deepEqual(wave.mechanic, { kind: "cast", spell: "thunderwave", targets: ["tull"] });
+  assert.deepEqual(wave.asked.map(q => Object.keys(q).includes("mechanic")), [false], "the details alone");
+  // As the real model answers it now (replayed on the report's state): no to Tull's group at .77, since a spell from the caster
+  // "targets" nobody; the constables her words name are its aim. Words that name nobody leave it on the spot; the dead-cart isn't Tull.
+  assert.deepEqual((await read("You'll never take me alive! (I cast thunderwave at the constables)", { aim_tull: ["no", 0.77] })).mechanic, { kind: "cast", spell: "thunderwave", targets: ["tull"] });
+  assert.deepEqual((await read("You'll never take me alive! (I cast thunderwave)", { aim_tull: ["no", 0.77] })).mechanic, { kind: "cast", spell: "thunderwave", targets: [] });
+  assert.deepEqual((await read("(I cast Fire Bolt at the dead-cart)", { aim_tull: ["no", 0.9] })).mechanic, { kind: "cast", spell: "fire-bolt", targets: [], unclear: true });
+  // Turn 4: an everyday name straight after "cast" is the spell.
+  assert.deepEqual((await read("(I cast sleep on the boy)", { aim_cob: ["yes", 0.95] })).mechanic, { kind: "cast", spell: "sleep", targets: ["cob"] });
+
+  // Turn 11, as answered: a cast (.89), Fire Bolt, aimed at nobody (Cob .48). Fire at her fingertips is the GM's to narrate.
+  const flourish = await read("Right. So what did you two see? (I summon some fire to my fingertips)", { mechanic: ["cast", 0.89], spell: ["fire-bolt", 0.95], aim_cob: ["no", 0.52] });
+  assert.equal(flourish.mechanic, undefined);
+  assert.equal(flourish.asked.length, 2, "asked, and its details read: nothing to aim at");
+  // Fire Bolt by its name at nothing: the rules ask at what, rather than loose it at nobody.
+  assert.deepEqual((await read("(I cast Fire Bolt)", {})).mechanic, { kind: "cast", spell: "fire-bolt", targets: [], unclear: true });
+  // A spell that works from her, or needs no aim, is cast at nothing as before.
+  assert.deepEqual((await read("(I cast Thunderwave)", {})).mechanic, { kind: "cast", spell: "thunderwave", targets: [] });
+  assert.deepEqual((await read("(I cast Shield)", {})).mechanic, { kind: "cast", spell: "shield", targets: [] });
 });
 
 test("parked for combat: a blow or a danger a reply left hanging over the player, on a clear read, with the question's raw choice", async () => {

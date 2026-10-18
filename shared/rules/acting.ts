@@ -52,6 +52,27 @@ export function spellNamed(spells: readonly Named[], line: string): Named | unde
   return namedIn(spells, line, { asName: true });
 }
 
+/**
+ * The spell of `spells` the character casts by its name in what they do: a casting word and the
+ * spell's name in the same (bracket), *asterisk* or first-person sentence ("(I cast thunderwave at
+ * the constables)", "I cast Sleep on the boy"). That's a cast without asking: the act step goes
+ * straight to its details, where a model read of "is this a spell?" said cast at .58, under the bar,
+ * and the Thunderwave was narrated with no rules. An everyday name (Sleep, Light) counts written as
+ * a name, or straight after "cast" ("I cast sleep on the boy"). Undefined when no deed names one
+ * with a casting word.
+ */
+export function castNamed(line: string, spells: readonly Named[]): Named | undefined {
+  const longest = [...spells].sort((a, b) => b.name.length - a.name.length);
+  for (const deed of deedsIn(line)) {
+    if (!CASTING.test(deed)) continue;
+    const after = /\bcast(?:s|ing)?\s+(?:(?:a|an|my|the)\s+)?/i.exec(deed);
+    const tail = after ? deed.slice(after.index + after[0].length) : "";
+    const named = spellNamed(spells, deed) ?? longest.find(s => new RegExp(`^${patternOf(s.name)}\\b`, "i").test(tail));
+    if (named) return named;
+  }
+  return undefined;
+}
+
 /** Every spell the rules know (the engine's content: the SRD's), by id and name, made once for the isolate's engine. */
 export function spellsOf(rules: Pick<Rules, "content">): readonly Named[] {
   const known = KNOWN.get(rules.content);

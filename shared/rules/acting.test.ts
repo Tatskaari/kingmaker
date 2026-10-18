@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { deedsIn, mightAct, spellNamed, spellsOf, type ActingSheet, type Named } from "./acting.ts";
+import { castNamed, deedsIn, mightAct, spellNamed, spellsOf, type ActingSheet, type Named } from "./acting.ts";
 
 /**
  * The line check (acting.ts): which of a player's lines in a scene might be an act the rules resolve
@@ -102,4 +102,19 @@ test("every spell the rules know, read once from the engine's content", () => {
   const first = spellsOf({ content });
   assert.equal(first.length, SPELLS.length);
   assert.equal(spellsOf({ content }), first, "the same list each turn, so its pattern is made once");
+});
+
+test("the user's report (kingmaker-report-20261018-144627): a spell of the sheet's cast by its name in what the character does is a cast without asking; a name said aloud, a flourish or a glance isn't", () => {
+  const named = (line: string, sheet = WIZARD) => castNamed(line, sheet.spells)?.id;
+  const WREN = [...WIZARD.spells, { id: "thunderwave", name: "Thunderwave" }];
+  assert.equal(castNamed("You'll never take me alive! (I cast thunderwave at the constables)", WREN)?.id, "thunderwave", "turn 13");
+  assert.equal(named("(I cast a firebolt at the elm in rage)"), "fire-bolt", "turn 12, run together");
+  assert.equal(named("(I cast sleep on the boy)"), "sleep", "turn 4: an everyday name straight after cast");
+  assert.equal(named("I cast Magic Missile at the hoist rope."), "magic-missile", "narrated in the first person");
+  assert.equal(named("*casting Light on my staff*"), "light");
+  assert.equal(named("Right. So what did you two see? (I summon some fire to my fingertips)"), undefined, "turn 11: no spell named");
+  assert.equal(named("Don't make me cast Sleep on you, boy."), undefined, "said aloud, not done");
+  assert.equal(named("(I cast a glance at the Shield on the wall)"), undefined, "a glance");
+  assert.equal(named("(I cast about for some light)"), undefined, "an everyday word, not after cast");
+  assert.equal(named("(I cast Fire Bolt at the boy)", ROGUE), undefined, "not one of hers: the question decides");
 });
