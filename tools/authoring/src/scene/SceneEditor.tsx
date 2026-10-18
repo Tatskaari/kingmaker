@@ -41,6 +41,8 @@ const VIEWS:Array<[View,string]>=[['graph','Graph'],['scene','Scene'],['cast','C
 const remembered=new Map<string,{view:View;viewport?:Viewport}>();
 const ICONS:Record<NodeKind,typeof LogIn>={start:LogIn,discovery:Search,event:Zap,ending:Flag};
 const COLORS:Record<NodeKind,string>={start:'#5f8f6a',discovery:'#8874ac',event:'#b07f3f',ending:'#a5615c'};
+/** How long a click waits to be a double-click before a narrow pane's inspector covers where it was (scene.css has it too). */
+const DOUBLE_CLICK=250;
 const editable=(target:EventTarget|null)=>target instanceof HTMLElement&&!!target.closest('input,textarea,select,[contenteditable="true"]');
 const uid=()=>crypto.randomUUID();
 const escape=(value:string)=>typeof CSS!=='undefined'&&CSS.escape?CSS.escape(value):value.replace(/["\\]/g,'\\$&');
@@ -181,15 +183,25 @@ function SceneEditor({initial,host}:{initial:SceneDocument;host:SceneHost}){
     const zoom=Math.max(instance.getZoom(),.7),size=measurements[id]??CARD_SIZE;
     void instance.setCenter(node.position.x+size.width/2+covering()/2/zoom,node.position.y+size.height/2,{duration:200,zoom});
   };
-  /** A node clicked in a narrow pane, where the inspector will lie over it: the graph slides it into the strip beside the inspector, at the zoom it's at. */
+  /**
+   * A node clicked in a narrow pane, where the inspector will lie over it: the graph slides it into the
+   * strip beside the inspector, at the zoom it's at. Not at once: a double-click's second click must find
+   * the node where it was (the inspector, too, shows a moment later there), and a double-click, which
+   * opens the larger editor over everything, cancels it.
+   */
+  const slide=useRef<number|undefined>(undefined);
   const keepClear=(id:string)=>{
-    const width=covering(),pane=canvas.current?.getBoundingClientRect(),card=shell.current?.querySelector(`.scene-card[data-node-id="${escape(id)}"]`)?.getBoundingClientRect();
-    if(!width||!pane||!card)return;
-    const strip=pane.width-width;
-    if(card.right<=pane.left+strip-12&&card.left>=pane.left)return;
-    const viewport=flow.getViewport();
-    void flow.setViewport({...viewport,x:viewport.x+pane.left+strip/2-(card.left+card.width/2)},{duration:200});
+    window.clearTimeout(slide.current);
+    slide.current=window.setTimeout(()=>{
+      const width=covering(),pane=canvas.current?.getBoundingClientRect(),card=shell.current?.querySelector(`.scene-card[data-node-id="${escape(id)}"]`)?.getBoundingClientRect();
+      if(!width||!pane||!card)return;
+      const strip=pane.width-width;
+      if(card.right<=pane.left+strip-12&&card.left>=pane.left)return;
+      const viewport=flow.getViewport();
+      void flow.setViewport({...viewport,x:viewport.x+pane.left+strip/2-(card.left+card.width/2)},{duration:200});
+    },DOUBLE_CLICK);
   };
+  useEffect(()=>()=>window.clearTimeout(slide.current),[]);
   const toGraph=(id?:string)=>{if(view==='graph'){if(id)centre(id)}else{pendingCentre.current=id??null;setView('graph')}};
   const showNode=(id:string,field?:string)=>{
     setSelected({kind:'node',id});setMarked(new Set());setInspector(true);setExpanded(false);toGraph(id);
@@ -386,7 +398,7 @@ function SceneEditor({initial,host}:{initial:SceneDocument;host:SceneHost}){
                 onNodesChange={nodeChanges} onNodeDragStart={()=>{dragBefore.current=current.current;lastSession.current=null}}
                 onNodeDragStop={()=>{const before=dragBefore.current;dragBefore.current=null;if(before&&before!==current.current){setHistory(old=>[...old.slice(-99),before]);setFuture([])}}}
                 onNodeClick={(_,node)=>{if(connecting)connect(connecting,node.id);else{keepClear(node.id);setSelected({kind:'node',id:node.id});setInspector(true)}}}
-                onNodeDoubleClick={(_,node)=>{setSelected({kind:'node',id:node.id});setExpanded(true)}}
+                onNodeDoubleClick={(_,node)=>{window.clearTimeout(slide.current);setSelected({kind:'node',id:node.id});setExpanded(true)}}
                 onEdgeClick={(_,edge)=>{setSelected({kind:'connection',id:edge.id});setEditingRoute(null);setInspector(true)}}
                 onEdgeDoubleClick={(_,edge)=>{setSelected({kind:'connection',id:edge.id});setExpanded(true)}}
                 onPaneClick={()=>{setSelected(null);setMarked(new Set());setConnecting(null)}}
