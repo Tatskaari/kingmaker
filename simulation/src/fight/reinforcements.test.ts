@@ -4,7 +4,10 @@ import type { FightBoard, FightEvent } from "../../../shared/fight/types.ts";
 import { OUT } from "../../../shared/map/moves.ts";
 import type { ReplyResponse, SidesRequest, SidesResponse } from "../../../shared/protocol/ai.ts";
 import type { SceneDocument } from "../../../shared/scene/document.ts";
+import { getGm } from "../gm/rows.ts";
 import { all, openedGame, sceneNow } from "../host/testing.ts";
+import { sceneRow } from "../rows.ts";
+import { placeWorldOf } from "../world/place.ts";
 import type { MemoryHost } from "../host/memory.ts";
 import { eventsOf, fightOf } from "./rows.ts";
 
@@ -36,6 +39,31 @@ const COMING = {
 const fightRow = (host: MemoryHost, gameId: bigint) => host.transact(tx => fightOf(tx, gameId))!;
 const events = (host: MemoryHost, gameId: bigint): FightEvent[] => { const id = fightRow(host, gameId).id; return host.transact(tx => eventsOf(tx, id)); };
 const boardNow = (host: MemoryHost, gameId: bigint) => JSON.parse(fightRow(host, gameId).board) as FightBoard;
+
+test("one the story needs who'd run, runs (smoke5-1018: the girl the reply had bolt through the gate stood beside the axe, kept clear): off the board as the reply tells it, but never out of the scene: here after it, cowering if they got away", async () => {
+  const { host, script, wren, scene } = await openedGame(7, "fighter");
+  const gameId = scene.gameId;
+  // Kell walks with the player once the yard's done (its onEnd follow): one the story needs.
+  script.then("reply", { entries: [{ speaker: "gm", kind: "narration", text: "Kell backs for the gate. Cob squares up with a gutter stone. Roll for initiative!" }], gm: {}, firstTextMs: 3, initiative: { foes: ["cob"], allies: [], flee: ["kell"], why: "the boy in the boots, cornered" }, usage } satisfies ReplyResponse);
+  script.then("sides", (r: unknown) => ({ sides: Object.fromEntries((r as SidesRequest).sides.pending.map(p => [p.id, "flee" as const])), entries: [], usage }) satisfies SidesResponse);
+  assert.equal(host.as(wren).say({ text: "I grab the boy by his collar." }), undefined);
+  await host.drain();
+  assert.match(sceneNow(host, scene.id).lines.at(-1)!.text, /Running from it: [^.]*Kell/, "running, not keeping clear");
+  assert.equal(host.as(wren).fightItOut(), undefined);
+  const kell = boardNow(host, gameId).units["kell"]!;
+  assert.deepEqual([kell.side, kell.role], ["neutral", "coward"], "on the board as one running");
+  for (let i = 0; i < 600 && fightRow(host, gameId).status === "on"; i++) {
+    if (fightRow(host, gameId).options) host.as(wren).fightTurn({ act: "auto" });
+    else { host.advance(5000); host.fightSteps(); }
+  }
+  const fled = boardNow(host, gameId).units["kell"]!.state === "fled";
+  assert.equal(host.as(wren).walk({ toward: OUT }), undefined);
+  await host.drain();
+  const world = host.transact(tx => placeWorldOf(tx, sceneRow(tx, scene.id)).world);
+  assert.ok(world.entities["kell"] && !world.entities["kell"].states.includes("gone"), `Kell is still in the yard: ${world.entities["kell"]?.states.join(", ")}`);
+  assert.ok(!host.transact(tx => getGm(tx, scene.id)).absent.includes("kell"), "and not absent from the scene");
+  if (fled) assert.ok(world.entities["kell"].states.includes("cowering"), `got away, and cowers: ${world.entities["kell"].states.join(", ")}`);
+});
 
 test("the scene's reinforcements: the GM places them with everyone (told when they come and why); off the board until their round, then in at the way in, a moment of their own; in the yard's world after", async () => {
   const { host, script, wren, scene } = await openedGame(7, "fighter", COMING);

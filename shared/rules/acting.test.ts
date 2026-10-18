@@ -21,6 +21,7 @@ const WIZARD: ActingSheet = {
 /** The ready-made rogue of the user's report: no spells, no features with uses. */
 const ROGUE: ActingSheet = { spells: [], weapons: [{ id: "r1", name: "Rapier" }, { id: "s1", name: "Shortbow" }, { id: "d1", name: "Dagger" }, { id: "u1", name: "Unarmed Strike" }], features: [] };
 const FIGHTER: ActingSheet = { spells: [], weapons: [{ id: "l1", name: "Longsword" }, { id: "c1", name: "Light Crossbow" }], features: [{ id: "second-wind", name: "Second Wind" }] };
+const BARBARIAN: ActingSheet = { spells: [], weapons: [{ id: "g1", name: "Greataxe" }, { id: "h1", name: "Handaxe" }], features: [{ id: "rage", name: "Rage" }] };
 
 const asked = (line: string, sheet = WIZARD) => mightAct(line, sheet, SPELLS);
 
@@ -52,6 +53,10 @@ test("spells, blows, shots, throws and class features are asked, by their words:
     ["Take that! (I strike at the corporal with my longsword)", "a blow: strike", FIGHTER],
     ["(I slap Cob)", "a blow: slap cob"],
     ["(I bring my dagger down on his hand)", "a weapon: Dagger", ROGUE],
+    // A weapon by what it is, and an edge by "blade" (smoke5-1018).
+    ["I laugh and bring the axe round at the sergeant.", "a weapon: Greataxe", BARBARIAN],
+    ["(I bring my blade down across his neck)", "a weapon: Longsword", FIGHTER],
+    ["(I put a bolt from the bow into the Crake)", "a weapon: Light Crossbow", FIGHTER],
     ["(I use my Second Wind)", "a feature: Second Wind", FIGHTER],
   ];
   for (const [line, why, sheet] of acts) assert.equal(asked(line, sheet), why, line);

@@ -243,8 +243,9 @@ function fuelOf(world: SceneWorld, region: PlaceRegion): Tile2[] {
 /**
  * How the fight went, in the place's world: each fighter's state as the board left them (hurt or
  * badly hurt, down, dead, given up, in irons; anyone who ran off the board out of the place, but one
- * the story needs, who keeps clear), each where they ended up, and the lights the fight broke or
- * knocked over out (and off the floor). Who left the place, for the scene's absent list.
+ * the story needs, who cowers where they left it, and is here after it), each where they ended up,
+ * and the lights the fight broke or knocked over out (and off the floor). Who left the place, for
+ * the scene's absent list.
  */
 export function fightIntoWorld(world: SceneWorld, region: PlaceRegion, board: FightBoard, keep: ReadonlySet<string>): { gone: string[] } {
   const gone: string[] = [];
@@ -254,7 +255,7 @@ export function fightIntoWorld(world: SceneWorld, region: PlaceRegion, board: Fi
     e.at = tileToFeet(region, u.at);
     if (u.id === board.pc) continue;
     const ran = u.state === "fled" && !keep.has(e.id);
-    e.states = [...e.states.filter(s => !FIGHT_STATES.has(s)), ...statesAfter(u, ran)];
+    e.states = [...e.states.filter(s => !FIGHT_STATES.has(s)), ...statesAfter(u, ran), ...(u.state === "fled" && !ran ? ["cowering"] : [])];
     if (ran) gone.push(e.id);
   }
   for (const p of Object.values(board.props)) {

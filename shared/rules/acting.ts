@@ -149,7 +149,19 @@ function weaponIn(deeds: string[], sheet: ActingSheet): string | undefined {
   return weapon ? `a weapon: ${weapon.name}` : undefined;
 }
 
-const usedOn = (weapon: Named, deed: string) => new RegExp(`\\b${patternOf(weapon.name)}\\b[^.!?;:]{0,30}?\\b(?:at|into|onto|on|across|against|through)\\s+(?:him|her|them|his|its|their|the|a|an|[A-Z])`, "i").test(deed);
+const usedOn = (weapon: Named, deed: string) => callsOf(weapon).some(name => new RegExp(`\\b${patternOf(name)}\\b[^.!?;:]{0,30}?\\b(?:at|into|onto|on|across|against|through)\\s+(?:him|her|them|his|its|their|the|a|an|[A-Z])`, "i").test(deed));
+
+/**
+ * What a weapon goes by in a line: its name, the thing it is (a greataxe's axe, a longsword's sword,
+ * a crossbow's bow), and an edge's "blade" (smoke5-1018: "I bring the axe round at the sergeant" from
+ * a barbarian with a greataxe went unrolled, and the reply had the blow land).
+ */
+function callsOf(weapon: Named): string[] {
+  const name = weapon.name.toLowerCase().replace(/[^a-z]/g, "");
+  const kind = /(axe|sword|hammer|staff|bow|club|spear|dagger|mace|maul|flail|whip|sling)$/.exec(name)?.[1];
+  const edged = /sword|dagger|axe|scimitar|rapier|sickle|glaive|halberd/.test(name);
+  return [weapon.name, ...(kind && kind !== name ? [kind] : []), ...(edged ? ["blade"] : [])];
+}
 
 // ---------------------------------------------------------------------------------------------
 // Names as they're typed.

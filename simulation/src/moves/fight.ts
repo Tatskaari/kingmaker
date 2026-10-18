@@ -31,9 +31,11 @@ import { atTurn, type At } from "./say-commits.ts";
  * with a fight): everyone here on a side, or running from it. The player is always in it. With them
  * are whoever follows them (the companion, unless the reply set them against the player or had them
  * run) and whoever the reply put beside them; against them, those it put against them (named, they're
- * in it even if the player's blow has felled them already); those it had run run, but whoever the
- * story needs keeps clear instead (the companion, whoever holds what the player still needs: they
- * never leave). One that breaks out in the reply while a fight of the prep is on offer (fightsAhead:
+ * in it even if the player's blow has felled them already); those it had run run, off the board
+ * as it tells it (smoke5-1018: the girl the reply had bolt through the gate stood beside the axe,
+ * kept clear), though whoever the story needs never leaves the scene (fight/scene.ts
+ * fightIntoWorld: the companion, whoever holds what the player still needs, cowers and is here
+ * after it). One that breaks out in the reply while a fight of the prep is on offer (fightsAhead:
  * the Heron's blades out) is that one: the scene goes there by its route, and its line-up fights.
  * Whoever the reply left out who reacted to the player's violence this turn keeps the side their
  * reaction took. Everyone else here who could is the GM's to place (the sides step); with nobody to,
@@ -55,12 +57,11 @@ export function breakOut(tx: TxCtx, at: At, plan: SayPlan, initiative: Initiativ
     else if (how === "join_player") allyIds.add(id);
     else if (how === "flee" || how === "raise_alarm") fleeIds.add(id);
   }
-  const keep = keepers(tx, at);
   const sides: Record<string, FightSide> = {};
   for (const c of pool) {
     if (foeIds.has(c.id)) sides[c.id] = "against";
     else if (allyIds.has(c.id)) sides[c.id] = "with";
-    else if (fleeIds.has(c.id) && able(world, c.id)) sides[c.id] = keep.has(c.id) ? "clear" : "flee";
+    else if (fleeIds.has(c.id) && able(world, c.id)) sides[c.id] = "flee";
   }
   const pending = pool.filter(c => !sides[c.id] && able(world, c.id)).map(c => c.id);
   // Who'll come in when it's been going a while (the scene's reinforcements), not here already and not gone: theirs to take a side as they'd take it then.
@@ -88,18 +89,14 @@ export function breakOut(tx: TxCtx, at: At, plan: SayPlan, initiative: Initiativ
 
 /**
  * The sides step's answer: what the table saw as they took them (the GM's, under the reply), each
- * one's side (one the story needs who'd run keeps clear instead), then the scene is at its fight.
+ * one's side (one the story needs who runs never leaves the scene: fightIntoWorld), then the scene is at its fight.
  */
 export function afterSides(tx: TxCtx, plan: SayPlan, answer: SidesResponse): Next<SayPlan> {
   const at = atTurn(tx, plan);
   const fight = at.gm.fight;
   if (!fight) throw new Error(`scene ${at.scene.id}: the sides came back with no fight on`);
   if (answer.entries.length) writeReply(tx, at.scene, plan.n, idOf(plan.turn), answer.entries);
-  const keep = keepers(tx, at);
-  for (const id of fight.pending ?? []) {
-    const side = sideOfPick(answer.sides[id] ?? "flee");
-    fight.sides[id] = side === "flee" && keep.has(id) ? "clear" : side;
-  }
+  for (const id of fight.pending ?? []) fight.sides[id] = sideOfPick(answer.sides[id] ?? "flee");
   delete fight.pending;
   tx.log(`[scene ${at.scene.id} turn ${plan.n}] the sides picked: ${Object.entries(fight.sides).map(([id, s]) => `${id} ${s}`).join(", ")}`);
   return toTheFight(tx, at, plan);
