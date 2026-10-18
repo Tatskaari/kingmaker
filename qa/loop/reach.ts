@@ -9,11 +9,12 @@ import { endingsOf, sceneOf, skipOrder, type Loaded } from "./scenes.ts";
  * A game taken to the round's scene the way the story takes a player there, so a later scene is
  * reached through every real boundary before it: the lead walked to on the map (the hanged clerk
  * opens as the player walks into the yard); a scene before the one wanted ended for QA on its first
- * good or mixed ending (end_scene, which only the dev stack's owner may call), so the story moves on
+ * good or mixed ending (end_scene, which only the dev stack's owner may call), as a thorough
+ * player's game would end it, every discovery it can reach reached first, so the story moves on
  * through its boundary as it would after play (the hand-off, the next scene's opening rewritten, the
- * lead); then the next lead walked to, until the scene wanted is open and its opening played. It
- * works on the fake model as on real ones: nothing here asks a model for anything a player's game
- * wouldn't.
+ * lead) and owes nothing it carries into the next scene; then the next lead walked to, until the
+ * scene wanted is open and its opening played. It works on the fake model as on real ones: nothing
+ * here asks a model for anything a player's game wouldn't.
  */
 export async function reachScene(conn: Backend, target: string, loaded: Loaded, record: GameRecord, patience: Patience): Promise<void> {
   for (let step = 0; step < loaded.keys.length * 4; step++) {
@@ -49,15 +50,16 @@ async function moveOn(conn: Backend, patience: Patience): Promise<void> {
 
 /**
  * The scene ended for QA through its first good or mixed ending, as the dev stack's owner (the
- * headless client's end), and the story's moving on waited for. When the game won't take an ending
- * (the scene it runs hasn't one by that id), the next in skipOrder's order is tried.
+ * headless client's end), thorough (its discoveries reached first), and the story's moving on waited
+ * for. When the game won't take an ending (the scene it runs hasn't one by that id), the next in
+ * skipOrder's order is tried.
  */
 async function endForQa(conn: Backend, key: string, loaded: Loaded, record: GameRecord, patience: Patience): Promise<void> {
   const endings = skipOrder(endingsOf(sceneOf(loaded, key)));
   const refused: string[] = [];
   for (const ending of endings) {
     const out = capture();
-    const code = await patiently(conn, () => verbs.end(conn, ending.id, out, SETTLED), carryStoryOn, patience);
+    const code = await patiently(conn, () => verbs.end(conn, ending.id, out, SETTLED, { thorough: true }), carryStoryOn, patience);
     if (code === 0 || conn.view()?.over) {
       record.skipped.push({ scene: key, exit: ending.id, title: ending.title, ...(ending.grade ? { result: ending.grade } : {}) });
       return;

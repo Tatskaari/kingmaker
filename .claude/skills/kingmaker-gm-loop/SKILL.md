@@ -48,7 +48,7 @@ npm run loop -- round r2-1018 --scene hanged-clerk --personas thief,tangent,inve
 npm run loop -- games r1-1018                      # the games, for the workflow (no arms shown)
 ```
 
-- **Scenes.** `--scenes` gives each scene its number of games; `--scene` alone plays every persona on every arm (`--repeat` times). The scenes are the story's (the interludes aren't played). A later scene's game is reached the way the story reaches it: each scene before it opens, is ended for QA on its first good or mixed ending (`end_scene`, the dev stack's owner's), and crosses its real boundary, and the lead is walked to. The tester is told what their notebook says happened.
+- **Scenes.** `--scenes` gives each scene its number of games; `--scene` alone plays every persona on every arm (`--repeat` times). The scenes are the story's (the interludes aren't played). A later scene's game is reached the way the story reaches it: each scene before it opens, is ended for QA on its first good or mixed ending (`end_scene`, the dev stack's owner's) with every discovery it can reach reached first (`thorough`, as a thorough player's game would have them, so nothing it carries is owed on), and crosses its real boundary, and the lead is walked to. The tester is told what their notebook says happened.
 - **Arms** are stacks: `baseline` is the round's stack; a candidate is a stack of its own run from another checkout (`npm run loop -- stack up --root <its runs/loop-stack> --port 3340 --ai-port 8827` there), so any change, prompts or code, is an arm. Each arm gets a shuffled neutral name.
 - **Personas** are in qa/loop/personas.json (thief, wizard, barbarian, tangent, investigator, schemer, terse, absurd). Include `tangent` or `absurd`: the user cares most about how the GM improvises off the prep. `--goal "..."` makes a goal-directed round (docs/QA.txt).
 
@@ -95,7 +95,7 @@ On the prototype a flagged turn became a case (`loop case`, `loop fixture`: the 
 
 ## Sharp edges
 
-- **A scene ended for QA is forced:** no closing reply, its ending's effects applied as if played. What the notebook says is what the story knows; the reviewer's pack says which scenes were ended so.
+- **A scene ended for QA is forced:** no closing reply, its discoveries reached first (their facts settled and the carried ones landed, so the next scene's GM isn't told to bring them out), its ending's effects applied as if played. What the notebook says is what the story knows; the reviewer's pack says which scenes were ended so.
 - **The fake model** answers every scene with the yard's golden replies, so a fake round tests the loop's plumbing, never the GM. Its co-GM walks each scene to its first good ending, a route a line (required discoveries first), so a fake game longer than four lines in the yard ends there (the closing is the fifth reply). `KM_AI_FAKE='{"mouthpiece":{"check":{"skill":"medicine","dc":12}}}'` before `stack up --fake` makes every reply but an opening or a closing call a check, to see the dice in `say`.
 - **The suggested lines are off:** the testers write their own lines, and the review is of the GM's replies. (The notes on marked words went in M2.)
 - **A turn cut off** (an agent's command timed out) goes on on the stack: the next `say` waits for it first and prints what answered it with the new answer; `transcript` shows where things stand.

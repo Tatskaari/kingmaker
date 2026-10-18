@@ -120,7 +120,7 @@ export class SpacetimeLink implements Link {
   /** A reducer called: undefined when it was made; else why not (its refusal, or what went wrong on the way). */
   async move<K extends MoveWire>(name: K, args: LinkMoves[K]): Promise<Rejection | undefined> {
     // end_scene is the owner's (testing): made as the dev stack's owner, over HTTP, not as this player.
-    if (name === "endScene") { const { game, exit } = args as LinkMoves["endScene"]; return endSceneAs(this.owner, game, exit); }
+    if (name === "endScene") return endSceneAs(this.owner, args as LinkMoves["endScene"]);
     const reducer = this.db.reducers[name] as (args: LinkMoves[K]) => Promise<void>;
     try {
       await reducer(args);

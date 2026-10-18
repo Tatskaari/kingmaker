@@ -13,4 +13,5 @@ import {
 export default {
   game: __t.u64(),
   exit: __t.string(),
+  thorough: __t.option(__t.bool()),
 };

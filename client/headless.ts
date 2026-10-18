@@ -297,11 +297,13 @@ export async function retry(game: Backend, out: Out, waiting: Waiting = {}): Pro
  * For testing (the QA console's end): the scene ends through `exit` now, as the dev stack's owner
  * (end_scene), and the story moves on; then where it stands, as observe says it (MODE: between, the
  * fight, The End, or a summons's next scene once its opening is in). With no exit, the endings.
+ * `thorough` (the GM loop's): every discovery the scene can still reach is reached first, so it ends
+ * as a thorough player's game would, owing none of them on.
  */
-export async function end(game: Backend, exit: string | undefined, out: Out, waiting: Waiting = {}): Promise<number> {
+export async function end(game: Backend, exit: string | undefined, out: Out, waiting: Waiting = {}, how: { thorough?: boolean } = {}): Promise<number> {
   const view = game.view();
   if (!view) return notInGame(out);
-  const refused = await game.act("endScene", { game: BigInt(view.game), exit: exit ?? "" });
+  const refused = await game.act("endScene", { game: BigInt(view.game), exit: exit ?? "", ...(how.thorough ? { thorough: true } : {}) });
   // With no exit, the refusal is the list of the endings: the QA console's answer to end alone.
   if (refused) { out.print(refused.text); return exit ? 1 : 0; }
 

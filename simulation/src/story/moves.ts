@@ -1,8 +1,9 @@
 import type { Identity } from "spacetimedb";
 import { andList, refusal } from "../../../shared/protocol/refusals.ts";
+import { reachDiscoveries } from "../../../shared/scene/beats.ts";
 import { isAdmin } from "../access.ts";
 import { actorOf, Refused, type Actor, type TxCtx } from "../context.ts";
-import { getGm } from "../gm/rows.ts";
+import { getGm, putGm } from "../gm/rows.ts";
 import { moveNamed } from "../moves/registry.ts";
 import { waitingScene } from "../moves/open-scene.ts";
 import { endScene } from "../moves/say-commits.ts";
@@ -38,9 +39,11 @@ export function goOnReducer(tx: TxCtx, sender: Identity, args: { to?: { x: numbe
  * end_scene: the scene being played ends through an exit now, with no closing reply (the prototype's
  * forceEnding, engine.ts:1046-1053): the owner's, for testing (the QA console's end, the arc). A turn
  * whose reply is in (settling) or that failed is finished first, its own steps' job dropped; one the
- * GM is still answering refuses it.
+ * GM is still answering refuses it. `thorough` (the GM loop's, a scene skipped for QA): every
+ * discovery the scene can still reach is reached first, as a thorough player's game would have them
+ * by its end, so the chapter has their facts and the story owes none of them on.
  */
-export function endSceneReducer(tx: TxCtx, sender: Identity, args: { game: bigint; exit: string }): void {
+export function endSceneReducer(tx: TxCtx, sender: Identity, args: { game: bigint; exit: string; thorough?: boolean | undefined }): void {
   if (!isAdmin(tx, sender)) throw new Refused(refusal("not_admin", { what: "end a scene for testing" }));
   const game = tx.db.game.id.find(args.game);
   if (!game) throw new Refused(refusal("unknown", { what: "game" }));
@@ -51,8 +54,17 @@ export function endSceneReducer(tx: TxCtx, sender: Identity, args: { game: bigin
   const exit = exits.find(e => e.id === args.exit);
   if (!exit) throw new Refused(refusal("no_exit", { exit: args.exit, exits: andList(exits.map(e => `${e.id} (${e.title})`)) }));
   letGo(tx, scene);
+  if (args.thorough) reachAll(tx, scene);
 
   endScene(tx, scene.id, exit, sceneRow(tx, scene.id).turns, "forced");
+}
+
+/** A thorough end's discoveries (beats.ts reachDiscoveries), each through its route as the co-GM would take it: their facts settled, the carried ones landed, the stage where it was. */
+function reachAll(tx: TxCtx, scene: SceneRow): void {
+  const gm = getGm(tx, scene.id);
+  const done = reachDiscoveries(sceneGraph(tx, scene, gm), gm, sceneRow(tx, scene.id).turns);
+  putGm(tx, scene.id, done.gm);
+  tx.log(`[end ${scene.sceneKey}] thorough: reached ${done.reached.join(", ") || "nothing more"}`);
 }
 
 /** carry_on: a boundary that failed, queued again (its key the same, so an answer the AI service kept is served). The game's host's. */

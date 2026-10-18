@@ -3,7 +3,7 @@ import { copyFileSync, cpSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import type { Backend } from "../../client/backend.ts";
+import type { Backend, Moves } from "../../client/backend.ts";
 import { YARD } from "../../client/check/fixture.ts";
 import { demoBackend } from "../../client/demo.ts";
 import type { SceneView } from "../../client/scene/view.ts";
@@ -206,9 +206,12 @@ test("say: a check the GM calls, as the player sees it: the narration that sets 
   ].join("\n\n"));
 });
 
-test("a later scene reached: the scene before it ended for QA on its first good or mixed ending the game takes, the story moved on, then on to the lead", async () => {
+test("a later scene reached: the scene before it ended for QA, thorough, on its first good or mixed ending the game takes, the story moved on, then on to the lead", async () => {
   // The demo's own game (Pell Marrow's, in the yard and on no map: the demo's map can't walk to the Rat, as the game's can).
   const game = demoBackend({ ms: 1 });
+  const ends: Array<[string, boolean | undefined]> = [];
+  const act = game.act.bind(game);
+  game.act = (move, args) => { if (move === "endScene") ends.push([(args as Moves["endScene"]).exit, (args as Moves["endScene"]).thorough]); return act(move, args); };
   const record = newRecord({ round: "r1", game: "g01", scene: "drowned-rat", stack: "demo" });
   const waits: Wait[] = [];
   await reachScene(game, "drowned-rat", await asTheDemo, record, { sleep: async () => {}, now: () => new Date(0), waits, backoff: [1] });
@@ -217,6 +220,7 @@ test("a later scene reached: the scene before it ended for QA on its first good 
   assert.equal(game.view()?.mayType, true, "its opening is over");
   // The demo's end_scene takes only open-case: case-made, the first of the yard's good endings, was refused, so the next was tried.
   assert.deepEqual(record.skipped, [{ scene: "hanged-clerk", exit: "open-case", title: "Murder by persons unknown", result: "good" }]);
+  assert.deepEqual(ends, [["case-made", true], ["open-case", true]], "each end thorough: its discoveries reached first");
   assert.deepEqual(waits, []);
   await assert.rejects(reachScene(game, "hanged-clerk", await asTheDemo, record, { sleep: async () => {}, now: () => new Date(0), waits, backoff: [1] }), /The story passed over hanged-clerk and opened drowned-rat/);
 });

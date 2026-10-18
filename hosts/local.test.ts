@@ -395,3 +395,27 @@ test("the two-part GM on the local host: the campaign's hanged clerk walked to m
   assert.deepEqual([rat.status, all(sim.db.game)[0]!.leadScene], ["waiting", "drowned-rat"]);
   local.close();
 });
+
+/**
+ * The owner's end, thorough (the GM loop's, for a scene it skips), on the local host with the
+ * campaign's own hanged clerk: each of its discoveries reached first, so its chapter has their facts
+ * and the boundary owes the Rat nothing; a plain end owes the clerk's carried discoveries on.
+ */
+test("a thorough end on the local host: the campaign's clerk ended with its discoveries reached first, and the Rat waits owing nothing; a plain end owes them on", async () => {
+  const ended = async (thorough: boolean) => {
+    const local = await localHost({ seed: 7, fake: () => onTop(devFake(), { streamMs: 0, suggestDelayMs: 0 }) });
+    const sim = local.sim;
+    assert.equal(sim.as(WREN).newGame({ campaign: "caerwyn", name: "Wren Ashdown", concept: "a quick-witted investigator lent to the case by the King", build: "ranger" }), undefined);
+    assert.equal(sim.as(WREN).walk({ toward: "lead" }), undefined);
+    await sim.drain();
+    const scene = all(sim.db.scene)[0]!;
+    assert.equal(sim.as(sim.owner).endScene({ game: scene.gameId, exit: "murder-unknown", ...(thorough ? { thorough } : {}) }), undefined);
+    await sim.drain();
+    const rat = all(sim.db.scene).find(s => s.sceneKey === "drowned-rat")!;
+    const out = { reached: sceneNow(sim, scene.id).gm.reached, facts: sim.db.chapter.sceneId.find(scene.id)!.facts.length, owed: sim.db.gmState.sceneId.find(rat.id)!.owed.map(o => `${o.from}:${o.id}`) };
+    local.close();
+    return out;
+  };
+  assert.deepEqual(await ended(true), { reached: ["start", "murder", "motive", "hobb"], facts: 3, owed: [] });
+  assert.deepEqual(await ended(false), { reached: ["start"], facts: 0, owed: ["hanged-clerk:motive", "hanged-clerk:hobb"] });
+});

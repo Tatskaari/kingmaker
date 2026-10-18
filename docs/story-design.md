@@ -130,7 +130,7 @@ The new tables are public, read by game. Each new column has a default, so a ful
 | Reducer | Args | Who | What |
 |---|---|---|---|
 | `walk` | `to` (option `Tile2`), `toward` (option string): the map unit's | the controller | `toward: "lead"` with no map: `openLead`, which opens `game.leadScene`'s waiting scene through V0's `openScene`. Refuses `scene_on`, `no_lead`, `story_over`, `no_way` |
-| `end_scene` | `game`, `exit` | the owner | the scene ends through the exit with no closing reply (`forceEnding`) |
+| `end_scene` | `game`, `exit`, `thorough` (option bool) | the owner | the scene ends through the exit with no closing reply (`forceEnding`); `thorough` (the GM loop's) reaches every discovery it can first (`reachDiscoveries`) |
 | `carry_on` | none | the controller | a boundary that failed, queued again |
 | `fight_it_out` | none | the controller | the stand-in: its line, a journal line, the scene picked up, its aftermath queued |
 

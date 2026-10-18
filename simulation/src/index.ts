@@ -86,10 +86,10 @@ export const leap = spacetimedb.reducer({ at: Tile2 }, (ctx, args) => asReducer(
 export const hide = spacetimedb.reducer(ctx => asReducer(ctx, tx => hideReducer(tx, ctx.sender, {})));
 export const rest = spacetimedb.reducer({ length: t.string(), recover: t.option(t.bool()) }, (ctx, args) => asReducer(ctx, tx => restReducer(tx, ctx.sender, args)));
 export const useItem = spacetimedb.reducer({ item: t.string() }, (ctx, args) => asReducer(ctx, tx => useItemReducer(tx, ctx.sender, args)));
-// The story between scenes (story-design §4.3): a boundary that failed carried on, the fight's stand-in; and the owner's testing end.
+// The story between scenes (story-design §4.3): a boundary that failed carried on, the fight's stand-in; and the owner's testing end (thorough: the scene's discoveries reached first).
 export const carryOn = spacetimedb.reducer(ctx => asReducer(ctx, tx => carryOnReducer(tx, ctx.sender, {})));
 export const fightItOut = spacetimedb.reducer(ctx => asReducer(ctx, tx => fightItOutReducer(tx, ctx.sender, {})));
-export const endScene = spacetimedb.reducer({ game: t.u64(), exit: t.string() }, (ctx, args) => asReducer(ctx, tx => endSceneReducer(tx, ctx.sender, args)));
+export const endScene = spacetimedb.reducer({ game: t.u64(), exit: t.string(), thorough: t.option(t.bool()) }, (ctx, args) => asReducer(ctx, tx => endSceneReducer(tx, ctx.sender, args)));
 
 // The AI service's: the reply as it's written, and proof its token reaches the module as itself.
 export const streamReply = spacetimedb.reducer(
