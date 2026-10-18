@@ -2,6 +2,7 @@
 import { App } from "../../client/app.tsx";
 import { AppModel } from "../../client/app/model.ts";
 import { GLYPH_SETS, setGlyphSet, type GlyphSet } from "../../client/look/glyphs.ts";
+import { setPace } from "../../client/pace.ts";
 import { registerLookCanvas } from "../../client/look/opentui.ts";
 import { portLink, type MessagePortLike } from "../../client/net/port.ts";
 import { Replica } from "../../client/net/replica.ts";
@@ -14,7 +15,7 @@ import { createCliRenderer, type CliRenderer } from "../../web/tui/renderer.ts";
  * over the Replica on a port to the server worker, drawing into the page's terminal. The page talks
  * to it in messages (understand-web.md §5.4):
  *
- *   page -> worker   {type: "start", port, cols, rows, glyphs?, zoo?, build?, foes?} (the port transferred), then
+ *   page -> worker   {type: "start", port, cols, rows, glyphs?, reducedMotion?, zoo?, build?, foes?} (the port transferred), then
  *                    {type: "input", data}, {type: "resize", cols, rows}, {type: "redraw"}, {type: "quit"}
  *   worker -> page   {type: "started"}, {type: "output", data}, {type: "exit"}, {type: "error", message}
  *
@@ -36,10 +37,10 @@ const scope = self as unknown as WorkerScope;
 
 /**
  * The page's start: its end of the channel to the server worker, the terminal's size, the glyph set its
- * fonts draw (kingmaker unless it says), and the zoo when the page's address asks for it (M6: ?zoo, the
+ * fonts draw (kingmaker unless it says), whether the browser asks for reduced motion, and the zoo when the page's address asks for it (M6: ?zoo, the
  * zoo's menu on the title, "" here; ?zoo=ring, a visit to that exhibit at once, as `build` against `foes`).
  */
-interface Start { type: "start"; port: MessagePortLike; cols: number; rows: number; glyphs?: string; zoo?: string; build?: string; foes?: string }
+interface Start { type: "start"; port: MessagePortLike; cols: number; rows: number; glyphs?: string; reducedMotion?: boolean; zoo?: string; build?: string; foes?: string }
 type PageMessage = Start | { type: "input"; data: Uint8Array | string } | { type: "resize"; cols: number; rows: number } | { type: "redraw" } | { type: "quit" };
 
 /** What the client tells the page: the terminal's bytes, started, exit, or why it couldn't start. */
@@ -60,6 +61,8 @@ interface Running { renderer: CliRenderer; app: AppModel }
  */
 export async function runClient(start: Start, page: Page): Promise<Running> {
   setGlyphSet(glyphsOf(start.glyphs));
+  // The browser's reduced motion (prefers-reduced-motion): a fight's moves at their ends, with their captions.
+  setPace({ reducedMotion: start.reducedMotion === true });
   const game = new Replica(portLink(start.port, { session: "default" }));
   await game.ready;
   // ?zoo=<exhibit>: a visit to it at once, as the fighter unless the address says (its refusal on the title).

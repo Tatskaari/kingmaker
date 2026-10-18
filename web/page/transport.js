@@ -176,6 +176,8 @@ export function workerTransport(handlers, options) {
     worker.postMessage({
       type: "start", port: port1, cols: message.cols, rows: message.rows, ...(message.window ? { window: message.window } : {}),
       ...(options.glyphs ? { glyphs: options.glyphs } : {}),
+      // The browser's reduced motion: a fight's moves shown at their ends with their captions, not played out.
+      ...(globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? { reducedMotion: true } : {}),
       // The zoo (?zoo, ?zoo=<exhibit>): the client opens its menu, or visits the exhibit (as options.build, against options.foes).
       ...(options.zoo !== undefined ? { zoo: options.zoo, ...(options.build ? { build: options.build } : {}), ...(options.foes ? { foes: options.foes } : {}) } : {}),
     }, [port1]);
