@@ -129,8 +129,9 @@ export async function aSpellInWords(stack: Stack, root: string, a: Player, b: Pl
   const status = rows.sheets.find(s => s.playerId === rows.scene.controllerId)?.statusLine ?? "";
   check(`the sheet's status: ${status}`, /spell slots 1st 2\/4/.test(status));
   const asked = (op: string, at: "act" | "reactions") => modelCalls(root, game.uid, op, keyOf(game, n, at));
-  check(`the act step asked once (director.rules ${asked("director.rules", "act")}, its details director.mechanic ${asked("director.mechanic", "act")}), the reactions once (${asked("director.reactions", "reactions")})`,
-    asked("director.rules", "act") === 1 && asked("director.mechanic", "act") === 1 && asked("director.reactions", "reactions") === 1);
+  // The line casts one of her spells by its name, so the act step doesn't ask what it is (PR #677's castNamed): only its details.
+  check(`the act step asked its details once (director.mechanic ${asked("director.mechanic", "act")}) and not what it is (director.rules ${asked("director.rules", "act")}: the spell is named), the reactions once (${asked("director.reactions", "reactions")})`,
+    asked("director.rules", "act") === 0 && asked("director.mechanic", "act") === 1 && asked("director.reactions", "reactions") === 1);
   const gm = await gmOf(stack, game);
   const path = gm.path.filter(p => p.turn === n).map(p => p.via);
   check(`the path's steps: ${path.join(", ")}; no fight started`, path[0] === "rules:cast:magic-missile" && /^reactions:.*moll=cower/.test(path[1] ?? "") && gm.brawl === undefined && gm.threat === undefined);

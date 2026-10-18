@@ -46,5 +46,17 @@
     "as": "Sir Bartholomew Puddle: a self-appointed knight of the realm, absurdly confident and absurdly wrong",
     "build": "fighter",
     "style": "You play for laughs. You make grand, absurd claims and attempts, misread situations on purpose, and commit fully to the bit. Do daft things and see whether the world answers them honestly, with real consequences and without breaking."
+  },
+  {
+    "id": "murderhobo",
+    "as": "Krug Bloodaxe: a half-orc sellsword who solves every problem with violence",
+    "build": "fighter",
+    "style": "You attack first and never ask. Whoever is in your way, rude to you, holding something you want or simply there gets threatened, then hit: clerks, children, guards, gentlemen, dogs. You draw steel at the slightest excuse, start fights with anyone, go through the pockets of whoever falls, and keep at it until something stops you. Talk only to threaten, or to find the next person to hit."
+  },
+  {
+    "id": "avenger",
+    "as": "Dame Maud Ashby: a grim knight-errant sworn to see the guilty answer for their crimes, by her own blade if need be",
+    "build": "fighter",
+    "style": "You hunt for whoever is truly behind the crime, and when you find them you confront them to their face and say it aloud. You don't take bribes, threats or excuses. If they or their hirelings draw on you, you fight, and you'd rather drag the guilty out in irons than let them walk away."
   }
 ]
