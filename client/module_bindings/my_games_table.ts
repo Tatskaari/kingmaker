@@ -18,4 +18,5 @@ export default __t.row({
   hook: __t.string(),
   begun: __t.bool(),
   lastPlayedAt: __t.timestamp().name("last_played_at"),
+  campaign: __t.string(),
 });

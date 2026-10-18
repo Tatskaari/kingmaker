@@ -25,6 +25,7 @@ import { tickPlace as tickPlaceBody } from "./map/tick.ts";
 import { fightTurnReducer } from "./fight/moves.ts";
 import { fightStep as fightStepBody } from "./fight/step.ts";
 import { startRingReducer } from "./zoo/moves.ts";
+import { openExhibitReducer, visitZooReducer } from "./zoo/exhibits.ts";
 import { loadRules } from "./rules/load.ts";
 import spacetimedb, { creation, fightClock, GameSummary, jobDispatch, NameView, placeTick, reaper, SeatView, Tile2 } from "./schema.ts";
 import { carryOnReducer, endSceneReducer, fightItOutReducer } from "./story/moves.ts";
@@ -96,6 +97,9 @@ export const endScene = spacetimedb.reducer({ game: t.u64(), exit: t.string(), t
 // A fight (M6, docs/combat-design.md): one of the zoo's rings started, and the fight's own acts on the player's turn (the map's walk, attack and cast are its moves too).
 export const startRing = spacetimedb.reducer({ ring: t.string(), fast: t.option(t.bool()) }, (ctx, args) => asReducer(ctx, tx => startRingReducer(tx, ctx.sender, args)));
 export const fightTurn = spacetimedb.reducer({ act: t.string() }, (ctx, args) => asReducer(ctx, tx => fightTurnReducer(tx, ctx.sender, args)));
+// The zoo (M6, campaigns/zoo): a visit made, opening one of its exhibits; and an exhibit opened again in it (the ring's fight again, or with other foes).
+export const visitZoo = spacetimedb.reducer({ exhibit: t.string(), build: t.string(), name: t.option(t.string()), foes: t.option(t.string()), fast: t.option(t.bool()) }, (ctx, args) => asReducer(ctx, tx => visitZooReducer(tx, ctx.sender, args)));
+export const openExhibit = spacetimedb.reducer({ exhibit: t.string(), foes: t.option(t.string()), fast: t.option(t.bool()) }, (ctx, args) => asReducer(ctx, tx => openExhibitReducer(tx, ctx.sender, args)));
 
 // The AI service's: the reply as it's written, and proof its token reaches the module as itself.
 export const streamReply = spacetimedb.reducer(

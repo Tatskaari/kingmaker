@@ -1036,6 +1036,8 @@ export const GameSummary = t.row("GameSummary", {
   /** Whether it has set off (begin), or is still the sheet. */
   begun: t.bool(),
   lastPlayedAt: t.timestamp(),
+  /** The campaign's key ("caerwyn"; "zoo" for a zoo visit, which the title keeps apart: M6). */
+  campaign: t.string(),
 });
 
 // ---------------------------------------------------------------------------------------------

@@ -118,7 +118,7 @@ export const PLAYER_MOVES = [
   "startCreation", "creationBack", "chooseBuild", "makeOwn", "pickOwn", "takeOwn", "setBackstory", "draftBackstory", "workInBackstory",
   "takeProposal", "leaveProposal", "finishBackstory", "acceptFix", "rewriteIssue", "skipBackstory", "chooseAgain",
   "begin", "continueGame", "deleteGame", "carryOn", "fightItOut",
-  "startRing", "fightTurn",
+  "startRing", "fightTurn", "visitZoo", "openExhibit",
 ] as const;
 
 /** The moves only the database's owner may make, for testing (story-design §4.5: /end): a host makes them as the owner, when it allows them. */

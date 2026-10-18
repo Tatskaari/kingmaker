@@ -119,6 +119,14 @@ export interface FightBoard {
   keep?: boolean;
   /** The setup's: the other side's turns at once, with no pause for the screen. */
   fast?: boolean;
+  /** The setup's: the zoo's exhibit and line-up it was set out from (M6), for fighting it again. */
+  zoo?: ZooFight;
+}
+
+/** Which of the zoo's exhibits a fight was set out from, and with which line-up of foes (shared/zoo/exhibits.ts). */
+export interface ZooFight {
+  exhibit: string;
+  foes: string;
 }
 
 /**
@@ -145,6 +153,8 @@ export interface FightSetup {
   keep?: boolean;
   /** The other side's turns follow each other at once, with no pause for the screen (QA). */
   fast?: boolean;
+  /** The zoo's exhibit and line-up it's set out from (M6): a zoo fight, which the screen offers to fight again or with other foes. */
+  zoo?: ZooFight;
 }
 
 // ---------------------------------------------------------------------------------------------

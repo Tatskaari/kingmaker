@@ -330,6 +330,7 @@ export const GameSummary = __t.object("GameSummary", {
   hook: __t.string(),
   begun: __t.bool(),
   lastPlayedAt: __t.timestamp(),
+  campaign: __t.string(),
 });
 export type GameSummary = __Infer<typeof GameSummary>;
 

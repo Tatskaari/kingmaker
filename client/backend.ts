@@ -53,7 +53,8 @@ export interface Backend {
  * may make: the connection makes it as the dev stack's owner (net/owner.ts), for testing. And the
  * map's action menu (town-design §3.2): cast, attack, use_feature, leap, hide, rest, use_item, each
  * one of the prototype's menu ids (shared/map/moves.ts moveOf; mapMove sends them here). And a
- * fight's (M6): start_ring, a zoo ring's fight started, and fight_turn, the fight's own acts.
+ * fight's (M6): start_ring, a zoo ring's fight started, and fight_turn, the fight's own acts. And
+ * the zoo's (M6): visit_zoo, a visit opening an exhibit, and open_exhibit, one opened again.
  */
 export type MoveName =
   | "startCreation" | "creationBack" | "chooseBuild" | "makeOwn" | "pickOwn" | "takeOwn" | "setBackstory" | "draftBackstory"
@@ -61,7 +62,7 @@ export type MoveName =
   | "chooseAgain" | "begin" | "continueGame" | "deleteGame"
   | "walk" | "carryOn" | "fightItOut" | "endScene"
   | "cast" | "attack" | "useFeature" | "leap" | "hide" | "rest" | "useItem"
-  | "startRing" | "fightTurn";
+  | "startRing" | "fightTurn" | "visitZoo" | "openExhibit";
 
 /** Each move's arguments, as the bindings have them. */
 export type Moves = { [K in MoveName]: Parameters<DbConnection["reducers"][K]>[0] };

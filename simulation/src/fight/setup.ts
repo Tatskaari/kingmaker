@@ -117,7 +117,7 @@ export function boardOf(t: Table, setup: FightSetup, map: TileMap, pc: { engineI
   const board: FightBoard = {
     encounterId, units, order, active: enc.activeIndex, round: enc.round || 1,
     dust: (setup.dust ?? []).map(key), fire: [], fuel: (setup.fuel ?? []).map(key), props, exits, pc: player, flags: {}, place: setup.place,
-    ...(setup.keep ? { keep: true } : {}), ...(setup.fast ? { fast: true } : {}),
+    ...(setup.keep ? { keep: true } : {}), ...(setup.fast ? { fast: true } : {}), ...(setup.zoo ? { zoo: { ...setup.zoo } } : {}),
   };
   return { board, rolled };
 }

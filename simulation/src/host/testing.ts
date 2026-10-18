@@ -70,6 +70,28 @@ export function caerwynPack(options: PackOptions = {}): CampaignPack {
 
 export const caerwynArgs = (options: PackOptions = {}): InstallArgs => installArgsOf(caerwynPack(options));
 
+const ZOO = join(import.meta.dirname, "..", "..", "..", "campaigns", "zoo");
+
+/** campaigns/zoo as install_campaign takes it (M6): its scenario, its ring's scene, place and map, its builds and looks. */
+export function zooPack(): CampaignPack {
+  const at = (path: string) => readFileSync(join(ZOO, path), "utf8");
+  const campaign = loadScenario(at(scenarioPath("zoo")), scenarioPath("zoo"));
+  return {
+    campaign,
+    scenes: campaign.scenes.map(key => JSON.parse(at(`scenes/${key}.kmscene`)) as SceneDocument),
+    places: campaign.places.map(key => loadPlace(at(placePath(key)), placePath(key))),
+    builds: JSON.parse(at("builds.json")) as BuildsFile,
+    looks: JSON.parse(at("looks.json")) as LooksFile,
+    maps: (campaign.maps ?? []).map(key => loadMap(at(mapPath(key)), mapPath(key))),
+  };
+}
+
+/** The zoo installed beside the campaign, as the dev stack and the page install it (the module alone: no GM plays it). */
+export function installZoo(host: MemoryHost): void {
+  const refused = host.as(host.owner).installCampaign(installArgsOf(zooPack()));
+  if (refused) throw new Error(`the zoo's install was refused: ${refused.text}`);
+}
+
 /** A player's identity, by a number. */
 export const identity = (n: number) => new Identity(BigInt(0x1000 + n));
 

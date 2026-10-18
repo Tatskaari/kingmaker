@@ -19,6 +19,7 @@ import { tickPlace } from "../map/tick.ts";
 import { fightTurnReducer } from "../fight/moves.ts";
 import { fightStep } from "../fight/step.ts";
 import { startRingReducer } from "../zoo/moves.ts";
+import { openExhibitReducer, visitZooReducer } from "../zoo/exhibits.ts";
 import { joinGameReducer } from "../moves/join-game.ts";
 import { newGameReducer } from "../moves/new-game.ts";
 import { retryTurnReducer } from "../moves/retry-turn.ts";
@@ -145,6 +146,7 @@ const MOVES = {
   cast: acts.castReducer, attack: acts.attackReducer, useFeature: acts.useFeatureReducer, leap: acts.leapReducer, hide: acts.hideReducer, rest: acts.restReducer, useItem: acts.useItemReducer,
   carryOn: story.carryOnReducer, fightItOut: story.fightItOutReducer, endScene: story.endSceneReducer,
   startRing: startRingReducer, fightTurn: fightTurnReducer,
+  visitZoo: visitZooReducer, openExhibit: openExhibitReducer,
 };
 
 /** A caller's moves: each returns the refusal, or nothing when it was made. */

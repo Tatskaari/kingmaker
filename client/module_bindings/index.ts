@@ -58,6 +58,7 @@ import LeapReducer from "./leap_reducer";
 import LeaveProposalReducer from "./leave_proposal_reducer";
 import MakeOwnReducer from "./make_own_reducer";
 import NewGameReducer from "./new_game_reducer";
+import OpenExhibitReducer from "./open_exhibit_reducer";
 import PickOwnReducer from "./pick_own_reducer";
 import RestReducer from "./rest_reducer";
 import RetryTurnReducer from "./retry_turn_reducer";
@@ -75,6 +76,7 @@ import TakeProposalReducer from "./take_proposal_reducer";
 import TravelReducer from "./travel_reducer";
 import UseFeatureReducer from "./use_feature_reducer";
 import UseItemReducer from "./use_item_reducer";
+import VisitZooReducer from "./visit_zoo_reducer";
 import WalkReducer from "./walk_reducer";
 import WorkInBackstoryReducer from "./work_in_backstory_reducer";
 
@@ -665,6 +667,7 @@ const reducersSchema = __reducers(
   __reducerSchema("leave_proposal", LeaveProposalReducer),
   __reducerSchema("make_own", MakeOwnReducer),
   __reducerSchema("new_game", NewGameReducer),
+  __reducerSchema("open_exhibit", OpenExhibitReducer),
   __reducerSchema("pick_own", PickOwnReducer),
   __reducerSchema("rest", RestReducer),
   __reducerSchema("retry_turn", RetryTurnReducer),
@@ -682,6 +685,7 @@ const reducersSchema = __reducers(
   __reducerSchema("travel", TravelReducer),
   __reducerSchema("use_feature", UseFeatureReducer),
   __reducerSchema("use_item", UseItemReducer),
+  __reducerSchema("visit_zoo", VisitZooReducer),
   __reducerSchema("walk", WalkReducer),
   __reducerSchema("work_in_backstory", WorkInBackstoryReducer),
 );
