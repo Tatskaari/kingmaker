@@ -9,6 +9,7 @@ import { screenOf, type Viewport } from "../map/render.ts";
 import { pacing } from "../pace.ts";
 import type { SheetShown } from "../scene/model.ts";
 import type { MenuGroup } from "../ui/actions.tsx";
+import type { FightZoo } from "../zoo/zoo.ts";
 import { FightPlayer, type PlayFrame } from "./player.ts";
 import { myTurn, type FightView } from "./view.ts";
 
@@ -41,8 +42,8 @@ export interface FightMenu { groups: MenuGroup[]; entries: MenuEntry[]; index: n
 /** Aiming a line of the menu: which of its targets is aimed at. */
 export interface FightAim { entry: MenuEntry; index: number }
 
-/** What's open over the fight: how to play it, its log in full, the menu (Esc), the character sheet. */
-export type FightOverlay = { kind: "help" } | { kind: "log" } | { kind: "sheet" } | { kind: "menu"; index: number };
+/** What's open over the fight: how to play it, its log in full, the menu (Esc), the character sheet; in a zoo fight, the line-ups to pick other foes from (o: client/zoo/fight.ts). */
+export type FightOverlay = { kind: "help" } | { kind: "log" } | { kind: "sheet" } | { kind: "menu"; index: number } | { kind: "foes"; index: number };
 
 export interface FightModelOptions {
   /** The clock (ms): performance.now()'s, or a check's. */
@@ -53,6 +54,8 @@ export interface FightModelOptions {
   sheet?: () => SheetShown | undefined;
   /** Redraw on a timer at each change of what's shown (the screen in play); a check calls emit itself. */
   timers?: boolean;
+  /** The zoo (M6), for a fight from one of its exhibits: fight it again, or with other foes (client/zoo/fight.ts). */
+  zoo?: FightZoo;
 }
 
 export class FightModel {
@@ -71,6 +74,8 @@ export class FightModel {
   sending = false;
   readonly now: () => number;
   readonly sheet: () => SheetShown | undefined;
+  /** The zoo, when the screen has it: a fight from one of its exhibits can be fought again, or with other foes. */
+  readonly zoo: FightZoo | undefined;
 
   private readonly actions: FightActions;
   private readonly listeners = new Set<() => void>();
@@ -84,6 +89,7 @@ export class FightModel {
     this.actions = actions;
     this.now = options.now ?? (() => performance.now());
     this.sheet = options.sheet ?? (() => undefined);
+    this.zoo = options.zoo;
     this.timers = options.timers ?? true;
     this.reduced = pacing().reducedMotion;
     this.player = new FightPlayer(view, this.now(), { fromStart: options.fromStart ?? false, reduced: () => this.reduced });
@@ -289,7 +295,7 @@ export class FightModel {
    * it's done on is what's shown; a refusal is said on the status line, in the game's words.
    */
   async act(id: string): Promise<void> {
-    if (this.sending) return;
+    if (this.sending) { this.say("(One thing at a time: your last move's still on its way.)"); return; }
     this.player.skip(this.now());
     const m = isFightAct(id) ? undefined : moveOf(id);
     if (!isFightAct(id) && !m) { this.say(`(There's no ${id} in the fight.)`); return; }
