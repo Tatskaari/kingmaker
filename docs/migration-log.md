@@ -86,6 +86,28 @@ M1 was reviewed on its own commits before going anywhere, from the worktree's ro
 - **The plugin has no vault in the repo:** the root `lore/` it was installed into is gone, and M3 brings it to `campaigns/caerwyn`. Its `import-main-campaign.mjs` reads the prototype's TypeScript scenes, so it's obsolete once M2 lands.
 - **Still only the prototype's** (in history): problem reports (`src/report`, M4), fights on the map (V12) and words typed in a fight (V13), the quick co-GM, the actors approaches, the zoo, and the page's door and lamp pictures.
 
+### Dice in tests (2026-10-18)
+
+The user, after a CI run went red on two dice flakes (#673's e2e, whose six Fire Bolts at the watch house door all missed, about one run in a hundred; M6's headless fight, whose page host rolled dice of its own): "we shouldn't be using a real dice roll in tests." Every die a game rolls comes from its `dice` row's seed (the checks, the rules engine, the town's reactions, a fight's), and the seed is `tx.seed()`, drawn once as the game is made. The memory host's was a fixed sequence already; SpacetimeDB's and the page host's were real randomness.
+
+- **SpacetimeDB:** a private table, `dice_seed`, and the owner's reducer `set_dice_seed({ seed })` ([simulation/src/dice-seed.ts](../simulation/src/dice-seed.ts)). While its one row is there, `tx.seed()` is its seed plus how many games it has seeded since (`given`); none takes it away. Anyone else is refused: not_admin, "Only the database's owner may fix the dice." The memory host runs the same reducer and the same `seedOf` (its Caller's `setDiceSeed`), and the wire test holds `setDiceSeed` off the page's wire, beside installCampaign and dispatchWaiting. The bindings are regenerated: the reducer and `DiceSeed`'s type, nothing else.
+- **The page host:** `HostConfig.seed`, where the memory host's sequence starts ([hosts/web/page-host.ts](../hosts/web/page-host.ts)). The contract test gives it 7. The page leaves it out and draws one from crypto at each start, as before: nothing web:check plays turns on what its dice give, so the page takes no seed of its own.
+- **The e2e:** step 1 fixes the dice (1018) once the campaign is in, and checks that the AI service's `set_dice_seed` is refused. The town's step fixes them again (19) just before its new game, so its first Fire Bolt hits the door (a d20 of 17: 22 against AC 15), and the loop that cast it up to six times is gone; its check says the cast hit. Step 24 fixes its game's (24), and checks that its ruling's check is a natural 1, a failure, where it took success or failure.
+- **The arc check** (CI runs it after the e2e) fixes its dice too, once the campaign is in. None of its checks reads a roll yet, but it plays on SpacetimeDB like the e2e.
+- **README's rules:** a test never rolls real dice, and asserts what its seed rolls.
+
+#### Judgement calls
+
+- **The seed plus a counter, in a row.** The n-th game made after `set_dice_seed(s)` gets s + n (seeds go to 999,999,999, then round to 0). Reading the row with SQL shows what's fixed and how far it has gone. Taking it away is the same reducer with none.
+- **`tx.seed()` itself honours it,** not only `createGame`: both hosts build `seed()` from `seedOf` (the module's `txOf`, the memory host's transactions), so anything that draws a seed later is fixed with it. It counts in the caller's transaction, so a game that's rolled back hands its seed back.
+- **A step that checks what its dice gave pins its own game's,** just before it makes the game (the town's, step 24's). Step 1's seed alone makes every run the same, but a step's dice would move whenever a step before it made one game more or fewer, and M2 and M6 change those steps.
+- **The outcome is asserted, not the numbers.** The Fire Bolt's line has to end in hit, not say 17 + 5 = 22, and its damage isn't checked; step 24's has to be a natural 1, which fails whatever the wizard's modifier. The other dice lines (step 26's darts, 27's blow, 28's fire, 29's spectacles, 37's Ray of Frost) were never either-or checks: each step is about where a line comes, whatever it rolled, and they stay as they were.
+- **The memory host's tests are left as they are,** either-way checks too (hide's success or failure): their dice were never real (the host's own seed, 7 in most).
+
+#### Checked
+
+The type check clean; `npm test`, 954 of 954 (the three new: the owner's alone, the seed and one more a game, and two hosts rolling alike); the campaign check, no problems; the bindings regenerated, the reducer and `DiceSeed` alone. `npm run e2e` in namespace mode on ports 3361 and 8861, three times: PASS each (435.5 s, 432.8 s and 435.1 s), every dice line the same in all three: C's Insight checks (15 + 4 and 18 + 4), step 24's natural 1 and its plain check's 5, the darts' 8 force, Kell's club (9 + 3 = 12 against AC 12, a hit), the Fire Bolt's 17 + 5 = 22 at its first cast, and the door burned from 17 hit points to 4. `npm run arc` on ports 3362 and 8862: 15 of 16, as before. `npm run build:web` then `npm run web:check`: PASS, 80 checks.
+
 ## M2: scenes as beats, played by the two-part GM
 
 ### The format in the game (the scenes' foundation)
@@ -1188,6 +1210,12 @@ The user reviewed the mouthpiece's prompting in Obsidian and rewrote it (notes i
 
 **Checked:** the type check is clean and npm test passes 994 of 994, with two-part.test.ts asserting the new rule.
 
+### On M1's fixed dice (the merge)
+
+`claude/v2-only-dice` (M1's "Dice in tests": the owner's `set_dice_seed`, the page host's seed, the e2e's and the arc's dice fixed), by way of the QA tooling's `claude/v2-qa-dice`, is merged in. Where M2 had changed what M1 touched, both sides are kept: the schema's list has M2's tables (no `co_gm_result`) with `dice_seed` beside the dice, and the bindings are regenerated (the reducer and `DiceSeed`'s type, nothing else); the town's step has M2's two talks with Kell and M1's fixed dice and single Fire Bolt; and step 24 is M2's (the mouthpiece's check), on its own fixed dice (24), checking that the check is a natural 1, where it took any of the five bands, a natural 20 or a natural 1. M1's step 24, the ruling and its plain check, went with M2.
+
+**Checked:** the type check clean; `npm test`, 997 of 997; the e2e on ports 3361 and 8861, PASS (419.8 s), the Fire Bolt hitting the door at its first cast (17 + 5 = 22) and step 24's check "Sleight Of Hand check: 1 + 2 = 3 vs DC 12: failure (natural 1!).", as on M1 (the run that found it, before its check said so; the stack's top runs the e2e again with it).
+
 ## M3: scenes in Obsidian
 
 ### What changed
@@ -1378,6 +1406,10 @@ On the merge, on ports of its own: `npm run typecheck` clean; `npm test` 1001 of
 
 - **A condition on `onStart`'s effects** can't hold as the scene comes into the story: the format could refuse `if` there, or the editor drop the When section for it, if that's wanted.
 - **The Heron's endings' cards** run onto each other by a few pixels (180 apart, up to 210 tall): a re-layout of the Heron's column, if wanted, is a position change only.
+
+### On M1's fixed dice (the merge)
+
+`claude/v2-scenes-dice` (M1's "Dice in tests" and its merge into M2: the owner's `set_dice_seed`, the e2e's fixed dice, step 24's natural 1) is merged in. Only this log met it, where M2's part ends and M3's begins; nothing the plugin reads changed, and the bindings regenerate as they came. **Checked:** the type check clean, `npm test` 1004 of 1004.
 
 ## M4: the scenario, its maps and its places in Obsidian
 
@@ -1647,3 +1679,8 @@ What changed on the way:
 #### Checked
 
 On the merge, on ports of its own: `npm run check`, the type check clean, `npm test` 1012 of 1012 (this branch's 989 and M2's 23 new) and the screens PASS 677; `npm run campaign -- check campaigns/caerwyn`, "6 scenes (28 beats, 65 routes, 20 endings), a talk template, 4 places, 4 maps, 154 lore docs, 5 builds, 15 looks, the vocabulary of 19 scenes (44c6d4a); no problems"; `npm run e2e -- --port 3871 --ai-port 9371 --root runs/e2e-fwd3-m4` (namespace mode), every step passing in 415.3 s, 366 checks (step 19's longest gap 1365 ms of the 5000 allowed); `npm run arc -- --port 3881 --ai-port 9381 --root runs/arc-fwd3-m4`, 15 of 16, the fight's own check off until V12 as before (its aftermath "The fight: After a short, ugly fight…", the one line); `npm run build:web` then `npm run web:check -- --port 0`, 80 checks passing; `npm run build:site`, the pitch, the roadmap and the game, 28 files. From tools/authoring, after `npm ci`: the type check, `npm run test:host` 83 of 83 (this branch's 81 and M3's two new; the quest renamed into the clerk's `onStart`, the clerk's quest named first by it, and a place's thing named by an `onStart` effect among them), the build, and `npx playwright test --workers=1` 46 of 46 with `KINGMAKER_HARNESS_PORT=4392` (M3's porters' break journey among them, and the coverage journey's clerk's quest named as it starts).
+
+### On M1's fixed dice (the merge)
+
+`claude/v2-authoring-dice` (M1's "Dice in tests", by way of M2's and M3's merges of it) is merged in. Only this log met it, where M3's part ends and M4's begins. M4's schema changes and the dice's meet nowhere: the bindings regenerate as M4's with the reducer and `DiceSeed`'s type beside them. The town's map is M4's, and its first Fire Bolt on the fixed dice (19) still hits the watch house door (17 + 5 = 22, on the memory host with the e2e's moves). **Checked:** the type check clean, `npm test` 1015 of 1015.
+
