@@ -1,9 +1,9 @@
 // Copied from the prototype's src/web/page/client.js at 44c6d4a, as v2's page (browser-design §2, §5): the workers' transport (transport.js) is the only one, so the socket transport and the server's branches go, and it's imported with the rest; the doors' pictures (doors.js) aren't drawn yet (a follow-up); the key form's other choice is Play with the fake GM (?fake skips the form on it, and the choice puts ?fake in the address, so a reload keeps it; ?fake=arc plays the whole story's recipe); a tab told the game is open in another (busy) plays once its server worker has the game (ready); Play again (and Try again) starts the client worker again, the server worker playing on, and Play here instead (the game moved to another tab) loads the page again; km.heard says what the workers said; the server's stats, the report's download and the wait for a closed game's notes go (V16; v2's jobs are the server worker's, and it plays on).
-import { Terminal } from "./vendor/xterm.mjs?v=dc22f6e3cbed";
-import { FitAddon } from "./vendor/addon-fit.mjs?v=dc22f6e3cbed";
-import { WebglAddon } from "./vendor/addon-webgl.mjs?v=dc22f6e3cbed";
-import { Unicode11Addon } from "./vendor/addon-unicode11.mjs?v=dc22f6e3cbed";
-import { workerTransport } from "./transport.js?v=dc22f6e3cbed";
+import { Terminal } from "./vendor/xterm.mjs?v=2ab5a7b6bcb6";
+import { FitAddon } from "./vendor/addon-fit.mjs?v=2ab5a7b6bcb6";
+import { WebglAddon } from "./vendor/addon-webgl.mjs?v=2ab5a7b6bcb6";
+import { Unicode11Addon } from "./vendor/addon-unicode11.mjs?v=2ab5a7b6bcb6";
+import { workerTransport } from "./transport.js?v=2ab5a7b6bcb6";
 
 // The page's half of Kingmaker in the browser (browser-design §2): xterm.js draws the game, which runs
 // in two Web Workers on this page, joined by a MessageChannel: the client (v2's screens, on the JS
