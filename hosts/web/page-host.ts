@@ -36,7 +36,7 @@ export interface HostConfig {
   ownerMoves: boolean;
   /** Where the simulation's and the AI service's lines go. */
   log(line: string): void;
-  /** The dice: where the new games' seeds start (the memory host's sequence). A test gives a fixed one; the page leaves it out and draws one from crypto each start. */
+  /** The dice: where the new games' seeds start (the memory host's sequence). A test gives a fixed one, as the page does when its address says (?seed); otherwise it's left out, and one is drawn from crypto each start. */
   seed?: number;
 }
 
