@@ -1,12 +1,11 @@
 import type { RollResult } from "../dice.ts";
 import type { Brawl, Threat } from "../rules/types.ts";
 import type { Path } from "../scene/document.ts";
-import type { Beat, Essential, Scene, Skill, Transition } from "../scene/types.ts";
-import type { RulingRecord } from "./consider.ts";
+import type { Beat, Essential, Scene, Transition } from "../scene/types.ts";
 
 /**
  * The GM's bookkeeping for a scene: where it stands in its beats, what's been settled, the notes
- * open, the endings coming, the co-GM's steering, the GM's rulings, and what the story handed on to
+ * open, the endings coming, the co-GM's steering, and what the story handed on to
  * it at the boundary before it (story-design §4.1), and a talk's own state (town-design §3.6). The simulation keeps it in
  * the private `gm_state` table, a column a field, and sends it whole in every request to the AI
  * service. The field names are the prototype's (src/runtime/session.ts), so the code copied from it
@@ -27,8 +26,6 @@ export interface GmState {
   hinted: string[];
   /** The notes disclosure has open for the scene, the newest 24. */
   opened: OpenedNote[];
-  /** An ending the player didn't choose is coming; they get one last chance to respond. */
-  pendingExit?: { exitId: string; turn: number; via: string; extended: boolean; waits?: string };
   /** The story reached an ending; the next player turn is the wind-down, then the scene closes. */
   closing?: { exitId: string; turn: number };
   /** The ending this turn's reply closes the scene on. */
@@ -40,7 +37,7 @@ export interface GmState {
   // The co-GM's (full-gm-design §4.2): merged from its reviews at a turn's start.
   /** New details improvised in play that must stay true. */
   canon: string[];
-  /** The scene's prep as play has changed it: the co-GM's routes and bridging beats, the ways of trying a ruling shut. */
+  /** The scene's prep as play has changed it: the co-GM's routes and bridging beats, a talk's discovery filled or dropped. */
   patches: ScenePatch[];
   /** The co-GM's notes to the GM: for the two replies after the turn it reviewed (notesTurn), then they lapse. */
   notes: string | null;
@@ -51,8 +48,6 @@ export interface GmState {
   lastRepairTurn?: number;
   /** The last turn the player went off the graph with nothing ruled on it: the co-GM reviews it. */
   offGraphTurn?: number;
-  /** The GM's rulings on considered acts, in the order made. */
-  rulings: RulingRecord[];
   // What the boundary before the scene handed on (story-design §4.1; the prototype's session.ts:
   // 278-331), written as the scene waits: each is the scene's own from then on.
   /** Where the scene's prep no longer matches the story: what's true instead (the boundary's verdict). */
@@ -169,7 +164,7 @@ export function initialGm(scene: Pick<Scene, "start">): GmState {
   return {
     beat: scene.start, reached: [scene.start], turnsInBeat: 0, path: [], established: [], landed: [], hinted: [], opened: [],
     oocTurns: [], pressureOffered: [],
-    canon: [], patches: [], notes: null, notesTurn: null, whispers: [], rulings: [],
+    canon: [], patches: [], notes: null, notesTurn: null, whispers: [],
     adjustments: [], owed: [], fought: [], absent: [], entered: [],
     twoPart: { roles: {}, notes: [] },
   };
@@ -190,7 +185,6 @@ export interface GmRow {
   landed: string[];
   hinted: string[];
   opened: Array<{ path: string; title: string; scope: string; turn: number }>;
-  pendingExit: { exitId: string; turn: number; via: string; extended: boolean; waits: string | undefined } | undefined;
   closing: { exitId: string; turn: number } | undefined;
   ended: { exitId: string; turn: number } | undefined;
   oocTurns: number[];
@@ -203,7 +197,6 @@ export interface GmRow {
   whispers: Array<{ to: string; note: string; turn: number }>;
   lastRepairTurn: number | undefined;
   offGraphTurn: number | undefined;
-  rulings: RulingRow[];
   adjustments: string[];
   opening: string | undefined;
   lead: string | undefined;
@@ -235,10 +228,6 @@ export interface ThreatRow { kind: string; by: string | undefined; hazard: strin
 
 export interface PathRow { turn: number; from: string; to: string; via: string; roll: RollRow | undefined; source: string; known: number | undefined }
 export interface RollRow { skill: string; dc: number; die: number; modifier: number; total: number; success: boolean; critical: string | undefined; advantage: string | undefined }
-export interface RulingRow {
-  turn: number; act: string; target: string; skill: string; kind: string; dc: number | undefined; why: string; roll: RollRow | undefined;
-  went: string; changed: string; costUsd: number; latencyMs: number;
-}
 
 /** The row for a scene's bookkeeping. Throws on a later vertical's field that isn't empty (V3's entered): it has no column to go in yet. */
 export function gmToRow(sceneId: bigint, gm: GmState): GmRow {
@@ -248,7 +237,6 @@ export function gmToRow(sceneId: bigint, gm: GmState): GmRow {
     path: gm.path.map(pathRowOf),
     established: [...gm.established], landed: [...gm.landed], hinted: [...gm.hinted],
     opened: gm.opened.map(({ path, title, scope, turn }) => ({ path, title, scope, turn })),
-    pendingExit: gm.pendingExit ? { ...gm.pendingExit, waits: gm.pendingExit.waits } : undefined,
     closing: gm.closing ? { ...gm.closing } : undefined,
     ended: gm.ended ? { ...gm.ended } : undefined,
     oocTurns: [...gm.oocTurns], pressureOffered: [...gm.pressureOffered],
@@ -259,7 +247,6 @@ export function gmToRow(sceneId: bigint, gm: GmState): GmRow {
     whispers: gm.whispers.map(({ to, note, turn }) => ({ to, note, turn })),
     lastRepairTurn: gm.lastRepairTurn,
     offGraphTurn: gm.offGraphTurn,
-    rulings: gm.rulings.map(rulingRowOf),
     adjustments: [...gm.adjustments],
     opening: gm.opening,
     lead: gm.lead,
@@ -289,7 +276,6 @@ export function gmFromRow(row: GmRow): GmState {
     path: row.path.map(pathStepOf),
     established: [...row.established], landed: [...row.landed], hinted: [...row.hinted],
     opened: row.opened.map(n => ({ ...n })),
-    ...(row.pendingExit ? { pendingExit: pendingOf(row.pendingExit) } : {}),
     ...(row.closing ? { closing: { ...row.closing } } : {}),
     ...(row.ended ? { ended: { ...row.ended } } : {}),
     oocTurns: [...row.oocTurns], pressureOffered: [...row.pressureOffered],
@@ -300,7 +286,6 @@ export function gmFromRow(row: GmRow): GmState {
     whispers: row.whispers.map(w => ({ ...w })),
     ...(row.lastRepairTurn !== undefined ? { lastRepairTurn: row.lastRepairTurn } : {}),
     ...(row.offGraphTurn !== undefined ? { offGraphTurn: row.offGraphTurn } : {}),
-    rulings: row.rulings.map(rulingOf),
     adjustments: [...row.adjustments],
     ...(row.opening !== undefined ? { opening: row.opening } : {}),
     ...(row.lead !== undefined ? { lead: row.lead } : {}),
@@ -358,27 +343,6 @@ function rollOf(r: RollRow): RollResult {
     skill: r.skill, dc: r.dc, die: r.die, modifier: r.modifier, total: r.total, success: r.success,
     critical: (r.critical ?? null) as RollResult["critical"],
     ...(r.advantage ? { advantage: r.advantage as NonNullable<RollResult["advantage"]> } : {}),
-  };
-}
-
-function pendingOf(p: NonNullable<GmRow["pendingExit"]>): NonNullable<GmState["pendingExit"]> {
-  return { exitId: p.exitId, turn: p.turn, via: p.via, extended: p.extended, ...(p.waits !== undefined ? { waits: p.waits } : {}) };
-}
-
-function rulingRowOf(r: RulingRecord): RulingRow {
-  return {
-    turn: r.turn, act: r.act, target: r.target, skill: r.skill, kind: r.kind, dc: r.dc, why: r.why, roll: r.roll ? rollRowOf(r.roll) : undefined,
-    went: r.went, changed: r.changed, costUsd: r.costUsd, latencyMs: r.latencyMs,
-  };
-}
-
-/** A ruling as settleRuling records it (its fields in that order). */
-function rulingOf(r: RulingRow): RulingRecord {
-  return {
-    turn: r.turn, act: r.act, target: r.target, skill: r.skill as Skill, kind: r.kind as RulingRecord["kind"],
-    ...(r.dc !== undefined ? { dc: r.dc } : {}), why: r.why,
-    ...(r.roll ? { roll: rollOf(r.roll) } : {}),
-    went: r.went as RulingRecord["went"], changed: r.changed, costUsd: r.costUsd, latencyMs: r.latencyMs,
   };
 }
 

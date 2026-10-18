@@ -1,5 +1,4 @@
 import type { Backstory } from "../docs/types.ts";
-import type { RulingRecord } from "../../shared/gm/consider.ts";
 import type { GmState, OpenedNote, OwedRow, PathStep, ScenePatch, TalkRecord, TwoPartState } from "../../shared/gm/state.ts";
 import type { Markup } from "../../shared/markup.ts";
 import type { Chapter, Entry, OpenRequest, SceneContext, SheetRow, Story as Told } from "../../shared/protocol/ai.ts";
@@ -58,7 +57,6 @@ export interface TurnView {
   landed: string[];
   hinted: string[];
   memory: { opened: OpenedNote[]; withheld?: string[] };
-  pendingExit?: GmState["pendingExit"];
   closing?: GmState["closing"];
   ended?: GmState["ended"];
   oocTurns: number[];
@@ -66,12 +64,11 @@ export interface TurnView {
   /** A sentence the last reply repeated word for word (voice.ts gmReply, the aftermath's: set and read within one call). */
   repeated?: string;
 
-  // The co-GM's steering and the GM's rulings (full-gm-design §4.2), as the simulation keeps them.
+  // The co-GM's steering (full-gm-design §4.2), as the simulation keeps it.
   canon: string[];
   notes: string | null;
   whispers: GmState["whispers"];
   patches: ScenePatch[];
-  rulings: RulingRecord[];
 
   // What the boundary before the scene handed on, and the story so far (story-design §4.4).
   /** Cast who are away: from earlier scenes that what happened keeps away, and those who fled the player's violence (the world bridge's). */
@@ -165,12 +162,11 @@ export function viewOf(source: ViewSource, scene: Scene, story?: Story, essentia
     beat: gm.beat, reached: gm.reached?.length ? gm.reached : [gm.beat], twoPart: gm.twoPart ?? { roles: {}, notes: [] },
     turnsInBeat: gm.turnsInBeat, path: gm.path, established: gm.established, landed: gm.landed, hinted: gm.hinted,
     memory: { opened: gm.opened, ...(gm.withheld?.length ? { withheld: gm.withheld } : {}) },
-    ...(gm.pendingExit ? { pendingExit: gm.pendingExit } : {}),
     ...(gm.closing ? { closing: gm.closing } : {}), ...(gm.ended ? { ended: gm.ended } : {}),
     oocTurns: gm.oocTurns, pressureOffered: gm.pressureOffered,
     canon: gm.canon, notes: gm.notes, whispers: gm.whispers, patches: gm.patches, entered: gm.entered,
-    // (A request a job stored before the rulings had a column has none, and one stored before the story unit none of what a boundary hands on.)
-    rulings: gm.rulings ?? [], absent: gm.absent ?? [], fought: gm.fought ?? [],
+    // (A request a job stored before the story unit has none of what a boundary hands on.)
+    absent: gm.absent ?? [], fought: gm.fought ?? [],
     history: structuredClone(source.told?.history ?? []), adjustments: gm.adjustments ?? [],
     ...(gm.opening !== undefined ? { opening: gm.opening } : {}), ...(gm.lead !== undefined ? { lead: gm.lead } : {}),
     owed: owedOf(gm.owed ?? [], world, keys, essentialOf),

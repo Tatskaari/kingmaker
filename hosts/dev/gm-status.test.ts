@@ -12,9 +12,9 @@ function rows(gm: Row = {}, more: Partial<StatusRows> = {}): StatusRows {
     scene: { id: 7, scene_key: "hanged-clerk", status: "live", turns: 2 },
     gm: {
       scene_id: 7, beat: "yard", turns_in_beat: 2, path: [], established: [], landed: [], hinted: [], opened: [],
-      pending_exit: null, closing: null, ended: null, ooc_turns: [], pressure_offered: [],
+      closing: null, ended: null, ooc_turns: [], pressure_offered: [],
       // The full GM's columns as a V1 database has them once migrated: their defaults.
-      canon: [], patches: "[]", notes: null, notes_turn: null, whispers: [], last_repair_turn: null, off_graph_turn: null, rulings: [],
+      canon: [], patches: "[]", notes: null, notes_turn: null, whispers: [], last_repair_turn: null, off_graph_turn: null,
       // The world bridge's, then the story's (story-design §4.1), as a full-GM database has them once migrated: their defaults.
       threat: null, held: null, brawl: null, absent: [],
       adjustments: [], opening: null, lead: null, owed: [], fought: [],
@@ -36,13 +36,13 @@ test("a V1 game: the prototype's fields, and the full GM's there and empty", () 
   assert.deepEqual(status, {
     game: 1, uid: "g1-abc", scene: "hanged-clerk", status: "live", turn: 2,
     beat: "yard", turnsInBeat: 2, path: [], ended: null,
-    notes: null, notesTurn: null, whispers: [], canon: [], established: [], patches: [], rulings: [], landed: [], hinted: [],
+    notes: null, notesTurn: null, whispers: [], canon: [], established: [], patches: [], landed: [], hinted: [],
     offGraphTurn: null, lastRepairTurn: null, opened: [],
     threat: null, held: null, brawl: null, absent: [],
     adjustments: [], opening: null, lead: null, owed: [], fought: [],
     reached: ["yard"], closing: null, roles: [], coGmNote: null, moved: null, heldOnce: null,
     repairs: [], memoryReviews: [], jobs: [],
-    latency: { avgFirstTextMs: 4000, consideredTurns: 0, avgConsiderMs: 0 },
+    latency: { avgFirstTextMs: 4000 },
     costUsd: "0.00460",
     story: { status: null, time: null, lead: null, onward: null, chapters: [], quests: [], flags: [], followers: [], attitudes: [] },
   });
@@ -98,7 +98,7 @@ test("the story between scenes: what was handed on to the scene waiting, the lea
   });
 });
 
-test("the co-GM's steering, the rulings and the reviews, summarised as the prototype's status has them", () => {
+test("the co-GM's steering and the reviews, summarised as the prototype's status has them", () => {
   const roll = { skill: "sleight_of_hand", dc: 12, die: 14, modifier: 5, total: 19, success: true, critical: null, advantage: null };
   const patches = [{ turn: 5, transition: { beat: "yard", transition: { id: "improv-5-0", when: "The player waits in the loft to see who comes back for the boots.", on: "attempt", to: "doubt" } }, why: "A plan the co-GM can see working" }];
   const status = statusOf(rows({
@@ -106,7 +106,6 @@ test("the co-GM's steering, the rulings and the reviews, summarised as the proto
     notes: "Keep Kell writing down only what is said.", notes_turn: 3,
     whispers: [{ to: "moll", note: "She wants to be asked about the songs.", turn: 3 }],
     canon: ["Cob sleeps in the loft."], patches: JSON.stringify(patches), last_repair_turn: 3, off_graph_turn: 5,
-    rulings: [{ turn: 3, act: "lift the folded paper from the boy's boot", target: "cob", skill: "sleight_of_hand", kind: "roll", dc: 12, why: "guarded to lose, plausible cover, wary: they could notice", roll, went: "success", changed: "The investigator has the paper.", cost_usd: 0.002, latency_ms: 4200 }],
     opened: [{ path: "Cast/Agnes Kell/memories/what-the-investigator-did.md", title: "What the investigator did", scope: "kell", turn: 4 }],
   }, {
     repairs: [
@@ -129,12 +128,11 @@ test("the co-GM's steering, the rulings and the reviews, summarised as the proto
   assert.deepEqual([status.notes, status.notesTurn, status.offGraphTurn, status.lastRepairTurn], ["Keep Kell writing down only what is said.", 3, 5, 3]);
   assert.deepEqual(status.whispers, ["3: moll: She wants to be asked about the songs."]);
   assert.deepEqual(status.patches, ["yard + The player waits in the loft to see who comes back for the boots."]);
-  assert.deepEqual(status.rulings, ["3: lift the folded paper from the boy's boot -> sleight_of_hand DC 12 (19) [guarded to lose, plausible cover, wary: they could notice]: success: The investigator has the paper."]);
   assert.deepEqual(status.opened, ["4: kell: What the investigator did (Cast/Agnes Kell/memories/what-the-investigator-did.md)"]);
   assert.deepEqual(status.repairs, ["3: on_track — The yard is moving. [merged at t4] (move_to yard refused: the scene is past it)", "6: drifting — The talk has wandered to songs. [pending]"]);
   assert.deepEqual(status.memoryReviews, ['1: seen, promise — note cob seen: added "Was given a crown by the investigator for nothing."', "2: nothing flagged", "3: improvised_detail [lore failed: tool limit reached]"]);
   assert.deepEqual(status.jobs, ["remember/remember: waiting, attempt 2 (503 from the AI service)", "repair/repair: running"]);
-  assert.deepEqual(status.latency, { avgFirstTextMs: 4000, consideredTurns: 1, avgConsiderMs: 4200 });
+  assert.deepEqual(status.latency, { avgFirstTextMs: 4000 });
 });
 
 test("the world bridge's: a blow left hanging, a hold, a fight that broke out, and who left", () => {

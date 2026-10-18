@@ -17,7 +17,6 @@ const busy: GmState = {
   ],
   established: ["Prout didn't hang himself."], landed: ["not-suicide"], hinted: ["page"],
   opened: [{ path: "Cast/Cob/knowledge/silvertop.md", title: "Silvertop", scope: "character:cob", turn: 2 }],
-  pendingExit: { exitId: "closed-suicide", turn: 3, via: "cart-comes", extended: false, waits: "the player's answer" },
   closing: { exitId: "open-case", turn: 3 },
   ended: { exitId: "open-case", turn: 4 },
   oocTurns: [2], pressureOffered: ["yard"],
@@ -25,15 +24,11 @@ const busy: GmState = {
   patches: [
     { turn: 3, beat: { id: "yard-improv-3", title: "Up the ladder", direction: "Kell holds the ladder.", pressure: "The cart is coming.", transitions: [{ id: "yard-improv-3-to-doubt-0", when: "They look at the rope.", to: "doubt" }] }, why: "Bridging beat: Up the ladder" },
     { turn: 3, transition: { beat: "doubt", transition: { id: "improv-3-0", when: "The player presses Moll.", on: "attempt", check: { skill: "intimidation", dc: 13, reason: "to scare Moll", success: "She talks.", failure: "She bolts.", onSuccess: "doubt", onFailure: "yard" } } }, why: "Let the threat count" },
-    { turn: 4, close: { beat: "*", id: "win-cob" }, why: "Closed by the ruling on: lifting the paper from Cob's boot" },
+    { turn: 4, close: { beat: "*", id: "win-cob" }, why: "Closed by the co-GM: Cob has bolted" },
   ],
   notes: "Steer back to the boots.", notesTurn: 3,
   whispers: [{ to: "moll", note: "She wants her money first.", turn: 3 }],
   lastRepairTurn: 3, offGraphTurn: 4,
-  rulings: [
-    { turn: 4, act: "lifting the paper from Cob's boot", target: "cob", skill: "sleight_of_hand", kind: "roll", dc: 12, why: "guarded to lose, plausible cover, wary: they could notice", roll: rollCheck(rng(5), "sleight_of_hand", 12, 3), went: "failure", changed: "Cob yanks his foot away; closed: win-cob", costUsd: 0.0021, latencyMs: 4312.5 },
-    { turn: 5, act: "asking Kell who found him", target: "kell", skill: "persuasion", kind: "yes", why: "it comes freely when asked (trivial, plausible, friendly)", went: "success", changed: "Kell says the carter found him", costUsd: 0.0018, latencyMs: 3900 },
-  ],
   adjustments: ["Hobb is in the watch-house cells, not on the hoist."],
   opening: "Show the Rat's long smoky room. End on the landlady asking the sergeant whether she's on duty.",
   lead: "Kell's runner finds you at the watch-house: the big man with the bandaged hand drinks at the Drowned Rat.",
@@ -73,7 +68,7 @@ test("a hazard hanging over the player goes to the row and back too, the attack'
 test("the row keeps empty options as undefined, as SpacetimeDB's rows do", () => {
   const row = gmToRow(1n, initialGm({ start: "yard" }));
 
-  assert.deepEqual([row.pendingExit, row.closing, row.ended], [undefined, undefined, undefined]);
+  assert.deepEqual([row.closing, row.ended], [undefined, undefined]);
   assert.deepEqual([row.notes, row.notesTurn, row.lastRepairTurn, row.offGraphTurn], [undefined, undefined, undefined, undefined]);
   assert.deepEqual([row.opening, row.lead, row.adjustments, row.owed, row.fought, row.absent], [undefined, undefined, [], [], [], []]);
   assert.equal(gmToRow(1n, busy).owed[1]!.where, undefined);
@@ -81,15 +76,14 @@ test("the row keeps empty options as undefined, as SpacetimeDB's rows do", () =>
   assert.equal(row.patches, "[]");
   assert.equal(gmToRow(1n, busy).path[1]!.roll, undefined);
   assert.equal(gmToRow(1n, busy).path[0]!.roll!.critical, roll.critical ?? undefined);
-  assert.deepEqual([gmToRow(1n, busy).rulings[1]!.dc, gmToRow(1n, busy).rulings[1]!.roll], [undefined, undefined]);
 });
 
 test("a row from before the co-GM's columns (their defaults) reads as a scene with none of it yet", () => {
-  const { canon: _c, patches: _p, notes: _n, notesTurn: _t, whispers: _w, lastRepairTurn: _l, offGraphTurn: _o, rulings: _r, ...v1 } = gmToRow(1n, busy);
-  const migrated = { ...v1, canon: [], patches: "[]", notes: undefined, notesTurn: undefined, whispers: [], lastRepairTurn: undefined, offGraphTurn: undefined, rulings: [] };
+  const { canon: _c, patches: _p, notes: _n, notesTurn: _t, whispers: _w, lastRepairTurn: _l, offGraphTurn: _o, ...v1 } = gmToRow(1n, busy);
+  const migrated = { ...v1, canon: [], patches: "[]", notes: undefined, notesTurn: undefined, whispers: [], lastRepairTurn: undefined, offGraphTurn: undefined };
   const gm = gmFromRow(migrated);
 
-  assert.deepEqual([gm.canon, gm.patches, gm.notes, gm.notesTurn, gm.whispers, gm.rulings], [[], [], null, null, [], []]);
+  assert.deepEqual([gm.canon, gm.patches, gm.notes, gm.notesTurn, gm.whispers], [[], [], null, null, []]);
   assert.ok(!("lastRepairTurn" in gm) && !("offGraphTurn" in gm));
   assert.equal(gm.beat, "doubt");
 });
@@ -100,7 +94,7 @@ test("a row from before the story's columns (their defaults) reads as a scene no
 
   assert.deepEqual([read.adjustments, read.owed, read.fought, read.absent], [[], [], [], []]);
   assert.ok(!("opening" in read) && !("lead" in read));
-  assert.deepEqual(read.rulings, busy.rulings);
+  assert.deepEqual(read.whispers, busy.whispers);
 });
 
 test("a row from before the world bridge's columns (their defaults) reads as a scene with nothing hanging and nobody gone", () => {
@@ -109,7 +103,7 @@ test("a row from before the world bridge's columns (their defaults) reads as a s
 
   assert.ok(!("threat" in gm) && !("held" in gm) && !("brawl" in gm));
   assert.deepEqual(gm.absent, []);
-  assert.deepEqual(gm.rulings, busy.rulings);
+  assert.deepEqual(gm.whispers, busy.whispers);
 });
 
 test("a row from before the town's columns (their defaults) reads as a scene that keeps nothing back and isn't a talk", () => {

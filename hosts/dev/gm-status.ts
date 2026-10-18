@@ -1,4 +1,4 @@
-// After the prototype's src/cli/scene.ts at 44c6d4a: its status command (:250-268, the fields and the summaries of path, patches and rulings) and its memories command (:182-190, a doc's heading and body: the GM's notes on each person now, since the memories became those), read from a game's rows and the AI service's store.
+// After the prototype's src/cli/scene.ts at 44c6d4a: its status command (:250-268, the fields and the summaries of path and patches; its rulings went with considered rolls) and its memories command (:182-190, a doc's heading and body: the GM's notes on each person now, since the memories became those), read from a game's rows and the AI service's store.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseDoc } from "../../ai/docs/docs.ts";
@@ -8,7 +8,7 @@ import { gmFromRow, type GmRow, type GmState, type ScenePatch } from "../../shar
 
 /**
  * The GM's side of a game, as `npm run status` prints it (full-gm-design §4.4): the prototype's
- * `scene status` fields from the scene's gm_state row (beat, path, notes, canon, patches, rulings, and
+ * `scene status` fields from the scene's gm_state row (beat, path, notes, canon, patches, and
  * the world bridge's threat, hold, brawl and who left),
  * its co-GM reviews from co_gm_result (`repairs`), and what the prototype kept in files: the memory
  * reviews (the AI service's memory-reviews.jsonl) and the GM's notes on each person they keep
@@ -78,11 +78,7 @@ export function statusOf(rows: StatusRows): Record<string, unknown> {
     repairs: [...rows.repairs].sort((a, b) => Number(a.turn) - Number(b.turn) || Number(a.id) - Number(b.id)).map(r => repairLine(r, ended)),
     memoryReviews: rows.reviews.map(r => reviewLine(r as ReviewLine)),
     jobs: rows.jobs.filter(j => String(j.scene_id) === String(rows.scene.id)).sort((a, b) => Number(a.id) - Number(b.id)).map(jobLine),
-    latency: {
-      avgFirstTextMs: average(firstText),
-      consideredTurns: new Set(gm?.rulings.map(r => r.turn) ?? []).size,
-      avgConsiderMs: average(gm?.rulings.map(r => r.latencyMs) ?? []),
-    },
+    latency: { avgFirstTextMs: average(firstText) },
     costUsd: (rows.turns.reduce((sum, t) => sum + Number(t.cost_micros ?? 0), 0) / 1e6).toFixed(5),
     story: storyFields(rows.game, rows.story ?? { chapters: [], quests: [], flags: [], followers: [], attitudes: [] }),
   };
@@ -123,7 +119,6 @@ function gmFields(gm: GmState): Record<string, unknown> {
     whispers: gm.whispers.map(w => `${w.turn}: ${w.to}: ${w.note}`),
     canon: gm.canon, established: gm.established,
     patches: gm.patches.map(patchLine),
-    rulings: gm.rulings.map(r => `${r.turn}: ${r.act} -> ${r.kind === "roll" ? `${r.skill} DC ${r.dc}${r.roll ? ` (${r.roll.total})` : ""}` : `${r.kind}, no roll`} [${r.why}]: ${r.went}: ${r.changed}`),
     landed: gm.landed, hinted: gm.hinted,
     offGraphTurn: gm.offGraphTurn ?? null, lastRepairTurn: gm.lastRepairTurn ?? null,
     opened: gm.opened.map(o => `${o.turn}: ${o.scope}: ${o.title} (${o.path})`),

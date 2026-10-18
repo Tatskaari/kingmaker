@@ -27,7 +27,7 @@ const placeOf = (scene: Scene): PlaceFile => JSON.parse(readFileSync(join(CAERWY
 function viewOf(scene: Scene, transcript: TurnView["transcript"] = []): TurnView {
   const view: TurnView = {
     ...initialGm({ start: scene.start }), turnsInBeat: 1, id: "test-game", sceneId: scene.id, turn: 1,
-    player: { name: "Nell Fitch", concept: "a thief", modifiers: {} }, memory: { opened: [] }, rulings: [], fought: [], owed: [], history: [], transcript, twoPart: { roles: {}, notes: [] },
+    player: { name: "Nell Fitch", concept: "a thief", modifiers: {} }, memory: { opened: [] }, fought: [], owed: [], history: [], transcript, twoPart: { roles: {}, notes: [] },
   };
   const cast = presentCast(scene, view).map(c => ({ id: c.id, name: c.name }));
   view.world = buildWorld(scene.id, placeOf(scene), cast, view.player);

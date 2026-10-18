@@ -104,11 +104,11 @@ export const SCRIPTS: Record<string, Script> = {
   gm: {
     name: "gm",
     title: "The full GM live run",
-    about: "The full GM (full-gm-design §1.2): people remember what the player did, the co-GM steers a scene that drifts or leaves the graph, the GM rules on a risky act before the reply, and walking out is an ending of the player's own",
+    about: "The full GM (full-gm-design §1.2): people remember what the player did, the co-GM steers a scene that drifts or leaves the graph, and walking out is an ending of the player's own",
     who: "Wren Ashdown: a hedge wizard from the fens",
     build: "wizard",
     // full-gm-design §1.2, rows 2 to 8: a coin for Cob (someone remembers it), a question at once (the
-    // review doesn't hold the turn), a lift from his boot (considered: a ruling and a roll), what Kell
+    // review doesn't hold the turn), a lift from his boot (the GM's check, since considered rolls went), what Kell
     // remembers (once the reviews are in), a plan off the graph, two lines that drift (the co-GM), and
     // walking out (left: an ending of their own), once the co-GM has had its say.
     steps: [

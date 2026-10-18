@@ -90,11 +90,6 @@ const TALK_OPEN: Need = [
 const NEEDS: Record<Step, Need[]> = {
   open: [["scene { key }", r => isText(r, "scene.key")], ...viewNeeds(""), STREAM, TALK_OPEN],
   reactions: [...TURN, ["act { what, victims, property } (what the rules decided the player did)", r => isText(r, "act.what") && isList(r, "act.victims") && isList(r, "act.property")]],
-  consider: [
-    ...TURN,
-    ["read { probability, routes } (the decider's, when it's sent)", r => at(r, "read") === undefined || (isNumber(r, "read.probability") && isList(r, "read.routes"))],
-    ["pending { exitId } (the ending held, when it's sent)", r => at(r, "pending") === undefined || isText(r, "pending.exitId")],
-  ],
   reply: [
     ...TURN, ["outcome { directives }", r => isList(r, "outcome.directives")], STREAM,
     ["outcome.windDown { exit } (the wind-down's, when it's sent)", r => at(r, "outcome.windDown") === undefined || isText(r, "outcome.windDown.exit")],

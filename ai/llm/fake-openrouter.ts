@@ -17,7 +17,6 @@ import type { ToolCall } from "./tools.ts";
  *   from `handoff`, when it's given; otherwise the GM's next line from `replies`, streamed as
  *   OpenRouter streams it.
  *
- * - `stall`: structured calls (by the schema's name) that never answer, until the caller gives up.
  * - `capped`: structured calls that run to their token cap (status incomplete), billed at the cost given.
  * - `phased`: structured calls answered in two phases, as Luna sometimes does: a "commentary" message
  *   of junk, then the answer as a "final_answer".
@@ -65,7 +64,6 @@ export interface FakeOptions {
   suggestions?: string | string[];
   talkSuggestions?: string | string[];
   handoff?: string;
-  stall?: string[];
   capped?: Record<string, number>;
   phased?: string[];
   streamMs?: number;
@@ -125,7 +123,6 @@ export function fakeFetch(options: FakeOptions = {}): FakeFetch {
     const suggesting = !!body.instructions?.startsWith("You suggest what the player might");
     const talking = !!talkSuggestions && !!body.instructions?.startsWith("You suggest what the player might say next in a conversation with");
     const handing = options.handoff !== undefined && !!body.instructions?.startsWith("You write the hand-off between two scenes");
-    if (format && options.stall?.includes(format.name)) return stalled(init?.signal);
     const delay = format ? options.byNameDelayMs?.[format.name] : suggesting ? options.suggestDelayMs : undefined;
     if (delay) await waited(delay, init?.signal);
     if (format && options.capped?.[format.name] !== undefined) return capped(options.capped[format.name]!);
@@ -268,15 +265,6 @@ function coGmRound(body: Request, recipe: NonNullable<FakeOptions["coGm"]>): unk
   }
   if (!calls.length) return completed("done");
   return { status: "completed", output: calls.map((c, i) => ({ type: "function_call", call_id: `call_${i + 1}`, name: c.name, arguments: JSON.stringify(c.args ?? {}) })), usage: { input_tokens: 120, output_tokens: 30, cost: 0.0002 } };
-}
-
-/** A call that never answers: it fails only when the caller gives up on it (its signal). */
-function stalled(signal: AbortSignal | null | undefined): Promise<Response> {
-  return new Promise((_, reject) => {
-    const give = () => reject(signal?.reason ?? new DOMException("The operation was aborted.", "AbortError"));
-    if (signal?.aborted) give();
-    else signal?.addEventListener("abort", give, { once: true });
-  });
 }
 
 /** A reply that ran to its token cap: junk, then incomplete, billed all the same. */

@@ -180,26 +180,12 @@ const PathStep = t.object("PathStep", {
   known: t.option(t.u32()),
 });
 const OpenedNote = t.object("OpenedNote", { path: t.string(), title: t.string(), scope: t.string(), turn: t.u32() });
-const PendingExit = t.object("PendingExit", { exitId: t.string(), turn: t.u32(), via: t.string(), extended: t.bool(), waits: t.option(t.string()) });
 const ExitAt = t.object("ExitAt", { exitId: t.string(), turn: t.u32() });
 /** The co-GM's steering for one of the cast, from the turn it reviewed. */
 const Whisper = t.object("Whisper", { to: t.string(), note: t.string(), turn: t.u32() });
 /** Something the story still owes the player (shared/gm/state.ts OwedRow): its things by entity key, outermost first, and who holds them. */
 const OwedRow = t.object("OwedRow", {
   from: t.string(), id: t.string(), hinted: t.bool(), things: t.array(t.string()), holders: t.array(t.string()), where: t.option(t.string()),
-});
-/** A considered turn's ruling, as shared/gm/consider.ts's RulingRecord has it (no dc or no roll: an empty option). */
-const RulingRow = t.object("RulingRow", {
-  turn: t.u32(), act: t.string(),
-  /** A cast id, or world. */
-  target: t.string(),
-  skill: t.string(),
-  /** roll, yes, no. */
-  kind: t.string(),
-  dc: t.option(t.i32()), why: t.string(), roll: t.option(Roll),
-  /** success, failure. */
-  went: t.string(),
-  changed: t.string(), costUsd: t.f64(), latencyMs: t.f64(),
 });
 /** What the last reply left hanging over the player, as shared/rules's Threat has it: kind attack (by), or hazard (hazard, severity: glancing, serious), the other kind's fields empty. */
 const Threat = t.object("Threat", { kind: t.string(), by: t.option(t.string()), hazard: t.option(t.string()), severity: t.option(t.string()), turn: t.u32() });
@@ -218,7 +204,7 @@ const TwoPart = t.object("TwoPart", { roles: t.array(TwoPartRole), notes: t.arra
 
 /**
  * The GM's bookkeeping for a scene, a column a field of shared/gm/state.ts's GmState (gmToRow and
- * gmFromRow map the two): V0's, then the co-GM's and the rulings (full-gm-design §4.2), then what the
+ * gmFromRow map the two): V0's, then the co-GM's (full-gm-design §4.2), then what the
  * rules in a scene leave hanging and who's away (world-bridge-design §3.3), then what the boundary
  * handed on (story-design §4.1), then a talk's own (town-design §3.1), then the
  * nodes the scene has reached and the two-part GM's own (M2: docs/two-part-design.md), each with a
@@ -236,14 +222,13 @@ export const gmState = table({ name: "gm_state" }, {
   hinted: t.array(t.string()),
   /** The newest 24. */
   opened: t.array(OpenedNote),
-  pendingExit: t.option(PendingExit),
   closing: t.option(ExitAt),
   ended: t.option(ExitAt),
   oocTurns: t.array(t.u32()),
   pressureOffered: t.array(t.string()),
   /** The co-GM's: details improvised in play that must stay true. */
   canon: t.array(t.string()).default([]),
-  /** JSON: ScenePatch[], the scene's prep as play changed it (the co-GM's routes and bridging beats, the ways of trying a ruling shut). */
+  /** JSON: ScenePatch[], the scene's prep as play changed it (the co-GM's routes and bridging beats, a talk's discovery filled or dropped). */
   patches: t.string().default("[]"),
   /** The co-GM's notes to the GM, and the turn it wrote them on: they lapse two turns on. */
   notes: t.option(t.string()).default(undefined),
@@ -254,8 +239,6 @@ export const gmState = table({ name: "gm_state" }, {
   lastRepairTurn: t.option(t.u32()).default(undefined),
   /** The last turn off the graph with nothing ruled on it. */
   offGraphTurn: t.option(t.u32()).default(undefined),
-  /** The GM's rulings on considered acts, in the order made. */
-  rulings: t.array(RulingRow).default([]),
   /** A blow or a danger the last reply left hanging over the player: it lands as their next turn starts, which takes it off. */
   threat: t.option(Threat).default(undefined),
   /** The turn a hold caught the player: it stands with no more saving throws until they break free, or the reply lets them go. */
@@ -318,7 +301,7 @@ export const turn = table({ name: "turn", public: true }, {
   /** 0 is the opening. */
   n: t.u32(),
   playerId: t.u64(),
-  /** queued, considering (the GM rules on the act before replying), replying, settling, done, failed (noting, while its reply's notes were written, until M2; deciding, until the old pipeline's decide went). */
+  /** queued, replying, settling, done, failed (noting, while its reply's notes were written, until M2; deciding and considering, until the old pipeline's decide and considered rolls went). */
   phase: t.string(),
   /** While it waits on the AI service. */
   note: t.option(t.string()),

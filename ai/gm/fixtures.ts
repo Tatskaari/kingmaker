@@ -71,7 +71,7 @@ export function stateIn(sceneId: string, fields: Partial<TurnView> = {}): TurnVi
     ...initialGm({ start: scene.start }), turnsInBeat: 1,
     id: `test-${sceneId}`, sceneId, turn: 1,
     player: { name: "Wren Ashdown", concept: "a hedge wizard", modifiers: {} },
-    memory: { opened: [] }, rulings: [], fought: [], owed: [], history: [], transcript: [], story: testStory(),
+    memory: { opened: [] }, fought: [], owed: [], history: [], transcript: [], story: testStory(),
     ...fields,
   };
 }
@@ -84,7 +84,7 @@ export function viewAt(scene: Scene, beat = scene.start, extra: Partial<TurnView
     ...initialGm({ start: beat }), turnsInBeat: 2,
     id: "test-game", sceneId: scene.id, turn: 4,
     player: { name: "Nim Bramblefoot", concept: "a halfling cutpurse", modifiers: {} },
-    memory: { opened: [] }, rulings: [], fought: [], owed: [], history: [], transcript: [],
+    memory: { opened: [] }, fought: [], owed: [], history: [], transcript: [],
     ...extra,
   };
   const cast = presentCast(scene, view).map(c => ({ id: c.id, name: c.name }));

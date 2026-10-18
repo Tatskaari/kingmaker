@@ -278,14 +278,3 @@ test("settling: the reply's in, the world settling behind it; the box is open, a
   assert.equal(sceneViewOf(rows).note, "The GM has lost the thread for a moment: trying again.");
 });
 
-test("considering: the GM rules on a risky act before the reply; the box stays shut, as while queued, and the lines are still on their way", () => {
-  const rows = base();
-  rows.scene = { ...rows.scene, turns: 1, turnId: 5n };
-  rows.turns = [turn(4n, 0, "done"), turn(5n, 1, "considering")];
-
-  const view = sceneViewOf(rows);
-  assert.deepEqual([view.phase, view.turn, view.mayType, view.suggestionsComing], ["considering", 1, false, true]);
-
-  rows.turns = [turn(4n, 0, "done"), turn(5n, 1, "considering", { note: "The GM has lost the thread for a moment: trying again." })];
-  assert.equal(sceneViewOf(rows).note, "The GM has lost the thread for a moment: trying again.");
-});

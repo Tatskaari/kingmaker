@@ -308,9 +308,6 @@ export const GmState = __t.object("GmState", {
   get opened() {
     return __t.array(OpenedNote);
   },
-  get pendingExit() {
-    return __t.option(PendingExit);
-  },
   get closing() {
     return __t.option(ExitAt);
   },
@@ -328,9 +325,6 @@ export const GmState = __t.object("GmState", {
   },
   lastRepairTurn: __t.option(__t.u32()),
   offGraphTurn: __t.option(__t.u32()),
-  get rulings() {
-    return __t.array(RulingRow);
-  },
   get threat() {
     return __t.option(Threat);
   },
@@ -550,15 +544,6 @@ export const PathStep = __t.object("PathStep", {
 });
 export type PathStep = __Infer<typeof PathStep>;
 
-export const PendingExit = __t.object("PendingExit", {
-  exitId: __t.string(),
-  turn: __t.u32(),
-  via: __t.string(),
-  extended: __t.bool(),
-  waits: __t.option(__t.string()),
-});
-export type PendingExit = __Infer<typeof PendingExit>;
-
 export const Place = __t.object("Place", {
   id: __t.u64(),
   gameId: __t.u64(),
@@ -691,24 +676,6 @@ export const RulesState = __t.object("RulesState", {
   rage: __t.option(__t.u32()),
 });
 export type RulesState = __Infer<typeof RulesState>;
-
-export const RulingRow = __t.object("RulingRow", {
-  turn: __t.u32(),
-  act: __t.string(),
-  target: __t.string(),
-  skill: __t.string(),
-  kind: __t.string(),
-  dc: __t.option(__t.i32()),
-  why: __t.string(),
-  get roll() {
-    return __t.option(Roll);
-  },
-  went: __t.string(),
-  changed: __t.string(),
-  costUsd: __t.f64(),
-  latencyMs: __t.f64(),
-});
-export type RulingRow = __Infer<typeof RulingRow>;
 
 export const Scene = __t.object("Scene", {
   id: __t.u64(),

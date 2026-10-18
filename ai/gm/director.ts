@@ -1,11 +1,10 @@
-// Copied from the prototype's src/runtime/director.ts at 44c6d4a: lines 24-52 (decisionState) as they are (reading a TurnView), freeformCheck (:639-650) as its questions and their reading (freeformQuestions, readFreeform: the roll is the simulation's), and the tries that failed (:1231-1232 and 1360-1369, failedTries) that considered rolls read. The rest of decideBefore (:718-1019, the turn's one decision: the route, the cue, the roll call, the same push again, a plan off the graph, earned, daft, out of character, an ending on the brink, a limit) went with the old pipeline's decide (docs/migration-log.md, M2's "The old pipeline's salvage"), but for the rules' mechanic question (:793-809, with the world bridge: world-bridge-design §2.2) and the act's details call (:988-1009, withMechanic's), parked for combat as mechanicQuestion, readMechanic and mechanicOf; decideAfter (:1234-1358, the read after the reply) went with the old pipeline's settle, but for its threat and severity (:1284-1295, :1343-1349), parked for combat as threatQuestions and readThreat; a talk's settings and its staged secrets after the reply (:1219-1229, :1263-1275, :1324) went with the old pipeline's talk. The details' questions are gm/mechanics.ts.
+// Copied from the prototype's src/runtime/director.ts at 44c6d4a: lines 24-52 (decisionState) as they are (reading a TurnView), which the parked questions below read. The rest of decideBefore (:718-1019, the turn's one decision: the route, the cue, the roll call, the same push again, a plan off the graph, earned, daft, out of character, an ending on the brink, a limit) went with the old pipeline's decide (docs/migration-log.md, M2's "The old pipeline's salvage"), but for the rules' mechanic question (:793-809, with the world bridge: world-bridge-design §2.2) and the act's details call (:988-1009, withMechanic's), parked for combat as mechanicQuestion, readMechanic and mechanicOf; freeformCheck (:639-650, the plain check a considered turn rolled when its ruling failed) and the tries that failed (:1231-1232 and 1360-1369, failedTries) went with considered rolls; decideAfter (:1234-1358, the read after the reply) went with the old pipeline's settle, but for its threat and severity (:1284-1295, :1343-1349), parked for combat as threatQuestions and readThreat; a talk's settings and its staged secrets after the reply (:1219-1229, :1263-1275, :1324) went with the old pipeline's talk. The details' questions are gm/mechanics.ts.
 
 import type { ChoiceQuestion, Decider, Decision as Answers } from "../llm/decide.ts";
-import { describeRoll } from "../../shared/dice.ts";
 import { HAZARD_KINDS } from "../../shared/rules/acts.ts";
 import type { Mechanic, ThreatRead } from "../../shared/rules/types.ts";
 import { currentBeat, presentCast } from "../../shared/scene/graph.ts";
-import type { Character, Scene, Skill } from "../../shared/scene/types.ts";
+import type { Character, Scene } from "../../shared/scene/types.ts";
 import { sceneEntries, scriptTranscript } from "./brief.ts";
 import { mechanicDetails, RULED_ACTS, type RuledAct, type RulesOptions } from "./mechanics.ts";
 import type { TurnView } from "./view.ts";
@@ -27,75 +26,14 @@ export function decisionState(scene: Scene, state: TurnView, latestPlayerTurn: s
 
 /**
  * How players write a turn (the convention the game gives them): talking is the default, and an
- * action goes in *asterisks* or (parentheses), though plenty just narrate. Said in the questions it
- * decides (what they're attempting, what the rules resolve, out of character), not in every
- * decision's state, where it only unsettles judgements that don't turn on it.
+ * action goes in *asterisks* or (parentheses), though plenty just narrate. Said in the question that
+ * turns on it (what the rules resolve), not in every decision's state, where it only unsettles
+ * judgements that don't turn on it.
  */
 const READ_TURN = "plain words are what their character says out loud, and what they do is in *asterisks* or (parentheses), or plainly narrated (\"I open the door\")";
 
 /** A clear read (the prototype's SCENE_ENDING_CONFIDENCE, its bar for what costs most to get wrong): what the rules resolve, and a threat left hanging. */
 const SCENE_ENDING_CONFIDENCE = 0.6;
-
-/** Social means are interchangeable ways to reach the same goal: the roll follows the player's method. */
-export const SOCIAL: Skill[] = ["persuasion", "intimidation", "deception", "performance"];
-
-/**
- * The tries that failed in this scene, in a line each: the routes' rolls that went against the
- * player, and (`rulings`) the GM's considered rulings that did, or said no without dice. The same
- * push again gets the same answer, however it's rolled.
- */
-export function failedTries(scene: Scene, state: TurnView, options: { rulings?: boolean } = {}): string[] {
-  return failedPushes(scene, state, options).map(p => p.line);
-}
-
-/** A try that failed in this scene: a route's roll (`route`) or one of the GM's rulings, in a line, and the answer it got. */
-interface FailedPush { route?: string; line: string; answer: string }
-
-function failedPushes(scene: Scene, state: TurnView, options: { rulings?: boolean } = {}): FailedPush[] {
-  // The route as it was where it was rolled (beats can share an id: the yard's threat and the doubt beat's).
-  const route = (from: string, id: string) => [...(scene.beats.find(b => b.id === from)?.transitions ?? []), ...(scene.anytime ?? [])].find(t => t.id === id && t.check);
-  const rolled = state.path.flatMap(p => {
-    const t = p.roll && !p.roll.success ? route(p.from, p.via) : undefined;
-    return t ? [{ route: t.id, line: `turn ${p.turn}: ${t.when.replace(/\.$/, "")} (${describeRoll(p.roll!, t.check!.reason)}): ${t.check!.failure}`, answer: t.check!.failure }] : [];
-  });
-  const ruled = options.rulings === false ? [] : (state.rulings ?? []).filter(r => r.went === "failure")
-    .map(r => ({ line: `turn ${r.turn}: ${r.act.replace(/\.$/, "")} (${r.roll ? describeRoll(r.roll) : "no roll: it couldn't work like that"}): ${r.changed}`, answer: r.changed }));
-  return [...rolled, ...ruled];
-}
-
-const SKILL_TEXT: Record<Skill, string> = {
-  persuasion: "Persuasion: winning someone over honestly, appeals, bargaining", deception: "Deception: lying, bluffing, disguises, tricks",
-  intimidation: "Intimidation: threats and shows of force", insight: "Insight: reading someone's intentions or lies",
-  performance: "Performance: music, poetry, acting, entertaining a crowd", perception: "Perception: noticing, spotting, listening",
-  investigation: "Investigation: searching, deducing, examining clues", sleight_of_hand: "Sleight of hand: pickpocketing, palming, planting objects",
-  stealth: "Stealth: sneaking, hiding", athletics: "Athletics: climbing, jumping, grappling, shoving, lifting",
-  acrobatics: "Acrobatics: balance, tumbling, nimble escapes", animal_handling: "Animal handling: calming or controlling animals",
-  arcana: "Arcana: magical lore, spells, enchanted objects", history: "History: knowledge of past events, peoples and places",
-  nature: "Nature: plants, animals, weather, the land", religion: "Religion: gods, rites, holy objects",
-  medicine: "Medicine: treating wounds, diagnosing", survival: "Survival: tracking, foraging, finding a way",
-};
-const DIFFICULTY = { easy: 10, moderate: 13, hard: 16 } as const;
-
-/**
- * A risky attempt no route covers, as freeformCheck (director.ts:639-650) asks it, on
- * decisionState and as director.freeform: which skill decides it, and how hard (the fallback for a
- * considered turn whose review failed). The roll is the simulation's.
- */
-export function freeformQuestions(): Record<string, ChoiceQuestion> {
-  return {
-    skill: { instructions: "The player is attempting something risky in a tabletop roleplaying scene (latest_player_turn). Which skill best decides whether it works?", criteria: SKILL_TEXT },
-    difficulty: { instructions: "How hard is what the player is attempting, given the situation and the people involved?", criteria: {
-      easy: "Easy: most people could manage it; only bad luck stops it.", moderate: "Moderate: a real chance of failure for most people.", hard: "Hard: it would take skill and luck.",
-    } },
-  };
-}
-
-/** freeformQuestions' answers as freeformCheck reads them: the skill, and the DC its difficulty sets (persuasion at 13 when it doesn't say). */
-export function readFreeform(decision: Answers): { skill: Skill; dc: number } {
-  const skill = (decision.answers.skill?.choice ?? "persuasion") as Skill;
-  const dc = DIFFICULTY[(decision.answers.difficulty?.choice ?? "moderate") as keyof typeof DIFFICULTY] ?? 13;
-  return { skill, dc };
-}
 
 // ---------------------------------------------------------------------------------------------
 // Parked for combat (docs/migration-log.md, M2's "The old pipeline's salvage"): what the player's

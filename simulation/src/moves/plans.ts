@@ -1,8 +1,5 @@
-import type { Ruling, Verdict } from "../../../shared/gm/consider.ts";
-import type { GmState } from "../../../shared/gm/state.ts";
-import type { Decision, Outcome, TurnCheck } from "../../../shared/protocol/ai.ts";
+import type { Outcome, TurnCheck } from "../../../shared/protocol/ai.ts";
 import type { Act, Mechanic } from "../../../shared/rules/types.ts";
-import type { Transition } from "../../../shared/scene/types.ts";
 
 /**
  * The plans a move keeps in its job row between thinks (v0-design §4.3, §6.1): plain JSON, ids as
@@ -25,15 +22,12 @@ export interface OpenPlan { step: "open"; game: string; scene: string; turn: str
 /**
  * A say turn's plan: the two-part GM's reply, then its settle (on the wind-down, the reply alone).
  * The reactions to the player's violence (world-bridge-design §3.4) are a step of their own, parked for
- * combat (nothing queues them since the old pipeline's decide went); a turn the GM rules on
- * (full-gm-design §4.2) has consider before the reply.
+ * combat (nothing queues them since the old pipeline's decide went).
  */
 export interface SayPlan {
-  step: "reactions" | "consider" | "reply" | "settle";
+  step: "reactions" | "reply" | "settle";
   game: string; scene: string; turn: string; n: number; player: string;
   input: string;
-  /** Who was on stage as the player spoke (presentCast): whyItWaits' arrivals. */
-  onStage: string[];
   /** settledFacts(gm) at the turn's start: the stage manager's `settled`. */
   settledBefore: string[];
   /** gm.closing was set when the turn started: this is the wind-down. */
@@ -45,20 +39,8 @@ export interface SayPlan {
    * do doesn't happen) or met their Shield (a Shield they cast this turn is already up).
    */
   rulesFirst?: { directives: string[]; down: boolean; shielded: boolean };
-  decision?: Decision;
   /** The act the rules resolved, when it was violence people react to (scene-acts.ts violence): the reactions step's request (parked for combat). */
   act?: Act;
-  /**
-   * A considered turn's: the ending held for the player's answer, which the decide commit took off
-   * the bookkeeping (consider's `pending`, and the held ending the consider commit decides).
-   */
-  pendingExit?: GmState["pendingExit"];
-  /** A considered turn's, from the consider answer: the GM's ruling, its verdict and its route. */
-  ruling?: Ruling;
-  verdict?: Verdict;
-  route?: Transition;
-  /** What the ruling's outcome not played would have brought out: it doesn't land this turn, whatever the reply let slip (landRuling, at the settle). */
-  withheld?: string[];
   outcome?: Outcome;
   /** The reply's plain text, for settle. */
   reply?: string;

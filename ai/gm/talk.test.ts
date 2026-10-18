@@ -45,7 +45,7 @@ function talking(game: string, scene: Scene = kell, fields: Partial<TurnView> = 
   return {
     ...initialGm({ start: scene.start }), id: game, sceneId: scene.id, turn: 0,
     player: { name: "Wren Ashdown", concept: "a quick-witted half-elf ranger", modifiers: {} },
-    memory: { opened: [] }, rulings: [], fought: [], owed: [], transcript: [], story: campaign.story,
+    memory: { opened: [] }, fought: [], owed: [], transcript: [], story: campaign.story,
     history: [{ sceneId: "hanged-clerk", exitId: "case-made", summary: "Prout was murdered; Kell signed him in as such." }],
     ...fields,
   };

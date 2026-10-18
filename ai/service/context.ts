@@ -1,6 +1,6 @@
 import type { CallContext } from "../llm/openrouter.ts";
 import type {
-  AiErrorCode, BackstoriesRequest, BackstoriesResponse, BoundaryRequest, BoundaryResponse, CharactersRequest, CharactersResponse, ConsiderRequest, ConsiderResponse,
+  AiErrorCode, BackstoriesRequest, BackstoriesResponse, BoundaryRequest, BoundaryResponse, CharactersRequest, CharactersResponse,
   LooksRequest, LooksResponse, OpenRequest, OpenResponse, ReactionsRequest, ReactionsResponse, RememberRequest, RememberResponse, RepairRequest, RepairResponse,
   ReplyRequest, ReplyResponse, SettleRequest, SettleResponse, SuggestRequest, SuggestResponse, Usage,
 } from "../../shared/protocol/ai.ts";
@@ -24,8 +24,6 @@ export interface AiContext {
   stream(turn: string): StreamSink;
   /** X-Km-Attempt: the dispatch's number, the stream's attempt. */
   attempt: number;
-  /** How long a considered turn's review may take before the plain check is rolled instead (KM_CONSIDER_DEADLINE_MS): the server's config, 12 s; absent in a test's context, 12 s too (config.ts CONSIDER_DEADLINE_MS). */
-  considerDeadlineMs?: number;
   /** Each game's memory reviews (memory-reviews.jsonl), which the remember endpoint appends to: the server's store (Stores.reviews); absent in a test's context, which keeps no line. */
   reviews?: ReviewLog;
 }
@@ -34,7 +32,7 @@ export type Handler<Req, Res> = (req: Req, ctx: AiContext) => Promise<Res>;
 
 /**
  * The thinks: the opening, a turn's own (reply, settle; reactions, parked for combat, on a turn the
- * player's violence drew them: world-bridge-design §3.1; consider on a turn the GM rules on),
+ * player's violence drew them: world-bridge-design §3.1),
  * the one beside a turn once its reply is in (the lines suggested after it: v5-design §3.6; the
  * notes on its marks went in M2), the two in the background once it's over (the memory reviews and the co-GM:
  * full-gm-design §4.1), the boundary once a scene is over (story-design §4.4), the looks of what a
@@ -46,8 +44,6 @@ export interface Endpoints {
   open: Handler<OpenRequest, OpenResponse>;
   /** Everyone who saw the player's violence reacts, each by their own lights, before the reply: none, and no model call, when nobody saw it. */
   reactions: Handler<ReactionsRequest, ReactionsResponse>;
-  /** The GM's ruling on an act the decider flagged, before the reply: cut off at the deadline, then the plain check to roll instead. */
-  consider: Handler<ConsiderRequest, ConsiderResponse>;
   reply: Handler<ReplyRequest, ReplyResponse>;
   settle: Handler<SettleRequest, SettleResponse>;
   suggest: Handler<SuggestRequest, SuggestResponse>;

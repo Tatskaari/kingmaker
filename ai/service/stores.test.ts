@@ -211,7 +211,7 @@ test("the config: the bearer required, the defaults, and the values checked", ()
   assert.throws(() => readConfig({}), /KM_AI_TOKEN is required/);
   assert.deepEqual(readConfig({ KM_AI_TOKEN: "t" }), {
     listen: [{ host: "127.0.0.1", port: 8787 }], token: "t", store: "runs/ai", stdb: { url: "http://127.0.0.1:3300", db: "kingmaker" },
-    model: "openrouter", fake: {}, gm: "pipeline", streamMs: 200, dailyUsd: 5, considerDeadlineMs: 12_000, faults: {},
+    model: "openrouter", fake: {}, gm: "pipeline", streamMs: 200, dailyUsd: 5, faults: {},
   });
   const set = readConfig({ KM_AI_TOKEN: "t", KM_AI_LISTEN: "11.0.0.1:8787, 127.0.0.1:8787,[::1]:0", KM_STDB_URL: "http://127.0.0.1:3310/", KM_STDB_TOKEN: "s", KM_AI_MODEL: "fake", KM_AI_FAKE: "{\"streamMs\":3000}", KM_AI_GM: "canned", KM_AI_STREAM_MS: "50", KM_AI_FAULTS: "exit-after-store:settle", OPENROUTER_API_KEY: " sk-or-1 " });
   assert.deepEqual(set.listen, [{ host: "11.0.0.1", port: 8787 }, { host: "127.0.0.1", port: 8787 }, { host: "::1", port: 0 }]);
@@ -222,12 +222,11 @@ test("the config: the bearer required, the defaults, and the values checked", ()
   assert.throws(() => readConfig({ KM_AI_TOKEN: "t", KM_AI_LISTEN: "8787" }), /KM_AI_LISTEN/);
 });
 
-test("the config: a considered turn's review is cut off at KM_CONSIDER_DEADLINE_MS, and its step and the background ones are faults", () => {
-  assert.equal(readConfig({ KM_AI_TOKEN: "t", KM_CONSIDER_DEADLINE_MS: "2000" }).considerDeadlineMs, 2000);
-  assert.throws(() => readConfig({ KM_AI_TOKEN: "t", KM_CONSIDER_DEADLINE_MS: "soon" }), /KM_CONSIDER_DEADLINE_MS/);
-  assert.deepEqual(["consider", "remember", "repair"].map(step => readConfig({ KM_AI_TOKEN: "t", KM_AI_FAULTS: `exit-after-store:${step}` }).faults), [
-    { exitAfterStore: "consider" }, { exitAfterStore: "remember" }, { exitAfterStore: "repair" },
+test("the config: the background steps are faults; a considered turn's step, gone with the old pipeline, isn't", () => {
+  assert.deepEqual(["remember", "repair"].map(step => readConfig({ KM_AI_TOKEN: "t", KM_AI_FAULTS: `exit-after-store:${step}` }).faults), [
+    { exitAfterStore: "remember" }, { exitAfterStore: "repair" },
   ]);
+  assert.throws(() => readConfig({ KM_AI_TOKEN: "t", KM_AI_FAULTS: "exit-after-store:consider" }), /KM_AI_FAULTS/);
 });
 
 test("the config: the daily ceiling in dollars (0 for none), and a creation's steps as faults", () => {

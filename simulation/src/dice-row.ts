@@ -1,9 +1,11 @@
 import { rollFrom, type RollResult } from "../../shared/dice.ts";
 import type { Skill } from "../../shared/scene/types.ts";
 import type { TxCtx } from "./context.ts";
-import type { Roll } from "./gm/bookkeeping.ts";
 import { sheetRow, type SceneRow } from "./rows.ts";
 import { checkThroughEngine } from "./rules/play.ts";
+
+/** A check rolled: the game's dice, the sheet's modifier for the skill. */
+export type Roll = (skill: string, dc: number) => RollResult;
 
 /**
  * The game's dice (v0-design §6.4, v1-design §3.6): the `dice` row is its only randomness after it's

@@ -1,99 +1,13 @@
-// Copied from the prototype's src/runtime/engine.ts:255-265 (moveTaken), 276-286 (heldEnding), 418-437 (settledFacts, applyMove), director.ts:330-342 (resolve) and src/lore/disclosure.ts:94-96 (keepOpened) at 44c6d4a. They read and write GmState, not the session; turn numbers are the scene's, passed in; the dice are the game's row, through the roll handed in; the GM's words stay with the AI service, so moveTaken and heldEnding say what they did instead of returning directives; no fights yet. (wantsReview, engine.ts:397-410, which read the wire's Decision and the move the decide commit resolved, and routeOf, the route open from where the scene is that the decide commit took, went with the old pipeline's decide: docs/migration-log.md, M2's "The old pipeline's salvage".)
+// Copied from the prototype at 44c6d4a: settledFacts from src/runtime/engine.ts:418-437 (beside applyMove) and keepOpened from src/lore/disclosure.ts:94-96. They read GmState, not the session. What else was here went with the old pipeline's scene steps (docs/migration-log.md, M2's "The old pipeline's salvage"): wantsReview (engine.ts:397-410) and routeOf, the route the decide commit took, with its decide; resolve (director.ts:330-342), applyMove, moveTaken (engine.ts:255-265) and heldEnding (:276-286), the move a route or a ruling made and the ending it held for the player's answer, with considered rolls; and the read after the reply applied (moveOnAfterReply, endingReached, whyItWaits, arrivals, reachEnding: engine.ts:335-395) with its settle. The two-part GM's moves are shared/scene/beats.ts takeRoute's.
 
-import type { RollResult } from "../../../shared/dice.ts";
 import type { GmState, OpenedNote } from "../../../shared/gm/state.ts";
-import type { Decision, Outcome } from "../../../shared/protocol/ai.ts";
-import type { Exit, Scene, Transition } from "../../../shared/scene/types.ts";
-
-/**
- * The GM's bookkeeping, the state machine the simulation runs in its commits (gm-port §6, §9): a
- * route taken and where it leaves the beats, the facts it settles, and the endings, when one is
- * held for the player's answer, when it gets a wind-down, when it closes the scene. (What the read
- * after the reply found, applied, went with the old pipeline's settle: moveOnAfterReply,
- * endingReached, whyItWaits, arrivals and reachEnding, engine.ts:335-395.) Pure functions
- * of the GM's state and the scene's graph; they change the state they're handed, as the
- * prototype's did, and the commit writes it back.
- */
-
-/** A route taken (director.ts's Move): where it leads, its roll, the exit it reaches, whether the player chose it. */
-export interface Move { transition: Transition; phase: "attempt" | "cue" | "outcome"; roll?: RollResult; to: string; exit?: Exit; chosen: boolean }
-
-/** A route the AI service picked: its id and phase, its check (the skill already the player's means), and whether the ending it leads to is theirs. */
-export interface RoutePick { id: string; phase: Move["phase"]; check?: { skill: string; dc: number }; theirs?: boolean }
-
-/** A check rolled: the game's dice, the sheet's modifier for the skill. */
-export type Roll = (skill: string, dc: number) => RollResult;
 
 /** The most opened notes a scene keeps (disclosure.ts's MAX_OPEN). */
 const MAX_OPEN = 24;
 
-/** director.ts's resolve: where a route leads, its check rolled, the exit it reaches, and whether the player chose it. */
-export function resolveMove(scene: Scene, gm: GmState, transition: Transition, pick: RoutePick, roll: Roll): Move {
-  let to = transition.to ?? gm.beat;
-  let rolled: RollResult | undefined;
-  if (transition.check) {
-    rolled = roll(pick.check?.skill ?? transition.check.skill, pick.check?.dc ?? transition.check.dc);
-    to = rolled.success ? transition.check.onSuccess : transition.check.onFailure ?? gm.beat;
-  }
-  const exit = scene.exits.find(e => e.id === to);
-  // (The cue's ending is the one the player is leaving by: their choice, as their own route's would be.)
-  const chosen = !!pick.theirs || (pick.phase === "attempt" && (!rolled || rolled.success));
-  return { transition, phase: pick.phase, to, chosen, ...(rolled ? { roll: rolled } : {}), ...(exit ? { exit } : {}) };
-}
-
-export function applyMove(gm: GmState, move: Move, source: "pre" | "post", turn: number): void {
-  // (How much was settled before it: a beat left before something was settled can't be gone back to by the co-GM.)
-  const known = gm.established.length;
-  // The route's own facts, then those of how its check went.
-  const byOutcome = move.roll && move.transition.check?.establishes ? (move.roll.success ? move.transition.check.establishes.success : move.transition.check.establishes.failure) ?? [] : [];
-  for (const fact of [...(move.transition.establishes ?? []), ...byOutcome]) if (!gm.established.includes(fact)) gm.established.push(fact);
-  if (move.to !== gm.beat) {
-    gm.path.push({ turn, from: gm.beat, to: move.to, via: move.transition.id, source, ...(move.roll ? { roll: move.roll } : {}), known });
-    if (!move.exit) { gm.beat = move.to; gm.turnsInBeat = 0; }
-  } else if (move.roll) {
-    gm.path.push({ turn, from: gm.beat, to: gm.beat, via: move.transition.id, source, roll: move.roll, known });
-  }
-}
-
-/**
- * moveTaken: where a move before the reply leaves the scene. An ending the dice decided plays its
- * moment now and closes on the next reply; one the player chose closes now; one they didn't is
- * held for their answer.
- */
-export function takeMove(gm: GmState, move: Move, pending: GmState["pendingExit"], turn: number): NonNullable<Outcome["taken"]> {
-  if (move.exit && move.chosen && move.roll && move.exit.kind !== "combat") {
-    gm.closing = { exitId: move.exit.id, turn };
-    return { closing: move.exit.id };
-  }
-  if (move.exit && (move.chosen || pending?.exitId === move.exit.id)) return { ended: move.exit.id };
-  if (move.exit) {
-    gm.pendingExit = { exitId: move.exit.id, turn, via: move.transition.id, extended: false };
-    return { pendingExit: move.exit.id };
-  }
-  return {};
-}
-
-/**
- * heldEnding: the player's turn with an ending held for their answer. A word out of character
- * leaves it as it was; a turn that answers it (an ask, a challenge, a try the GM ruled on that might
- * change things: `considered`) holds it once more; any other turn lets it land in this reply.
- */
-export function holdEnding(gm: GmState, pending: NonNullable<GmState["pendingExit"]>, decision: Decision, considered = false): NonNullable<Outcome["held"]> {
-  if (decision.outOfCharacter) {
-    gm.pendingExit = pending;
-    return "ooc";
-  }
-  if ((!!decision.plain || considered || !!decision.answering) && !pending.extended) {
-    gm.pendingExit = { ...pending, extended: true };
-    return "brink";
-  }
-  return "closes";
-}
-
-/** What's been settled in this scene so far: its facts, and how the GM's rulings went, the last 16. */
+/** What's been settled in this scene so far: its facts, the last 16. (The GM's rulings, how they went, were among them until considered rolls went.) */
 export function settledFacts(gm: GmState): string[] {
-  const rulings = gm.rulings.map(r => `${r.act.replace(/\.$/, "")}: ${r.went === "success" ? "it worked" : "it didn't"} (${r.changed})`);
-  return [...gm.established, ...rulings].slice(-16);
+  return gm.established.slice(-16);
 }
 
 /** The notes disclosure has open for the scene, with these too (their `p` dropped), the newest 24. */

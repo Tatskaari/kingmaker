@@ -19,7 +19,7 @@ import { configureTerminal } from "./terminal.ts";
  * lines as they reached this client), who said what, the lines
  * offered and those screened out, the model calls and their cost (the AI service's call log), the
  * measures against the prototype's, what the scene holds back from the player, and for the full
- * GM's the GM's side (each line's ruling, memory review and co-GM review: npm run status), and for
+ * GM's the GM's side (each line's memory review and co-GM review: npm run status), and for
  * the world bridge's the world's (each line's dice, what the place showed after, who reacted). V1's,
  * with --creation: three concepts' builds and Tamsin Vell made from a sentence through the lore
  * check to her first line (live/creation.ts). The whole story's, --script story: one game from the

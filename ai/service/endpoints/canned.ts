@@ -17,9 +17,8 @@ import { characters } from "./characters.ts";
  * and each reply stream a word at a time, as a model's would, so the draft grows on every screen, and
  * someone of the cast says a line in each, so the screen has a speaker to colour. Nothing moves the
  * scene: no route is taken, nothing lands, no ending comes (the two-part GM's co-GM sets no roles and
- * makes no move, and its mouthpiece calls no check; its closing closes), the rules resolve no act (so
- * nobody reacts: reactions asked for anyway come back with none), and the GM rules on nothing (a
- * ruling asked for anyway comes back without one, and without a check to roll).
+ * makes no move, and its mouthpiece calls no check; its closing closes), and the rules resolve no act
+ * (so nobody reacts: reactions asked for anyway come back with none).
  * The suggested lines are the same four every time, and a talk's the same two (town-design §3.6: a
  * talk's prep keeps nothing back and adds no facts). After a turn, nobody remembers anything, and the
  * co-GM finds the scene on track, with no notes, and nothing gets a look invented. After a scene, the boundary goes to the first scene
@@ -41,9 +40,6 @@ export const canned: Endpoints = {
   },
   async reactions() {
     return { reactions: {}, usage: noUsage() };
-  },
-  async consider() {
-    return { error: "the canned GM rules on nothing (no model was asked)", ms: 0, usage: noUsage() };
   },
   async reply(req, ctx) {
     const scene = effectiveScene(ctx.campaign.scene(req.turn.scene.key), req.turn.gm.patches);

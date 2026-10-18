@@ -95,8 +95,8 @@ export async function theCoGmSteers(stack: Stack, root: string, a: Player, game:
 
 /**
  * 24. A risky act the GM calls a check on (the mouthpiece's recipe: Sleight of Hand, DC 12, on every
- * reply but an opening or a closing): both clients see the turn go replying, settling, done (no
- * deciding or considering), and its rows: the narration setting it up, the dice line (rolled by the
+ * reply but an opening or a closing): both clients see the turn go replying, settling, done, and
+ * its rows: the narration setting it up, the dice line (rolled by the
  * simulation from the game's dice, through the rules engine on the player's sheet) with how far it
  * made or missed it, and the outcome that came up; the co-GM is told how it went. (Until M2 the old
  * pipeline ruled on the act before the reply, and rolled a plain check when the ruling was too slow.)
@@ -115,7 +115,7 @@ export async function aRiskyCheck(stack: Stack, root: string, a: Player, b: Play
   await until(b, `B to see turn ${n} done`, 10_000, r => turnOf(r, n)?.phase === "done");
   for (const [p, i] of [[a, from.a], [b, from.b]] as const) {
     const phases = phasesOf(p, i, game, n);
-    check(`${p.name} saw turn ${n} go ${phases.join(", ")}`, phases.slice(-3).join() === "replying,settling,done" && !phases.includes("deciding") && !phases.includes("considering"));
+    check(`${p.name} saw turn ${n} go ${phases.join(", ")}`, phases.slice(-3).join() === "replying,settling,done");
   }
   const lines = linesOf(rows, n);
   const dice = lines.find(l => l.kind === "roll")?.text ?? "";

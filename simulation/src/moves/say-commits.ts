@@ -1,24 +1,19 @@
-import { describeRoll } from "../../../shared/dice.ts";
 import type { GmState } from "../../../shared/gm/state.ts";
-import type { ConsiderResponse, Decision, Outcome, ReactionsResponse, ReplyResponse } from "../../../shared/protocol/ai.ts";
+import type { Outcome, ReactionsResponse, ReplyResponse } from "../../../shared/protocol/ai.ts";
 import { idOf } from "../../../shared/protocol/keys.ts";
 import { attack, castSpell, dispelConjured, rest, useFeature, wrestle, type RulesOutcome } from "../../../shared/rules/acts.ts";
 import { leap, moveToAct, react, violence } from "../../../shared/rules/scene-acts.ts";
 import type { Act, Mechanic, Reaction, Rules } from "../../../shared/rules/types.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
-import { unnamed } from "../../../shared/scene/names.ts";
 import type { Exit, Scene } from "../../../shared/scene/types.ts";
 import type { TxCtx } from "../context.ts";
-import { rollerFor } from "../dice-row.ts";
-import { applyMove, holdEnding, takeMove } from "../gm/bookkeeping.ts";
-import { settleRuling } from "../gm/consider.ts";
 import { getGm, putGm } from "../gm/rows.ts";
 import { sceneRow, updateScene, updateTurn, type SceneRow } from "../rows.ts";
 import { inPlay, playedOut } from "../rules/play.ts";
 import { engineCall } from "../rules/session.ts";
 import { sceneGraph } from "../scenes.ts";
 import { closeScene } from "../story/end.ts";
-import { addEntry, entriesOf } from "../transcript.ts";
+import { addEntry } from "../transcript.ts";
 import { placeWorldOf, savePlaceWorld } from "../world/place.ts";
 import { syncStage } from "../world/stage.ts";
 import type { Next } from "./move.ts";
@@ -62,34 +57,6 @@ export function afterReactions(tx: TxCtx, plan: SayPlan, answer: ReactionsRespon
 }
 
 /**
- * After consider (engine.ts:663-703, 729-735): the GM's ruling settled (its route's check rolled from
- * the game's dice, its dice line, its record, the ways of trying it shuts closed) and its move applied
- * as any route's, with where that leaves the endings; or, with no ruling, the plain check rolled
- * instead. A plan off the graph with nothing ruled is the co-GM's to review. Then the ending held
- * for the player's answer, unless the ruling answered it, and what this reply closes on. On to the
- * reply, which plays what was decided.
- */
-export function afterConsider(tx: TxCtx, plan: SayPlan, answer: ConsiderResponse): Next<SayPlan> {
-  const at = atTurn(tx, plan);
-  const decision = needs(plan.decision, "decision");
-  const outcome: Outcome = { ...needs(plan.outcome, "outcome"), lines: [...plan.lines] };
-  const pending = plan.pendingExit;
-
-  const ruled = answer.ruling && answer.verdict && answer.route ? rule(tx, at, plan, answer as Ruled, pending, outcome) : undefined;
-  if (!ruled && answer.fallback) plainCheck(tx, at, plan, answer.fallback, outcome);
-  // The background co-GM is for the scene's direction: a plan off the graph the GM has ruled on doesn't need it now.
-  if (decision.offGraph && !ruled) at.gm.offGraphTurn = plan.n;
-  // An ending held for the player's answer: a ruling's success, or its own ending, answers it; one that failed without one is like any try that might change things.
-  closesOrHolds(at.gm, plan.n, decision, outcome, pending, !!ruled && (ruled.went === "success" || !!ruled.exit), !!ruled);
-
-  putGm(tx, at.scene.id, at.gm);
-  updateTurn(tx, idOf(plan.turn), { phase: "replying" });
-  tx.log(`[scene ${at.scene.id} turn ${plan.n}] considered: ${ruled ? `${ruled.ruling.act} -> ${ruled.verdict.kind}${ruled.verdict.dc ? ` DC ${ruled.verdict.dc}` : ""}, ${ruled.went}` : `no ruling (${answer.error ?? "none given"})${outcome.freeform ? `; a plain ${outcome.freeform.skill} check` : ""}`}`);
-  const kept = ruled ? { ruling: ruled.ruling, verdict: ruled.verdict, route: ruled.route, withheld: ruled.withheld } : {};
-  return { done: false, plan: { ...plan, step: "reply", outcome, lines: outcome.lines, ...kept } };
-}
-
-/**
  * The scene ends on an exit: what a spell conjured goes with it (engine.ts:984: its lights and hands
  * don't outlast the scene), its system line, the scene's status and exit, and a line still waiting
  * cancelled; then the story's end of it (story/end.ts closeScene: a fight, or its effects and the
@@ -120,21 +87,6 @@ export function atTurn(tx: TxCtx, plan: Pick<SayPlan, "scene">): At {
   const scene = sceneRow(tx, idOf(plan.scene));
   const gm = getGm(tx, scene.id);
   return { scene, graph: sceneGraph(tx, scene, gm), gm };
-}
-
-/**
- * engine.ts:729-735: an ending held for the player's answer, unless the turn's move answered it
- * (`answered`), is held once more or lands (heldEnding, with whether the GM ruled on the turn); and
- * the ending this reply closes on, if any.
- */
-function closesOrHolds(gm: GmState, n: number, decision: Decision, outcome: Outcome, pending: GmState["pendingExit"], answered: boolean, considered: boolean): void {
-  if (pending && !answered) outcome.held = holdEnding(gm, pending, decision, considered);
-  if (pending) outcome.pending = { exit: pending.exitId };
-  const closes = outcome.taken?.ended ?? (outcome.held === "closes" ? pending?.exitId : undefined);
-  if (closes) {
-    outcome.closes = closes;
-    gm.ended = { exitId: closes, turn: n };
-  }
 }
 
 /** A dice line written to the transcript. */
@@ -202,47 +154,6 @@ export function reactionsTakeEffect(tx: TxCtx, at: At, plan: Pick<SayPlan, "n">,
   at.gm.path.push({ turn: plan.n, from: at.gm.beat, to: at.gm.beat, via: `reactions:${read}`, source: "pre" });
   syncStage(tx, at.scene, at.graph, at.gm);
   tx.log(`[scene ${at.scene.id} turn ${plan.n}] reactions to "${act.what}": ${read}`);
-}
-
-// ---------------------------------------------------------------------------------------------
-// afterConsider's parts.
-
-/** A consider answer with its ruling. */
-type Ruled = ConsiderResponse & Required<Pick<ConsiderResponse, "ruling" | "verdict" | "route">>;
-
-/**
- * engine.ts:669-681: the ruling settled (gm/consider.ts) and kept, its dice line written, its move
- * applied as a route's (one with no roll that keeps the scene where it is is a step on the path
- * too, as a plain check is), and where that leaves the endings (moveTaken). What the reply is told
- * of it, and what its dice kept back.
- */
-function rule(tx: TxCtx, at: At, plan: SayPlan, answer: Ruled, pending: GmState["pendingExit"], outcome: Outcome): NonNullable<Outcome["ruled"]> & { withheld: string[] } {
-  const { ruling, verdict, route } = answer;
-  const aliases = unnamed(at.graph, { transcript: entriesOf(tx, at.scene.id) });
-  const settled = settleRuling(at.graph, at.gm, ruling, verdict, route, rollerFor(tx, at.scene), plan.n, aliases);
-  at.gm.rulings.push(settled.record);
-  if (settled.dice) outcome.lines.push(diceEntry(tx, at.scene, plan.n, settled.dice));
-  const from = at.gm.beat;
-  applyMove(at.gm, settled.move, "pre", plan.n);
-  if (!settled.move.roll && settled.move.to === from) at.gm.path.push({ turn: plan.n, from, to: from, via: settled.move.transition.id, source: "pre" });
-  outcome.taken = takeMove(at.gm, settled.move, pending, plan.n);
-  outcome.ruled = {
-    ruling, verdict, route, went: settled.record.went, ...(settled.move.roll ? { roll: settled.move.roll } : {}),
-    from, to: settled.move.to, ...(settled.move.exit ? { exit: settled.move.exit.id } : {}), chosen: settled.move.chosen,
-  };
-  return { ...outcome.ruled, withheld: settled.withheld };
-}
-
-/**
- * engine.ts:687-699: no ruling (the review failed, or ran past its deadline), and the decider wanted a
- * roll: the dice still decide it, as a plain check of the skill and DC the AI service read, its dice
- * line's reason the player's goal as they'd put it.
- */
-function plainCheck(tx: TxCtx, at: At, plan: SayPlan, fallback: NonNullable<ConsiderResponse["fallback"]>, outcome: Outcome): void {
-  const roll = rollerFor(tx, at.scene)(fallback.skill, fallback.dc);
-  outcome.lines.push(diceEntry(tx, at.scene, plan.n, describeRoll(roll, fallback.reason)));
-  at.gm.path.push({ turn: plan.n, from: at.gm.beat, to: at.gm.beat, via: "freeform", source: "pre", roll });
-  outcome.freeform = { skill: fallback.skill, dc: fallback.dc, roll, reason: fallback.reason };
 }
 
 /** A stage's pressure, once offered, isn't offered again. */

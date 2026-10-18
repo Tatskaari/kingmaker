@@ -128,7 +128,7 @@ const IN_PLAY = new Set(["opening", "live", "closing", "ending", "fighting"]);
 /**
  * The turn holding the scene, let go of before a forced end: one whose reply is in (settling) or
  * that failed is done, its own steps' job dropped (its lines and the reviews after it still come);
- * one the GM is still deciding, considering or answering refuses it.
+ * one the GM is still answering refuses it.
  */
 function letGo(tx: TxCtx, scene: SceneRow): void {
   const turn = scene.turnId === undefined ? undefined : tx.db.turn.id.find(scene.turnId);

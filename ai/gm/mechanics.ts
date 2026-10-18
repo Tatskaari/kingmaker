@@ -55,8 +55,9 @@ export function alsoQuestion(t: Transition, act: RuledAct): ChoiceQuestion {
 }
 
 /**
- * Considered rolls, on a turn the rules resolve the player's act and a roll is wanted: is the act only
- * the means to something risky the rules don't settle? A Mage Hand pinching the page from a boy who's
+ * Parked for combat, as considered rolls asked it (they went with the old pipeline), on a turn the
+ * rules resolve the player's act and a roll is wanted: is the act only the means to something risky
+ * the rules don't settle? A Mage Hand pinching the page from a boy who's
  * watching (the spell is cast; whether he notices isn't the spell's), a lunge to catch the body the
  * axe brings down, a threat made with a fist in someone's collar. Then the GM rules on that, knowing
  * how the act went. A blow, a shot, a grab, or a spell doing what it does, stays the rules' alone.

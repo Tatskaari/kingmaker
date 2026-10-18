@@ -31,12 +31,6 @@ export interface RespondRequest {
    * whose good lines come first: the suggested lines).
    */
   asFarAsItGot?: boolean;
-  /**
-   * A reply in two phases is taken by its final answer when that answer is what was asked for (for
-   * JSON, it reads as JSON), rather than asked for again: a call with a deadline can't wait for a
-   * second try (the GM's review on a considered turn).
-   */
-  finalAnswer?: boolean;
 }
 
 export interface RespondResult {
@@ -215,13 +209,6 @@ function finalText(body: ResponseBody): string {
 /** A text, as JSON once any fence is taken off (the way respondJson reads it). */
 const unfenced = (text: string) => text.trim().replace(/^```(?:json)?\s*\n([\s\S]*?)\n```$/i, "$1");
 
-/** Is a reply's text what was asked for: something, and for JSON, JSON? */
-function usable(text: string, json: boolean): boolean {
-  if (!text.trim()) return false;
-  if (!json) return true;
-  try { JSON.parse(unfenced(text)); return true; } catch { return false; }
-}
-
 /**
  * What calls that failed had already cost, carried on the error they ended in: a reply that ran to
  * its token cap is billed all the same, and the turn that made it counts it.
@@ -316,10 +303,10 @@ export async function respond(request: RespondRequest): Promise<RespondResult> {
   }
   const phases = (final.output ?? []).filter(item => item.type === "message").map(item => item.phase ?? "none");
   // Luna without reasoning occasionally splits a reply into a "commentary" message plus a
-  // final_answer that critiques it. Neither is reliable, so try once more (unless what's there will
-  // do: then it's the final answer, as it is when the caller takes a final answer that's usable).
-  const finalWillDo = request.finalAnswer === true && phases.includes("final_answer") && usable(finalText(final), !!request.json);
-  if (phases.length > 1 && !request.noPhaseRetry && !request.asFarAsItGot && !finalWillDo) {
+  // final_answer that critiques it. Neither is reliable, so try once more. (A caller with a deadline
+  // could take a usable final answer instead, finalAnswer: the GM's review on a considered turn,
+  // which went with the old pipeline.)
+  if (phases.length > 1 && !request.noPhaseRetry && !request.asFarAsItGot) {
     logCall({ provider: "openrouter", operation: request.operation, model, warning: "multi-phase output, retrying", phases, output: final.output }, request.calls);
     recordCost("openrouter", request.operation, model, final.usage?.cost ?? 0, latencyMs, request.calls);
     return retried(request, final.usage?.cost ?? 0);

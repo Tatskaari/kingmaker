@@ -10,12 +10,12 @@ import { playerLine } from "./transcript.ts";
  */
 
 /**
- * queued, considering (the GM rules on the act before replying: full-gm-design §4.2), replying,
- * settling, done, failed. A turn goes from queued to replying. (It was noting while its reply's notes
- * were written, until M2 took the notes out: docs/two-part-design.md; and deciding, until the old
- * pipeline's decide went with the rest of its scene steps: docs/migration-log.md.)
+ * queued, replying, settling, done, failed. A turn goes from queued to replying. (It was noting while
+ * its reply's notes were written, until M2 took the notes out: docs/two-part-design.md; and deciding
+ * and considering, while the old pipeline's decide read the line and the GM ruled on it, until they
+ * went with the rest of its scene steps: docs/migration-log.md.)
  */
-export type Phase = "queued" | "considering" | "replying" | "settling" | "done" | "failed";
+export type Phase = "queued" | "replying" | "settling" | "done" | "failed";
 
 export function newTurn(tx: TxCtx, scene: SceneRow, playerId: bigint, n: number, phase: Phase): TurnRow {
   return tx.db.turn.insert({
