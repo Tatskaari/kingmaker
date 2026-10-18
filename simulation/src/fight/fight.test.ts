@@ -546,3 +546,40 @@ test("Sleep: its caption says who it put to sleep, a sleeper's turn says they're
   assert.ok(turn, "the sleeper's turn came round");
   assert.match(turn.caption, /^Round \d+: a bandit's turn, and they're asleep\.$/);
 });
+
+test("class features on the player's turn (the user: \"how do I use a bonus action? I think I have second wind\"): Second Wind is the fighter's bonus action, and heals; then it's spent; Cunning Action dashes the rogue", () => {
+  const { host, playerId, game, wren } = onMap("fighter");
+  started(host, playerId, room([{ id: "bandit", at: { x: 10, y: 6 } }], { x: 1, y: 3 }));
+  toPlayer(host, game.id);
+  // Hurt first, as a blow would leave them (set on the fight's own campaign).
+  host.transact(tx => {
+    const fight = fightOf(tx, game.id)!;
+    const rules = tx.db.fightRules.fightId.find(fight.id)!;
+    const b = boardOfRow(fight);
+    const campaign = JSON.parse(rules.campaign) as { events: Array<Record<string, unknown>> };
+    const last = campaign.events[campaign.events.length - 1]!;
+    campaign.events.push({ ...last, id: "01K0000000000000000000ZZZY", type: "DamageApplied", targetId: b.units["player"]!.engineId, components: [{ amount: 9, type: "slashing" }], source: "test" });
+    tx.db.fightRules.fightId.update({ ...rules, campaign: JSON.stringify(campaign) });
+  });
+  const wind = options(host, game.id)!.actions.find(a => a.id === "feature_second-wind");
+  assert.deepEqual([wind?.kind, wind?.cost, wind?.name], ["feature", "bonus", "Second Wind"], JSON.stringify(options(host, game.id)!.actions.map(a => a.id)));
+  const seen = fightNow(host, game.id).seq;
+  assert.equal(host.as(wren).useFeature({ feature: "second-wind" }), undefined);
+  const used = events(host, fightNow(host, game.id)).filter(e => e.seq > seen && e.kind === "feature")[0]!;
+  const healed = used.detail.hits.find(h => h.unit === "player")?.healed ?? 0;
+  assert.ok(healed > 0, `healed: ${used.detail.lines.join(" / ")}`);
+  assert.equal(used.caption, `You use Second Wind: ${healed} hit point${healed === 1 ? "" : "s"} back.`);
+  assert.equal(options(host, game.id)!.bonusActionUsed, true);
+  assert.equal(options(host, game.id)!.actions.some(a => a.id === "feature_second-wind"), false, "spent this turn");
+  assert.match(host.as(wren).useFeature({ feature: "second-wind" })?.text ?? "", /used your bonus action this turn/);
+
+  const rogue = onMap("rogue");
+  started(rogue.host, rogue.playerId, room([{ id: "bandit", at: { x: 10, y: 6 } }], { x: 1, y: 3 }));
+  toPlayer(rogue.host, rogue.game.id);
+  const ids = options(rogue.host, rogue.game.id)!.actions.map(a => a.id);
+  assert.ok(ids.includes("feature_cunning-action-dash") && ids.includes("feature_cunning-action-disengage") && !ids.includes("feature_cunning-action-hide"), ids.join(", "));
+  const left = options(rogue.host, rogue.game.id)!.movementLeft;
+  assert.equal(rogue.host.as(rogue.wren).useFeature({ feature: "cunning-action-dash" }), undefined);
+  const now = options(rogue.host, rogue.game.id)!;
+  assert.deepEqual([now.bonusActionUsed, now.actionUsed, now.movementLeft > left], [true, false, true], "a dash for the bonus action, the action still free");
+});

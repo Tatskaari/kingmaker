@@ -20,6 +20,7 @@ export function captionOf(m: Omit<FightEvent, "seq">, G: FightBoard): string {
     case "dodge": return `${c.Who} ${c.s("dodge")}: attacks on ${c.them} have disadvantage until ${c.their} next turn.`;
     case "disengage": return `${c.Who} ${c.s("disengage")}: no swings as ${c.they} ${c.s("move")} away.`;
     case "wrestle": return c.wrestle();
+    case "feature": return c.feature();
     case "use": return `${c.Who} ${/brazier/i.test(m.detail.with ?? "") ? `${c.s("kick")} over` : `${c.s("bring")} down`} the ${m.detail.with ?? "thing"}.${c.lit()}`;
     case "yield": return c.you ? "You put your hands up." : `${c.Who} puts ${c.their} hands up.`;
     case "flee": return `${c.Who} ${c.s("go", "goes")} out through ${m.detail.with ?? "the way out"} and ${c.s("are", "is")} gone.`;
@@ -157,6 +158,16 @@ class Caption {
     const type = hit.damage[0]?.type;
     const saved = hit.saved ? ` (${them} ${this.sFor(hit.unit, "save")}, and ${this.sFor(hit.unit, "take")} half)` : "";
     return `${cast} at ${them}: ${total(hit)}${type ? ` ${type}` : ""} damage${saved}.${this.fall(hit)}${this.woke(hit)}${this.lit()}`;
+  }
+
+  /** A class feature used: who, which, on whom, and what it did (hit points back, a condition taken up, a dash's feet). "You use Second Wind: 11 hit points back." */
+  feature(): string {
+    const m = this.m;
+    const on = m.target ? ` on ${this.name(m.target)}` : "";
+    const healed = m.detail.hits.find(h => h.healed > 0);
+    const gained = m.detail.hits.flatMap(h => h.gained.map(c => (h.unit === this.G.pc ? `you're ${c}` : `${this.name(h.unit)} is ${c}`)));
+    const what = healed ? `: ${healed.healed} hit point${healed.healed === 1 ? "" : "s"} back${healed.unit === m.actor ? "" : ` for ${this.name(healed.unit)}`}` : gained.length ? `: ${listing(gained)}` : "";
+    return `${this.Who} ${this.s("use")} ${m.detail.with ?? "a feature"}${on}${what}.`;
   }
 
   wrestle(): string {

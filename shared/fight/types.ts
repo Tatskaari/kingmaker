@@ -183,7 +183,7 @@ export interface FightSetup {
  * the fight's end.
  */
 export type FightEventKind =
-  | "start" | "turn" | "move" | "attack" | "cast" | "dash" | "dodge" | "disengage" | "wrestle" | "use"
+  | "start" | "turn" | "move" | "attack" | "cast" | "dash" | "dodge" | "disengage" | "wrestle" | "use" | "feature"
   | "say" | "nerve" | "yield" | "flee" | "walk-off" | "arrest" | "hazard" | "pass" | "over";
 
 /** An attack roll, as the engine rolled it: who at whom with what, the d20s, the bonus, the total against the armour class. */
@@ -280,7 +280,7 @@ export interface FightEvent {
 export interface FightAction {
   id: string;
   label: string;
-  kind: "move" | "attack" | "cast" | "turn";
+  kind: "move" | "attack" | "cast" | "turn" | "feature";
   /** What it is, for the menu's line: "Attack", "Fire Bolt", "Shove", "Grab", "Dash"; a named move's own words ("Close in on a grey wolf"). */
   name?: string;
   /** What it spends of the turn: the action, the bonus action, movement, or nothing. */

@@ -26,6 +26,7 @@ export function optionsOf(s: Skirmish): FightOptions {
     ...attacks(s, u),
     ...spells(s, u),
     ...wrestles(s, u),
+    ...features(s, u),
     ...named(s, u, movementLeft, swings),
     ...turnActs(s, u, actionUsed),
   ];
@@ -34,14 +35,16 @@ export function optionsOf(s: Skirmish): FightOptions {
   return { movementLeft, speed: u.speed * (use?.dashed ? 2 : 1), actionUsed, bonusActionUsed, moves, ...(swings.length ? { swings } : {}), actions };
 }
 
-/** Nothing at all left of the player's turn: no action, no movement worth a step, and no bonus-action spell they could cast. */
+/** Nothing at all left of the player's turn: no action, no movement worth a step, no bonus-action spell or feature they could use, and no Action Surge to give them another action. */
 export function nothingLeft(s: Skirmish): boolean {
   const u = s.pc();
   const use = s.usage(u);
   if (!use) return true;
   const attacking = use.attacksMadeThisTurn > 0 && use.attacksMadeThisTurn < s.attacksPerAction(u);
   if (!use.actionUsed || attacking || s.movementLeft(u) >= FEET) return false;
-  return use.bonusActionUsed || !s.spellChoices(u).some(sp => sp.bonus && !sp.hurls);
+  const usable = s.features(u).filter(f => f.enabled);
+  if (usable.some(f => f.cost === "free")) return false;
+  return use.bonusActionUsed || (!s.spellChoices(u).some(sp => sp.bonus && !sp.hurls) && !usable.some(f => f.cost === "bonus"));
 }
 
 const at = (t: Tile2) => `${t.x},${t.y}`;
@@ -118,6 +121,26 @@ function wrestles(s: Skirmish, u: Unit): FightAction[] {
   }
   for (const p of Object.values(s.G.props).filter(p => p.state === "standing" && !p.carriedBy && steps(u.at, p.at) <= 1)) {
     out.push({ id: `shove@${at(p.at)}`, label: `${p.kind === "brazier" ? "Kick over" : "Bring down"} the ${p.name}${s.G.dust.length ? " (into the dust!)" : ""}`, kind: "attack", name: "Knock over", cost: "action", at: { ...p.at }, target: p.id, range: 5 });
+  }
+  return out;
+}
+
+/**
+ * The class features they can use now (the user: "how do I use a bonus action? I think I have second
+ * wind"), as the engine lists them: Second Wind, Cunning Action's dash and disengage, Rage, Action
+ * Surge (another action this turn, for nothing), and one used on someone (Bardic Inspiration, Lay on
+ * Hands) on themselves or on each friend within 30 ft: feature_<id>, feature_<id>_self, feature_<id>@x,y.
+ */
+function features(s: Skirmish, u: Unit): FightAction[] {
+  const out: FightAction[] = [];
+  for (const f of s.features(u).filter(f => f.enabled)) {
+    const cost = f.cost;
+    const what = f.cost === "free" ? " (another action this turn)" : "";
+    if (f.target !== "creature") { out.push({ id: `feature_${f.id}`, label: `${f.name}${what}`, kind: "feature", name: f.name, cost, target: u.id, range: 0 }); continue; }
+    out.push({ id: `feature_${f.id}_self`, label: `${f.name} on yourself`, kind: "feature", name: f.name, cost, at: { ...u.at }, target: u.id, range: 0 });
+    for (const v of s.units.filter(v => v.id !== u.id && s.friendly(v, u) && v.state !== "fled" && v.state !== "dead" && feetBetween(u.at, v.at) <= 30)) {
+      out.push({ id: `feature_${f.id}@${at(v.at)}`, label: `${f.name} on ${v.name}`, kind: "feature", name: f.name, cost, at: { ...v.at }, target: v.id, range: 30 });
+    }
   }
   return out;
 }

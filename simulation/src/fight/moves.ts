@@ -77,10 +77,11 @@ export function fightWalk(tx: TxCtx, actor: Actor, fight: FightRow, args: WalkAr
 }
 
 /**
- * The action menu's acts in a fight (cast and attack: town-design §3.2's ids), on the player's turn:
- * a spell at whoever or whatever is at the tile (an area's spot, if nobody is), or on themselves; a
- * blow at whoever's there (or a lantern); a shove over, or a grab; a brazier or a lantern beside
- * them knocked over with a shove. The rest of the menu isn't a fight's yet, and says so.
+ * The action menu's acts in a fight (cast, attack and useFeature: town-design §3.2's ids), on the
+ * player's turn: a spell at whoever or whatever is at the tile (an area's spot, if nobody is), or on
+ * themselves; a blow at whoever's there (or a lantern); a shove over, or a grab; a brazier or a
+ * lantern beside them knocked over with a shove; a class feature (Second Wind), on whoever's at the
+ * tile when it's used on someone. The rest of the menu isn't a fight's yet, and says so.
  */
 export function fightMenuMove(tx: TxCtx, actor: Actor, fight: FightRow, move: MenuMove): void {
   const why = notInAFight(move);
@@ -92,6 +93,7 @@ export function fightMenuMove(tx: TxCtx, actor: Actor, fight: FightRow, move: Me
       const at = tile(move.args.at);
       return s.cast(pc, move.args.spell, whoAt(s, at), at);
     }
+    if (move.move === "useFeature") return s.feature(pc, move.args.feature, move.args.self ? pc.id : move.args.at ? whoAt(s, tile(move.args.at)) : undefined);
     if (move.move !== "attack") return "That isn't something to do in a fight.";
     const at = tile(move.args.at);
     const who = whoAt(s, at);
@@ -108,7 +110,6 @@ function notInAFight(move: MenuMove): string | undefined {
   switch (move.move) {
     case "cast": return undefined;
     case "attack": return move.args.how === "throw" ? "(Throwing isn't part of a fight yet: attack with what's in your hand.)" : move.args.how === "lift" ? "(Picking pockets isn't part of a fight.)" : undefined;
-    case "useFeature": return "(Class features aren't part of a fight yet: attack, cast, dash, dodge or disengage.)";
     case "leap": return "(Jumping isn't part of a fight yet: walk there.)";
     case "hide": return "(Hiding isn't part of a fight yet: dodge, or get out of their sight.)";
     case "rest": return "(There's no resting in a fight.)";

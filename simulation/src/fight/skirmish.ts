@@ -33,6 +33,30 @@ function castRefused(name: string, said: string, you: boolean): string {
 }
 /** Buffs cast on a foe: the caster marks them. */
 const FOE_MARKS = new Set(["hunters-mark", "hex"]);
+
+/** A class feature to use in a fight (the engine's own option for it): what it's called, what it spends, whom it takes, and whether it can be used now (and why not, in words). */
+export interface FeatureChoice { id: string; name: string; cost: "bonus" | "action" | "free"; target: "self" | "creature" | "none"; enabled: boolean; why?: string }
+
+/** The engine's option lists, by the encounter (its module's own exports: bonusActions, actionOptions). */
+type OptionList = (state: unknown, content: unknown, encounterId: string, characterId: string) => Array<{ id: string; label: string; target: string; enabled: boolean; reason?: string }>;
+
+/** The engine's options the board has acts of its own for (a shove, a grab, Dash), or that it can't play yet (hiding, readying, a word with weight): not offered as features. */
+const BOARD_HAS = new Set(["grapple", "shove", "help", "hide", "influence", "ready", "search", "study", "utilize", "cunning-action-hide", "nimble-escape-hide"]);
+
+/** Why the engine says a feature can't be used now, in the game's words. */
+function featureWhy(code: string, you: boolean): string {
+  const them = you ? "You've" : "They've";
+  switch (code) {
+    case "bonus-action-used": return `${them} used ${you ? "your" : "their"} bonus action this turn.`;
+    case "action-used": return `${them} used ${you ? "your" : "their"} action this turn.`;
+    case "not-your-turn": return "It isn't their turn.";
+    case "no-uses": return `${them} none of it left until ${you ? "you" : "they"} rest.`;
+    case "no-focus": return `${them} no focus points left.`;
+    case "already-dashed": return `${them} dashed this turn already.`;
+    case "already-disengaged": return `${them} disengaged this turn already.`;
+    default: return `Not now: ${code.replace(/-/g, " ")}.`;
+  }
+}
 /** The sheet's attack bonus with a weapon (the engine calls the instance weaponInstanceId; the typings say instanceId). */
 export function attackBonus(sheet: Dnd.CharacterSheet, weapon: string): number {
   const of = (a: Dnd.CharacterSheet["attacks"][number]) => (a as { weaponInstanceId?: string }).weaponInstanceId ?? a.instanceId;
@@ -762,6 +786,53 @@ export class Skirmish {
     const rule = { dash: `${u.speed} ft more movement this turn`, dodge: "attacks on you have disadvantage until your next turn", disengage: "no opportunity attacks as you move away this turn" }[kind];
     if (this.isYou(u)) { this.say(kind, u); this.log("system", `${cap(kind)}: ${rule}.`, u.id); }
     else if (kind !== "dash") this.log("narration", `${cap(u.called)} ${kind === "dodge" ? "keeps on the move, hard to pin down" : "backs off carefully"}.`, u.id);
+    this.settle();
+    return undefined;
+  }
+
+  // -------------------------------------------------------------------------------------------
+  // Class features (the user: "how do I use a bonus action? I think I have second wind which is one
+  // but I can't cast it"): the engine's own options, the bonus actions (Second Wind, Cunning Action,
+  // Rage, Bardic Inspiration…) and those that take the action or nothing (Action Surge, Lay on Hands).
+
+  /** u's class features in this fight, as the engine lists them on its encounter: what each spends, and whether it can be used now (and why not). */
+  features(u: Unit): FeatureChoice[] {
+    const E = this.t.kit.E as unknown as { bonusActions?: OptionList; actionOptions?: OptionList };
+    const listed = (list: OptionList | undefined, cost: "bonus" | "action") => {
+      try { return (list?.(this.t.state, this.t.kit.engine.content, this.G.encounterId, u.engineId) ?? []).map(o => ({ ...o, cost })); } catch { return []; }
+    };
+    return [...listed(E.bonusActions, "bonus"), ...listed(E.actionOptions, "action")]
+      .filter(o => !BOARD_HAS.has(o.id))
+      .map(o => ({
+        id: o.id, name: o.label, cost: o.id === "action-surge" ? "free" as const : o.cost, target: o.target === "creature" ? "creature" as const : o.target === "self" ? "self" as const : "none" as const,
+        enabled: o.enabled, ...(o.reason ? { why: featureWhy(o.reason, this.isYou(u)) } : {}),
+      }));
+  }
+
+  /**
+   * A class feature used, through the engine's own option for it (its uses and rests, the turn's
+   * bonus action or action), as a moment of its own: its dice, and what it did (a heal's hit points,
+   * a dash's feet, a rage's condition). One aimed at someone (Bardic Inspiration, Lay on Hands) is at
+   * whoever's on `targetId`, or u themselves when it can be.
+   */
+  feature(u: Unit, id: string, targetId?: string): string | undefined {
+    if (!this.isTurnOf(u)) return "It isn't their turn.";
+    if (!this.able(u)) return `${cap(this.you(u).called)} can't just now.`;
+    const f = this.features(u).find(x => x.id === id);
+    if (!f) return `${this.isYou(u) ? "You haven't" : "They haven't"} got that to use here.`;
+    if (!f.enabled) return f.why ?? "Not now.";
+    const target = f.target === "creature" ? (targetId !== undefined ? this.unit(targetId) : u) : undefined;
+    if (f.target === "creature" && !target) return `${f.name} needs someone to use it on.`;
+    this.moment("feature", u, { with: f.name, ...(target && target !== u ? { target: target.id } : {}) });
+    let events: Dnd.EngineEvent[];
+    try {
+      events = this.t.plan(f.cost === "bonus" ? "useOption" : "useActionOption", { optionId: id, combatantId: u.engineId, ...(target ? { targetId: target.engineId } : {}) });
+    } catch (e) {
+      this.current = undefined;
+      return `${f.name}: ${reason(e)}`;
+    }
+    this.dice(events, f.name);
+    this.log("system", `${f.name}${target && target !== u ? ` for ${target.called}` : ""}${f.cost === "bonus" ? " (a bonus action)" : f.cost === "action" ? " (your action)" : ""}.`, u.id);
     this.settle();
     return undefined;
   }

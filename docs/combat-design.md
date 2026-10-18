@@ -54,7 +54,7 @@ From its code (`git show bc2ab1f:src/game/combat/`, `src/app/ui/combat.tsx`, `sr
 4. **Reach was learnt by trial** ("out of reach (z closes in)"). *Here* aiming shows the ring, the line and the targets in range.
 5. **The turn could end by itself, unannounced,** once nothing worth doing was left. *Here* only once nothing at all is left, and it says so.
 
-Not yet: typing in a fight (V13); the story's fights (§5); class features, hiding, jumping and thrown weapons, which a fight refuses with a reason, as the prototype's did; and, of §2, the line to an aimed target drawn red when something's in the way. The hazards (grain dust, fire, lanterns) keep the prototype's own rules until fights share the scenes' world (V18).
+Not yet: typing in a fight (V13); hiding, jumping and thrown weapons, which a fight refuses with a reason, as the prototype's did (the story's fights and class features are in since: docs/combat-gm.md); and, of §2, the line to an aimed target drawn red when something's in the way. The hazards (grain dust, fire, lanterns) keep the prototype's own rules until fights share the scenes' world (V18).
 
 ## 7. As built (M6)
 
@@ -81,7 +81,7 @@ Three fights played to the end as the user will play them, headless (`npm run pl
 
 **To iterate on next** (the user's call):
 
-1. **Class features:** the ready-made fighter has no Second Wind or Action Surge and the rogue no Cunning Action, so their bonus action is "none" every turn, and the rogue's flight costs its action.
+1. **Class features:** the ready-made fighter has no Second Wind or Action Surge and the rogue no Cunning Action, so their bonus action is "none" every turn, and the rogue's flight costs its action. (Since docs/combat-gm.md: the engine's own options are the menu's, Second Wind and Cunning Action among them.)
 2. **The ring's balance:** Kell (11 hit points) goes down in round 1 or 2 of most fights against Sallow and the Crakes, who have Pack Tactics; the fighter and the wizard lost about half their fights to them.
 3. **The pace:** a round of four others' turns takes 10 to 12 seconds at 900 ms a caption (F skips). It's one table, `shared/fight/pace.ts`.
 4. **The board:** an impact's light whitens the bystanders and its sparks hide the one hit for a moment; an area's tint is faint on sand; there's still no line drawn to the target aimed.
