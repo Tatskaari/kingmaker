@@ -129,6 +129,40 @@ test('the inspector is what\'s selected on the graph and nothing else; the scene
   expect(await savedText(page)).toBe(clerkText);
 });
 
+test('in a pane half a screen wide the inspector lies over the graph: what\'s selected slides clear of it, a fit fits beside it, and the minimap is put away',async({page})=>{
+  await page.setViewportSize({width:700,height:900});
+  await page.getByRole('button',{name:'Fit graph'}).click();
+  await expect(page.locator('.react-flow__minimap')).toBeHidden();
+  await expect(page.locator('.scene-inspector')).toBeHidden();
+  // An ending at the graph's right edge, clicked where it is, slides into the strip beside the inspector, at the zoom it was.
+  const ending=card(page,'murder-unknown');
+  await settled(ending);
+  const zoom=await page.locator('.react-flow__viewport').evaluate(element=>getComputedStyle(element).transform);
+  await ending.click({position:{x:30,y:10}});
+  await expect(page.locator('.node-inspector[data-node="murder-unknown"]')).toBeVisible();
+  const aside=(await page.locator('.scene-inspector').boundingBox())!;
+  await settled(ending);
+  const box=(await ending.boundingBox())!;
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.x+box.width).toBeLessThanOrEqual(aside.x);
+  expect((await page.locator('.react-flow__viewport').evaluate(element=>getComputedStyle(element).transform)).split(',')[0]).toBe(zoom.split(',')[0]);
+  // A fit, from the bar or the graph's own controls, fits every card beside it.
+  for(const button of [page.getByRole('button',{name:'Fit graph'}),page.getByRole('button',{name:'Fit View'})]){
+    await page.getByRole('button',{name:'Zoom In'}).click();
+    await button.click();
+    for(const id of clerk().nodes.map((n:any)=>n.id)){
+      await settled(card(page,id));
+      const each=(await card(page,id).boundingBox())!;
+      expect(each.x,id).toBeGreaterThanOrEqual(0);
+      expect(each.x+each.width,id).toBeLessThanOrEqual(aside.x);
+    }
+  }
+  // Put away by a click on the graph's background, it covers nothing.
+  await page.locator('.react-flow__pane').click({position:{x:5,y:5}});
+  await expect(page.locator('.scene-inspector')).toBeHidden();
+  await page.screenshot({path:'dist/screenshots/scene-narrow.png'});
+});
+
 test('an ending\'s result and exit kind are at the top of its inspector, and its badge on the graph opens them',async({page})=>{
   await select(page,'failed');
   const body=inspector(page);

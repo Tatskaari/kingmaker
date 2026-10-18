@@ -3,7 +3,7 @@
 // what's selected on it), the Scene's own fields, its Cast, its Facts and its Problems (the game's rules,
 // run as it's edited, each taking the author to where it is).
 import React,{createContext,useContext,useDeferredValue,useEffect,useId,useMemo,useRef,useState} from 'react';
-import {Background,Controls,Handle,MarkerType,MiniMap,Position,ReactFlow,ReactFlowProvider,useReactFlow} from '@xyflow/react';
+import {Background,ControlButton,Controls,Handle,MarkerType,MiniMap,Position,ReactFlow,ReactFlowProvider,useReactFlow} from '@xyflow/react';
 import type {Connection as FlowConnection,Edge,Node,NodeChange,NodePositionChange,NodeProps,ReactFlowInstance,Viewport} from '@xyflow/react';
 import {AlertTriangle,BookOpen,CheckCircle2,Flag,Keyboard,LogIn,Maximize,PanelRightClose,Plus,Redo2,Search,Star,Undo2,X,Zap} from 'lucide-react';
 import {SceneApiContext} from './api.ts';
@@ -15,7 +15,7 @@ import {EditSession} from './fields.tsx';
 import {FactsView} from './facts.tsx';
 import {ConnectionInspector,KIND_LABELS,NodeInspector} from './inspectors.tsx';
 import type {SceneHost} from './host.ts';
-import {addNode,addRoute,connectionId,connectionsOf,freePosition,isEnding,isStart,nodeKind,problemsOf,removeNodes,removeRoutes,shapeOf,slugOf,titleOf,uniqueId} from './model.ts';
+import {CARD_SIZE,addNode,addRoute,connectionId,connectionsOf,freePosition,isEnding,isStart,nodeKind,problemsOf,removeNodes,removeRoutes,shapeOf,slugOf,titleOf,uniqueId} from './model.ts';
 import type {Connection,NewNodeKind,NodeKind,Problem,ProblemAt,SceneDocument,SceneNode} from './model.ts';
 import {ProblemsView} from './ProblemsView.tsx';
 import {SceneView} from './SceneView.tsx';
@@ -173,7 +173,23 @@ function SceneEditor({initial,host}:{initial:SceneDocument;host:SceneHost}){
     attempt();
     return()=>cancelAnimationFrame(frame);
   });
-  const centre=(id:string,instance:Pick<ReactFlowInstance,'setCenter'|'getZoom'>=flow)=>{const node=current.current.nodes.find(other=>other.id===id);if(node)void instance.setCenter(node.position.x+130,node.position.y+80,{duration:200,zoom:Math.max(instance.getZoom(),.7)})};
+  // In a narrow pane the inspector lies over the graph's right side while something's selected: what's
+  // shown there is centred in the strip of graph beside it, and a fit fits into that strip.
+  const covering=()=>{const aside=shell.current?.querySelector<HTMLElement>('.scene-inspector');return aside&&getComputedStyle(aside).position==='absolute'?aside.offsetWidth:0};
+  const centre=(id:string,instance:Pick<ReactFlowInstance,'setCenter'|'getZoom'>=flow)=>{
+    const node=current.current.nodes.find(other=>other.id===id);if(!node)return;
+    const zoom=Math.max(instance.getZoom(),.7),size=measurements[id]??CARD_SIZE;
+    void instance.setCenter(node.position.x+size.width/2+covering()/2/zoom,node.position.y+size.height/2,{duration:200,zoom});
+  };
+  /** A node clicked in a narrow pane, where the inspector will lie over it: the graph slides it into the strip beside the inspector, at the zoom it's at. */
+  const keepClear=(id:string)=>{
+    const width=covering(),pane=canvas.current?.getBoundingClientRect(),card=shell.current?.querySelector(`.scene-card[data-node-id="${escape(id)}"]`)?.getBoundingClientRect();
+    if(!width||!pane||!card)return;
+    const strip=pane.width-width;
+    if(card.right<=pane.left+strip-12&&card.left>=pane.left)return;
+    const viewport=flow.getViewport();
+    void flow.setViewport({...viewport,x:viewport.x+pane.left+strip/2-(card.left+card.width/2)},{duration:200});
+  };
   const toGraph=(id?:string)=>{if(view==='graph'){if(id)centre(id)}else{pendingCentre.current=id??null;setView('graph')}};
   const showNode=(id:string,field?:string)=>{
     setSelected({kind:'node',id});setMarked(new Set());setInspector(true);setExpanded(false);toGraph(id);
@@ -257,7 +273,7 @@ function SceneEditor({initial,host}:{initial:SceneDocument;host:SceneHost}){
     const next={...base,nodes:base.nodes.map(node=>{const move=moves.find(change=>change.id===node.id);return move?.position?{...node,position:{x:Math.round(move.position.x),y:Math.round(move.position.y)}}:node})};
     if(dragBefore.current)publish(next);else commit(next);
   };
-  const fit=()=>void flow.fitView({padding:.16,duration:200});
+  const fit=()=>{const width=inspector&&(selectedNode||selectedConnection)?covering():0;void flow.fitView({padding:width?{x:.16,y:.16,right:`${width+24}px`}:.16,duration:200})};
 
   // ---- Keys: scoped to this editor, never while typing; the graph's only on the graph ----
   useEffect(()=>{
@@ -369,24 +385,25 @@ function SceneEditor({initial,host}:{initial:SceneDocument;host:SceneHost}){
                 onMoveEnd={(_,viewport)=>{memory.viewport=viewport}}
                 onNodesChange={nodeChanges} onNodeDragStart={()=>{dragBefore.current=current.current;lastSession.current=null}}
                 onNodeDragStop={()=>{const before=dragBefore.current;dragBefore.current=null;if(before&&before!==current.current){setHistory(old=>[...old.slice(-99),before]);setFuture([])}}}
-                onNodeClick={(_,node)=>{if(connecting)connect(connecting,node.id);else{setSelected({kind:'node',id:node.id});setInspector(true)}}}
+                onNodeClick={(_,node)=>{if(connecting)connect(connecting,node.id);else{keepClear(node.id);setSelected({kind:'node',id:node.id});setInspector(true)}}}
                 onNodeDoubleClick={(_,node)=>{setSelected({kind:'node',id:node.id});setExpanded(true)}}
                 onEdgeClick={(_,edge)=>{setSelected({kind:'connection',id:edge.id});setEditingRoute(null);setInspector(true)}}
                 onEdgeDoubleClick={(_,edge)=>{setSelected({kind:'connection',id:edge.id});setExpanded(true)}}
                 onPaneClick={()=>{setSelected(null);setMarked(new Set());setConnecting(null)}}
                 onConnect={(connection:FlowConnection)=>{if(connection.source&&connection.target)connect(connection.source,connection.target)}}
                 onPaneContextMenu={event=>{event.preventDefault();setDialog('add')}}>
-                <Background gap={24} size={1}/><Controls showInteractive={false}/><MiniMap pannable zoomable nodeColor={node=>COLORS[nodeKind((node.data as CardData).node)]}/>
+                <Background gap={24} size={1}/><Controls showInteractive={false} showFitView={false}><ControlButton className="react-flow__controls-fitview" title="Fit View (F)" aria-label="Fit View" onClick={fit}><Maximize size={12}/></ControlButton></Controls><MiniMap pannable zoomable nodeColor={node=>COLORS[nodeKind((node.data as CardData).node)]}/>
               </ReactFlow>
               {connecting&&<div className="canvas-notice">Click the node the route goes to. <button onClick={()=>setConnecting(null)}>Cancel</button></div>}
             </div>
-            {inspector&&<aside className={`inspector scene-inspector${selectedNode||selectedConnection?'':' empty'}`} aria-label="Inspector">
+            {/* Always there, hidden when it's been put away, so a narrow pane knows how much of the graph it will cover. */}
+            <aside className={`inspector scene-inspector${selectedNode||selectedConnection?'':' empty'}${inspector?'':' put-away'}`} aria-label="Inspector">
               <header className="inspector-top">
                 <span className="inspector-what">{selectedNode?<><span className={`kind-dot ${nodeKind(selectedNode)}`}/>{KIND_LABELS[nodeKind(selectedNode)]}</>:selectedConnection?<><span className="kind-dot route"/>{selectedConnection.routes.length===1?'Route':`${selectedConnection.routes.length} routes`}</>:'Nothing selected'}</span>
                 <button type="button" title="Hide the inspector" aria-label="Hide the inspector" onClick={()=>setInspector(false)}><PanelRightClose size={15}/></button>
               </header>
-              <div className="inspector-body" key={selected?selected.id:'none'}>{inspectorBody()}</div>
-            </aside>}
+              <div className="inspector-body" key={selected?selected.id:'none'}>{inspector&&inspectorBody()}</div>
+            </aside>
           </div>}
           {view==='scene'&&<div className="scene-scroll"><SceneView/></div>}
           {view==='cast'&&<div className="scene-scroll"><CastView open={castOpen} onOpen={setCastOpen}/></div>}

@@ -66,6 +66,7 @@
 
 /* The inspector: what's selected on the graph, and nothing else. */
 .km-workshop.km-scene .scene-inspector {flex:0 0 380px;width:380px;display:flex;flex-direction:column;overflow:hidden;border-left:1px solid var(--km-line);background:var(--km-panel)}
+.km-workshop.km-scene .scene-inspector.put-away {display:none}
 .km-workshop.km-scene .inspector-top {display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:34px;padding:2px 6px 2px 16px;border-bottom:1px solid var(--km-line);font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--km-muted);flex-shrink:0}
 .km-workshop.km-scene .inspector-top button {padding:5px;color:var(--km-muted)}
 .km-workshop.km-scene .scene-inspector .inspector-body {overflow-y:auto;flex:1;padding:4px 16px 24px}
@@ -292,13 +293,15 @@
 /* Narrower panes: a narrower inspector, then one over the graph, the cast's list above the card. */
 @container km-scene (max-width:1000px) {
   .km-workshop.km-scene .scene-inspector {flex-basis:330px;width:330px}
+  .km-workshop.km-scene .react-flow__minimap {display:none}
 }
 @container km-scene (max-width:760px) {
   .km-workshop.km-scene .canvas-heading {padding:10px 12px 6px}
   .km-workshop.km-scene h1 {font-size:20px}
   .km-workshop.km-scene .topbar .save {display:none}
   .km-workshop.km-scene .scene-inspector {position:absolute;top:0;right:0;bottom:0;z-index:12;width:min(360px,94%);flex-basis:auto;box-shadow:-8px 0 24px #0003}
-  .km-workshop.km-scene .scene-inspector.empty {display:none}
+  .km-workshop.km-scene .scene-inspector.empty,.km-workshop.km-scene .scene-inspector.put-away {display:flex;visibility:hidden;pointer-events:none}
+  .km-workshop.km-scene .react-flow__minimap {display:none}
   .km-workshop.km-scene .view-content {padding:14px 14px 48px}
   .km-workshop.km-scene .field-group {padding:4px 14px 10px}
   .km-workshop.km-scene .cast-view {grid-template-columns:minmax(0,1fr);gap:8px}
