@@ -67,11 +67,11 @@ export function wholeStory(): FakeOptions {
 
 /**
  * fake.json's quiet answers for the full GM alone (full-gm-design §4.4, §6): the attention filter's
- * choices, the memories agent's call, the old co-GM's answer and the ruling; and the two-part GM's
+ * choices, the notes review's answer, the old co-GM's answer and the ruling; and the two-part GM's
  * co-GM kept still. A test that plays three turns or more on a fake of its own puts them under it
  * (onTop), or every line fires both memory reviews and a co-GM moves the scene.
  */
 export function quietGm(): FakeOptions {
-  const fake = devFake() as FakeOptions & { toolCalls?: unknown };
-  return { choices: fake.choices!, byName: { co_gm_notes: fake.byName!.co_gm_notes, ruling: fake.byName!.ruling }, ...(fake.toolCalls ? { toolCalls: fake.toolCalls } : {}), coGm: { still: true } } as FakeOptions;
+  const fake = devFake();
+  return { choices: fake.choices!, byName: { gm_notes: fake.byName!.gm_notes, co_gm_notes: fake.byName!.co_gm_notes, ruling: fake.byName!.ruling }, coGm: { still: true } };
 }

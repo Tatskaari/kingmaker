@@ -232,15 +232,6 @@ export function savePlayedScene(sessionId: string, scene: { id: string; title: s
   return path;
 }
 
-/** A shared fact as its own note (the lite alternative; V1-style reviews edit the lore instead). */
-export function saveFact(sessionId: string, fact: MemoryInput, origin: { scene: string; turn: number }): string {
-  const index = storyIndex(sessionId);
-  const path = `story/facts/${crypto.randomUUID().slice(0, 8)}.md`;
-  writeDoc(sessionId, { path, meta: { title: fact.title.trim(), context: fact.context.trim(), summary: `${fact.title.trim()}: ${fact.context.trim()}`, type: "fact", visibility: "public", scene: origin.scene, turn: origin.turn }, body: fact.content.trim() });
-  appendLink(sessionId, index, path, fact.title, fact.context);
-  return path;
-}
-
 export function memoryLines(sessionId: string, id: string): string[] {
   const index = readDoc(sessionId, memoryIndexPath(id));
   return index ? index.body.split("\n").filter(l => l.startsWith("- [")) : [];

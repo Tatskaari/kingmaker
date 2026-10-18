@@ -100,7 +100,7 @@ test("the co-GM's steering, the rulings and the reviews, summarised as the proto
       { id: 1, scene_id: 7, turn: 3, review: JSON.stringify({ turn: 3, status: "on_track", assessment: "The yard is moving." }), merged_turn: 4, note: "move_to yard refused: the scene is past it" },
     ],
     reviews: [
-      { turn: 1, flags: ["witnessed", "conversational_exchange"], reviews: [{ kind: "memories", changes: ["memory cob: The coin"] }] },
+      { turn: 1, flags: ["seen", "promise"], reviews: [{ kind: "notes", changes: ['note cob seen: added "Was given a crown by the investigator for nothing."'] }] },
       { turn: 2, flags: [], reviews: [] },
       { turn: 3, flags: ["improvised_detail"], reviews: [{ kind: "lore", changes: [], error: "tool limit reached" }] },
     ],
@@ -118,7 +118,7 @@ test("the co-GM's steering, the rulings and the reviews, summarised as the proto
   assert.deepEqual(status.rulings, ["3: lift the folded paper from the boy's boot -> sleight_of_hand DC 12 (19) [guarded to lose, plausible cover, wary: they could notice]: success: The investigator has the paper."]);
   assert.deepEqual(status.opened, ["4: kell: What the investigator did (Cast/Agnes Kell/memories/what-the-investigator-did.md)"]);
   assert.deepEqual(status.repairs, ["3: on_track — The yard is moving. [merged at t4] (move_to yard refused: the scene is past it)", "6: drifting — The talk has wandered to songs. [pending]"]);
-  assert.deepEqual(status.memoryReviews, ["1: witnessed, conversational_exchange — memory cob: The coin", "2: nothing flagged", "3: improvised_detail [lore failed: tool limit reached]"]);
+  assert.deepEqual(status.memoryReviews, ['1: seen, promise — note cob seen: added "Was given a crown by the investigator for nothing."', "2: nothing flagged", "3: improvised_detail [lore failed: tool limit reached]"]);
   assert.deepEqual(status.jobs, ["remember/remember: waiting, attempt 2 (503 from the AI service)", "repair/repair: running"]);
   assert.deepEqual(status.latency, { avgFirstTextMs: 4000, consideredTurns: 1, avgConsiderMs: 4200 });
 });
