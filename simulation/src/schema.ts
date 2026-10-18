@@ -135,6 +135,19 @@ export const admin = table({ name: "admin" }, {
   role: t.string(),
 });
 
+/**
+ * The owner's fixed dice, for a test against a real database (set_dice_seed, dice-seed.ts): while its
+ * one row is here, a new game's dice seed is `seed` plus the games it has seeded since it was set,
+ * not the transaction's randomness.
+ */
+export const diceSeed = table({ name: "dice_seed" }, {
+  /** 0: there's only ever the one row. */
+  id: t.u32().primaryKey(),
+  seed: t.u32(),
+  /** How many games it has seeded: the next one's seed is seed + given. */
+  given: t.u32(),
+});
+
 // ---------------------------------------------------------------------------------------------
 // Scenes and turns.
 
@@ -946,7 +959,7 @@ export const GameSummary = t.row("GameSummary", {
 
 const spacetimedb = schema(
   {
-    game, player, seat, sheet, dice, admin,
+    game, player, seat, sheet, dice, admin, diceSeed,
     scene, gmState, onStage, turn, transcript, replyDraft, sceneSuggestion, heard, coGmResult,
     chapter, quest, flag, journal, attitude, follower,
     place, entity, position, area, material, health, stack, surface, creature, playerCharacter, gear, narrative, gmNote, worldLog, look,

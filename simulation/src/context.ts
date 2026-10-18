@@ -36,7 +36,7 @@ export interface TxCtx {
    * creation's the transaction's time (newUid).
    */
   uuid(): string;
-  /** A new game's dice seed, 0 to 999,999,999. */
+  /** A new game's dice seed, 0 to 999,999,999: the host's randomness, or the owner's fixed seed's next while there is one (dice-seed.ts). */
   seed(): number;
   /** A line in the module's log (spacetime logs). */
   log(line: string): void;
