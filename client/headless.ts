@@ -22,6 +22,10 @@ import { journalText, storyText } from "./story/text.ts";
 import { wayOnOf } from "./story/view.ts";
 import { stageView } from "./look/stage-view.ts";
 import { describe } from "./title/model.ts";
+import { withZoo, zooAct } from "./zoo/text.ts";
+import { again, pickFoes, visit, zooFightOf, type VisitWith, type ZooFight } from "./zoo/zoo.ts";
+
+export type { VisitWith };
 
 /**
  * The game without a screen, for an agent or a QA run to play (v0-design §7, v5-design §3.9,
@@ -85,7 +89,7 @@ export function observe(game: Backend, out: Out): number {
   if (!rows.seat) return games(game, out);
   // A fight (M6) is what's on screen while it's on, and its end until the player goes back to the map.
   const onTheBoard = game.fight?.();
-  if (onTheBoard) { out.print(fightText(onTheBoard)); return 0; }
+  if (onTheBoard) { out.print(boardText(game, onTheBoard)); return 0; }
   if (rows.seat.sceneId === undefined) {
     const map = game.explore();
     if (!map) return created(rows, out);
@@ -318,6 +322,36 @@ export async function ring(game: Backend, name: string, out: Out, waiting: Waiti
 }
 
 /**
+ * A visit to the zoo (M6, client/zoo/zoo.ts): visit_zoo opens an exhibit as one of the zoo's builds
+ * (a visit before goes); for the combat ring, its fight, played up to the player's turn (or to its
+ * end), as observe prints it with the zoo's actions (again, and the other line-ups), every moment so
+ * far with it.
+ */
+export async function visitZoo(game: Backend, how: VisitWith, out: Out, waiting: Waiting = {}): Promise<number> {
+  const before = game.fight?.()?.id;
+  const refused = await visit(game, how);
+  if (refused) return said(out, refused);
+
+  const view = await fightWhen(game, v => v.id !== before && (myTurn(v) || v.status !== "on"), waiting.ms ?? TURN_MS);
+  out.print(boardText(game, view, view.events));
+  return 0;
+}
+
+/** A fight as observe prints it, with the zoo's actions when it came from one of the zoo's exhibits. */
+function boardText(game: Backend, view: FightView, recent?: FightView["events"]): string {
+  return withZoo(fightText(view, recent), zooFightOf(view, game.home()), !!view.watching);
+}
+
+/** The zoo's again, or other foes (open_exhibit): the new fight played up to the player's turn, printed from its start. */
+async function zooAgain(game: Backend, fight: FightView, zoo: ZooFight, how: { again: true } | { foes: string }, out: Out, waiting: Waiting): Promise<number> {
+  const refused = "foes" in how ? await pickFoes(game, zoo, how.foes) : await again(game, zoo);
+  if (refused) return said(out, refused);
+  const view = await fightWhen(game, v => v.id !== fight.id && (myTurn(v) || v.status !== "on"), waiting.ms ?? TURN_MS);
+  out.print(boardText(game, view, view.events));
+  return 0;
+}
+
+/**
  * One of the fight's actions (ACTIONS lists them): the map's own on the player's turn (walk@x,y,
  * attack@x,y, cast_<spell>@x,y, cast_<spell>_self, shove@x,y, grapple@x,y), or the fight's (dash,
  * dodge, disengage, end_turn, yield, leave, auto); out once it's over, back to the map. Refused in
@@ -327,6 +361,9 @@ export async function ring(game: Backend, name: string, out: Out, waiting: Waiti
 async function fightAct(game: Backend, fight: FightView, id: string, out: Out, waiting: Waiting): Promise<number> {
   if (fight.watching) return said(out, refusal("not_controller", { name: fight.watching }));
   if (id === "out") return await outOfTheFight(game, fight, out);
+  const zoo = zooFightOf(fight, game.home());
+  const zooing = zooAct(id, zoo);
+  if (zoo && zooing) return await zooAgain(game, fight, zoo, zooing, out, waiting);
   const move = isFightAct(id) ? undefined : moveOf(id);
   if (!isFightAct(id) && !move) {
     out.print(`(There's no ${id} in the fight: ${fight.status === "on" ? "observe lists the actions (walk@x,y, attack@x,y, cast_<spell>@x,y, dash, end_turn…)" : "it's over, and out goes back to the map"}.)`);
@@ -338,7 +375,7 @@ async function fightAct(game: Backend, fight: FightView, id: string, out: Out, w
 
   const after = await fightWhen(game, v => v.id !== fight.id || (lastSeq(v) > seen && (myTurn(v) || v.status !== "on")), waiting.ms ?? TURN_MS)
     .catch(() => game.fight?.() ?? fight);
-  out.print(fightText(after, after.events.filter(e => e.seq > seen)));
+  out.print(boardText(game, after, after.events.filter(e => e.seq > seen)));
   return 0;
 }
 

@@ -38,6 +38,7 @@ import { checkStory } from "./story-screens.tsx";
 import { checkPlace } from "./place-screens.tsx";
 import { checkTown } from "./town-screens.tsx";
 import { checkFight } from "./fight-screens.tsx";
+import { checkZoo } from "./zoo-screens.tsx";
 import { YARD, yardRows } from "./fixture.ts";
 
 const show = process.argv.includes("--show");
@@ -640,6 +641,9 @@ await checkTown(checks, show);
 
 // A fight on the map, played out (M6): the other side's moves as they come, a bite landing, the player's turn and its targets, the log, finishing and skipping, the start, reduced motion, the end, a spectator's.
 await checkFight(checks, show);
+
+// The zoo on the title (M6): its line and z, its menu (the combat ring, then who to be), a visit made, Esc back, not installed.
+await checkZoo(checks, show);
 
 let failed = 0;
 for (const [what, ok] of checks) {

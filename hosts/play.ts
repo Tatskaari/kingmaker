@@ -30,6 +30,11 @@ const USAGE = `Kingmaker: headless play
       [--backstory "..." | --backstory-file <path>]
                                                 your backstory, checked against the lore: what doesn't fit is said, with
                                                 a fix, and stops it there; --accept-fixes takes the fixes (and checks once more)
+  play new --session <name> --zoo <exhibit>     a visit to the zoo (a visit before goes), opening one of its exhibits:
+      [--build fighter|wizard|rogue]            the combat ring (ring) is a fight on the map, MODE: fight once the other
+      [--foes sallow|crakes|dogs] [--fast]      side's first turns have played; who you are (the fighter unless said),
+      [--as "Name: concept"]                    the foes (Sallow and the Crakes unless said); --fast plays their turns at
+                                                once. In its fight, act --id again fights it again, foes_<id> with others
   play sheet --session <name>                   your character sheet
   play games --session <name>                   your games, as the title lists them
   play continue --session <name> --game <id>    carry one of your games on
@@ -115,6 +120,7 @@ function argsOf(argv: string[]) {
       game: { type: "string" }, id: { type: "string" }, exit: { type: "string" }, wait: { type: "string" }, stream: { type: "boolean" }, demo: { type: "boolean" },
       url: { type: "string" }, db: { type: "string" }, stack: { type: "string" }, help: { type: "boolean", short: "h" },
       w: { type: "string" }, h: { type: "string" }, ring: { type: "string" }, fast: { type: "boolean" },
+      zoo: { type: "string" }, foes: { type: "string" },
     },
   });
   const [verb, ...words] = positionals;
@@ -142,7 +148,7 @@ async function run(game: Backend, args: Args): Promise<number> {
 
   switch (args.verb) {
     case "builds": return await verbs.builds(game, characterOf(args), out, waiting);
-    case "new": return await verbs.newCharacter(game, characterOf(args), out, waiting);
+    case "new": return args.values.zoo !== undefined ? await verbs.visitZoo(game, visitOf(args), out, { ...waiting }) : await verbs.newCharacter(game, characterOf(args), out, waiting);
     case "sheet": return verbs.sheet(game, out);
     case "games": return verbs.games(game, out);
     case "continue": return await verbs.continueGame(game, gameId(args.values.game, "continue"), out);
@@ -170,6 +176,14 @@ function characterOf(args: Args): verbs.NewCharacter {
   const file = args.values["backstory-file"];
   const backstory = file ? readFileSync(file, "utf8") : args.values.backstory;
   return { campaign, name, concept, build: args.values.build, backstory, acceptFixes: args.values["accept-fixes"] ?? false, session: args.values.session };
+}
+
+/** A visit to the zoo, from new's --zoo: the exhibit, --build (the fighter unless said), --foes, the name from --as (the zoo's visitor unless given), --fast. */
+function visitOf(args: Args): verbs.VisitWith {
+  const exhibit = args.values.zoo;
+  if (!exhibit) throw new Error("Which exhibit? new --zoo takes one: ring, the combat ring.");
+  const name = args.values.as ? newGameOf(args.values.as, "", "zoo").name : undefined;
+  return { exhibit, build: args.values.build ?? "fighter", foes: args.values.foes, name, fast: args.values.fast ?? false };
 }
 
 /** act's id: a line, say_1, say_2…; a talk's say_goodbye and walk_on; the way on's (go_to_lead, fight, carry_on); or on the map, any of its actions (talk_kell, go_to_lead, walk@30,22…), the action menu's among them (cast_fire-bolt@25,6, hide, rest_short…). */

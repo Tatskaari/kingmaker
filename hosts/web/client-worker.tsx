@@ -5,6 +5,7 @@ import { GLYPH_SETS, setGlyphSet, type GlyphSet } from "../../client/look/glyphs
 import { registerLookCanvas } from "../../client/look/opentui.ts";
 import { portLink, type MessagePortLike } from "../../client/net/port.ts";
 import { Replica } from "../../client/net/replica.ts";
+import { visit } from "../../client/zoo/zoo.ts";
 import { createRoot, type Root } from "../../web/tui/react.ts";
 import { createCliRenderer, type CliRenderer } from "../../web/tui/renderer.ts";
 
@@ -13,7 +14,7 @@ import { createCliRenderer, type CliRenderer } from "../../web/tui/renderer.ts";
  * over the Replica on a port to the server worker, drawing into the page's terminal. The page talks
  * to it in messages (understand-web.md §5.4):
  *
- *   page -> worker   {type: "start", port, cols, rows, glyphs?} (the port transferred), then
+ *   page -> worker   {type: "start", port, cols, rows, glyphs?, zoo?, build?, foes?} (the port transferred), then
  *                    {type: "input", data}, {type: "resize", cols, rows}, {type: "redraw"}, {type: "quit"}
  *   worker -> page   {type: "started"}, {type: "output", data}, {type: "exit"}, {type: "error", message}
  *
@@ -33,8 +34,12 @@ export interface WorkerScope {
 }
 const scope = self as unknown as WorkerScope;
 
-/** The page's start: its end of the channel to the server worker, the terminal's size, and the glyph set its fonts draw (kingmaker unless it says). */
-interface Start { type: "start"; port: MessagePortLike; cols: number; rows: number; glyphs?: string }
+/**
+ * The page's start: its end of the channel to the server worker, the terminal's size, the glyph set its
+ * fonts draw (kingmaker unless it says), and the zoo when the page's address asks for it (M6: ?zoo, the
+ * zoo's menu on the title, "" here; ?zoo=ring, a visit to that exhibit at once, as `build` against `foes`).
+ */
+interface Start { type: "start"; port: MessagePortLike; cols: number; rows: number; glyphs?: string; zoo?: string; build?: string; foes?: string }
 type PageMessage = Start | { type: "input"; data: Uint8Array | string } | { type: "resize"; cols: number; rows: number } | { type: "redraw" } | { type: "quit" };
 
 /** What the client tells the page: the terminal's bytes, started, exit, or why it couldn't start. */
@@ -57,12 +62,17 @@ export async function runClient(start: Start, page: Page): Promise<Running> {
   setGlyphSet(glyphsOf(start.glyphs));
   const game = new Replica(portLink(start.port, { session: "default" }));
   await game.ready;
+  // ?zoo=<exhibit>: a visit to it at once, as the fighter unless the address says (its refusal on the title).
+  const visited = start.zoo ? await visit(game, { exhibit: start.zoo, build: start.build ?? "fighter", foes: start.foes }) : undefined;
 
   // The scene's place paints itself, live (<lookCanvas>).
   registerLookCanvas();
   const renderer = await createCliRenderer({ exitOnCtrlC: false, autoFocus: false, width: start.cols, height: start.rows, terminal: { write: page.write } });
   const root = createRoot(renderer);
-  const app = new AppModel(game, { campaign: "caerwyn", intent: "title", surface: "page", onQuit: leaving(root, renderer, game, page) });
+  const app = new AppModel(game, { campaign: "caerwyn", intent: start.zoo && !visited ? "game" : "title", surface: "page", onQuit: leaving(root, renderer, game, page) });
+  // ?zoo: the zoo's menu on the title; a visit refused (an exhibit it hasn't got), the menu with why.
+  if (start.zoo === "" || visited) app.title.openZoo();
+  if (visited) { app.title.zooNote = visited.text; app.emit(); }
 
   troubleOnScreen(app);
   root.render(<App app={app} />);

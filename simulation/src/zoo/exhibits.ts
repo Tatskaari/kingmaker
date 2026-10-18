@@ -55,14 +55,16 @@ export function visitZooReducer(tx: TxCtx, sender: Identity, args: VisitArgs): v
 /**
  * open_exhibit: one of the game's campaign's exhibits opened again, the host's, out of a scene: a
  * fight exhibit's fight started afresh (whatever fight was on goes: "again"), with the line-up asked
- * for, or with none the one its last fight had (else its first).
+ * for, or with none the one its last fight had (else its first); at the last fight's pace unless it
+ * says (fast: the other side's turns at once, for QA).
  */
 export function openExhibitReducer(tx: TxCtx, sender: Identity, args: OpenArgs): void {
   const { game, player } = hostsGame(tx, sender);
   const exhibit = exhibitNamed(campaignFile(campaignOfGame(tx, game)), args.exhibit, game);
-  const lineUp = lineUpNamed(exhibit, args.foes || lastFoes(tx, game, exhibit));
+  const last = lastFight(tx, game, exhibit);
+  const lineUp = lineUpNamed(exhibit, args.foes || last?.foes);
 
-  openIn(tx, game, player, exhibit, lineUp, args.fast ?? false);
+  openIn(tx, game, player, exhibit, lineUp, args.fast ?? last?.fast ?? false);
 }
 
 /** A fight exhibit's fight, as its files set it out (a fight is the only kind of exhibit so far). */
@@ -140,11 +142,11 @@ function buildNamed(campaign: CampaignRow, id: string): NonNullable<ReturnType<t
   return build;
 }
 
-/** The line-up the game's last fight of this exhibit had: fighting it again picks the same foes. */
-function lastFoes(tx: TxCtx, game: GameRow, exhibit: Exhibit): string | undefined {
+/** The line-up and pace the game's last fight of this exhibit had: fighting it again picks the same foes, at the same pace. */
+function lastFight(tx: TxCtx, game: GameRow, exhibit: Exhibit): { foes: string; fast: boolean } | undefined {
   const fight = fightOf(tx, game.id);
-  const zoo = fight ? boardOfRow(fight).zoo : undefined;
-  return zoo?.exhibit === exhibit.id ? zoo.foes : undefined;
+  const board = fight ? boardOfRow(fight) : undefined;
+  return board?.zoo?.exhibit === exhibit.id ? { foes: board.zoo.foes, fast: !!board.fast } : undefined;
 }
 
 /** The caller's earlier visits to the zoo: every row of each game of the zoo's campaign they host. */

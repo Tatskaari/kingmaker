@@ -77,6 +77,7 @@ test("again: open_exhibit sets the ring out afresh with the same foes, everyone 
   assert.notEqual(again.id, first.id, "a new fight");
   assert.equal(again.status, "on");
   assert.deepEqual(boardOfRow(again).zoo, { exhibit: "ring", foes: "crakes" }, "the same foes");
+  assert.equal(boardOfRow(again).fast, true, "at the same pace");
   assert.ok(Object.values(boardOfRow(again).units).every(u => u.hp === u.maxHp), "everyone whole");
   assert.equal(all(host.db.fight).filter(f => f.gameId === game.id).length, 1, "the last fight's rows went");
 

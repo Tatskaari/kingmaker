@@ -153,6 +153,7 @@ function screen(s: Stack, campaignLine: string, report: DoctorReport): string[] 
     `Play:  npm run client -- --session <name>${stackFlag}     the title: New game makes a character, Continue carries one on`,
     `       npm run client -- --session <name> --new "Name: concept" [--build ${builds.join("|")}]${stackFlag}`,
     `       npm run client -- --session <name> --join <game>${stackFlag}`,
+    `       npm run zoo -- ring${stackFlag}     the zoo's combat ring (z on the title opens the zoo too)`,
     ...(flags.keys
       ? ["Keys:  k kill the AI service · s start it · r restart it · f kill it after its next stored reply", "       p republish the module · d doctor · q quit"]
       : ["Keys:  off (--no-keys): SIGTERM or Ctrl+C stops the stack"]),

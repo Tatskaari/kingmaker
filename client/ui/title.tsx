@@ -1,4 +1,4 @@
-// Copied from the prototype's src/app/ui/title.tsx at 44c6d4a: it reads a TitleModel in place of the Game (saves are my_games' rows, live, so nothing loads them; describe and ago are title/model.ts's); The zoo (z) and Report a problem (b) are cut (V19, V16); Esc quits in a terminal and not on a page (:12-16, the app's surface where it read KM_IN_BROWSER).
+// Copied from the prototype's src/app/ui/title.tsx at 44c6d4a: it reads a TitleModel in place of the Game (saves are my_games' rows, live, so nothing loads them; describe and ago are title/model.ts's); Report a problem (b) is cut (V16); Esc quits in a terminal and not on a page (:12-16, the app's surface where it read KM_IN_BROWSER). The zoo (z) is v2's (M6): its menu (ui/zoo.tsx) over the title's lines, an exhibit then who to be, where the prototype's carried a visit on.
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useState } from "react";
 import type { Surface } from "../app/model.ts";
@@ -6,6 +6,7 @@ import type { GameRow } from "../backend.ts";
 import { describe, type TitleModel } from "../title/model.ts";
 import { C } from "../theme.ts";
 import { BOLD, Clickable, ITALIC, Keys, Spinner, useStore, type KeyHint } from "./common.tsx";
+import { ZooPanel, zooKey, zooLines } from "./zoo.tsx";
 
 /**
  * On a web page, Esc is how a page dismisses things and there's nothing for the game to quit to, so
@@ -27,6 +28,9 @@ export function TitleScreen({ game, surface = "terminal" }: { game: TitleModel; 
   const [tagline] = useState(() => TAGLINES[Math.floor(Math.random() * TAGLINES.length)]!);
   // The game x was pressed on: x again deletes it, anything else keeps it.
   const [doomed, setDoomed] = useState<string | undefined>();
+  // The line chosen on the zoo's menu, while it's open.
+  const [zooAt, setZooAt] = useState(0);
+  const openZoo = () => { setZooAt(0); game.openZoo(); };
   const items: Array<{ label: string; detail?: string; save?: GameRow; run: () => void }> = [
     ...game.saves.slice(0, 3).map((r, i) => ({
       label: i === 0 ? "Continue" : "Continue an older game",
@@ -35,6 +39,7 @@ export function TitleScreen({ game, surface = "terminal" }: { game: TitleModel; 
       run: () => { setLoading(`Finding your place in the story…`); void game.resume(r).finally(() => setLoading(undefined)); },
     })),
     { label: "New game", detail: "make a character and take the case", run: () => game.newCharacter() },
+    { label: "The zoo", detail: "every feature of the game, laid out to see and try: the combat ring first", run: openZoo },
     { label: "Quit", detail: "the clerk will keep", run: () => game.quit() },
   ];
   const at = Math.min(index, items.length - 1);
@@ -55,6 +60,13 @@ export function TitleScreen({ game, surface = "terminal" }: { game: TitleModel; 
   useKeyboard(key => {
     if (loading || key.defaultPrevented || game.screen !== "title") return;
     key.preventDefault();
+    if (game.zooMenu) {
+      const step = game.zooMenu.step;
+      const moved = zooKey(game, key, zooAt);
+      if (moved !== undefined) setZooAt(moved);
+      else if (game.zooMenu?.step !== step) setZooAt(0);
+      return;
+    }
     if (doomed) {
       if (key.name === "x" || key.name === "delete") doom();
       else setDoomed(undefined);
@@ -65,18 +77,21 @@ export function TitleScreen({ game, surface = "terminal" }: { game: TitleModel; 
     else if (key.name === "return" || key.name === "space") pick(at);
     else if (key.name === "x" || key.name === "delete") doom();
     else if (key.name === "n") game.newCharacter();
+    else if (key.name === "z") openZoo();
     else if (key.name === "q" || (key.name === "escape" && escQuits(surface))) game.quit();
   });
-  const keys: KeyHint[] = doomed
+  const keys: KeyHint[] = game.zooMenu
+    ? [["↑↓", "choose"], ["Enter", game.zooMenu.step === "exhibits" ? "open it" : "be them", () => zooLines(game)[zooAt]?.run()], ["Esc", "back", () => { setZooAt(0); game.zooBack(); }]]
+    : doomed
     ? [["x", "delete it", doom], ["any other key", "keep it", () => setDoomed(undefined)]]
-    : [["↑↓", "choose"], ["Enter", "select", () => pick(at)], ...(items[at]!.save ? [["x", "delete", doom] satisfies KeyHint] : []), ["n", "new game", () => game.newCharacter()], ["q", "quit", () => game.quit()]];
+    : [["↑↓", "choose"], ["Enter", "select", () => pick(at)], ...(items[at]!.save ? [["x", "delete", doom] satisfies KeyHint] : []), ["n", "new game", () => game.newCharacter()], ["z", "the zoo", openZoo], ["q", "quit", () => game.quit()]];
   const wide = width >= 84;
   const w = Math.min(width - 4, 90);
   return <box width={width} height={height} flexDirection="column" alignItems="center" justifyContent="center" backgroundColor={C.bg}>
     {wide ? <ascii-font text="KINGMAKER" font="block" color={[C.title, "#c98a3a"]} /> : <text fg={C.title} attributes={BOLD}>K I N G M A K E R</text>}
     <text fg={C.text} attributes={BOLD} marginTop={1}>The Hanged Clerk of Caerwyn</text>
     <text fg={C.dim} attributes={ITALIC}>{tagline}</text>
-    <box flexDirection="column" marginTop={2} width={w} border borderColor={C.border} paddingX={2} paddingY={1}>
+    {game.zooMenu ? <ZooPanel game={game} index={zooAt} width={w} onPick={setZooAt} /> : <box flexDirection="column" marginTop={2} width={w} border borderColor={C.border} paddingX={2} paddingY={1}>
       {/* Each a button: the pointer picks it out as it moves, a click does it. Not as it rests: OpenTUI says
           "over" to whatever comes up under a pointer left where it was, and Enter would do that, not Continue. */}
       {items.map((item, i) => {
@@ -92,7 +107,7 @@ export function TitleScreen({ game, surface = "terminal" }: { game: TitleModel; 
           </text>
         </Clickable>;
       })}
-    </box>
+    </box>}
     <box marginTop={1} height={1}>{loading ? <Spinner label={loading} /> : <Keys items={keys} />}</box>
     {game.error ? <text fg={C.danger} marginTop={1}>{game.error}</text> : null}
   </box>;

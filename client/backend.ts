@@ -91,8 +91,10 @@ export interface HomeRows {
 export type CreationRow = Pick<Creation,
   | "campaign" | "name" | "concept" | "how" | "step" | "busy" | "rev" | "offer" | "own" | "chosen" | "story" | "version"
   | "proposal" | "issues" | "issue" | "rewriting" | "again" | "note" | "unchecked" | "backstory" | "gameId">;
-export type GameRow = Pick<GameSummary, "gameId" | "name" | "time" | "where" | "hook" | "begun" | "lastPlayedAt">;
-export type CampaignRow = Pick<Campaign, "key" | "version" | "title" | "json">;
+/** A game as my_games lists it; its campaign ("zoo" for a zoo visit, which the title keeps apart: M6), where a backend has it. */
+export type GameRow = Pick<GameSummary, "gameId" | "name" | "time" | "where" | "hook" | "begun" | "lastPlayedAt"> & Partial<Pick<GameSummary, "campaign">>;
+/** A campaign installed; its ready-made builds (builds.json), where a backend has them (the zoo's menu offers them: M6). */
+export type CampaignRow = Pick<Campaign, "key" | "version" | "title" | "json"> & Partial<Pick<Campaign, "builds">>;
 export type SeatRow = Pick<SeatView, "playerId" | "gameId" | "sceneId">;
 export type PlayerRow = Pick<Player, "name" | "concept">;
 export type SheetRow = Pick<Sheet, "data" | "pockets" | "build" | "statusLine">;

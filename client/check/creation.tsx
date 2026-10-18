@@ -108,9 +108,9 @@ async function title(checks: Array<[string, boolean]>, size: Size, show: boolean
   const games = [gameRow(1n, "Pell Marrow", "in The Hanged Clerk", 5), gameRow(2n, "Wren Ashdown", "heading for The Hanged Clerk", 60 * 50, Date.now(), false)];
   const s = await open({ games }, "title", size);
   if (show) console.log(`title ${label(size)}\n${s.frame}`);
-  checks.push([`the title ${label(size)}: its name, Continue with the game played last as describe says it, an older one, New game, Quit`,
+  checks.push([`the title ${label(size)}: its name, Continue with the game played last as describe says it, an older one, New game, the zoo, Quit`,
     s.frame.includes("The Hanged Clerk of Caerwyn") && s.frame.includes("Continue") && s.frame.includes("Pell Marrow: Morning, in The Hanged Clerk (5 min ago)")
-    && s.frame.includes("Continue an older game") && s.frame.includes("New game") && s.frame.includes("Quit") && !s.frame.includes("zoo")]);
+    && s.frame.includes("Continue an older game") && s.frame.includes("New game") && s.frame.includes("The zoo") && s.frame.includes("Quit")]);
 
   await s.click("New game");
   checks.push([`the title ${label(size)}: a click on New game makes a character (the create screen)`, s.app.screen === "create" && (await s.draw()).includes("Who are you?")]);

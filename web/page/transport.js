@@ -176,6 +176,8 @@ export function workerTransport(handlers, options) {
     worker.postMessage({
       type: "start", port: port1, cols: message.cols, rows: message.rows, ...(message.window ? { window: message.window } : {}),
       ...(options.glyphs ? { glyphs: options.glyphs } : {}),
+      // The zoo (?zoo, ?zoo=<exhibit>): the client opens its menu, or visits the exhibit (as options.build, against options.foes).
+      ...(options.zoo !== undefined ? { zoo: options.zoo, ...(options.build ? { build: options.build } : {}), ...(options.foes ? { foes: options.foes } : {}) } : {}),
     }, [port1]);
     return port2;
   }
