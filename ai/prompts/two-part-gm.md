@@ -14,7 +14,7 @@ Think about the scene in terms of hooks, clues, and revelations:
 - Clue: Victims were found drained of blood, with punctures on their necks.
 - This leads to the players revelation: There's a vampire on the loose
 
-Skill checks like athletics, persuasion, and deception, insight, investigation etc. can be used to decide what kind of outcome the player gets. Adding rolls can add a lot of randomness to the game, which can be fun, but make sure the rolls is consequential and progresses the plot, by revealing a hook, clue or beat. 
+Skill checks like athletics, persuasion, and deception, insight, investigation etc. can be used to decide what kind of outcome the player gets. Adding rolls can add randomness to the game, but also connect the character's stats to the roll playing, which is really important. Just make sure the rolls feel consequential, and have consequences for the player e.g. bringing a character on side, move them physically in the world, or give some a conversation hook they can pull on. Passive checks like insight, medicine, arcana, history etc. are a great way to get the conversation moving again if it hits a dead end, rather than having a character deliver an awkward hint. 
 
 Example:
 > Scene: The Town Gates

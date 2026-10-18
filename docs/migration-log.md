@@ -1147,6 +1147,47 @@ Rounds `smoke-fix3-1018` (at `719ff49`) and `smoke-fix3b-1018` (at `a536176`), o
 - **Small things the GM did:** Kell checking "the ladder lashed beside the gate" (there's none before the cart), "then at the page sewn into your boot only if you show it" (the prep's conditional in the prose), Kell's doings outside told to a player inside the Heron, the corporal asking Kell's "On what evidence?" in the first game.
 - **Not played:** the owed name in live play since the fix (no description reached Kell before the porters), a case made before the porters, the Heron past the ledger.
 
+### Rolls back with the GM, in the user's words (2026-10-18)
+
+After qa4-1018 the user played the hanged clerk on #673's preview and reported "No rols?" (`~/Downloads/kingmaker-report-20261018-110853.json.gz`). It was right: all 11 replies the report holds had `check: null`.
+
+**Why the rolls had gone:**
+- M2's re-authoring moved the dice off the scenes' routes. #666's clerk had 9 dice routes; the campaign now has 6 of 67, none in the clerk.
+- 72 of the 80 discovery paths open "No dice:".
+- The check rule was narrowed in rounds 1 and 2 ("a clear, risky attempt at a turning point, never for … a question"; "what your prep says for certain wins over the dice") after a failed roll lost the scene's lead (qa2's H4).
+
+The user reviewed the mouthpiece's prompting in Obsidian and rewrote it (notes in their `lore/Mouthpiece prompt 2026-10-18`):
+- **`ai/prompts/two-part-gm.md`:** the paragraph on skill checks. Rolls connect the character's stats to the role-playing and have consequences (someone on side, moved in the world, a hook). Passive Insight, Medicine, Arcana or History get a stalled conversation moving instead of an awkward hint.
+- **FORMAT, "How to reply":**
+  - the mouthpiece decides when to roll (the prep may suggest), regularly but spaced out;
+  - rolls fall in three situations: physical feats, persuading or deceiving someone into what they wouldn't normally do, and noticing more or less, actively or passively;
+  - a line on what each check is for (Insight reads a person and never makes anyone talk);
+  - when to leave it null;
+  - a high roll reveals more than a poor one;
+  - a major failure gives another path forward;
+  - a major success can bring someone round several steps.
+  
+  Their words are taken as written, with only typos fixed: roll, character's, require, endurance, "is to", "used in". "A high roll reveals more…" moves from the narration's bullet to the outcomes'.
+
+**Replays.** I replayed 21 logged turns on the real model, two tries each: the report's 11, three Moll moments, and seven turns QA had flagged. It cost $0.24 over three passes.
+- **Rolls:** 0 logged, against about 3.5 with this text. They come where a DM would roll:
+  - Medicine or Perception on the body, graded;
+  - Insight on Moll's lie, which she tells while the roll decides what the player reads;
+  - Persuasion when the player bargains;
+  - Investigation on the knot.
+  
+  Plain questions stay roll-free.
+- **Tried, not in this build:**
+  - the generic "people in the scene don't do the player's work" rule in place of "The companion", with Kell's specifics on her card;
+  - the prep's "No dice:" read as a suggestion.
+  
+  Together they give about 5 rolls per 21 turns, but Kell still refuted Moll once when no roll was called.
+- **Still to do:**
+  - Cob's bargaining in the report (t7 to t11) still gets no roll;
+  - the user wants a failed roll's repair moved to the co-GM.
+
+**Checked:** the type check is clean and npm test passes 994 of 994, with two-part.test.ts asserting the new rule.
+
 ## M3: scenes in Obsidian
 
 ### What changed
