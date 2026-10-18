@@ -5,16 +5,17 @@
  */
 
 /**
- * The steps of a think: the opening, then a turn's own, in a move's order (decide; reactions, on a
- * turn the player's violence drew them: world-bridge-design §3.4; consider, on a turn the GM rules
- * on before replying; reply; settle); the one that runs beside a turn once its reply is in (v5-design
- * §3.4): the lines suggested after it (the notes on its marks went in M2); the two in the background once
- * the turn is over (full-gm-design §4.2): the memory reviews, and the co-GM; the boundary once
- * the scene is over (story-design §4.3), keyed by the scene's last turn; and the looks of what the
- * stage manager made in a turn, beside it (town-design §3.7).
+ * The steps of a think: the opening, then a turn's own, in a move's order (reactions, parked for
+ * combat, on a turn the player's violence drew them: world-bridge-design §3.4; reply; settle); the
+ * one that runs beside a turn once its reply is in (v5-design §3.4): the lines suggested after it
+ * (the notes on its marks went in M2); the one in the background once the turn is over
+ * (full-gm-design §4.2): the memory reviews (the old co-GM's review went with the old pipeline); the
+ * boundary once the scene is over
+ * (story-design §4.3), keyed by the scene's last turn; and the looks of what the stage manager made
+ * in a turn, beside it (town-design §3.7).
  */
-export type Step = "open" | "decide" | "reactions" | "consider" | "reply" | "settle" | "suggest" | "remember" | "repair" | "boundary" | "look";
-export const STEPS: readonly Step[] = ["open", "decide", "reactions", "consider", "reply", "settle", "suggest", "remember", "repair", "boundary", "look"];
+export type Step = "open" | "reactions" | "reply" | "settle" | "suggest" | "remember" | "boundary" | "look";
+export const STEPS: readonly Step[] = ["open", "reactions", "reply", "settle", "suggest", "remember", "boundary", "look"];
 
 /**
  * Character creation's steps (v1-design §3.5), each an AI call of its own: the three builds offered,
@@ -55,7 +56,7 @@ export interface CreationKeyParts { game: string; rev: number; step: CreationSte
 
 /** A key's parts (a turn's think has a turn, a creation's step a rev), or undefined when it isn't one. */
 export function keyParts(key: string): TurnKeyParts | CreationKeyParts | undefined {
-  const turn = /^(.+):s(\d+):t(\d+):(?:(open|decide|reactions|consider|reply|settle|remember|repair|boundary|look)|suggest(?:-([1-9]\d*))?)$/.exec(key);
+  const turn = /^(.+):s(\d+):t(\d+):(?:(open|reactions|reply|settle|remember|boundary|look)|suggest(?:-([1-9]\d*))?)$/.exec(key);
   if (turn) {
     if (turn[5] === "1") return undefined;
     const parts = { game: turn[1]!, scene: turn[2]!, turn: Number(turn[3]) };

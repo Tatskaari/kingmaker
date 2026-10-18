@@ -1,6 +1,6 @@
 // Copied from the prototype's src/runtime/scene.ts at 44c6d4a, whole; an exit's script is its effects (data), a scene's onEnd its effects on every ending (story-design §4.2), and there's no approach. M2 extends it with what the scene format (docs/scene-format.md, document.ts) gives: a beat's revelation, paths, required, establishes and carry, an exit's result, a character's whyHere, limits, roles and lore, and a scene's truth, clock, facts and routes.
 
-import type { BeatData, CastMember, Path } from "./document.ts";
+import type { BeatData, CastMember, OuterLimit, Path } from "./document.ts";
 import type { Effect } from "./files.ts";
 import type { WorldOp, WorldSpec } from "../world/scene-world.ts";
 
@@ -170,6 +170,8 @@ export interface SceneRoute {
   onFailure?: string;
   /** Fact ids settled when it's taken. */
   establishes?: string[];
+  /** A cue's outer limit (document.ts OuterLimit): each count's exchanges, from the start or a beat reached, until a beat; none on a route that isn't a cue. */
+  limit?: OuterLimit[];
 }
 
 export type ExitKind = "combat" | "persuaded" | "progress" | "leave" | "other";

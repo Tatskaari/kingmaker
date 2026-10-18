@@ -39,7 +39,7 @@ test("the draft grows post by post; a stale post is dropped; a new attempt start
       assert.equal(host.streamReply(p), undefined, "a stale post isn't refused: it's dropped");
       if (check) draft(turnId);
     }
-    return { entries: [{ speaker: "gm", kind: "narration", text: "Sergeant Kell nods." }], gm: { repeated: null }, firstTextMs: 2, usage: { calls: 1, costUsd: 0, byOperation: {} } };
+    return { entries: [{ speaker: "gm", kind: "narration", text: "Sergeant Kell nods." }], gm: {}, firstTextMs: 2, usage: { calls: 1, costUsd: 0, byOperation: {} } };
   });
   host.as(wren).say({ text: "Who found him?" });
   await host.drain();
@@ -56,20 +56,20 @@ test("the draft grows post by post; a stale post is dropped; a new attempt start
   assert.equal(all(host.db.replyDraft).length, 0, "a post once the turn has moved on is dropped");
 });
 
-test("a post for a turn that isn't replying is dropped: deciding, or no such turn", async () => {
+test("a post for a turn that isn't replying is dropped: settling, or no such turn", async () => {
   const { host, script, wren, scene } = await openedGame();
-  script.then("decide", () => {
+  script.then("settle", () => {
     const turn = sceneNow(host, scene.id).turns[1]!;
-    assert.equal(turn.phase, "deciding");
-    host.streamReply(post(turn.id, 1, 1, "too early"));
+    assert.equal(turn.phase, "settling");
+    host.streamReply(post(turn.id, 1, 1, "too late"));
     host.streamReply(post(9999n, 1, 1, "nobody's"));
     assert.equal(all(host.db.replyDraft).length, 0);
-    assert.equal(sceneNow(host, scene.id).turns[1]!.firstTextAt, undefined);
-    return { decision: { earned: false, daft: false, outOfCharacter: false }, opened: [], usage: { calls: 0, costUsd: 0, byOperation: {} } };
+    return DEFAULTS.settle;
   });
   host.as(wren).say({ text: "Who found him?" });
   await host.drain();
-  assert.equal(script.to("decide").length, 1);
+  assert.equal(script.to("settle").length, 1);
+  assert.ok(!sceneNow(host, scene.id).lines.some(l => l.text === "too late"), "nothing of it written");
 });
 
 test("while the reply waits to be asked again, the lost attempt's late words leave the turn's note; the new attempt's first words clear it", async () => {

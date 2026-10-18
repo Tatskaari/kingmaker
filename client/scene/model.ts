@@ -1,9 +1,9 @@
-// The prototype's src/app/game.ts at 44c6d4a, its scene section as a model fed by rows: :451-464 (subscribe, emit, emitSoon), :1386-1393 (onStep's CONSIDERING, as the turn's considering phase), :1510-1551 (input), :1596-1622 (command), :1454-1462 and :1490-1505 (setSuggestions and peek's /suggestions, the setting a move), :1897-1935 (speechColor; the marks went with the notes in M2), :2332-2344 (showSheet, as the sheet row read; closeOverlay); the scene's place (the world bridge): :186-195 (SceneMenu), :1817-1868 (sceneContext, the menu opened and closed), :1937-1962 (lookNote, deed), the world the place's rows' (scene/place.ts); and the way on between scenes, :1696-1720 (continueScene, as goOn) and :1808-1815 (continueFromCard, as toLead), with the scene that's over kept on screen until the player goes on (story-design §4.5); and a talk's (town-design §3.6, §3.9): its choices (src/game/play.ts:351-361), choose and walkOn (game.ts:1554-1578), its way on back to the map, and a word with whoever walks with the player from the card between scenes (new: talkWith).
+// The prototype's src/app/game.ts at 44c6d4a, its scene section as a model fed by rows: :451-464 (subscribe, emit, emitSoon), :1510-1551 (input), :1596-1622 (command), :1454-1462 and :1490-1505 (setSuggestions and peek's /suggestions, the setting a move), :1897-1935 (speechColor; the marks went with the notes in M2), :2332-2344 (showSheet, as the sheet row read; closeOverlay); the scene's place (the world bridge): :186-195 (SceneMenu), :1817-1868 (sceneContext, the menu opened and closed), :1937-1962 (lookNote, deed), the world the place's rows' (scene/place.ts); and the way on between scenes, :1696-1720 (continueScene, as goOn) and :1808-1815 (continueFromCard, as toLead), with the scene that's over kept on screen until the player goes on (story-design §4.5); and a talk's (town-design §3.6, §3.9): its choices (src/game/play.ts:351-361), choose and walkOn (game.ts:1554-1578), its way on back to the map, and a word with whoever walks with the player from the card between scenes (new: talkWith).
 import type { Backend, Rejection } from "../backend.ts";
 import type { Action } from "../../shared/map/town.ts";
 import { FAREWELL, WALK_ON } from "../../shared/scene/talk.ts";
 import type { SheetData } from "../../shared/rules/types.ts";
-import { BusyLines, CONSIDERING } from "../busy.ts";
+import { BusyLines } from "../busy.ts";
 import { COMMANDS, commandNamed } from "../commands.ts";
 import { betweenOf, epilogueOf, fightOf, wayOnOf, type BetweenView, type EndView, type FightView, type StoryView, type WayOn } from "../story/view.ts";
 import { C } from "../theme.ts";
@@ -141,7 +141,7 @@ export class SceneModel {
   }
 
   /**
-   * A new view from the rows. A line that starts the GM thinking (queued, or deciding) gets a fresh
+   * A new view from the rows. A line that starts the GM thinking (queued) gets a fresh
    * line for the spinner; another scene forgets what was looked at and picked out in the old one.
    */
   update(view: SceneView): void {
@@ -381,18 +381,13 @@ export class SceneModel {
   }
   live(): Line | undefined { return liveOf(this.view); }
 
-  /**
-   * The spinner's line while the GM has the floor, by the turn's phase; nothing when it hasn't. A
-   * considered turn (the GM ruling on a risky act before the reply) says so for the whole step, as
-   * the prototype's status line opens on it.
-   */
+  /** The spinner's line while the GM has the floor, by the turn's phase; nothing when it hasn't. */
   busy(): string | undefined {
     // The scene's over (or its fight is next): the prototype's word for the story moving on while it does, and nothing else.
     const way = this.wayOn();
     if (way) return way.to === "wait" && this.story?.onward === "moving" ? "The story moves on…" : undefined;
     const { phase, draft } = this.view;
-    if (phase === "queued" || phase === "deciding") return this.busyLine ?? "The GM is thinking…";
-    if (phase === "considering") return CONSIDERING;
+    if (phase === "queued") return this.busyLine ?? "The GM is thinking…";
     if (phase === "replying") return draft?.kind === "dialogue" ? `${draft.name ?? draft.speaker} is speaking…` : "The GM is speaking…";
     // The world settling behind the reply: the GM's bookkeeping.
     if (phase === "settling") return "The GM makes a note…";
@@ -529,7 +524,7 @@ export class SceneModel {
     const v = this.view;
     if (v.mayType) { this.input(line); return; }
     if (v.over || v.ending) this.status = ONLY_LOOKING;
-    else if (!v.watching && (v.phase === "queued" || v.phase === "deciding" || v.phase === "replying")) this.status = DEED_WAITS;
+    else if (!v.watching && (v.phase === "queued" || v.phase === "replying")) this.status = DEED_WAITS;
     else { this.input(line); return; }
     this.emit();
   }
@@ -540,8 +535,8 @@ export class SceneModel {
   }
 }
 
-/** The GM has a line to think about: said and waiting, or being decided. */
-const thinking = (view: SceneView) => view.phase === "queued" || view.phase === "deciding";
+/** The GM has a line to think about: said and waiting. */
+const thinking = (view: SceneView) => view.phase === "queued";
 
 /** Where the scene stands, for a refusal to lapse by: the turn shown and its phase, what it waits on, how much has been said, whether it's over. A draft growing doesn't move it on. */
 const momentOf = (view: SceneView) => JSON.stringify([view.turn, view.phase, view.note, view.entries.length, view.over]);

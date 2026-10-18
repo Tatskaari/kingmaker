@@ -33,7 +33,7 @@ export function fightItOut(tx: TxCtx, scene: SceneRow): void {
   addEntry(tx, scene, { turn: n, speaker: "system", kind: "system", text: `The fight: ${FIGHT_SUMMARY}` });
   journal(tx, scene, FIGHT_NOT_PLAYED);
 
-  delete gm.ended; delete gm.closing; delete gm.pendingExit; delete gm.endingLead;
+  delete gm.ended; delete gm.closing;
   if (exit && !gm.fought.includes(exit)) gm.fought.push(exit);
   // The scene format's play (shared/scene/beats.ts): the fight's ending is no longer where the scene is, so its routes open again (all but the fight's).
   if (exit) gm.reached = gm.reached.filter(id => id !== exit);

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import type { DecideResponse, SettleResponse } from "../../../shared/protocol/ai.ts";
+import { BANDS, type Band } from "../../../shared/gm/two-part.ts";
+import type { Reply, ReplyResponse, SettleResponse } from "../../../shared/protocol/ai.ts";
 import type { SheetData } from "../../../shared/rules/types.ts";
 import type { WorldOp } from "../../../shared/world/scene-world.ts";
 import { all, hostWithCampaign, identity, madeCharacter, openedGame, sceneNow } from "../host/testing.ts";
@@ -13,7 +13,7 @@ import { all, hostWithCampaign, identity, madeCharacter, openedGame, sceneNow } 
  */
 
 const blank = { what: "", to: "", how: "", name: "", kind: "", text: "", add: [] as string[], remove: [] as string[] };
-const settled = (ops: WorldOp[]): SettleResponse => ({ ops, after: { landed: [], hinted: [], unanswered: false, theirs: false }, usage: { calls: 1, costUsd: 0, byOperation: {} } });
+const settled = (ops: WorldOp[]): SettleResponse => ({ ops, coGm: { roles: {}, moves: [], log: [] }, usage: { calls: 1, costUsd: 0, byOperation: {} } });
 
 test("new_game makes each of builds.json's five through the engine: the sheet's numbers, its data and the campaign's purse", () => {
   const { host } = hostWithCampaign();
@@ -54,22 +54,23 @@ test("a character made through creation is the ready-made one for the same build
 const masked = (text: string) => text.replace(/\b[0-9A-HJKMNP-TV-Z]{26}\b/g, "<id>");
 
 test("the first check of a game rolls the prototype's dice for its seed: coming to at the opening is the first draw, the check the second", async () => {
-  const golden = JSON.parse(readFileSync(new URL("../../../ai/gm/golden/hanged-clerk-backstory/03-t1-settle.json", import.meta.url), "utf8")) as { session: { seed: number; transcript: Array<{ kind: string; text: string }> } };
+  // The seed of the prototype's recording with a backstory (in git history at the old pipeline's parity test, ai/gm/golden/hanged-clerk-backstory), whose first check rolled "Medicine check to tell how Prout really died: 14 + 1 = 15 vs DC 12: success".
   const { host, script, wren, scene } = await openedGame(7, "rogue");
-  host.transact(tx => tx.db.dice.gameId.update({ ...tx.db.dice.gameId.find(scene.gameId)!, seed: golden.session.seed }));
-  const examine: DecideResponse = {
-    decision: { route: { id: "examine-body", phase: "attempt", check: { skill: "medicine", dc: 12, reason: "to tell how Prout really died" } }, earned: false, daft: false, outOfCharacter: false },
-    opened: [], usage: { calls: 1, costUsd: 0, byOperation: {} },
+  host.transact(tx => tx.db.dice.gameId.update({ ...tx.db.dice.gameId.find(scene.gameId)!, seed: 4242 }));
+  const said = (text: string): Reply => ({ speaker: "gm", kind: "narration", text });
+  const examine: ReplyResponse = {
+    entries: [said("You crouch by the body.")], gm: {}, firstTextMs: 3,
+    check: { skill: "medicine", dc: 12, outcomes: Object.fromEntries(BANDS.map(b => [b, said(b)])) as Record<Band, Reply> }, usage: { calls: 1, costUsd: 0, byOperation: {} },
   };
-  script.then("decide", examine);
+  script.then("reply", examine);
 
   host.as(wren).say({ text: "I look closely at the body." });
   await host.drain();
 
   const rolled = sceneNow(host, scene.id).lines.filter(l => l.kind === "roll").map(l => l.text);
-  // The prototype's roll, die for die. (The tests' hanged clerk is in the scene format, whose checks give no reason: the dice line is the roll's alone, without the prototype's "to tell how Prout really died".)
-  assert.deepEqual(rolled, golden.session.transcript.filter(e => e.kind === "roll").map(e => e.text.replace(/^(\w+ check) to [^:]*:/, "$1:")));
-  assert.deepEqual(rolled, ["Medicine check: 14 + 1 = 15 vs DC 12: success"]);
+  // The prototype's roll, die for die, in the two-part GM's dice line (which says how far it made it by).
+  assert.equal(rolled.length, 1);
+  assert.match(rolled[0]!, /^Medicine check: 14 \+ 1 = 15 vs DC 12: success \(/);
 });
 
 test("the same seed and rows make the same campaign: the engine's ids and times are pinned to the dice and the transaction", async () => {

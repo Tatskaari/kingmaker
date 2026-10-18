@@ -57,7 +57,7 @@ test("each ask for a reply's lines has a key of its own (v5-design §3.6); the n
 
 test("every step has its endpoint and its timeout: the lines' 30 s", () => {
   assert.deepEqual(STEPS.map(step => STEP_ENDPOINT[step]), [
-    "/v1/scenes/open", "/v1/turns/decide", "/v1/turns/reactions", "/v1/turns/consider", "/v1/turns/reply", "/v1/turns/settle", "/v1/turns/suggest", "/v1/turns/remember", "/v1/turns/repair",
+    "/v1/scenes/open", "/v1/turns/reactions", "/v1/turns/reply", "/v1/turns/settle", "/v1/turns/suggest", "/v1/turns/remember",
     "/v1/scenes/boundary", "/v1/looks",
   ]);
   assert.equal(STEP_TIMEOUT_MS.suggest, 30_000);
@@ -72,24 +72,24 @@ test("the looks of what a turn made have a key of their own, beside the turn (to
   assert.equal(keyParts("5f0c-uid:c4:look"), undefined, "a turn's step isn't a creation's");
 });
 
-test("the reactions to the player's violence have a key of their own, after the decision and as long to wait (world-bridge-design §3.4)", () => {
+test("the reactions to the player's violence have a key of their own, before the reply, and wait 20 s (world-bridge-design §3.4; parked for combat)", () => {
   const key = idempotencyKey("5f0c-uid", 1n, 3, "reactions");
 
   assert.equal(key, "5f0c-uid:s1:t3:reactions");
   assert.deepEqual(keyParts(key), { game: "5f0c-uid", scene: "1", turn: 3, step: "reactions" });
-  assert.deepEqual(STEPS.slice(1, 3), ["decide", "reactions"]);
-  assert.deepEqual([STEP_ENDPOINT.reactions, STEP_TIMEOUT_MS.reactions], ["/v1/turns/reactions", STEP_TIMEOUT_MS.decide]);
+  assert.deepEqual(STEPS.slice(1, 4), ["reactions", "reply", "settle"]);
+  for (const old of ["decide", "consider"]) assert.equal(keyParts(`5f0c-uid:s1:t3:${old}`), undefined, `the old pipeline's ${old} is no step`);
+  assert.deepEqual([STEP_ENDPOINT.reactions, STEP_TIMEOUT_MS.reactions], ["/v1/turns/reactions", 20_000]);
   assert.equal(keyParts("5f0c-uid:c4:reactions"), undefined, "a turn's step isn't a creation's");
 });
 
-test("a ruling before the reply, and the memory reviews and the co-GM after a turn, have keys of their own (full-gm-design §4.2)", () => {
-  for (const step of ["consider", "remember", "repair"] as const) {
-    const key = idempotencyKey("5f0c-uid", 1n, 3, step);
-    assert.equal(key, `5f0c-uid:s1:t3:${step}`);
-    assert.deepEqual(keyParts(key), { game: "5f0c-uid", scene: "1", turn: 3, step });
-  }
-  assert.equal(keyParts("5f0c-uid:c4:repair"), undefined, "a turn's step isn't a creation's");
-  assert.deepEqual([STEP_TIMEOUT_MS.consider, STEP_TIMEOUT_MS.remember, STEP_TIMEOUT_MS.repair], [20_000, 170_000, 170_000]);
+test("the memory reviews after a turn have a key of their own (full-gm-design §4.2); the old co-GM's review, gone with the old pipeline, has none", () => {
+  const key = idempotencyKey("5f0c-uid", 1n, 3, "remember");
+  assert.equal(key, "5f0c-uid:s1:t3:remember");
+  assert.deepEqual(keyParts(key), { game: "5f0c-uid", scene: "1", turn: 3, step: "remember" });
+  assert.equal(keyParts("5f0c-uid:c4:remember"), undefined, "a turn's step isn't a creation's");
+  assert.equal(keyParts("5f0c-uid:s1:t3:repair"), undefined);
+  assert.equal(STEP_TIMEOUT_MS.remember, 170_000);
 });
 
 test("a scene's boundary is keyed by the ended scene's last turn, and waits 120 s (story-design §4.2)", () => {

@@ -1,8 +1,8 @@
-import type { RepairResult } from "../../../shared/gm/repair.ts";
 import type { Speech } from "../../../shared/markup.ts";
 import type { BoundaryRequest, Reply, SceneContext, Suggestion } from "../../../shared/protocol/ai.ts";
 import { effectiveScene, presentCast } from "../../../shared/scene/graph.ts";
 import { unnamed } from "../../../shared/scene/names.ts";
+import { TOLD } from "../../../shared/scene/talk.ts";
 import type { Character, Scene } from "../../../shared/scene/types.ts";
 import { noUsage } from "../calls.ts";
 import type { Endpoints } from "../context.ts";
@@ -16,12 +16,11 @@ import { characters } from "./characters.ts";
  * and each reply stream a word at a time, as a model's would, so the draft grows on every screen, and
  * someone of the cast says a line in each, so the screen has a speaker to colour. Nothing moves the
  * scene: no route is taken, nothing lands, no ending comes (the two-part GM's co-GM sets no roles and
- * makes no move, and its mouthpiece calls no check; its closing closes), the rules resolve no act (so
- * nobody reacts: reactions asked for anyway come back with none), and the GM rules on nothing (a
- * ruling asked for anyway comes back without one, and without a check to roll).
+ * makes no move, and its mouthpiece calls no check; its closing closes), and the rules resolve no act
+ * (so nobody reacts: reactions asked for anyway come back with none).
  * The suggested lines are the same four every time, and a talk's the same two (town-design §3.6: a
- * talk's prep keeps nothing back and adds no facts). After a turn, nobody remembers anything, and the
- * co-GM finds the scene on track, with no notes, and nothing gets a look invented. After a scene, the boundary goes to the first scene
+ * talk's prep keeps nothing back and adds no facts). After a turn, nobody remembers anything, and
+ * nothing gets a look invented. After a scene, the boundary goes to the first scene
  * it could, with the prototype's fallback hand-off, nothing rewritten, nobody absent, nothing owed
  * and no docs written (story-design §4.4). Character creation gets the prototype's offline
  * answers (its endpoints with no model to ask): three builds from the class defaults, the player's
@@ -33,44 +32,34 @@ export const canned: Endpoints = {
     const voice = speakerAt(scene, presentCast(scene, req.gm), 0, []);
     const opening = said(`${scene.title}. (The AI service is canned: no model was asked, and nothing here is the GM's.) `, voice, "Say something, and it answers");
     await written(ctx.stream(req.stream.turn), opening);
-    const talk = req.talk ? { talk: { established: [], patches: [], withheld: [], suggestions: req.talk.suggest ? TALK_LINES : [] } } : {};
-    return { present: presentCast(scene, req.gm).map(c => c.id), entries: [opening], opened: [], ...talk, usage: noUsage() };
-  },
-  async decide() {
-    return { decision: { earned: false, daft: false, outOfCharacter: false }, opened: [], usage: noUsage() };
+    // A talk keeps nothing back: on the two-part GM, its discovery isn't this talk's (ai/gm/talk.ts nothingToConfide).
+    const patches = req.talk ? [{ turn: 0, why: "Canned: nothing to confide.", drop: TOLD }] : [];
+    const talk = req.talk ? { talk: { established: [], patches, suggestions: req.talk.suggest ? TALK_LINES : [] } } : {};
+    return { present: presentCast(scene, req.gm).map(c => c.id), entries: [opening], ...talk, usage: noUsage() };
   },
   async reactions() {
     return { reactions: {}, usage: noUsage() };
   },
-  async consider() {
-    return { error: "the canned GM rules on nothing (no model was asked)", ms: 0, usage: noUsage() };
-  },
   async reply(req, ctx) {
     const scene = effectiveScene(ctx.campaign.scene(req.turn.scene.key), req.turn.gm.patches);
     const line = req.turn.line.text.length > 200 ? `${req.turn.line.text.slice(0, 199)}…` : req.turn.line.text;
-    // The two-part GM's wind-down (no decision) always closes; the old pipeline's waits out a word out of character.
-    const reply = req.outcome.windDown && !req.decision?.outOfCharacter
+    // The two-part GM's wind-down always closes.
+    const reply = req.outcome.windDown
       ? narration("The scene draws to a close. (Canned: no model was asked.)")
       : answered(line, speakerAt(scene, presentCast(scene, req.turn.gm), req.turn.scene.turn, req.turn.transcript));
     const sink = ctx.stream(req.stream.turn);
     await written(sink, reply);
-    return { entries: [reply], gm: { repeated: null }, firstTextMs: sink.firstTextMs(), ...(req.twoPart && req.outcome.windDown ? { closes: true } : {}), usage: noUsage() };
+    return { entries: [reply], gm: {}, firstTextMs: sink.firstTextMs(), ...(req.outcome.windDown ? { closes: true } : {}), usage: noUsage() };
   },
   async settle(req) {
-    // The two-part GM's co-GM, canned: it sets no roles and moves nothing.
-    if (req.twoPart) return { ops: [], coGm: { roles: {}, moves: [], log: [] }, usage: noUsage() };
-    const closed = !!req.turn.gm.ended;
-    const talk = req.talk ? { talk: { suggestions: req.talk.suggest && !closed ? TALK_LINES : [] } } : {};
-    return { ops: [], ...(closed ? {} : { after: { status: "on_track", landed: [], hinted: [], unanswered: false, theirs: false } }), ...talk, usage: noUsage() };
+    // The two-part GM's co-GM, canned: it sets no roles and moves nothing (and a talk's lines, as ever).
+    return { ops: [], coGm: { roles: {}, moves: [], log: [] }, ...(req.talk ? { talk: { suggestions: req.talk.suggest ? TALK_LINES : [] } } : {}), usage: noUsage() };
   },
   async suggest() {
     return { lines: LINES, dropped: [], usage: noUsage() };
   },
   async remember() {
     return { flags: [], reviews: [], usage: noUsage() };
-  },
-  async repair(req) {
-    return { review: onTrack(req.reviewed), usage: noUsage() };
   },
   async boundary(req, ctx) {
     const scene = effectiveScene(ctx.campaign.scene(req.turn.scene.key), req.turn.gm.patches);
@@ -91,11 +80,6 @@ export const canned: Endpoints = {
 
   backstories: backstories(() => null),
 };
-
-/** The co-GM's review of a turn, with no model: on track, nothing to steer, nothing to add. */
-const onTrack = (turn: number): RepairResult => ({
-  turn, assessment: "Canned: no model was asked.", status: "on_track", notes: "", whispers: [], relocations: [], canon: [], patches: [], costUsd: 0, latencyMs: 0,
-});
 
 /** The same four lines after every reply: two to say, a deed, a risky try. */
 const LINES: Suggestion[] = [

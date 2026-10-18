@@ -29,7 +29,7 @@ export interface TurnRecord {
   /** The script's step, and the line said (for an act, the line it picked). */
   step?: string;
   said?: string;
-  /** How long the line waited for the background jobs (the memory review, the co-GM) before it was said. */
+  /** How long the line waited for the background jobs (the memory review) before it was said. */
   waited?: number;
   /** Server times in microseconds: the turn's start, its first words, its reply's entry, its end. */
   saidAt: number;
@@ -150,7 +150,7 @@ async function gmSideOf(stack: StackFile, game: NonNullable<Run["game"]>, scene:
   return statusOf(await statusRows(query, join(stack.root, "ai", "games", game.uid), { id: String(game.id), uid: game.uid }, scene));
 }
 
-/** The scene's background jobs in flight (the memory reviews, the co-GM), as "remember t3". */
+/** The scene's background jobs in flight (the memory reviews), as "remember t3". */
 export async function backgroundIn(stack: StackFile, sceneId: bigint): Promise<string[]> {
   return backgroundOf(await sql(stack.http, "SELECT * FROM job", stack.owner.token), String(sceneId));
 }

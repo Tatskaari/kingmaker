@@ -1,6 +1,6 @@
 import type { TxCtx } from "./context.ts";
 import { queueThink } from "./jobs.ts";
-import { firstPhase, say, startPlan } from "./moves/say.ts";
+import { say, startPlan } from "./moves/say.ts";
 import { updateScene, updateTurn, type SceneRow, type TurnRow } from "./rows.ts";
 import { playerLine } from "./transcript.ts";
 
@@ -10,11 +10,12 @@ import { playerLine } from "./transcript.ts";
  */
 
 /**
- * queued, deciding, considering (the GM rules on the act before replying: full-gm-design §4.2),
- * replying, settling, done, failed. (A turn was noting while its reply's notes were written, until
- * M2 took the notes out: docs/two-part-design.md.) A two-part turn goes from queued to replying.
+ * queued, replying, settling, done, failed. A turn goes from queued to replying. (It was noting while
+ * its reply's notes were written, until M2 took the notes out: docs/two-part-design.md; and deciding
+ * and considering, while the old pipeline's decide read the line and the GM ruled on it, until they
+ * went with the rest of its scene steps: docs/migration-log.md.)
  */
-export type Phase = "queued" | "deciding" | "considering" | "replying" | "settling" | "done" | "failed";
+export type Phase = "queued" | "replying" | "settling" | "done" | "failed";
 
 export function newTurn(tx: TxCtx, scene: SceneRow, playerId: bigint, n: number, phase: Phase): TurnRow {
   return tx.db.turn.insert({
@@ -45,7 +46,7 @@ function startQueued(tx: TxCtx, scene: SceneRow): void {
   const queued = queuedTurnOf(tx, scene.id);
   if (!queued) return;
 
-  updateTurn(tx, queued.id, { phase: firstPhase(tx, scene) });
+  updateTurn(tx, queued.id, { phase: "replying" });
   updateScene(tx, scene.id, { turnId: queued.id });
   queueThink(tx, say, startPlan(tx, scene.id, queued, playerLine(tx, scene.id, queued.n)));
 }

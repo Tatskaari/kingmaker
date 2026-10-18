@@ -202,8 +202,8 @@ export function scenarioShapeProblems(value: unknown): string[] {
   return p;
 }
 
-/** Who plays a campaign's scenes (files.ts CampaignFile's gm): the two-part GM, the old pipeline, or no GM (the zoo's). */
-const GMS: string[] = ["two-part", "pipeline", "none"];
+/** Who plays a campaign's scenes (files.ts CampaignFile's gm): the two-part GM, or no GM (the zoo's). The old pipeline's "pipeline" went with its scene steps (M2). */
+const GMS: string[] = ["two-part", "none"];
 
 /** What's wrong with a value's shape as a map, each problem naming where: [] when it's one. */
 export function mapShapeProblems(value: unknown): string[] {

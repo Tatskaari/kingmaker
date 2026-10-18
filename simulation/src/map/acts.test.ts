@@ -5,8 +5,8 @@ import { actorsHere } from "../../../shared/map/explore.ts";
 import { menuText, type MenuCtx } from "../../../shared/map/menu.ts";
 import { actionId, moveOf } from "../../../shared/map/moves.ts";
 import { exploreOf, keepOf } from "../../../shared/map/rows.ts";
-import type { After, Decision, DecideRequest, DecideResponse, OpenRequest, OpenResponse, SettleResponse, TalkPrep } from "../../../shared/protocol/ai.ts";
-import { FAREWELL } from "../../../shared/scene/talk.ts";
+import type { CoGmAnswer, OpenRequest, OpenResponse, ReplyRequest, ReplyResponse, SettleRequest, SettleResponse, TalkPrep } from "../../../shared/protocol/ai.ts";
+import { CONFIDED, FAREWELL, GOODBYE, TOLD } from "../../../shared/scene/talk.ts";
 import { all, hostWithCampaign, identity, sceneNow } from "../host/testing.ts";
 import type { MemoryHost } from "../host/memory.ts";
 import { mapRowsOf } from "./rows.ts";
@@ -18,12 +18,13 @@ import { mapRowsOf } from "./rows.ts";
  * changes and draws the guards, refused from where there's no clear line; the town's clock burning
  * it on and stopping once nobody's there; hiding and resting; an act at Kell opening the hanged
  * clerk, the act its first turn with its mechanic forced; a fight on the map recorded and fought by
- * the stand-in; a talk with Kell after the yard, the waiting Rat untouched; an invented look.
+ * the stand-in; a talk with Kell after the yard on the two-part GM, the waiting Rat untouched, its
+ * goodbye said or seen by the co-GM, what she confided on the record; an invented look.
  */
 
 const none = { calls: 0, costUsd: 0, byOperation: {} };
-const decided = (d: Partial<Decision> = {}): DecideResponse => ({ decision: { earned: false, daft: false, outOfCharacter: false, ...d }, opened: [], usage: none });
-const read = (a: Partial<After> = {}, ops: SettleResponse["ops"] = [], talk?: SettleResponse["talk"]): SettleResponse => ({ ops, after: { landed: [], hinted: [], unanswered: false, theirs: false, ...a }, ...(talk ? { talk } : {}), usage: none });
+/** The settle's answer: the stage manager's operations beside a co-GM that moves nothing. */
+const staged = (ops: SettleResponse["ops"] = []): SettleResponse => ({ ops, coGm: { roles: {}, moves: [], log: [] }, usage: none });
 
 /** A new game on the map with the ready-made wizard: Wren in the lane. */
 function onMap(seed = 7) {
@@ -143,7 +144,7 @@ test("hide: a Stealth check against the sharpest eyes about; a short rest while 
   assert.equal(explore().acts, row.acts, "a refusal writes nothing");
 });
 
-test("Ray of Frost at Kell opens the hanged clerk as walking in does; once the opening's in, the act is its first turn, its mechanic forced in decide", async () => {
+test("Ray of Frost at Kell opens the hanged clerk as walking in does; once the opening's in, the act is its first turn, resolved by the rules as it starts with its mechanic forced, its directive the reply's", async () => {
   const { host, script, wren, game, explore } = onMap();
   const kell = actorsHere(menuOf(host, game.id).ex).find(a => a.ref === "kell")!;
   assert.equal(host.as(wren).cast({ spell: "ray-of-frost", at: kell.at }), undefined);
@@ -162,10 +163,10 @@ test("Ray of Frost at Kell opens the hanged clerk as walking in does; once the o
   const now = sceneNow(host, yard.id);
   const line = now.lines.find(l => l.kind === "player")!;
   assert.deepEqual([line.turn, line.text], [1, "(I cast Ray of Frost at Sergeant Kell)"]);
-  const decide = script.to("decide")[0]!.body as DecideRequest;
-  assert.deepEqual(decide.forced, { kind: "cast", spell: "ray-of-frost", targets: ["kell"], from: { backOff: 10 } });
-  assert.equal(decide.turn.line.text, "(I cast Ray of Frost at Sergeant Kell)");
-  assert.ok(now.lines.some(l => l.kind === "roll" && /^Ray of Frost/.test(l.text)), "the scene's rules resolved it");
+  assert.equal(now.turns.find(t => t.n === 1)!.mechanic, JSON.stringify({ kind: "cast", spell: "ray-of-frost", targets: ["kell"], from: { backOff: 10 } }), "its mechanic on the turn, chosen already");
+  const reply = script.to("reply")[0]!.body as ReplyRequest;
+  assert.deepEqual([reply.turn.line.text, reply.outcome.acts?.length], ["(I cast Ray of Frost at Sergeant Kell)", 1], "the act's directive, the reply's");
+  assert.ok(now.lines.some(l => l.turn === 1 && l.kind === "roll" && /^Ray of Frost/.test(l.text)), "the scene's rules resolved it");
 });
 
 test("hurting a palace guard brings the guards on: the fight is recorded on the map, moves wait for it, and fight_it_out fights it as won", () => {
@@ -188,14 +189,46 @@ test("hurting a palace guard brings the guards on: the fight is recorded on the 
   assert.equal(host.as(wren).fightItOut()?.code, "no_fight");
 });
 
-test("after the yard, a word with Kell: a talk opens with its prep, takes a line, and walking on leaves the waiting Rat as it was and the record counted", async () => {
-  const { host, script, wren, game, explore, wrenNow } = onMap();
+/** A two-part reply, and a talk's settle: the co-GM's moves and roles, and the next lines. */
+const replied = (text: string): ReplyResponse => ({ entries: [{ speaker: "gm", kind: "narration", text }], gm: {}, firstTextMs: 3, usage: none });
+const settled = (moves: CoGmAnswer["moves"], roles: CoGmAnswer["roles"] = {}, lines: string[] = []): SettleResponse => ({ ops: [], coGm: { roles, moves, log: [] }, talk: { suggestions: lines }, usage: none });
+const ROLE = { status: "Walking beside the investigator, notebook away.", mental_state: "At ease; wary of the Rat's name.", conversation_role: "Could let slip she knows the Rat's door; holds back how." };
+
+/** What a talk with Kell opens on (the AI service's prep): the facts, her card, the talk's discovery filled, what's withheld, the lines to open with. */
+const PREP: TalkPrep = {
+  established: ["Where and when: Granary Lane in Caerwyn, evening."],
+  patches: [
+    { turn: 0, why: "What Sergeant Agnes Kell might open up about in this talk: the door at the Drowned Rat.", cast: { id: "kell", secrets: ["Shows: a pause at the Rat's name.", "She let a thief go through the Rat's door once."] } },
+    { turn: 0, why: "the door at the Drowned Rat: what Sergeant Agnes Kell might confide in this talk, and the ways it can come out.", fill: { id: TOLD, revelation: "She let a thief go through the Rat's door once.", paths: [
+      { via: "kell", clue: "It shows before it comes out: a pause at the Rat's name.", earn: "Free, when the talk comes near it.", strength: "hook" },
+      { via: "kell", clue: "She let a thief go through the Rat's door once.", earn: "Asked about it, they tell it.", strength: "strong" },
+    ] } },
+  ],
+  confide: { note: "Cast/Kell/notes/rat.md", topic: "the door at the Drowned Rat", what: "She let a thief go once." },
+  suggestions: ["How long have you been with the watch?", "What do you make of Prout?"],
+};
+const GREETING: OpenResponse = { present: ["kell"], entries: [{ speaker: "gm", kind: "narration", text: "Kell looks up from her notebook. \"Investigator.\"" }], talk: PREP, usage: none };
+
+/** The yard ended and walked out of, Kell walking with Wren and the Rat waiting: where a talk with her opens. */
+async function afterTheYard() {
+  const map = onMap();
+  const { host, wren, game, explore } = map;
   host.as(wren).walk({ toward: "lead" });
   await host.drain();
   assert.equal(host.as(host.owner).endScene({ game: game.id, exit: "case-made" }), undefined);
   await host.drain();
   assert.equal(host.as(wren).walk({ toward: "out" }), undefined);
   assert.deepEqual(explore().followers.map(f => f.id), ["kell"]);
+  const say = async (text: string) => {
+    const refused = host.as(wren).say({ text });
+    assert.equal(refused, undefined, `"${text}" was refused: ${refused?.text}`);
+    await host.drain();
+  };
+  return { ...map, say };
+}
+
+test("after the yard, a word with Kell on the two-part GM: a talk opens with her role and its prep, takes a line (the co-GM's role, the talk's own lines), and walking on leaves the waiting Rat as it was and the record counted", async () => {
+  const { host, script, wren, game, wrenNow, say } = await afterTheYard();
   const rat = all(host.db.scene).find(s => s.sceneKey === "drowned-rat")!;
   assert.equal(rat.status, "waiting");
   const ratRows = () => ({
@@ -204,14 +237,7 @@ test("after the yard, a word with Kell: a talk opens with its prep, takes a line
   });
   const before = ratRows();
 
-  const prep: TalkPrep = {
-    established: ["Where and when: Granary Lane in Caerwyn, evening."],
-    patches: [{ turn: 0, why: "What Sergeant Agnes Kell might open up about in this talk: the door at the Drowned Rat.", cast: { id: "kell", secrets: ["She let a thief go through the Rat's door once."] } }],
-    guard: { stage: "tell", turn: 0 }, confide: { note: "Cast/Kell/notes/rat.md", topic: "the door at the Drowned Rat", what: "She let a thief go once.", memory: "I told Wren about the Rat's door." },
-    withheld: ["Cast/Kell/notes/deepest.md"], suggestions: ["How long have you been with the watch?", "What do you make of Prout?"],
-  };
-  const greeting: OpenResponse = { present: ["kell"], entries: [{ speaker: "gm", kind: "narration", text: "Kell looks up from her notebook. \"Investigator.\"" }], opened: [], talk: prep, usage: none };
-  script.then("open", greeting);
+  script.then("open", GREETING);
   assert.equal(host.as(wren).interact({ verb: "talk", target: "kell" }), undefined);
   const talk = all(host.db.scene).find(s => s.kind === "talk")!;
   assert.deepEqual([talk.sceneKey, talk.title, talk.status, wrenNow().sceneId, wrenNow().placeId], ["talk-kell-1", "A word with Sergeant Agnes Kell", "opening", talk.id, talk.placeId]);
@@ -222,29 +248,32 @@ test("after the yard, a word with Kell: a talk opens with its prep, takes a line
 
   const opened = script.to("open").at(-1)!.body as OpenRequest;
   assert.deepEqual([opened.scene.kind, opened.talk?.with, opened.talk?.record.count, opened.talk?.suggest], ["talk", "kell", 1, true]);
+  assert.match(opened.gm.twoPart.roles.kell!.conversation_role, /^Characterise: at their own business in their own manner/, "her opening role, the template's start's, which the greeting reads");
   let gm = sceneNow(host, talk.id).gm;
-  assert.deepEqual([gm.guard, gm.withheld, gm.talk?.confide?.topic], [{ kell: { stage: "tell", turn: 0 } }, ["Cast/Kell/notes/deepest.md"], "the door at the Drowned Rat"]);
-  assert.ok(gm.established.includes(prep.established[0]!));
-  assert.deepEqual([...host.db.sceneSuggestion.sceneId.filter(talk.id)].map(s => s.text), prep.suggestions);
+  assert.deepEqual([gm.talk?.confide?.topic, gm.patches.map(p => p.fill?.id ?? (p.cast ? "card" : "?"))], ["the door at the Drowned Rat", ["card", TOLD]]);
+  assert.ok(gm.established.includes(PREP.established[0]!));
+  assert.deepEqual([gm.twoPart.notes.map(n => n.turn), gm.reached], [[-1], ["talk"]]);
+  assert.deepEqual([...host.db.sceneSuggestion.sceneId.filter(talk.id)].map(s => s.text), PREP.suggestions);
 
-  // A line: its settle moves the staged secret on, and brings the next lines.
-  script.then("decide", decided());
-  script.then("settle", read({ guard: { kell: "stirred" } }, [], { suggestions: ["Who was the thief?", "Do you regret it?"] }));
-  assert.equal(host.as(wren).say({ text: "How long have you been with the watch?" }), undefined);
-  await host.drain();
-  assert.equal((script.to("settle").at(-1)!.body as { talk?: { suggest: boolean } }).talk?.suggest, true);
+  // A line: replied with no decide, then settled by the co-GM (her role) beside the talk's own next lines.
+  script.then("reply", replied("Kell's pencil stops. \"Long enough.\""));
+  script.then("settle", settled([], { kell: ROLE }, ["Who was the thief?", "Do you regret it?"]));
+  await say("How long have you been with the watch?");
+  const reply = script.to("reply").at(-1)!.body as ReplyRequest;
+  assert.equal(reply.outcome.windDown, undefined);
+  const settle = script.to("settle").at(-1)!.body as SettleRequest;
+  assert.equal(settle.talk?.suggest, true);
   gm = sceneNow(host, talk.id).gm;
-  assert.deepEqual(gm.guard?.kell?.stage, "stirred");
+  assert.deepEqual([gm.twoPart.roles.kell!.status, gm.twoPart.notes.map(n => n.turn), gm.turnsInBeat], [ROLE.status, [-1, 1], 1]);
   assert.deepEqual([...host.db.sceneSuggestion.sceneId.filter(talk.id)].map(s => [s.turn, s.text]), [[1, "Who was the thief?"], [1, "Do you regret it?"]]);
   assert.equal(script.to("suggest").filter(s => s.key.includes(`:s${talk.id}:`)).length, 0, "a talk's lines are its settle's");
   // Without new ones (the call failed, or none came), the old ones less the line just said, for this turn.
-  script.then("decide", decided());
-  script.then("settle", read({}, [], { suggestions: [] }));
-  assert.equal(host.as(wren).say({ text: "Who was the thief?" }), undefined);
-  await host.drain();
+  script.then("reply", replied("\"A thief I let go.\""));
+  script.then("settle", settled([], {}, []));
+  await say("Who was the thief?");
   assert.deepEqual([...host.db.sceneSuggestion.sceneId.filter(talk.id)].map(s => [s.turn, s.text]), [[2, "Do you regret it?"]]);
 
-  // Walking on: no reply, the talk over, back on the map; the Rat as it was; the record counted, the stage kept.
+  // Walking on: no reply, the talk over, back on the map; the Rat as it was; the record counted, nothing told.
   assert.equal(host.as(wren).walk({ toward: "out" }), undefined);
   const over = sceneNow(host, talk.id);
   assert.deepEqual([over.scene.status, over.lines.at(-1)?.text], ["ended", "Wren Ashdown walks on"]);
@@ -252,23 +281,67 @@ test("after the yard, a word with Kell: a talk opens with its prep, takes a line
   assert.deepEqual(ratRows(), before);
   assert.equal(host.db.game.id.find(game.id)!.leadScene, "drowned-rat");
   const record = all(host.db.talkRecord)[0]!;
-  assert.deepEqual([record.castKey, record.count, record.told, record.stages], ["kell", 1, [], [{ note: "Cast/Kell/notes/rat.md", stage: "stirred" }]]);
+  assert.deepEqual([record.castKey, record.count, record.told, record.stages], ["kell", 1, [], []], "nothing told; a two-part talk stages nothing");
   assert.equal(all(host.db.chapter).filter(c => c.sceneKey.startsWith("talk")).length, 0, "no chapter");
+});
 
-  // The next talk is the second, and every request says what was told: here, how far it came.
-  script.then("open", greeting);
+test("a talk's goodbye said in so many words closes it with its reply (no settle after); once the co-GM has what she kept back out, it's on her record; and the goodbye in the player's own words, the co-GM's to see, ends a talk at its settle", async () => {
+  const { host, script, wren, wrenNow, say } = await afterTheYard();
+  script.then("open", GREETING);
   assert.equal(host.as(wren).interact({ verb: "talk", target: "kell" }), undefined);
   await host.drain();
-  const second = script.to("open").at(-1)!.body as OpenRequest;
-  assert.deepEqual([second.scene.key, second.talk?.record.count, second.story.talks?.kell?.stages], ["talk-kell-2", 2, { "Cast/Kell/notes/rat.md": "stirred" }]);
-  // The goodbye ends it through a reply, as a scene ends.
-  script.then("decide", decided({ route: { id: "goodbye", phase: "attempt" } }));
-  assert.equal(host.as(wren).say({ text: FAREWELL }), undefined);
-  await host.drain();
-  const second2 = all(host.db.scene).find(s => s.sceneKey === "talk-kell-2")!;
-  assert.deepEqual([second2.status, second2.exitKey], ["ended", "goodbye"]);
+  const talk = all(host.db.scene).find(s => s.sceneKey === "talk-kell-1")!;
+
+  // The co-GM sees it told: its move into the talk's discovery.
+  script.then("reply", replied("\"Nan Quill put me out through that door. Twenty years back.\""));
+  script.then("settle", settled([{ route: CONFIDED, outcome: "none", why: "She told how Nan put her out." }], {}, ["And you never went back?"]));
+  await say("What's the Rat's door to you?");
+  assert.deepEqual(sceneNow(host, talk.id).gm.reached, ["talk", TOLD]);
+
+  // "I'll leave you to it.": the way into the goodbye taken as the turn starts, so the reply is the closing, and the talk ends with it.
+  const settles = script.to("settle").length;
+  script.then("reply", replied("Kell touches her notebook to her brow. \"Investigator.\""));
+  await say(FAREWELL);
+  const closing = script.to("reply").at(-1)!.body as ReplyRequest;
+  assert.equal(closing.outcome.windDown?.exit, GOODBYE, "the goodbye said: its reply is the talk's closing");
+  const over = sceneNow(host, talk.id);
+  assert.deepEqual([over.scene.status, over.scene.exitKey, over.lines.at(-1)?.text], ["ended", GOODBYE, "Scene ends: Goodbye for now"]);
+  assert.equal(script.to("settle").length, settles, "no settle after a closing");
+  const record = all(host.db.talkRecord)[0]!;
+  assert.deepEqual([record.count, record.told.map(t => [t.note, t.topic])], [1, [["Cast/Kell/notes/rat.md", "the door at the Drowned Rat"]]], "what she confided is on her record");
   assert.equal(host.as(wren).walk({ toward: "out" }), undefined);
   assert.equal(wrenNow().sceneId, undefined);
+
+  // The second talk: a goodbye in the player's own words, which the co-GM takes after the reply that answered it: the talk ends there.
+  script.then("open", GREETING);
+  assert.equal(host.as(wren).interact({ verb: "talk", target: "kell" }), undefined);
+  await host.drain();
+  const second = all(host.db.scene).find(s => s.sceneKey === "talk-kell-2")!;
+  assert.deepEqual((script.to("open").at(-1)!.body as OpenRequest).story.talks?.kell?.told.map(t => t.topic), ["the door at the Drowned Rat"], "every request says what she's told");
+  script.then("reply", replied("\"Mind the stairs.\" Kell is already turning back to her notebook."));
+  script.then("settle", settled([{ route: GOODBYE, outcome: "none", why: "The player said goodbye." }], {}, ["Never mind."]));
+  await say("Right, I'm off. See you at the Rat, Sergeant.");
+  const ended = sceneNow(host, second.id);
+  assert.deepEqual([ended.scene.status, ended.scene.exitKey, ended.lines.at(-1)?.text, ended.gm.closing], ["ended", GOODBYE, "Scene ends: Goodbye for now", undefined]);
+  assert.deepEqual([...host.db.sceneSuggestion.sceneId.filter(second.id)].map(s => [s.turn, s.text]), PREP.suggestions.map(t => [0, t]), "no lines once it's over");
+  assert.equal(all(host.db.talkRecord)[0]!.count, 2);
+});
+
+test("Ray of Frost at Kell walking with you opens a talk with the act its first turn: resolved by the rules as its turn starts, its directive the mouthpiece's, with no decide", async () => {
+  const { host, script, wren, game, explore } = await afterTheYard();
+  const kell = actorsHere(menuOf(host, game.id).ex).find(a => a.ref === "kell")!;
+  script.then("open", GREETING);
+  assert.equal(host.as(wren).cast({ spell: "ray-of-frost", at: kell.at }), undefined);
+  assert.match(explore().said, /Kell/);
+  await host.drain();
+
+  const talk = all(host.db.scene).find(s => s.kind === "talk")!;
+  const now = sceneNow(host, talk.id);
+  const line = now.lines.find(l => l.kind === "player")!;
+  assert.deepEqual([line.turn, line.text], [1, "(I cast Ray of Frost at Sergeant Kell)"]);
+  assert.ok(now.lines.some(l => l.turn === 1 && l.kind === "roll" && /^Ray of Frost/.test(l.text)), "its dice lines, the talk's rules'");
+  const reply = script.to("reply").at(-1)!.body as ReplyRequest;
+  assert.deepEqual([reply.outcome.acts?.length, reply.turn.line.text], [1, "(I cast Ray of Frost at Sergeant Kell)"]);
 });
 
 test("a thing the stage manager makes gets a look of its own: asked for once by its name, and the next of that name has it at once", async () => {
@@ -276,8 +349,7 @@ test("a thing the stage manager makes gets a look of its own: asked for once by 
   host.as(wren).walk({ toward: "lead" });
   await host.drain();
   const swan = (to: string) => ({ op: "create" as const, what: "", to, how: "", name: "a disgruntled swan", kind: "creature", text: "", add: [], remove: [] });
-  script.then("decide", decided());
-  script.then("settle", read({}, [swan("yard")]));
+  script.then("settle", staged([swan("yard")]));
   script.then("look", { looks: { "a disgruntled swan": { glyph: "s", color: "white", motion: "bob", light: false, being: true, group: false } }, usage: none });
   assert.equal(host.as(wren).say({ text: "Is that a swan?" }), undefined);
   await host.drain();
@@ -291,8 +363,7 @@ test("a thing the stage manager makes gets a look of its own: asked for once by 
   assert.deepEqual(all(host.db.lookInvention).map(l => l.key), ["a disgruntled swan"]);
 
   // Another swan of the same name: its look at once, nothing asked.
-  script.then("decide", decided());
-  script.then("settle", read({}, [swan("yard")]));
+  script.then("settle", staged([swan("yard")]));
   assert.equal(host.as(wren).say({ text: "And another!" }), undefined);
   await host.drain();
   assert.equal(script.to("look").length, 1);

@@ -4,7 +4,7 @@ import type { ToolCall } from "./tools.ts";
  * A stand-in for OpenRouter, for tests that play real turns with no network (src/report/report.test.ts):
  * the game's own calls, through its own code, answered here.
  *
- * - The Decisions API (the decider, disclosure): every question gets its quietest choice (none,
+ * - The Decisions API (the decider): every question gets its quietest choice (none,
  *   not_yet, on_track, in_character...), or its first; or the choice `choices` names for it, or of
  *   a list it names, the first the question offers (`"ending": ["open-case", "hobb-talks"]` ends
  *   each scene at the first of them it has).
@@ -17,17 +17,16 @@ import type { ToolCall } from "./tools.ts";
  *   from `handoff`, when it's given; otherwise the GM's next line from `replies`, streamed as
  *   OpenRouter streams it.
  *
- * - `stall`: structured calls (by the schema's name) that never answer, until the caller gives up.
  * - `capped`: structured calls that run to their token cap (status incomplete), billed at the cost given.
  * - `phased`: structured calls answered in two phases, as Luna sometimes does: a "commentary" message
  *   of junk, then the answer as a "final_answer".
  * - `streamMs` and `decisionDelayMs`: a GM's reply written a word at a time, and a slow decider.
  * - `byNameDelayMs` and `suggestDelayMs`: slow structured calls (by the schema's name: the notes on
  *   a reply's marks), and slow suggested lines.
- * - `toolCalls`: a tool loop's calls (runTools: the memory reviews), by the loop's first tool
- *   (`save_memory`: the memories agent; `search_lore`: the lore agent). Its first round answers with
- *   them; a round that sends their outputs back answers "Done.". A loop without any answers as a
- *   reply does.
+ * - `toolCalls`: a tool loop's calls (runTools: the memory reviews' world-facts agent), by the loop's
+ *   first tool (`search_lore`). Its first round answers with them; a round that sends their outputs
+ *   back answers "Done.". A loop without any answers as a reply does. (The notes review is a
+ *   structured call, answered by `byName.gm_notes`.)
  * - The two-part GM (docs/two-part-design.md): its mouthpiece (the structured call named `reply`)
  *   answers the next of `replies` as its narration, with no check, or with `mouthpiece.check`'s on
  *   every reply but an opening or a closing (five outcomes the fake writes); a closing closes, unless
@@ -36,7 +35,9 @@ import type { ToolCall } from "./tools.ts";
  *   the next open route on the shortest way there, the required discoveries first, a dice route taken
  *   as a success; it reads the scene's routes off its prep, where routeLine writes them (ai/gm/two-part.ts),
  *   and what's reached and open off its input. `coGm.still` keeps it from moving; `coGm.roles` are
- *   roles it sets every turn.
+ *   roles it sets every turn. In a talk (its start the talk template's, [talk]) it walks only to what
+ *   `coGm.endings` names, `told` among them: its ending is the player's to choose (their goodbye, or
+ *   walking on), and what the companion confides theirs to give.
  *
  * Anything else asked of it is refused, so a test can't reach the real thing by accident. Two ways
  * in: `fakeOpenRouter` puts it in place of the process's fetch (the prototype's tests), and
@@ -63,7 +64,6 @@ export interface FakeOptions {
   suggestions?: string | string[];
   talkSuggestions?: string | string[];
   handoff?: string;
-  stall?: string[];
   capped?: Record<string, number>;
   phased?: string[];
   streamMs?: number;
@@ -73,7 +73,7 @@ export interface FakeOptions {
   toolCalls?: Record<string, Array<Pick<ToolCall, "name" | "args">>>;
   /** The two-part GM's mouthpiece: a check it calls on every reply but an opening or a closing (its five outcomes the fake's), and a closing that waits. */
   mouthpiece?: { check?: { skill: string; dc: number }; holds?: boolean };
-  /** The two-part GM's co-GM: still (no moves), the endings it walks to (the first the scene has; else its first good one), and roles it sets every turn. */
+  /** The two-part GM's co-GM: still (no moves), the endings it walks to (the first the scene has, or a discovery: a talk's `told`; else its first good one, but in a talk none), and roles it sets every turn. */
   coGm?: { still?: boolean; endings?: string[]; roles?: Record<string, { status: string; mental_state: string; conversation_role: string }> };
 }
 
@@ -123,7 +123,6 @@ export function fakeFetch(options: FakeOptions = {}): FakeFetch {
     const suggesting = !!body.instructions?.startsWith("You suggest what the player might");
     const talking = !!talkSuggestions && !!body.instructions?.startsWith("You suggest what the player might say next in a conversation with");
     const handing = options.handoff !== undefined && !!body.instructions?.startsWith("You write the hand-off between two scenes");
-    if (format && options.stall?.includes(format.name)) return stalled(init?.signal);
     const delay = format ? options.byNameDelayMs?.[format.name] : suggesting ? options.suggestDelayMs : undefined;
     if (delay) await waited(delay, init?.signal);
     if (format && options.capped?.[format.name] !== undefined) return capped(options.capped[format.name]!);
@@ -241,19 +240,29 @@ export function walkTo(prep: ReturnType<typeof readPrep>, reached: string[], tar
 /**
  * The fake co-GM's round: its roles (the recipe's), and the next open route on its walk to the
  * scene's first good ending (or the first of the recipe's the scene has whose walk is open: a fight
- * fought, the walk goes on to the next), a dice route as a success; once their outputs come back,
- * "done".
+ * fought, the walk goes on to the next; in a talk, only the recipe's), a dice route as a success;
+ * once their outputs come back, "done", but for a move held for a second look (ai/gm/two-part.ts
+ * coGm: a cue into a bad ending, a discovery naming someone nobody has said yet), which it takes
+ * again once, as a co-GM that had looked and still judged it so would.
  */
 function coGmRound(body: Request, recipe: NonNullable<FakeOptions["coGm"]>): unknown {
   const input = body.input ?? [];
-  if (input.some(item => (item as { type?: string }).type === "function_call_output")) return completed("done");
+  const items = input as Array<{ type?: string; name?: string; call_id?: string; arguments?: string; output?: string }>;
+  if (items.some(item => item.type === "function_call_output")) {
+    const moves = items.filter(item => item.type === "function_call" && item.name === "move_scene");
+    const again = moves.find(m => /^"Not taken yet/.test(items.find(o => o.type === "function_call_output" && o.call_id === m.call_id)?.output ?? "") && moves.filter(x => x.arguments === m.arguments).length === 1);
+    if (again) return { status: "completed", output: [{ type: "function_call", call_id: `${again.call_id}_again`, name: "move_scene", arguments: again.arguments }], usage: { input_tokens: 120, output_tokens: 30, cost: 0.0002 } };
+    return completed("done");
+  }
   const said = input.map(m => (typeof m.content === "string" ? m.content : "")).join("\n");
   const calls: Array<Pick<ToolCall, "name" | "args">> = Object.entries(recipe.roles ?? {}).map(([id, role]) => ({ name: "update_character_role", args: { char_id: id, ...role } }));
   if (!recipe.still) {
     const prep = readPrep(body.instructions ?? "");
     const reached = [.../Reached so far: (.*)\./.exec(said)?.[1]?.matchAll(/\[([a-z0-9-]+)\]/g) ?? []].map(m => m[1]!);
     const open = [...(/# Open routes\n([\s\S]*?)(?:\n\n|$)/.exec(said)?.[1] ?? "").matchAll(/^- \[([a-z0-9-]+)\]/gm)].map(m => m[1]!);
-    const targets = recipe.endings ? recipe.endings.filter(e => prep.endings.some(x => x.id === e)) : prep.endings.filter(e => e.result === "good").slice(0, 1).map(e => e.id);
+    // A talk's ending is the player's to choose (their goodbye, or walking on), and what the companion confides theirs to give: a talk is walked only to what the recipe names.
+    const talk = /^## Where it starts: .*\[talk\]$/m.test(body.instructions ?? "");
+    const targets = recipe.endings ? recipe.endings.filter(e => prep.routes.some(r => r.target === e)) : talk ? [] : prep.endings.filter(e => e.result === "good").slice(0, 1).map(e => e.id);
     let target: string | undefined, next: string | undefined;
     for (const t of targets) {
       next = walkTo(prep, reached, t).find(id => open.includes(id));
@@ -264,15 +273,6 @@ function coGmRound(body: Request, recipe: NonNullable<FakeOptions["coGm"]>): unk
   }
   if (!calls.length) return completed("done");
   return { status: "completed", output: calls.map((c, i) => ({ type: "function_call", call_id: `call_${i + 1}`, name: c.name, arguments: JSON.stringify(c.args ?? {}) })), usage: { input_tokens: 120, output_tokens: 30, cost: 0.0002 } };
-}
-
-/** A call that never answers: it fails only when the caller gives up on it (its signal). */
-function stalled(signal: AbortSignal | null | undefined): Promise<Response> {
-  return new Promise((_, reject) => {
-    const give = () => reject(signal?.reason ?? new DOMException("The operation was aborted.", "AbortError"));
-    if (signal?.aborted) give();
-    else signal?.addEventListener("abort", give, { once: true });
-  });
 }
 
 /** A reply that ran to its token cap: junk, then incomplete, billed all the same. */

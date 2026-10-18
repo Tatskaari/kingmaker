@@ -1,23 +1,25 @@
-// New (M2): the two-part GM's turn in the simulation (docs/two-part-design.md "A turn, step by step"), its commits made after PR #666's twoPartTurn and twoPartOpening (src/runtime/two-part.ts at origin/claude/two-part-gm c749270) as the game's commits: the check rolled here from the game's dice (speak's roll), the co-GM's moves taken again on the rows with shared/scene/beats.ts's takeRoute, the roles and the note for the next turn written to gm_state, the closing ended through the story's own end.
+// New (M2): the two-part GM's turn in the simulation (docs/two-part-design.md "A turn, step by step"), its commits made after PR #666's twoPartTurn and twoPartOpening (src/runtime/two-part.ts at origin/claude/two-part-gm c749270) as the game's commits: the check rolled here from the game's dice (speak's roll), the co-GM's moves taken again on the rows with shared/scene/beats.ts's takeRoute, the roles and the note for the next turn written to gm_state, the closing ended through the story's own end. Since the old pipeline's salvage a talk plays on these steps too (docs/migration-log.md): its goodbye said in so many words is taken as its turn starts, so the reply to it is the talk's closing; its settle has no world, its lines are its own (the settle's, not the suggest job's), and the co-GM's move into its goodbye ends it at once.
 import type { GmState } from "../../../shared/gm/state.ts";
 import { bandOf, defaultRole, diceLine, openingRoles, rolesNote } from "../../../shared/gm/two-part.ts";
 import type { CoGmAnswer, Outcome, Reply, ReplyResponse, SettleResponse, SpokenCheck, TurnCheck } from "../../../shared/protocol/ai.ts";
 import { idOf } from "../../../shared/protocol/keys.ts";
 import type { Mechanic } from "../../../shared/rules/types.ts";
-import { takeRoute } from "../../../shared/scene/beats.ts";
+import { openRoutes, takeRoute } from "../../../shared/scene/beats.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
+import { GOODBYE, isFarewell } from "../../../shared/scene/talk.ts";
 import type { Scene } from "../../../shared/scene/types.ts";
 import type { TxCtx } from "../context.ts";
 import { rollerFor } from "../dice-row.ts";
 import { afterTurn } from "../gm/background.ts";
 import { putGm } from "../gm/rows.ts";
-import { updateScene, updateTurn, type SceneRow, type TurnRow } from "../rows.ts";
+import { playerRow, updateScene, updateTurn, type SceneRow, type TurnRow } from "../rows.ts";
 import { markConjured } from "../../../shared/rules/acts.ts";
 import { carryGearAfter, rulesFirst } from "../rules/play.ts";
 import { refreshPockets } from "../rules/session.ts";
 import { exitOf } from "../scenes.ts";
 import { addEntry, noteHeard, writeReply } from "../transcript.ts";
 import { finishTurn } from "../turns.ts";
+import { talkLines } from "../map/talk.ts";
 import { applyStage, joinArrivals, placeWorldOf, savePlaceWorld } from "../world/place.ts";
 import { syncStage } from "../world/stage.ts";
 import { keysIn, lookForNew } from "./looks.ts";
@@ -37,23 +39,39 @@ export function openingRolesFor(graph: Scene, gm: GmState): void {
 }
 
 /**
- * A two-part turn's plan as it starts (startPlan's, for a scene that plays two-part): unless this is
- * the wind-down, the rules first (a spell's time, fire's tick, coming round, a blow left hanging),
- * then the map's act when it's this turn's (town-design §3.4: resolved by the rules as it is now,
- * without the decider; its directive the reply's, after the rules'), each with its dice lines; the
- * reply next. Nothing reacts to the act: the reactions step is the old pipeline's.
+ * A two-part turn's plan as it starts (startPlan's, for a scene that plays two-part): in a talk, the
+ * goodbye said in so many words (its last choice, say_goodbye) taken now, so this reply is its
+ * closing; unless this is the wind-down, the rules first (a spell's time, fire's tick, coming round, a
+ * blow left hanging), then the map's act when it's this turn's (town-design §3.4: resolved by the
+ * rules as it is now, without the decider; its directive the reply's, after the rules'), each with
+ * its dice lines; the reply next. Nothing reacts to the act: the reactions step is parked for combat.
  */
 export function twoPartStart(tx: TxCtx, scene: SceneRow, graph: Scene, gm: GmState, turn: TurnRow, line: string, base: Omit<SayPlan, "step" | "lines" | "outcome">): SayPlan {
+  if (scene.kind === "talk" && !gm.closing && isFarewell(line)) farewell(tx, scene, graph, gm, turn.n);
   const first = gm.closing ? undefined : rulesFirst(tx, scene, graph, gm, turn.n, line);
   const outcome: Outcome = {
-    lines: [...(first?.lines ?? [])], directives: [...(first?.directives ?? [])], wasStuck: false,
+    lines: [...(first?.lines ?? [])], directives: [...(first?.directives ?? [])],
     ...(gm.closing ? { windDown: { exit: gm.closing.exitId } } : {}),
   };
   const rules = first?.directives.length ? { rulesFirst: { directives: first.directives, down: first.down, shielded: first.shielded } } : {};
   const forced = turn.mechanic && !gm.closing ? JSON.parse(turn.mechanic) as Mechanic : undefined;
-  if (forced) takeAct(tx, { scene, graph, gm }, { n: turn.n, input: line, ...rules }, forced, undefined, outcome);
+  if (forced) takeAct(tx, { scene, graph, gm }, { n: turn.n, input: line, ...rules }, forced, outcome);
   putGm(tx, scene.id, gm);
-  return { ...base, ...rules, step: "reply", twoPart: true, outcome, lines: outcome.lines, ...(forced ? { forced } : {}) };
+  return { ...base, ...rules, step: "reply", windDown: !!gm.closing, outcome, lines: outcome.lines, ...(forced ? { forced } : {}) };
+}
+
+/**
+ * A talk's goodbye said in so many words (town-design §3.6: the talk's last choice, "I'll leave you
+ * to it."): the way into its goodbye taken before the reply, as the old pipeline's decider took it,
+ * so the reply is the talk's closing and the talk ends with it. The goodbye in the player's own
+ * words is the co-GM's to see, after the reply (talkSettled).
+ */
+function farewell(tx: TxCtx, scene: SceneRow, graph: Scene, gm: GmState, n: number): void {
+  const route = openRoutes(graph, gm).find(r => r.target === GOODBYE);
+  const taken = route ? takeRoute(graph, gm, route.id, "none", n) : { error: "no way into the goodbye is open" };
+  if ("error" in taken) { tx.log(`[scene ${scene.id} turn ${n}] the goodbye said, but not taken: ${taken.error}`); return; }
+  Object.assign(gm, taken.gm);
+  tx.log(`[scene ${scene.id} turn ${n}] the goodbye said: ${route!.id}, the reply its closing`);
 }
 
 /**
@@ -95,7 +113,8 @@ export function afterTwoPartReply(tx: TxCtx, plan: SayPlan, answer: ReplyRespons
 
   if (plan.outcome?.windDown) return windDown(tx, at, plan, answer.closes !== false || !!at.gm.twoPart.held);
 
-  suggestAfter(tx, at.scene, turnId);
+  // A talk's lines to choose come with its settle (talk.suggest: town-design §3.6), not the suggest job.
+  if (at.scene.kind !== "talk") suggestAfter(tx, at.scene, turnId);
   putGm(tx, at.scene.id, at.gm);
   updateTurn(tx, turnId, { phase: "settling" });
   return { done: false, plan: { ...plan, step: "settle", reply: spoken.text, lines: [...plan.lines, ...spoken.lines], ...(spoken.check ? { check: spoken.check } : {}) } };
@@ -108,9 +127,9 @@ function windDown(tx: TxCtx, at: At, plan: SayPlan, closes: boolean): Next<SayPl
   else at.gm.twoPart.held = true;
   putGm(tx, at.scene.id, at.gm);
   if (closes && closing) endScene(tx, at.scene.id, exitOf(at.graph, closing.exitId), plan.n);
-  else suggestAfter(tx, at.scene, idOf(plan.turn));
+  else if (at.scene.kind !== "talk") suggestAfter(tx, at.scene, idOf(plan.turn));
   tx.log(`[scene ${at.scene.id} turn ${plan.n}] the closing reply ${closes ? `closed it: ${closing?.exitId}` : "waited, once"}`);
-  afterTurn(tx, at.scene.id, plan, at.gm);
+  afterTurn(tx, plan);
   finishTurn(tx, at.scene.id, idOf(plan.turn));
   return { done: true };
 }
@@ -126,6 +145,7 @@ function windDown(tx: TxCtx, at: At, plan: SayPlan, closes: boolean): Next<SayPl
  */
 export function afterTwoPartSettle(tx: TxCtx, plan: SayPlan, answer: SettleResponse): Next<SayPlan> {
   const at = atTurn(tx, plan);
+  if (at.scene.kind === "talk") return talkSettled(tx, at, plan, answer);
   const place = placeWorldOf(tx, at.scene);
   const keys = keysIn(tx, at.scene.placeId);
   const staged = applyStage(place, answer.ops ?? [], plan.n);
@@ -150,7 +170,34 @@ export function afterTwoPartSettle(tx: TxCtx, plan: SayPlan, answer: SettleRespo
   noteHeard(tx, at.scene, at.graph);
   tx.log(`[scene ${at.scene.id} turn ${plan.n}] settled: ${staged.changes.length} changed, ${staged.problems.length} not done; the co-GM ${moved}${at.gm.closing ? `; closing on ${at.gm.closing.exitId}` : ""}`);
 
-  afterTurn(tx, at.scene.id, plan, at.gm);
+  afterTurn(tx, plan);
+  finishTurn(tx, at.scene.id, idOf(plan.turn));
+  return { done: true };
+}
+
+/**
+ * A talk's settle (town-design §3.6), after the reply: no world to settle (a talk has none) and no
+ * stage manager. The co-GM's moves and roles, as any scene's: its move into the talk's discovery once
+ * what the companion kept back has come out (endTalk records it told), and its move into the goodbye
+ * once the player has said goodbye in their own words, which ends the talk now, since the reply it
+ * followed was the farewell; its note for the next turn; and the next lines to choose (the settle's),
+ * unless it's over. Then the memory review, and the turn is done.
+ */
+function talkSettled(tx: TxCtx, at: At, plan: SayPlan, answer: SettleResponse): Next<SayPlan> {
+  const moved = coGmTakesEffect(tx, at, plan.n, answer.coGm);
+  const tp = at.gm.twoPart;
+  for (const c of presentCast(at.graph, at.gm)) tp.roles[c.id] ??= defaultRole(at.graph, at.gm, c);
+  tp.notes = [...tp.notes, { turn: plan.n, text: rolesNote(at.graph, tp.roles, plan.n) }];
+  const closing = at.gm.closing;
+  if (closing) delete at.gm.closing;
+  else at.gm.turnsInBeat++;
+  putGm(tx, at.scene.id, at.gm);
+  if (!closing && playerRow(tx, at.scene.controllerId).suggestions) talkLines(tx, at.scene, plan.n, answer.talk?.suggestions ?? [], plan.input);
+  if (closing) endScene(tx, at.scene.id, exitOf(at.graph, closing.exitId), plan.n);
+  noteHeard(tx, at.scene, at.graph);
+  tx.log(`[scene ${at.scene.id} turn ${plan.n}] the talk settled: the co-GM ${moved}${closing ? `; it ends: ${closing.exitId}` : ""}`);
+
+  afterTurn(tx, plan);
   finishTurn(tx, at.scene.id, idOf(plan.turn));
   return { done: true };
 }

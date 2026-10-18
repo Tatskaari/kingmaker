@@ -14,12 +14,12 @@ import { all, nextCheck, openedGame, sceneNow } from "../host/testing.ts";
 
 const usage = { calls: 1, costUsd: 0.001, byOperation: {} };
 const said = (text: string, speakers: string[] = []): Reply => ({ speaker: "gm", kind: "narration", text, ...(speakers.length ? { markup: { speech: speakers.map((speaker, i) => ({ start: i, end: i + 1, speaker })) } } : {}) });
-const replied = (text: string, more: Partial<ReplyResponse> = {}): ReplyResponse => ({ entries: [said(text)], gm: { repeated: null }, firstTextMs: 3, usage, ...more });
+const replied = (text: string, more: Partial<ReplyResponse> = {}): ReplyResponse => ({ entries: [said(text)], gm: {}, firstTextMs: 3, usage, ...more });
 const coGm = (moves: CoGmAnswer["moves"], roles: CoGmAnswer["roles"] = {}): SettleResponse => ({ ops: [], coGm: { roles, moves, log: [] }, usage });
 const outcomes = Object.fromEntries(BANDS.map(b => [b, said(`Outcome: ${b}.`)])) as Record<Band, Reply>;
 
 async function yard() {
-  const game = await openedGame(7, "ranger", { twoPart: true, asIs: true });
+  const game = await openedGame(7, "ranger", { asIs: true });
   const { host, wren, scene } = game;
   const line = async (text: string) => {
     const refused = host.as(wren).say({ text });
@@ -34,7 +34,6 @@ test("a scene of the story opens on the two-part GM: everyone present has a role
   const { host, script, scene } = await yard();
   const now = sceneNow(host, scene.id);
   const open = script.to("open")[0]!.body as OpenRequest;
-  assert.equal(open.twoPart, true);
   assert.deepEqual(Object.keys(open.gm.twoPart.roles), ["kell", "cob", "moll"], "Tull comes with the dead-cart");
   assert.match(open.gm.twoPart.roles.cob!.conversation_role, /^Characterise: stones and cheek/);
   assert.deepEqual(now.gm.twoPart.notes.map(n => n.turn), [-1]);
@@ -42,7 +41,7 @@ test("a scene of the story opens on the two-part GM: everyone present has a role
   assert.deepEqual([now.scene.status, now.turns[0]!.phase], ["live", "done"]);
 });
 
-test("a line: replied with no decide, the GM's check rolled through the rules engine from the game's dice, its outcome written; then the stage manager and the co-GM, its move taken again on the rows", async () => {
+test("a line: replied at once, the GM's check rolled through the rules engine from the game's dice, its outcome written; then the stage manager and the co-GM, its move taken again on the rows", async () => {
   const { host, script, scene, line } = await yard();
   const roll = nextCheck(host, scene.controllerId, "medicine", 12);
   const band = bandOf(roll);
@@ -50,9 +49,8 @@ test("a line: replied with no decide, the GM's check rolled through the rules en
   script.then("settle", coGm([{ route: "find-murder", outcome: "none", why: "The cord mark landed." }], { cob: { status: "Behind the water butt", mental_state: "Scared", conversation_role: "Could show the loose board." } }));
 
   const now = await line("(I climb the stair and look at his neck)");
-  assert.deepEqual(script.to("decide"), [], "no decide");
   const reply = script.to("reply")[0]!.body as ReplyRequest;
-  assert.deepEqual([reply.twoPart, reply.decision, reply.outcome.windDown], [true, undefined, undefined]);
+  assert.equal(reply.outcome.windDown, undefined);
   assert.deepEqual(now.lines.slice(-4).map(l => [l.kind, l.text]), [
     ["player", "(I climb the stair and look at his neck)"],
     ["narration", "You climb the outside stair and get a look at his throat."],
@@ -60,7 +58,7 @@ test("a line: replied with no decide, the GM's check rolled through the rules en
     ["narration", `Outcome: ${band}.`],
   ]);
   const settle = script.to("settle")[0]!.body as SettleRequest;
-  assert.deepEqual([settle.twoPart, settle.check?.skill, settle.check?.band, settle.check?.success], [true, "medicine", band, roll.success]);
+  assert.deepEqual([settle.check?.skill, settle.check?.band, settle.check?.success], ["medicine", band, roll.success]);
   assert.equal(settle.reply, `You climb the outside stair and get a look at his throat.\n\nOutcome: ${band}.`);
   assert.deepEqual(settle.lines, [diceLine(roll)], "the stage manager's dice lines");
 
@@ -73,7 +71,6 @@ test("a line: replied with no decide, the GM's check rolled through the rules en
   assert.deepEqual(now.gm.twoPart.notes.map(n => n.turn), [-1, 1]);
   assert.match(now.gm.twoPart.notes[1]!.text, /^Co-GM note, before turn 2[\s\S]*Character role for Cob:\nStatus: Behind the water butt\nMental state: Scared\nConversation role: Could show the loose board\./);
   assert.deepEqual(now.turns.map(t => [t.n, t.phase]), [[0, "done"], [1, "done"]]);
-  assert.deepEqual(script.to("repair"), [], "no co-GM review: the two-part co-GM ran in the settle");
   assert.equal(script.to("remember").length, 1, "the memory review, as before");
   assert.deepEqual(keyParts(reply.key)?.step, "reply");
 });
@@ -106,7 +103,7 @@ test("a route to an ending leaves the scene closing; the next line's reply is th
   script.then("reply", replied("Kell raises her pencil. “One more thing?”", { closes: false }));
   const held = await line("Wait: Cob, who was the big man?");
   const winding = script.to("reply").at(-1)!.body as ReplyRequest;
-  assert.deepEqual([winding.twoPart, winding.outcome.windDown?.exit], [true, "murder-unknown"]);
+  assert.equal(winding.outcome.windDown?.exit, "murder-unknown");
   assert.deepEqual([held.scene.status, held.gm.twoPart.held, held.gm.closing?.exitId], ["closing", true, "murder-unknown"], "it waited, once");
   assert.equal(script.to("settle").length, 1, "no settle on a wind-down");
 

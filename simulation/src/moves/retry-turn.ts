@@ -15,11 +15,11 @@ export function retryTurnReducer(tx: TxCtx, sender: Identity, { turn: turnId }: 
 
   retryJob(tx, job);
 
-  updateTurn(tx, turn.id, { phase: PHASE_OF[job.step] ?? "deciding", error: undefined, note: undefined });
+  updateTurn(tx, turn.id, { phase: PHASE_OF[job.step] ?? "replying", error: undefined, note: undefined });
 }
 
 /** The phase a turn shows while its job's step thinks. */
-const PHASE_OF: Record<string, Phase> = { open: "replying", decide: "deciding", consider: "considering", reply: "replying", settle: "settling" };
+const PHASE_OF: Record<string, Phase> = { open: "replying", reactions: "replying", reply: "replying", settle: "settling" };
 
 /** The turn and its failed job, when the caller leads its scene and it's the failed turn holding the scene's lease. */
 function retryable(tx: TxCtx, actor: Actor, turnId: bigint): { turn: TurnRow; job: JobRow } {

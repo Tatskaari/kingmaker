@@ -179,37 +179,17 @@ const PathStep = t.object("PathStep", {
   source: t.string(),
   known: t.option(t.u32()),
 });
-const OpenedNote = t.object("OpenedNote", { path: t.string(), title: t.string(), scope: t.string(), turn: t.u32() });
-const EndingLead = t.object("EndingLead", { exitId: t.string(), count: t.u32(), probability: t.f64() });
-const PendingExit = t.object("PendingExit", { exitId: t.string(), turn: t.u32(), via: t.string(), extended: t.bool(), waits: t.option(t.string()) });
 const ExitAt = t.object("ExitAt", { exitId: t.string(), turn: t.u32() });
-/** The co-GM's steering for one of the cast, from the turn it reviewed. */
-const Whisper = t.object("Whisper", { to: t.string(), note: t.string(), turn: t.u32() });
 /** Something the story still owes the player (shared/gm/state.ts OwedRow): its things by entity key, outermost first, and who holds them. */
 const OwedRow = t.object("OwedRow", {
   from: t.string(), id: t.string(), hinted: t.bool(), things: t.array(t.string()), holders: t.array(t.string()), where: t.option(t.string()),
-});
-/** A considered turn's ruling, as shared/gm/consider.ts's RulingRecord has it (no dc or no roll: an empty option). */
-const RulingRow = t.object("RulingRow", {
-  turn: t.u32(), act: t.string(),
-  /** A cast id, or world. */
-  target: t.string(),
-  skill: t.string(),
-  /** roll, yes, no. */
-  kind: t.string(),
-  dc: t.option(t.i32()), why: t.string(), roll: t.option(Roll),
-  /** success, failure. */
-  went: t.string(),
-  changed: t.string(), costUsd: t.f64(), latencyMs: t.f64(),
 });
 /** What the last reply left hanging over the player, as shared/rules's Threat has it: kind attack (by), or hazard (hazard, severity: glancing, serious), the other kind's fields empty. */
 const Threat = t.object("Threat", { kind: t.string(), by: t.option(t.string()), hazard: t.option(t.string()), severity: t.option(t.string()), turn: t.u32() });
 /** A fight the player's violence started, as shared/rules's Brawl has it: who goes for the player, who's with them, who fled. */
 const Brawl = t.object("Brawl", { turn: t.u32(), cause: t.string(), against: t.array(t.string()), allies: t.array(t.string()), fled: t.array(t.string()) });
-/** A staged secret's holder (shared/gm/state.ts GmState.guard): how far they've opened up (surface, tell, stirred, torn, settled) and the turn they got there. */
-const Guard = t.object("Guard", { cast: t.string(), stage: t.string(), turn: t.u32() });
 /** The one thing a companion might open up about in a talk (shared/gm/state.ts Confide). */
-const Confide = t.object("Confide", { note: t.string(), topic: t.string(), what: t.string(), memory: t.string() });
+const Confide = t.object("Confide", { note: t.string(), topic: t.string(), what: t.string() });
 /** A talk's own (shared/gm/state.ts TalkState, its `with` the companion): with whom, where and when, and what they might tell. */
 const TalkRow = t.object("TalkRow", { companion: t.string(), where: t.string(), confide: t.option(Confide) });
 /** A person's conversation role as the two-part GM's co-GM keeps it (shared/gm/state.ts TwoPartRole), by their cast id. */
@@ -221,9 +201,9 @@ const TwoPart = t.object("TwoPart", { roles: t.array(TwoPartRole), notes: t.arra
 
 /**
  * The GM's bookkeeping for a scene, a column a field of shared/gm/state.ts's GmState (gmToRow and
- * gmFromRow map the two): V0's, then the co-GM's and the rulings (full-gm-design §4.2), then what the
+ * gmFromRow map the two): V0's, then the scene's patches (full-gm-design §4.2), then what the
  * rules in a scene leave hanging and who's away (world-bridge-design §3.3), then what the boundary
- * handed on (story-design §4.1), then a talk's staged secrets and its own (town-design §3.1), then the
+ * handed on (story-design §4.1), then a talk's own (town-design §3.1), then the
  * nodes the scene has reached and the two-part GM's own (M2: docs/two-part-design.md), each with a
  * default, so a scene from before them reads as one with none yet; the world bridge's before the
  * story's, as they stack, so a database of either migrates. `entered` has no column yet.
@@ -237,32 +217,11 @@ export const gmState = table({ name: "gm_state" }, {
   established: t.array(t.string()),
   landed: t.array(t.string()),
   hinted: t.array(t.string()),
-  /** The newest 24. */
-  opened: t.array(OpenedNote),
-  endingLead: t.option(EndingLead),
-  pendingExit: t.option(PendingExit),
   closing: t.option(ExitAt),
   ended: t.option(ExitAt),
-  /** on_track, drifting, stuck, uncovered. */
-  sceneStatus: t.option(t.string()),
-  oocTurns: t.array(t.u32()),
   pressureOffered: t.array(t.string()),
-  repeated: t.option(t.string()),
-  /** The co-GM's: details improvised in play that must stay true. */
-  canon: t.array(t.string()).default([]),
-  /** JSON: ScenePatch[], the scene's prep as play changed it (the co-GM's routes and bridging beats, the ways of trying a ruling shut). */
+  /** JSON: ScenePatch[], the scene's prep as play changed it (what the boundary brought on to it, a talk's card and its discovery filled or dropped). */
   patches: t.string().default("[]"),
-  /** The co-GM's notes to the GM, and the turn it wrote them on: they lapse two turns on. */
-  notes: t.option(t.string()).default(undefined),
-  notesTurn: t.option(t.u32()).default(undefined),
-  /** For the next reply: they lapse a turn on. */
-  whispers: t.array(Whisper).default([]),
-  /** The turn the co-GM last reviewed (its result merged). */
-  lastRepairTurn: t.option(t.u32()).default(undefined),
-  /** The last turn off the graph with nothing ruled on it. */
-  offGraphTurn: t.option(t.u32()).default(undefined),
-  /** The GM's rulings on considered acts, in the order made. */
-  rulings: t.array(RulingRow).default([]),
   /** A blow or a danger the last reply left hanging over the player: it lands as their next turn starts, which takes it off. */
   threat: t.option(Threat).default(undefined),
   /** The turn a hold caught the player: it stands with no more saving throws until they break free, or the reply lets them go. */
@@ -281,35 +240,12 @@ export const gmState = table({ name: "gm_state" }, {
   owed: t.array(OwedRow).default([]),
   /** The combat exits already fought (the stand-in's). */
   fought: t.array(t.string()).default([]),
-  /** Staged secrets (a talk stages them): how far each of the cast who keeps something back has come towards giving it up. Never back. */
-  guard: t.array(Guard).default([]),
-  /** Notes disclosure keeps out of the scene: a talk's, the deepest of the companion's story before its time. */
-  withheld: t.array(t.string()).default([]),
   /** A talk's own: none in a scene of the story. */
   talk: t.option(TalkRow).default(undefined),
   /** The nodes the scene has reached, in order, its start first (shared/scene/beats.ts). None in a scene from before M2: its beat stands for them. */
   reached: t.array(t.string()).default([]),
   /** The two-part GM's: each person's role, the co-GM's notes by turn, the stage it moved to, a wind-down held once. None in a scene from before M2: nothing yet. */
   twoPart: t.option(TwoPart).default(undefined),
-});
-
-/**
- * The background co-GM's reviews (full-gm-design §4.2), one a turn reviewed: its answer waits here
- * until the next turn's start merges it into gm_state (mergedTurn), and stays as the record, as the
- * prototype's repair-NNN.json files did. An ended scene's is never merged.
- */
-export const coGmResult = table({ name: "co_gm_result" }, {
-  id: t.u64().primaryKey().autoInc(),
-  sceneId: t.u64().index("btree"),
-  /** The turn it reviewed. */
-  turn: t.u32(),
-  /** JSON: shared/gm/repair.ts's RepairResult. */
-  review: t.string(),
-  /** The turn whose start merged it; none while it waits. */
-  mergedTurn: t.option(t.u32()),
-  /** Why its move of the tracker was refused, when it was. */
-  note: t.option(t.string()),
-  at: t.timestamp(),
 });
 
 /** Who's on a scene's stage: no one and nothing is on two at once. */
@@ -327,7 +263,7 @@ export const turn = table({ name: "turn", public: true }, {
   /** 0 is the opening. */
   n: t.u32(),
   playerId: t.u64(),
-  /** queued, deciding, considering (the GM rules on the act before replying), replying, settling, done, failed (noting, while its reply's notes were written, until M2). */
+  /** queued, replying, settling, done, failed (noting, while its reply's notes were written, until M2; deciding and considering, until the old pipeline's decide and considered rolls went). */
   phase: t.string(),
   /** While it waits on the AI service. */
   note: t.option(t.string()),
@@ -346,8 +282,8 @@ export const turn = table({ name: "turn", public: true }, {
   suggestAsks: t.u32().default(0),
   /**
    * JSON: shared/rules Mechanic, what the rules resolve this turn, chosen already (town-design §3.4:
-   * the map's action menu's act at a waiting scene, played as its first turn): its decide request's
-   * `forced`. None for a line the player typed.
+   * the map's action menu's act at a waiting scene, played as its first turn), which the turn's start
+   * resolves (two-part.ts twoPartStart). None for a line the player typed.
    */
   mechanic: t.option(t.string()).default(undefined),
 });
@@ -680,9 +616,9 @@ export const job = table({ name: "job" }, {
   gameId: t.option(t.u64()),
   sceneId: t.option(t.u64()),
   turnId: t.option(t.u64()),
-  /** say, openScene, creation; beside a turn, suggest; after it, remember and repair (one row a turn and move); after a scene, crossBoundary (its scene's, with no turn). */
+  /** say, openScene, creation; beside a turn, suggest; after it, remember (one row a turn and move); after a scene, crossBoundary (its scene's, with no turn); inventLook. */
   move: t.string(),
-  /** open, decide, reactions, consider, reply, settle, suggest, remember, repair, boundary; a creation's offer, pick, own, draft, work, check, traits. */
+  /** open, reactions, reply, settle, suggest, remember, boundary, look; a creation's offer, pick, own, draft, work, check, traits. (decide, consider and repair until the old pipeline's salvage.) */
   step: t.string(),
   endpoint: t.string(),
   timeoutMs: t.u32(),
@@ -1045,7 +981,7 @@ export const GameSummary = t.row("GameSummary", {
 const spacetimedb = schema(
   {
     game, player, seat, sheet, dice, admin,
-    scene, gmState, onStage, turn, transcript, replyDraft, sceneSuggestion, heard, coGmResult,
+    scene, gmState, onStage, turn, transcript, replyDraft, sceneSuggestion, heard,
     chapter, quest, flag, journal, attitude, follower,
     place, entity, position, area, material, health, stack, surface, creature, playerCharacter, gear, narrative, gmNote, worldLog, look,
     job, jobDispatch, reaper,

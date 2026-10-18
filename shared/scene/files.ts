@@ -52,14 +52,14 @@ export interface CampaignFile {
    */
   talk?: string;
   /**
-   * Who plays the story's scenes (docs/two-part-design.md): the two-part GM (the default), or the
-   * old pipeline ("pipeline": the decider, the reactions, considered rolls and the co-GM's reviews,
-   * kept until the user decides what to salvage of it; the simulation's tests of it set it). A talk
-   * keeps its own steps either way. "none": no GM plays its scenes (the zoo's, M6, whose exhibits
-   * the simulation sets out itself), so the install gives the AI service none of its words: the AI
-   * service serves one campaign at a time, and that's the story's.
+   * Whether a GM plays the campaign's scenes: the two-part GM does (docs/two-part-design.md), which
+   * "two-part" says outright and saying nothing means, unless it's "none": no GM plays its scenes (the
+   * zoo's, M6, whose exhibits the simulation sets out itself), so the install gives the AI service none
+   * of its words, since the AI service serves one campaign at a time, and that's the story's. (The old
+   * pipeline's "pipeline", the tests' switch, went with its scene steps: migration-log.md, M2's "The
+   * old pipeline's salvage".)
    */
-  gm?: "two-part" | "pipeline" | "none";
+  gm?: "two-part" | "none";
   /** The zoo's exhibits (shared/zoo/exhibits.ts): what a visit can open, each set out from the campaign's own files. */
   exhibits?: Exhibit[];
 }

@@ -7,8 +7,7 @@ import type { TurnView } from "./view.ts";
 /**
  * The docs service's working set (docs/types.ts) from a request's view, as the prototype makes it
  * from its session (src/lore/view.ts): the game whose lore copy is read, the turn, the scene, the
- * player, who's present, and the scene so far a line an entry. Made afresh at each use, so it has
- * whatever disclosure has opened by then.
+ * player, who's present, and the scene so far a line an entry. Made afresh at each use.
  */
 export function workingSet(scene: Scene, view: TurnView): WorkingSet {
   return {
@@ -18,6 +17,5 @@ export function workingSet(scene: Scene, view: TurnView): WorkingSet {
     player: { name: view.player.name, concept: view.player.concept, who: playerWho(view) },
     present: presentCast(scene, view),
     transcript: sceneEntries(view).map(e => ({ turn: e.turn, text: scriptTranscript(scene, view, [e]), ...(e.kind === "roll" ? { roll: e.text } : {}) })),
-    memory: view.memory,
   };
 }

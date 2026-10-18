@@ -3,8 +3,7 @@ import type { Call, EntryRecord, LiveRecord, TurnRecord } from "./record.ts";
 /**
  * A live run's record as Markdown (v5-design §4.6): the run at a glance, each turn's moments, the
  * measures against the prototype's live ones, the calls, the GM's side when the script records it
- * (full-gm-design §1.5: each line's ruling, memory review and co-GM review, and where the co-GM left
- * the scene), then turn by turn who said what and the lines offered with what was screened out, and
+ * (full-gm-design §1.5: each line's memory review, and where the scene was left), then turn by turn who said what and the lines offered with what was screened out, and
  * last what the scene holds back from the player, for a reader to check every line against. (The
  * notes on marked words went in M2.)
  */
@@ -139,9 +138,10 @@ function linesOffered(t: TurnRecord): string[] {
 }
 
 /**
- * The GM's side (npm run status, once the run was over): for each turn, whether the GM ruled on it
- * (the ruling, its roll and what it changed), what the memory review flagged and saved, and the
- * co-GM's review of it, merged or waiting; then the co-GM's steering as it was left.
+ * The GM's side (npm run status, once the run was over): for each turn, what the memory review
+ * flagged and saved; then where the scene was left, its patches and what's established. (Whether the
+ * GM ruled on it went with considered rolls, and the old co-GM's review of it and its steering with
+ * the old co-GM.)
  */
 function gmSide(r: LiveRecord): string[] {
   if (!r.gm) return [];
@@ -153,22 +153,22 @@ function gmSide(r: LiveRecord): string[] {
     }
     return (n: number) => (lines.get(n) ?? []).map(cell).join("; ");
   };
-  const ruled = byTurn("rulings"), remembered = byTurn("memoryReviews"), reviewed = byTurn("repairs");
+  const remembered = byTurn("memoryReviews");
   const waited = (t: TurnRecord) => (t.waited !== undefined ? ` (after ${secs(t.waited)} waiting for the background jobs)` : "");
   const list = (field: string) => ((r.gm![field] as string[] | undefined) ?? []);
   const value = (field: string) => (r.gm![field] === null || r.gm![field] === undefined ? "none" : String(r.gm![field]));
   return [
     "## The GM's side",
     "",
-    `What \`npm run status\` showed once the run was over${r.settledMs !== undefined ? ` (the background jobs waited for: ${secs(r.settledMs)})` : ""}: for each turn, the GM's ruling on it, what the memory review flagged and saved, and the co-GM's review of it.`,
+    `What \`npm run status\` showed once the run was over${r.settledMs !== undefined ? ` (the background jobs waited for: ${secs(r.settledMs)})` : ""}: for each turn, what the memory review flagged and saved.`,
     "",
-    "| Turn | Line | Ruled | Memory review | The co-GM |",
-    "|---|---|---|---|---|",
-    ...r.turns.map(t => `| ${t.n} | ${t.n === 0 ? "(the opening)" : `${cell(lineOf(t))}${waited(t)}`} | ${ruled(t.n) || "no"} | ${remembered(t.n)} | ${reviewed(t.n)} |`),
+    "| Turn | Line | Memory review |",
+    "|---|---|---|",
+    ...r.turns.map(t => `| ${t.n} | ${t.n === 0 ? "(the opening)" : `${cell(lineOf(t))}${waited(t)}`} | ${remembered(t.n)} |`),
     "",
-    `Where it was left: beat ${value("beat")}; the scene ${value("sceneStatus")}; the co-GM's notes: ${r.gm.notes === null || r.gm.notes === undefined ? "none" : `${cell(String(r.gm.notes))} (from turn ${value("notesTurn")})`}; the last turn off the graph with nothing ruled on it: ${value("offGraphTurn")}; the turn the co-GM last reviewed (merged): ${value("lastRepairTurn")}.`,
+    `Where it was left: beat ${value("beat")}.`,
     "",
-    ...[["Whispers", "whispers"], ["Canon", "canon"], ["Patches", "patches"], ["Established", "established"]].flatMap(([title, field]) => {
+    ...[["Patches", "patches"], ["Established", "established"]].flatMap(([title, field]) => {
       const items = list(field!);
       return items.length ? [`**${title}**`, "", ...items.map(l => `- ${l}`), ""] : [`**${title}**: none.`, ""];
     }),

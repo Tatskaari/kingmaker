@@ -44,8 +44,7 @@ export async function stageAftermath(scene: Scene, state: TurnView, text: string
   });
 }
 
-/** What was settled before this exchange, for the stage manager: the scene's facts and the GM's rulings, how they went (the last 16). */
-export function settledFacts(state: Pick<TurnView, "established" | "rulings">): string[] {
-  const rulings = (state.rulings ?? []).map(r => `${r.act.replace(/\.$/, "")}: ${r.went === "success" ? "it worked" : "it didn't"} (${r.changed})`);
-  return [...state.established, ...rulings].slice(-16);
+/** What was settled before this exchange, for the stage manager: the scene's facts, the last 16. (The GM's rulings, how they went, were among them until considered rolls went.) */
+export function settledFacts(state: Pick<TurnView, "established">): string[] {
+  return state.established.slice(-16);
 }

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { initialGm, type GmState } from "../gm/state.ts";
-import { endingOf, enteringAt, openRoutes, reachDiscoveries, reachedOf, stageOf, takeRoute, targetsOf, type Taken } from "./beats.ts";
+import { endingOf, enteringAt, limitOf, openRoutes, reachDiscoveries, reachedOf, reachedTurns, stageOf, takeRoute, targetsOf, type Taken } from "./beats.ts";
 import type { SceneDocument } from "./document.ts";
 import { presentCast } from "./graph.ts";
 import { sceneOf } from "./load.ts";
@@ -161,4 +161,32 @@ test("a thorough end on every scene of the story: every discovery reached but on
     assert.deepEqual((each.essentials ?? []).filter(e => !done.landed.includes(e.id)).map(e => e.id), [], `${key}: nothing carried is owed on`);
     assert.deepEqual([done.beat, done.closing], [each.start, undefined], `${key}: the stage stays`);
   }
+});
+
+test("the turn each node was reached on; a cue's outer limit counts from the opening or from the reply after its beat was reached, until a beat stops it, and is overdue once the next reply reaches a count", () => {
+  const sceneFile = (id: string) => sceneOf(JSON.parse(readFileSync(join(import.meta.dirname, "..", "..", "campaigns", "caerwyn", "scenes", `${id}.kmscene`), "utf8")) as SceneDocument);
+  const rat = sceneFile("drowned-rat");
+  const bell = rat.routes.find(r => r.id === "bell-rings")!, arlo = rat.routes.find(r => r.id === "arlo-calls-him-out")!;
+  let gm = initialGm(rat);
+  assert.deepEqual(limitOf(bell, gm, 13), { counts: [{ exchanges: 15, next: 14 }, { exchanges: 8, after: "arlos-challenge" }], overdue: false }, "Arlo's challenge not reached: its count isn't running");
+  assert.equal(limitOf(bell, gm, 14)!.overdue, true, "fifteen into the scene: overdue after reply 14, so it rings in reply 15");
+  assert.equal(limitOf(arlo, gm, 4)!.overdue, false);
+  assert.equal(limitOf(arlo, gm, 5)!.overdue, true, "by the sixth exchange in the room");
+
+  gm = took(takeRoute(rat, gm, "arlo-calls-him-out", "none", 6));
+  gm = took(takeRoute(rat, gm, "find-the-heron", "none", 9));
+  assert.deepEqual([...reachedTurns(gm)], [["start", 0], ["arlos-challenge", 6], ["the-heron", 9]]);
+  assert.deepEqual(limitOf(bell, gm, 13), { counts: [{ exchanges: 15, next: 14 }, { exchanges: 8, after: "arlos-challenge", reachedOn: 6, next: 7 }], overdue: false });
+  assert.equal(limitOf(bell, gm, 14)!.overdue, true, "eight after Arlo's challenge, which showed in reply 7: overdue after reply 14");
+
+  const talking = took(takeRoute(rat, initialGm(rat), "hobb-breaks", "none", 3));
+  assert.deepEqual(limitOf(arlo, talking, 9), { counts: [{ exchanges: 6, next: 10, stopped: "hobb-talking" }], overdue: false }, "not once Hobb is talking");
+  assert.equal(limitOf(rat.routes.find(r => r.id === "let-him-go")!, talking, 20), undefined, "an outcome route has no limit");
+
+  const heron = sceneFile("heron-warehouse");
+  const master = heron.routes.find(r => r.id === "master-comes")!;
+  assert.equal(limitOf(master, initialGm(heron), 5)!.overdue, true, "six exchanges on the wharf without getting in");
+  const inside = took(takeRoute(heron, initialGm(heron), "taken-on", "none", 3));
+  assert.deepEqual(limitOf(master, inside, 7), { counts: [{ exchanges: 6, next: 8, stopped: "floor" }, { exchanges: 5, after: "floor", reachedOn: 3, next: 4 }], overdue: false }, "inside, the wharf's count stops and five inside runs");
+  assert.equal(limitOf(master, inside, 8)!.overdue, true);
 });

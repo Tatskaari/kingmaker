@@ -1,13 +1,10 @@
 import type { Asked, Backstory, LoreIssue, Who } from "../creation/types.ts";
-import type { RollResult } from "../dice.ts";
-import type { Ruling, RulingOutcome, Verdict } from "../gm/consider.ts";
-import type { RepairResult } from "../gm/repair.ts";
-import type { Confide, GmState, GuardStage, OpenedNote, OwedRow, ScenePatch, SceneStatus, TalkRecord, TwoPartRole } from "../gm/state.ts";
+import type { Confide, GmState, OwedRow, ScenePatch, TalkRecord, TwoPartRole } from "../gm/state.ts";
 import type { Band } from "../gm/two-part.ts";
 import type { Markup } from "../markup.ts";
-import type { Act, BuildOption, FeatureRef, Mechanic, Offer, OwnPicks, Reaction, SpellRef, SrdLists, ThreatRead, WeaponRef } from "../rules/types.ts";
+import type { Act, BuildOption, FeatureRef, Offer, OwnPicks, Reaction, SpellRef, SrdLists, WeaponRef } from "../rules/types.ts";
 import type { RouteOutcome } from "../scene/beats.ts";
-import type { Skill, Transition } from "../scene/types.ts";
+import type { Skill } from "../scene/types.ts";
 import type { PlaceRows } from "../world/rows.ts";
 import type { WorldOp } from "../world/scene-world.ts";
 import type { CreationStep, Step } from "./keys.ts";
@@ -15,8 +12,7 @@ import type { CreationStep, Step } from "./keys.ts";
 /**
  * The AI service's HTTP API: what the simulation POSTs for each step of a think, and what comes
  * back (v0-design §5.1-5.2, gm-port §13; the suggested lines, v5-design §3.6;
- * character creation's two, v1-design §3.7; a considered turn's ruling, and the memory reviews and
- * the co-GM after a turn, full-gm-design §4.1; the rules' act in a turn and the reactions to it,
+ * character creation's two, v1-design §3.7; the memory reviews after a turn, full-gm-design §4.1; the rules' act in a turn and the reactions to it,
  * world-bridge-design §3.1; the boundary between scenes and a fight's aftermath, story-design §4.2;
  * a talk with a companion, the menu's act played as a turn, and the looks of what the story makes,
  * town-design §3.6-3.8).
@@ -25,25 +21,24 @@ import type { CreationStep, Step } from "./keys.ts";
  */
 
 export type Endpoint =
-  | "/v1/scenes/open" | "/v1/turns/decide" | "/v1/turns/reactions" | "/v1/turns/consider" | "/v1/turns/reply" | "/v1/turns/settle" | "/v1/turns/suggest"
-  | "/v1/turns/remember" | "/v1/turns/repair" | "/v1/scenes/boundary" | "/v1/looks"
+  | "/v1/scenes/open" | "/v1/turns/reactions" | "/v1/turns/reply" | "/v1/turns/settle" | "/v1/turns/suggest"
+  | "/v1/turns/remember" | "/v1/scenes/boundary" | "/v1/looks"
   | "/v1/characters" | "/v1/backstories";
 
 /**
  * Each step's endpoint, and how long the simulation waits for it (under the procedures' 180 s cap).
- * The reactions are one decider call (about 0.3 s), waited for as long as the decision; the ruling's
- * review is cut off at 12 s (KM_CONSIDER_DEADLINE_MS), then the plain check is asked for; a memory
- * review's or the co-GM's tool loops can take a minute and more; a boundary's three calls at once,
+ * The reactions are one decider call (about 0.3 s), waited for 20 s; a memory review's tool loop
+ * can take a minute and more; a boundary's three calls at once,
  * then presence, about 10 to 20 s on real models; the looks of what a turn made, one small call.
  */
 export const STEP_ENDPOINT: Record<Step | CreationStep, Endpoint> = {
-  open: "/v1/scenes/open", decide: "/v1/turns/decide", reactions: "/v1/turns/reactions", consider: "/v1/turns/consider", reply: "/v1/turns/reply", settle: "/v1/turns/settle",
-  suggest: "/v1/turns/suggest", remember: "/v1/turns/remember", repair: "/v1/turns/repair", boundary: "/v1/scenes/boundary", look: "/v1/looks",
+  open: "/v1/scenes/open", reactions: "/v1/turns/reactions", reply: "/v1/turns/reply", settle: "/v1/turns/settle",
+  suggest: "/v1/turns/suggest", remember: "/v1/turns/remember", boundary: "/v1/scenes/boundary", look: "/v1/looks",
   offer: "/v1/characters", pick: "/v1/characters", own: "/v1/characters",
   draft: "/v1/backstories", work: "/v1/backstories", check: "/v1/backstories", traits: "/v1/backstories",
 };
 export const STEP_TIMEOUT_MS: Record<Step | CreationStep, number> = {
-  open: 60_000, decide: 20_000, reactions: 20_000, consider: 20_000, reply: 60_000, settle: 60_000, suggest: 30_000, remember: 170_000, repair: 170_000, boundary: 120_000, look: 30_000,
+  open: 60_000, reactions: 20_000, reply: 60_000, settle: 60_000, suggest: 30_000, remember: 170_000, boundary: 120_000, look: 30_000,
   offer: 60_000, pick: 60_000, own: 30_000, draft: 60_000, work: 60_000, check: 60_000, traits: 60_000,
 };
 
@@ -156,15 +151,13 @@ export interface OpenRequest extends AiRequest {
   transcript?: Entry[];
   /** A talk's: with whom, where, their record, and what the prep reads besides the scene. */
   talk?: TalkOpen;
-  /** A scene of the story played by the two-part GM (docs/two-part-design.md): its mouthpiece speaks the opening, the roles as the scene opens its note -1. */
-  twoPart?: boolean;
 }
 /**
  * ops: an aftermath's, what the stage manager says it did to the world (at most 16, by game key),
  * applied through the gate. talk: a talk's prep, to keep. check: the two-part GM's opening called
  * one (the simulation rolls it and writes the outcome that came up, as a reply's).
  */
-export interface OpenResponse { present: string[]; entries: Reply[]; opened: OpenedNote[]; ops?: WorldOp[]; talk?: TalkPrep; check?: SpokenCheck; usage: Usage }
+export interface OpenResponse { present: string[]; entries: Reply[]; ops?: WorldOp[]; talk?: TalkPrep; check?: SpokenCheck; usage: Usage }
 
 /**
  * A talk's open (town-design §3.6; talk.ts startTalk, openTalk and plan): the companion's cast id;
@@ -180,62 +173,23 @@ export interface TalkOpen { with: string; where: string; record: TalkRecord; lea
  * What a talk's prep came to (talk.ts prepare), for the open's commit to keep: the facts the talk's
  * GM takes as given (where and when, how often they've talked, what they've told, what they may open
  * up about now, what waits for a later talk, what they knew in the story's scenes); the prep's
- * patches (the one thing they might tell, a secret on their card, and the route by which it comes out,
- * to the talk's `told` beat); how near the surface it starts (the companion's staged secret); what
- * they'd tell, for the record and the memory once it's out; the notes disclosure keeps out of this
- * talk (the deepest of their story, before its time); and the opening choices, two to four lines.
+ * patches (the one thing they might tell on their card, and the talk's discovery `told` filled with
+ * it, or dropped with nothing to tell); what they'd tell, for the record once it's out; and the
+ * opening choices, two to four lines. (The note disclosure kept out of the talk, the deepest of their
+ * story before its time, went with disclosure: the facts say it isn't this talk's.)
  */
 export interface TalkPrep {
   established: string[];
   patches: ScenePatch[];
-  guard?: { stage: GuardStage; turn: number };
   confide?: Confide;
-  withheld: string[];
   suggestions: string[];
 }
 
-export interface Check { skill: Skill; dc: number; reason?: string }
-export interface Decision {
-  /** A route and its check, the skill already the player's means. */
-  route?: { id: string; phase: "attempt" | "cue"; check?: Check; theirs?: boolean };
-  /** An outcome route the turn simply achieves (== route.id: it ends the scene now). */
-  plain?: string;
-  sameAgain?: { route: string; answer?: string };
-  earned: boolean; daft: boolean; outOfCharacter: boolean;
-  limit?: string; answering?: boolean; remembered?: string[];
-  /**
-   * Considered rolls (the prototype's PreDecision.considered): the player is attempting something a
-   * roll should settle that none of the scene's routes does, so the GM rules on it before replying
-   * (POST /v1/turns/consider). Nothing was rolled or moved for it. `routes`: the routes with a roll
-   * the decider leant towards, nearest first; `means`: the method, when it's sure; `earned`: how far
-   * it thought the player had already met the person's terms, when it half thought so.
-   */
-  considered?: { probability: number; routes: Array<{ id: string; p: number }>; means?: Skill; earned?: number };
-  /** The player is pursuing a way through the scene that none of its routes covers: the co-GM reviews the turn (unless a ruling answers it). */
-  offGraph?: boolean;
-  /**
-   * The plain route was read with an attempt's confidence: it's the prep's own answer to the turn (a
-   * bribe gets haggling, trust needs no roll), so no ruling of the GM's overrides it, whatever
-   * off_graph says.
-   */
-  byPrep?: boolean;
-  /**
-   * What the player is doing that the D&D rules resolve, and with what (world-bridge-design §3.1): a
-   * spell, a blow, a grab or a shove, a jump, a class feature, a rest. The decide commit resolves it
-   * on the scene's world. A route's check the act held back (director.ts:938) comes back as `route`
-   * only when the player is also doing what the check is for.
-   */
-  mechanic?: Mechanic;
-}
 /**
- * landed: [] in V0 (no world clock). forced: what the rules resolve this turn, chosen already (the
- * map's action menu, town-design §3.4: an act at a waiting scene, played as its first turn): the
- * decider asks no mechanic question (the prototype's decideBefore `forced`, director.ts:793, 889-901).
+ * What the turn's commits before the reply did (the rules first, the map's act, and the reactions to
+ * it, parked for combat): the reply builds its directives from it. (The move the old pipeline's decide
+ * commit took, the ending it held for the player's answer and a considered turn's ruling went with them.)
  */
-export interface DecideRequest extends AiRequest { turn: TurnContext; landed: string[]; forced?: Mechanic }
-export interface DecideResponse { decision: Decision; opened: OpenedNote[]; usage: Usage }
-
-/** What the decide commit did: the reply builds its directives from it. */
 export interface Outcome {
   /** This turn's dice lines. */
   lines: string[];
@@ -244,44 +198,29 @@ export interface Outcome {
    * running out, fire's tick, coming round, a blow left hanging): first in the reply.
    */
   directives: string[];
-  move?: { route: string; phase: "attempt" | "cue"; from: string; to: string; roll?: RollResult; exit?: string; chosen: boolean };
-  taken?: { ended?: string; closing?: string; pendingExit?: string };
-  held?: "ooc" | "brink" | "closes";
-  pending?: { exit: string };
-  wasStuck: boolean;
-  closes?: string;
+  /** The scene is winding down: this reply closes it on this ending. */
   windDown?: { exit: string };
   /**
-   * A considered turn's ruling, as the consider commit played it (Decision.considered is the
-   * decider's read that asked for it): the ruling and its verdict, its route, how it went (with its
-   * roll, when the verdict was one), where it took the scene from and to, the ending it reached, and
-   * whether that's the player's choice.
-   */
-  ruled?: { ruling: Ruling; verdict: Verdict; route: Transition; went: "success" | "failure"; roll?: RollResult; from: string; to: string; exit?: string; chosen: boolean };
-  /** A considered turn with no ruling (the review failed, or ran past its deadline): the plain check rolled instead, and its dice line's reason. */
-  freeform?: { skill: Skill; dc: number; roll: RollResult; reason: string };
-  /**
    * The rules' act's directive (what they decided, for the GM to narrate) and the reactions' to it,
-   * in that order (world-bridge-design §3.2): after the move's lines, before a ruling's.
+   * in that order (world-bridge-design §3.2): after the rules first's.
    */
   acts?: string[];
-  /** The player's violence started a fight this turn: the move's closing lines are dropped, and the reply ends on the fight breaking out. */
+  /** The player's violence started a fight this turn (the parked reactions'): no reply reads it until combat does; the two-part reply plays the fight from the reactions' directive. */
   brawl?: boolean;
 }
 /**
- * decision: the decider's, for a talk (the old pipeline's). twoPart: a scene of the story, played by
- * the two-part GM (docs/two-part-design.md): no decision, the outcome's directives (the rules' from
- * before the player acted, and the map's act's) leading the mouthpiece's, and on the wind-down
+ * The two-part GM's reply (docs/two-part-design.md): the outcome's directives (the rules' from before
+ * the player acted, and the map's act's) leading the mouthpiece's, and on the wind-down
  * (outcome.windDown) its closing, which may wait once (the bookkeeping's twoPart.held not yet set).
  */
-export interface ReplyRequest extends AiRequest { turn: TurnContext; decision?: Decision; outcome: Outcome; stream: { turn: string }; twoPart?: boolean }
+export interface ReplyRequest extends AiRequest { turn: TurnContext; outcome: Outcome; stream: { turn: string } }
 /**
  * offered: the stage whose pressure this reply was offered. A two-part reply's check: the one its
  * mouthpiece called, with each of its five outcomes as the screen would have it (the simulation rolls
  * it and writes the dice line and the one that came up); closes: a closing that may wait once says
  * whether it closed (false: it waits).
  */
-export interface ReplyResponse { entries: Reply[]; gm: { offered?: string; repeated: string | null }; firstTextMs: number | null; check?: SpokenCheck; closes?: boolean; usage: Usage }
+export interface ReplyResponse { entries: Reply[]; gm: { offered?: string }; firstTextMs: number | null; check?: SpokenCheck; closes?: boolean; usage: Usage }
 
 /** A check the two-part GM's mouthpiece called: its skill and DC, and its five outcomes (shared/gm/two-part.ts BANDS), each the next words of the reply. */
 export interface SpokenCheck { skill: Skill; dc: number; outcomes: Record<Band, Reply> }
@@ -305,72 +244,22 @@ export interface CoGmAnswer {
 
 /**
  * reply: plain text. talk: a talk's turn, and whether its next lines are asked for (the controller's
- * setting). twoPart: a scene of the story, played by the two-part GM: the stage manager and its co-GM
- * side by side, the co-GM told how this turn's check went (`check`, when the mouthpiece called one).
+ * setting). The stage manager and the two-part GM's co-GM side by side, the co-GM told how this
+ * turn's check went (`check`, when the mouthpiece called one).
  */
-export interface SettleRequest extends AiRequest { turn: TurnContext; reply: string; lines: string[]; settled: string[]; talk?: { suggest: boolean }; twoPart?: boolean; check?: TurnCheck }
-export interface After {
-  /**
-   * An outcome route the reply achieved, with its check for the simulation to roll. `exit`: the
-   * authored ending an improvised outcome gives way to, read at 0.2 or more (the prototype's
-   * director.ts:1330-1333).
-   */
-  outcome?: { route: string; check?: Check; exit?: string };
-  ending?: { exitId: string; probability: number };
-  status?: SceneStatus;
-  landed: string[]; hinted: string[]; unanswered: boolean; theirs: boolean;
-  /**
-   * The player has left the scene's place altogether: an ending of their own. Asked when the
-   * character is the rules engine's, read at 0.7 (director.ts:1280-1283, :1350).
-   */
-  left?: boolean;
-  /**
-   * What the reply left hanging over the player, read at 0.6 when the character is the rules
-   * engine's (director.ts:1284-1295, :1343-1349): someone's blow, or a danger with its severity. The
-   * settle commit keeps it in gm_state, and it lands as the next turn starts.
-   */
-  threat?: ThreatRead;
-  /** The threat question's raw choice ("attack:kell", "hazard:grab_or_shove", "none"): a hold the reply no longer has them in lets them go (threats.ts holdAfterReply). */
-  threatRead?: string;
-  /**
-   * Staged secrets (town-design §3.6: director.ts:1263-1275), in a scene that stages them (a talk):
-   * how far each of the cast present who keeps something back has come towards giving it up, judged
-   * after the reply. The settle commit moves each one step at most, and never back.
-   */
-  guard?: Record<string, GuardStage>;
-}
+export interface SettleRequest extends AiRequest { turn: TurnContext; reply: string; lines: string[]; settled: string[]; talk?: { suggest: boolean }; check?: TurnCheck }
 /**
- * ops: at most 16, by game key; after absent when the reply closed the scene (and in a two-part
- * scene, which has no read after the reply). talk: a talk's next lines (talk.suggest, beside the
- * after-reply decision), none when they weren't asked for or the talk ended. coGm: a two-part
- * scene's co-GM: its roles and moves.
+ * ops: at most 16, by game key (none in a talk, which has no world). talk: a talk's next lines
+ * (talk.suggest, beside the co-GM), none when they weren't asked for or the talk ended. coGm: the
+ * co-GM's roles and moves.
  */
-export interface SettleResponse { ops: WorldOp[]; after?: After; talk?: { suggestions: string[] }; coGm?: CoGmAnswer; usage: Usage }
-
-/**
- * POST /v1/turns/consider (full-gm-design §4.1): the GM's ruling on an act the decider flagged
- * (Decision.considered, or a plan off the graph), before the reply. turn: the turn's working set as
- * the decide commit left it; read: the decider's read; pending: the ending held for the player's
- * answer, which the decide commit took off the bookkeeping.
- */
-export interface ConsiderRequest extends AiRequest { turn: TurnContext; read?: Decision["considered"]; pending?: GmState["pendingExit"] }
-/**
- * The ruling, its verdict, its route, and for a no without dice the refusal it plays; or, with no
- * ruling (the review failed, or ran past its deadline: `error`), the plain check to roll instead
- * when the decider wanted a roll (`fallback`, with its dice line's reason). ms: how long the review
- * took. A 200 either way.
- */
-export interface ConsiderResponse {
-  ruling?: Ruling; verdict?: Verdict; route?: Transition; refusal?: RulingOutcome;
-  fallback?: { skill: Skill; dc: number; reason: string };
-  error?: string; ms: number; usage: Usage;
-}
+export interface SettleResponse { ops: WorldOp[]; talk?: { suggestions: string[] }; coGm?: CoGmAnswer; usage: Usage }
 
 /**
  * POST /v1/turns/reactions (world-bridge-design §3.1): everyone who saw the player's violence reacts,
- * each by their own lights, before the GM says a word (the prototype's decideReactions). turn: the
- * turn's working set as the decide commit left it (the world after the act); act: what the rules
- * decided it did (scene-acts.ts violence).
+ * each by their own lights, before the GM says a word (the prototype's decideReactions). Parked for
+ * combat: nothing queues it since the old pipeline's decide went. turn: the turn's working set as the
+ * act left it (the world after it); act: what the rules decided it did (scene-acts.ts violence).
  */
 export interface ReactionsRequest extends AiRequest { turn: TurnContext; act: Act }
 /**
@@ -382,19 +271,15 @@ export interface ReactionsResponse { reactions: Record<string, Reaction>; direct
 
 /**
  * POST /v1/turns/remember (full-gm-design §4.1): the memory reviews of a turn once it's over (the
- * attention filter, then the memories and lore agents it fires), written into the game's docs.
- * turn: the scene up to and including the reviewed turn; reviewed: its number.
+ * attention filter, then the reviews it fires: the GM's notes on the people present, and the lore),
+ * written into the game's docs. turn: the scene up to and including the reviewed turn; reviewed: its
+ * number.
  */
 export interface RememberRequest extends AiRequest { turn: SceneContext; reviewed: number }
 /** What the attention filter flagged, and each review it fired: what it changed, or why it failed. */
 export interface RememberResponse { flags: string[]; reviews: ReviewRecord[]; usage: Usage }
 /** A memory review's record, as ai/docs/reviews.ts makes it (its shape written out here: shared imports nothing of the AI service's). */
-export interface ReviewRecord { kind: "memories" | "lore"; summary: string; changes: string[]; costUsd: number; latencyMs: number; error?: string }
-
-/** POST /v1/turns/repair (full-gm-design §4.1): the background co-GM's review of a turn once it's over. turn and reviewed as remember's. */
-export interface RepairRequest extends AiRequest { turn: SceneContext; reviewed: number }
-/** The review (its turn the one reviewed): it waits in a co_gm_result row until the next turn's start merges it. */
-export interface RepairResponse { review: RepairResult; usage: Usage }
+export interface ReviewRecord { kind: "notes" | "lore"; summary: string; changes: string[]; costUsd: number; latencyMs: number; error?: string }
 
 /** POST /v1/turns/suggest: the lines to offer after a reply. turn: the transcript up to and including the reply. */
 export interface SuggestRequest extends AiRequest {
@@ -419,8 +304,8 @@ export interface BoundaryRequest extends AiRequest { turn: SceneContext; exit: s
  * scenes skipped and why, where its prep is out of date, its opening rewritten, the lead, the cast
  * absent, its prep's patches with what's owed brought over, the owed essentials already hinted at);
  * what the story still owes after it, its things by entity key; and what moved in the fronts.
- * The game's docs (the ending's memories, the time between, the played scene, the fronts) are
- * written by then, once per key.
+ * The game's docs (the GM's notes on the people, from the ending and the time between, the played
+ * scene, the fronts) are written by then, once per key.
  */
 export interface BoundaryResponse {
   handOff: string;

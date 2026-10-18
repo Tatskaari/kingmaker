@@ -43,16 +43,16 @@ test("say: not in a game; while the scene opens; a spectator's line; nothing sai
   assert.equal(sceneNow(host, all(host.db.scene)[0]!.id).turns.length, 2);
 });
 
-test("say: a turn deciding or replying; a failed turn; a scene that's over", async () => {
+test("say: a turn replying, or settling with a line waiting already; a failed turn; a scene that's over", async () => {
   const { host, script, wren, scene } = await openedGame();
-  let whileDeciding: unknown, whileReplying: unknown;
-  script.then("decide", () => { whileDeciding = host.as(wren).say({ text: "And?" }); return { decision: { earned: false, daft: false, outOfCharacter: false }, opened: [], usage: { calls: 0, costUsd: 0, byOperation: {} } }; });
-  script.then("reply", () => { whileReplying = host.as(wren).say({ text: "And?" }); return http(400); });
+  let whileReplying: unknown, waits: unknown, whileWaiting: unknown;
+  script.then("reply", () => { whileReplying = host.as(wren).say({ text: "And?" }); return { entries: [{ speaker: "gm", kind: "narration", text: "Kell shrugs." }], gm: {}, firstTextMs: 3, usage: { calls: 0, costUsd: 0, byOperation: {} } }; });
+  script.then("settle", () => { waits = host.as(wren).say({ text: "And when?" }); whileWaiting = host.as(wren).say({ text: "And?" }); return http(400); });
 
   host.as(wren).say({ text: "Who found him?" });
   await host.drain();
 
-  assert.deepEqual([code(whileDeciding as never), code(whileReplying as never)], ["turn_in_flight", "turn_in_flight"]);
+  assert.deepEqual([code(whileReplying as never), code(waits as never), code(whileWaiting as never)], ["turn_in_flight", undefined, "turn_in_flight"]);
   assert.deepEqual(host.as(wren).say({ text: "Hello?" }), { code: "turn_failed", text: "(The GM lost the thread: /retry to carry on.)" });
 
   host.transact(tx => tx.db.scene.id.update({ ...tx.db.scene.id.find(scene.id)!, status: "ended", turnId: undefined }));

@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { newGameOf, viewWhen, type Backend } from "../backend.ts";
 import { YARD } from "../check/fixture.ts";
-import { CONSIDERING } from "../busy.ts";
 import { SceneModel } from "./model.ts";
 import type { SceneView } from "./view.ts";
 
@@ -98,20 +97,4 @@ test("a game gone from the server while the screen comes up shows as gone", asyn
   scene.follow(game, GONE);
   assert.equal(scene.gone, GONE);
   assert.equal(scene.sends(), false);
-});
-
-test("considering: the status line says the GM is considering the ramifications, for the whole step; a line waits in the box", () => {
-  const asked: string[] = [];
-  const scene = new SceneModel({ ...YARD, phase: "deciding", turn: 3, mayType: false }, { say: text => asked.push(text), retry: () => {}, setSuggestions: async () => undefined, out: () => {}, quit: () => {} });
-  const thinking = scene.busy();
-
-  scene.update({ ...scene.view, phase: "considering" });
-  assert.equal(scene.busy(), CONSIDERING);
-  assert.notEqual(thinking, CONSIDERING);
-  assert.equal(scene.sends(), false);
-  scene.input("Wait, Kell.");
-  assert.deepEqual(asked, []);
-
-  scene.update({ ...scene.view, phase: "replying", draft: { speaker: "gm", kind: "narration", text: "The boy", attempt: 1, seq: 1 } });
-  assert.equal(scene.busy(), "The GM is speaking…");
 });

@@ -54,15 +54,6 @@ export interface Line {
 /** The entries as one script, blank lines between (the way the transcript is shown to every model). */
 export const script = (lines: Line[]): string => lines.map(l => l.text).join("\n\n");
 
-/** A note disclosure has opened for a scope (`p`: how sure it was, on the turn it opened). */
-export interface OpenedNote { path: string; title: string; scope: string; turn: number; p?: number }
-
-/** What disclosure keeps for a scene: the notes open in it (24 at most), and those kept out of it however relevant. */
-export interface Disclosed {
-  opened: Array<Omit<OpenedNote, "p">>;
-  withheld?: string[];
-}
-
 /** The working set for a scene. */
 export interface WorkingSet {
   /** The game's id: whose copy of the lore is read and written. */
@@ -75,8 +66,6 @@ export interface WorkingSet {
   present: Person[];
   /** The scene so far, an entry a line. */
   transcript: Line[];
-  /** Disclosure's notes for the scene, once it has any. */
-  memory?: Disclosed;
 }
 
 /** How a scene ended: the exit taken. */
