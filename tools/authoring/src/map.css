@@ -1,4 +1,6 @@
-.km-workshop.km-map {--km-accent:#c4a776;--km-bg:#20272b;--km-panel:#272f33;--km-line:#414b4e;--km-text:#e3e3d8;--km-muted:#a6b2b1;background:var(--km-bg)}
+/* The map, place and migration views are dark whatever the host's theme, so the host's hover tint (a light theme's is pale, under
+   their pale text: a hovered button or list row, a key's chip) is theirs too. */
+.km-workshop.km-map {--km-accent:#c4a776;--km-bg:#20272b;--km-panel:#272f33;--km-line:#414b4e;--km-text:#e3e3d8;--km-muted:#a6b2b1;--background-modifier-hover:#ffffff12;background:var(--km-bg)}
 .km-map .map-body {display:flex;flex-direction:column;width:100%;height:100%;min-width:0}
 .km-map .map-heading {display:flex;justify-content:space-between;align-items:center;padding:15px 20px;gap:12px;border-bottom:1px solid var(--km-line)}
 .km-map .map-heading h1 {font-size:25px}
