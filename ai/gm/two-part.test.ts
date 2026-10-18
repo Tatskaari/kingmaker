@@ -11,7 +11,7 @@ import type { Scene } from "../../shared/scene/types.ts";
 import { fakeFetch, readPrep, walkTo, type FakeOptions } from "../llm/fake-openrouter.ts";
 import type { CallContext } from "../llm/openrouter.ts";
 import { CAERWYN, viewAt } from "./fixtures.ts";
-import { closingDirective, coGm, coGmInstructions, mouthpieceInput, mouthpieceInstructions, movedDirective, narrationSoFar, prepOf, pressureOffered, routeLine, speak, twoPartNow } from "./two-part.ts";
+import { closingDirective, coGm, coGmInput, coGmInstructions, mouthpieceInput, mouthpieceInstructions, movedDirective, narrationSoFar, prepOf, pressureOffered, routeLine, speak, twoPartNow } from "./two-part.ts";
 import type { TurnView } from "./view.ts";
 
 /**
@@ -123,6 +123,44 @@ test("a route into a discovery is taken once its revelation has landed: the co-G
   assert.equal(routeLine(clerk, find), "- [find-murder] from Stones at a hanged man [start] to The victim was murdered [murder]. When: its revelation has landed with the player");
   assert.match(routeLine(clerk, find, { revelation: true }), /When: its revelation has landed with the player \(Prout didn't hang himself: he was struck and strangled, then hoisted up on the sack hoist to look like a suicide\.\)$/);
   assert.doesNotMatch(twoPartNow(clerk, yard(), []), /struck and strangled/);
+});
+
+test("the co-GM's input counts the turns: the scene's turn, the turn each node was reached on, and how far each open cue's outer limit has run, overdue once the next reply reaches it; the mouthpiece's note has none of it", () => {
+  const rat = sceneFile("drowned-rat");
+  const view = viewAt(rat, rat.start, { turn: 0, turnsInBeat: 0 });
+  delete view.world;
+  let gm = { ...view } as unknown as GmState;
+  for (const [turn, route] of [[6, "arlo-calls-him-out"], [9, "find-the-heron"]] as const) {
+    const taken = takeRoute(rat, gm, route, "none", turn);
+    if ("error" in taken) assert.fail(taken.error);
+    gm = taken.gm;
+  }
+  const at = (turn: number) => ({ ...view, ...gm, turn, turnsInBeat: turn - 7 }) as unknown as TurnView;
+  const input = (turn: number) => coGmInput(rat, at(turn), undefined)[0]!.content;
+  assert.match(input(13), /^# Where the scene is: Arlo's third challenge \[arlos-challenge\]\nIt's turn 13: the scene has had 13 exchanges since the opening \(turn 0\), and it has been at this stage for 6 of them\. Reached so far: \[start\] \(at the opening\), \[arlos-challenge\] \(on turn 6\), \[the-heron\] \(on turn 9\)\.$/m);
+  const bell = (turn: number) => input(turn).split("\n").find(l => l.startsWith("- [bell-rings]"))!;
+  assert.match(bell(13), /it rings then, whatever is happening\. Not needed once Hobb has fled\. Its outer limit, whichever runs out first: 15 exchanges into the scene \(the next reply is the 14th\), or 8 after Arlo's third challenge \[arlos-challenge\] \(reached on turn 6: the next reply is the 7th after it\)\.$/);
+  assert.match(bell(14), /\(reached on turn 6: the next reply is the 8th after it\)\. Overdue: bring it about now\.$/, "eight after Arlo's challenge: it rings in the next reply");
+  const fresh = coGmInput(rat, { ...view, turn: 3 } as TurnView, undefined)[0]!.content.split("\n").find(l => l.startsWith("- [bell-rings]"))!;
+  assert.match(fresh, /or 8 after Arlo's third challenge \[arlos-challenge\] \(not reached yet\)\.$/);
+  const talking = takeRoute(rat, { ...view } as unknown as GmState, "hobb-breaks", "none", 3);
+  if ("error" in talking) assert.fail(talking.error);
+  const arlo = coGmInput(rat, { ...view, ...talking.gm, turn: 9 } as unknown as TurnView, undefined)[0]!.content.split("\n").find(l => l.startsWith("- [arlo-calls-him-out]"))!;
+  assert.match(arlo, /Its outer limit, whichever runs out first: 6 exchanges into the scene \(stopped: I only held the rope \[hobb-talking\] is reached\)\.$/, "not once Hobb is talking: past its six, and not overdue");
+  const note = twoPartNow(rat, at(14), []);
+  assert.match(note, /- \[bell-rings\] [^\n]*it rings then, whatever is happening\. Not needed once Hobb has fled\.\n/, "the mouthpiece's route line is as it was");
+  assert.doesNotMatch(note, /Its outer limit, whichever|Overdue|on turn 6/);
+});
+
+test("an open route into an ending says how it went and what's true there, for the co-GM; the mouthpiece's note and the prep keep the line as it was", () => {
+  const view = yard({ reached: ["start", "murder", "hobb", "cart-arrives"], beat: "cart-arrives", turn: 14 });
+  const lines = coGmInput(clerk, view, undefined)[0]!.content.split("\n");
+  const signed = clerk.routes.find(r => r.id === "signed-murder")!;
+  assert.equal(lines.find(l => l.startsWith("- [signed-murder]")), `${routeLine(clerk, signed)} It's a good ending. What's true there: ${clerk.exits.find(e => e.id === "murder-unknown")!.outcome}`);
+  assert.match(lines.find(l => l.startsWith("- [signed-suicide]"))!, /\. It's a mixed ending\. What's true there: The player has the Hobb lead but couldn't show murder/);
+  assert.match(lines.find(l => l.startsWith("- [case-lost]"))!, /\. It's a bad ending\. What's true there: The player failed/);
+  assert.doesNotMatch(twoPartNow(clerk, view, []), /What's true there/);
+  assert.doesNotMatch(prepOf(clerk, view, { coGm: true }), /It's a good ending/, "the prep has the endings under their own headings");
 });
 
 test("the narration is read as the reply streams: its escapes undone, an escape cut off part-way held back, nothing before it starts", () => {
