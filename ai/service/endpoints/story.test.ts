@@ -5,7 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CAERWYN as CREATION } from "../../docs/backstory.ts";
 import { configureDocs } from "../../docs/config.ts";
-import { memoryLines, readDoc } from "../../docs/docs.ts";
+import { readDoc } from "../../docs/docs.ts";
+import { readNotes } from "../../docs/notes.ts";
 import { CAERWYN, granaryYard, testStory } from "../../gm/fixtures.ts";
 import { JevDecider, LUNA_DECISIONS_MODEL } from "../../llm/decide.ts";
 import { fakeFetch, type FakeOptions, type Request } from "../../llm/fake-openrouter.ts";
@@ -182,16 +183,19 @@ test("presence is asked only of the next scene's people the hand-off or the adju
   assert.deepEqual(answer.next.absent, []);
 });
 
-test("the docs are written once for a boundary: run again (an exit after the docs, then the rerun), no memory, played scene or tick is written twice", async () => {
+test("the docs are written once for a boundary: run again (an exit after the docs, then the rerun), no line of anyone's notes, played scene or tick is written twice", async () => {
   const game = gameOf(7);
   const options = { byName: { boundary: VERDICT, fronts: FRONTS }, replies: [HANDOFF_TEXT] };
   for (let run = 0; run < 2; run++) await pipeline.boundary(yardBoundary(game), contextFor(game, yardBoundary(game).key, options).ctx);
 
-  const lines = (id: string, title: string) => memoryLines(game, id).filter(l => l.startsWith(`- [${title}](`)).length;
-  for (const id of ["kell", "cob", "moll"]) assert.equal(lines(id, "The Hanged Clerk: how it ended"), 1, `${id} remembers how it ended once`);
-  assert.equal(lines("tull", "The Hanged Clerk: how it ended"), 0, "Tull wasn't there at the end");
-  assert.equal(lines("kell", "Between The Hanged Clerk and The Drowned Rat"), 1, "the time between, once");
-  assert.equal(lines("cob", "Between The Hanged Clerk and The Drowned Rat"), 1, "Cob, whom an adjustment names");
+  const did = (id: string) => readNotes(game, id).did;
+  for (const id of ["cob", "moll"]) assert.deepEqual(did(id).filter(l => l.startsWith("Was there when")), ["Was there when The Hanged Clerk ended: Murder by persons unknown."], `${id} was there when it ended, once`);
+  assert.deepEqual(did("kell").filter(l => l.startsWith("The Hanged Clerk, as it ended:") || l.startsWith("Was there when")), ["The Hanged Clerk, as it ended: Prout was murdered; nobody has been named for it yet, and the case is open."], "Kell's memory of how it ended (the ending's own), once");
+  assert.deepEqual(readNotes(game, "tull"), { standing: [], seen: [], learned: [], promises: [], did: [] }, "Tull wasn't there at the end");
+  assert.deepEqual(did("kell").filter(l => l.startsWith("Between The Hanged Clerk and The Drowned Rat")).map(l => l.split(": ")[0]), [
+    "Between The Hanged Clerk and The Drowned Rat, as Wren heard it", "Between The Hanged Clerk and The Drowned Rat", "Between The Hanged Clerk and The Drowned Rat",
+  ], "the time between, once each: the lead, the adjustment about her and the fronts' word that shows");
+  assert.equal(did("cob").filter(l => l.startsWith("Between The Hanged Clerk and The Drowned Rat")).length, 1, "Cob, whom an adjustment names");
   assert.equal(readDoc(game, "story/index.md")!.body.split("\n").filter(l => l.includes("(scenes/hanged-clerk.md)")).length, 1, "the played scene in the story's index, once");
   assert.match(readDoc(game, "story/scenes/hanged-clerk.md")!.body, /^Previous scene, "The Hanged Clerk", ended:/);
   assert.equal(readDoc(game, "World/Fronts.md")!.body.split("(Ticked after The Hanged Clerk.)").length - 1, 1, "the step ticked once");

@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
-import { backgroundOf, memoriesText, statusOf, type Row, type StatusRows } from "./gm-status.ts";
+import { backgroundOf, notesText, statusOf, type Row, type StatusRows } from "./gm-status.ts";
 
 /** Game 1's rows as the owner's SQL gives them: snake_case, an empty option null, times in microseconds. */
 function rows(gm: Row = {}, more: Partial<StatusRows> = {}): StatusRows {
@@ -100,7 +100,7 @@ test("the co-GM's steering, the rulings and the reviews, summarised as the proto
       { id: 1, scene_id: 7, turn: 3, review: JSON.stringify({ turn: 3, status: "on_track", assessment: "The yard is moving." }), merged_turn: 4, note: "move_to yard refused: the scene is past it" },
     ],
     reviews: [
-      { turn: 1, flags: ["witnessed", "conversational_exchange"], reviews: [{ kind: "memories", changes: ["memory cob: The coin"] }] },
+      { turn: 1, flags: ["seen", "promise"], reviews: [{ kind: "notes", changes: ['note cob seen: added "Was given a crown by the investigator for nothing."'] }] },
       { turn: 2, flags: [], reviews: [] },
       { turn: 3, flags: ["improvised_detail"], reviews: [{ kind: "lore", changes: [], error: "tool limit reached" }] },
     ],
@@ -118,7 +118,7 @@ test("the co-GM's steering, the rulings and the reviews, summarised as the proto
   assert.deepEqual(status.rulings, ["3: lift the folded paper from the boy's boot -> sleight_of_hand DC 12 (19) [guarded to lose, plausible cover, wary: they could notice]: success: The investigator has the paper."]);
   assert.deepEqual(status.opened, ["4: kell: What the investigator did (Cast/Agnes Kell/memories/what-the-investigator-did.md)"]);
   assert.deepEqual(status.repairs, ["3: on_track — The yard is moving. [merged at t4] (move_to yard refused: the scene is past it)", "6: drifting — The talk has wandered to songs. [pending]"]);
-  assert.deepEqual(status.memoryReviews, ["1: witnessed, conversational_exchange — memory cob: The coin", "2: nothing flagged", "3: improvised_detail [lore failed: tool limit reached]"]);
+  assert.deepEqual(status.memoryReviews, ['1: seen, promise — note cob seen: added "Was given a crown by the investigator for nothing."', "2: nothing flagged", "3: improvised_detail [lore failed: tool limit reached]"]);
   assert.deepEqual(status.jobs, ["remember/remember: waiting, attempt 2 (503 from the AI service)", "repair/repair: running"]);
   assert.deepEqual(status.latency, { avgFirstTextMs: 4000, consideredTurns: 1, avgConsiderMs: 4200 });
 });
@@ -139,19 +139,19 @@ test("an ended scene's review that never merged says so", () => {
   assert.deepEqual(status.repairs, ["5: on_track — Done. [never merged: the scene ended]"]);
 });
 
-test("--memories: every person's index and notes in full, as scene memories prints a doc; none says so", () => {
-  const docs = mkdtempSync(join(tmpdir(), "km-memories-"));
+test("--notes: the GM's notes on each person in full, with where they were last brought up to date; none says so", () => {
+  const docs = mkdtempSync(join(tmpdir(), "km-notes-"));
   try {
-    assert.equal(memoriesText(docs, "1"), "(No memories yet: the reviews have written none in game 1.)");
+    assert.equal(notesText(docs, "1"), "(No notes yet: play has given nobody any in game 1.)");
 
     const write = (path: string, text: string) => { mkdirSync(dirname(join(docs, path)), { recursive: true }); writeFileSync(join(docs, path), text); };
     write("Cast/Agnes Kell/private.md", "---\nsummary: \"Kell\"\nvisibility: \"private\"\n---\n# Kell\n");
-    write("Cast/Agnes Kell/memories/index.md", "---\nsummary: \"An index of Kell's saved memories.\"\ntype: \"index\"\nvisibility: \"private\"\nreaders: [\"character:kell\"]\n---\n# Memories\n\n- [What the investigator did](what-the-investigator-did.md) — In the granary yard.\n");
-    write("Cast/Agnes Kell/memories/what-the-investigator-did.md", "---\nsummary: \"What the investigator did\"\nvisibility: \"private\"\nreaders: [\"character:kell\"]\ncontext: \"In the granary yard, the morning Prout was found.\"\n---\nI watched what the King's investigator did, and wrote it down.\n");
+    write("Cast/Agnes Kell/notes.md", "---\nsummary: \"The GM's notes on Kell.\"\ntype: \"notes\"\nvisibility: \"gm\"\nscene: \"hanged-clerk\"\nturn: 3\n---\n# Agnes Kell: notes from play\n\n## Seen the player do\n- Watched the investigator give Cob a silver crown and ask nothing for it.\n");
+    write("characters/tull/notes.md", "---\nsummary: \"The GM's notes on Tull.\"\ntype: \"notes\"\nvisibility: \"gm\"\n---\n# Tull: notes from play\n\n## Did\n- Was there when The Hanged Clerk ended: Murder by persons unknown.\n");
 
-    const text = memoriesText(docs, "1");
-    assert.match(text, /^## Cast\/Agnes Kell\/memories\/index\.md {2}\[private character:kell\]\n# Memories\n\n- \[What the investigator did\]/);
-    assert.match(text, /\n## Cast\/Agnes Kell\/memories\/what-the-investigator-did\.md {2}\[private character:kell\]\n\(In the granary yard, the morning Prout was found\.\)\nI watched what the King's investigator did, and wrote it down\.\n$/);
+    const text = notesText(docs, "1");
+    assert.match(text, /^## Cast\/Agnes Kell\/notes\.md {2}\[gm, last hanged-clerk turn 3\]\n# Agnes Kell: notes from play\n\n## Seen the player do\n- Watched the investigator give Cob a silver crown/);
+    assert.match(text, /\n## characters\/tull\/notes\.md {2}\[gm\]\n# Tull: notes from play\n\n## Did\n- Was there when The Hanged Clerk ended: Murder by persons unknown\.\n$/);
     assert.doesNotMatch(text, /private\.md/);
   } finally {
     rmSync(docs, { recursive: true, force: true });

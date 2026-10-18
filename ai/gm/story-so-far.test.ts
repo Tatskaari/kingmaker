@@ -105,8 +105,9 @@ test("nobody answers a question put to the player for them, and nobody knows wha
   assert.match(prompt("narrator"), /a question put to them is theirs to answer, not anyone else's/);
 });
 
-test("what someone saw or heard for themselves is a memory of theirs: a companion's included", () => {
-  assert.match(CATEGORIES.witnessed!, /including whoever stood watch or kept out of the way, and a companion of the player's/);
-  assert.deepEqual(plan(["witnessed"]), ["memories"], "the personal-memories review");
-  assert.match(prompt("review/witnessed"), /'I only held him\. In the loft\. I only held the rope\.'", not "I recorded Hobb's admission"/, "in its own words");
+test("what someone saw or heard for themselves goes in the GM's notes on them: a companion's included, in the words that matter", () => {
+  assert.match(CATEGORIES.learned!, /including whoever stood watch or kept out of the way, and a companion of the player's/);
+  assert.deepEqual(plan(["learned"]), ["notes"], "the notes review");
+  assert.deepEqual(plan(["improvised_detail"]), ["notes", "lore"], "a world fact has its witnesses too");
+  assert.match(prompt("memory-review"), /"Heard Hobb say: 'I only held him\. In the loft\.'", not "Witnessed Hobb's admission"\), for whoever stood watch or kept out of the way and for the player's companion too/, "in its own words");
 });

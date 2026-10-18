@@ -1,4 +1,4 @@
-// Copied from PR #666's src/runtime/two-part.ts at origin/claude/two-part-gm c749270: FORMAT and SCHEMA (the reply format), routeLine, mouthpieceInstructions, characters, mouthpieceInput with gmText, speak, movedDirective, the wind-down's words (twoPartTurn's), the co-GM's tools (UPDATE_ROLE, MOVE_SCENE, CO_GM_TOOLS), coGmInput and coGm, whole but at the seams docs/two-part-design.md names. It reads a TurnView (gm/view.ts) for the session. Where the scene is, is shared/scene/beats.ts's (its stage, the routes open, a route taken) in place of the beat and its transitions; the prep ({{beats}}) is the scene format's, rendered as the design orders it, in place of beatsBlock; {{characters}} has the cards' whyHere and limits too, and the co-GM's each person's role palette and the clues via them. speak doesn't roll: the check comes back with its five outcomes, and the simulation rolls it; the narration streams through the game's markup (who says each line) as it's written. The per-turn note is twoPartNow, nowNote's copy (brief.ts) with the open routes. The co-GM's moves are beats.ts's takeRoute on a copy of the request's bookkeeping, and its answer is the roles it set and the moves it made, for the simulation to make again. The speakers paragraph is gm.md's, appended after the format. QA round qa1-1018 added what's ours after it: written words read untagged, what the player sees and hears (SEEN), the companion, the checks' outcomes following on from their setup, a closing going on from the last reply, and in the per-turn note what's hidden right now, the names not yet heard with what to call them, and what the player did or thought in brackets; and the narration's names the player hasn't heard are swapped for what they'd call them before it's shown or kept (unheard.ts). The co-GM's tools section, its input and its moves' answers have what QA round qa1-1018 showed they needed (docs/migration-log.md, M2's fixes from it): the turns counted, each cue's outer limit and whether it's overdue, what's true at each ending a route goes to, how to take a route, and a move whose own reason denies it refused.
+// Copied from PR #666's src/runtime/two-part.ts at origin/claude/two-part-gm c749270: FORMAT and SCHEMA (the reply format), routeLine, mouthpieceInstructions, characters, mouthpieceInput with gmText, speak, movedDirective, the wind-down's words (twoPartTurn's), the co-GM's tools (UPDATE_ROLE, MOVE_SCENE, CO_GM_TOOLS), coGmInput and coGm, whole but at the seams docs/two-part-design.md names. It reads a TurnView (gm/view.ts) for the session. Where the scene is, is shared/scene/beats.ts's (its stage, the routes open, a route taken) in place of the beat and its transitions; the prep ({{beats}}) is the scene format's, rendered as the design orders it, in place of beatsBlock; {{characters}} has the cards' whyHere and limits too, and the co-GM's each person's role palette and the clues via them. speak doesn't roll: the check comes back with its five outcomes, and the simulation rolls it; the narration streams through the game's markup (who says each line) as it's written. The per-turn note is twoPartNow, nowNote's copy (brief.ts) with the open routes. The co-GM's moves are beats.ts's takeRoute on a copy of the request's bookkeeping, and its answer is the roles it set and the moves it made, for the simulation to make again. The speakers paragraph is gm.md's, appended after the format. QA round qa1-1018 added what's ours after it: written words read untagged, what the player sees and hears (SEEN), the companion, the checks' outcomes following on from their setup, a closing going on from the last reply, and in the per-turn note what's hidden right now, the names not yet heard with what to call them, and what the player did or thought in brackets; and the narration's names the player hasn't heard are swapped for what they'd call them before it's shown or kept (unheard.ts). The co-GM's tools section, its input and its moves' answers have what QA round qa1-1018 showed they needed (docs/migration-log.md, M2's fixes from it): the turns counted, each cue's outer limit and whether it's overdue, what's true at each ending a route goes to, how to take a route, and a move whose own reason denies it refused. Its input also has the GM's notes on each person on stage from play (docs/notes.ts, the memory the user kept from the old pipeline), so a role reflects the story so far.
 
 import { titleCase } from "../../shared/dice.ts";
 import type { GmState, TwoPartRole } from "../../shared/gm/state.ts";
@@ -10,6 +10,7 @@ import { presentCast } from "../../shared/scene/graph.ts";
 import { SKILLS, type Character, type Exit, type Scene, type SceneRoute, type Skill } from "../../shared/scene/types.ts";
 import { worldView } from "../../shared/world/scene-world.ts";
 import { PHYSICS } from "../../shared/world/systems.ts";
+import { gmNotes } from "../docs/notes.ts";
 import { respond, type CallContext, type Message } from "../llm/openrouter.ts";
 import { runTools, type ToolDef } from "../llm/tools.ts";
 import { prompt } from "../prompts/index.ts";
@@ -573,7 +574,7 @@ const MOVE_SCENE: ToolDef = {
 };
 
 const CO_GM_TOOLS = `## Your tools
-- update_character_role: each character's role for the GM's next reply. While the scene is at a stage (where it starts, or the latest of its events), that stage's suggested roles are your default for each character; what a character remembers, wants, has been promised or owes, and what just happened, can give them a better reason, and then that wins. Keep each role to what they do or could reveal next, and what they hold back for now.
+- update_character_role: each character's role for the GM's next reply. While the scene is at a stage (where it starts, or the latest of its events), that stage's suggested roles are your default for each character; what a character remembers (the notes on the people here, in your input), wants, has been promised or owes, and what just happened, can give them a better reason, and then that wins. Keep each role to what they do or could reveal next, and what they hold back for now.
   - Write a role as behaviour the GM can show (what they do, say or want next, what they won't say) and what they hold back, never as analysis of the game: the GM voices what it's given, so "the promise has found his fear" ends up said aloud. Leave routes, beats and discoveries out of it.
   - Once something has happened in the story (a challenge made, a name given, a secret told), move everyone's role past it: nobody's role still has it to do, or it gets played twice.
   - A cue is brought about by taking its route (the GM shows it in the next reply), not by writing it into someone's role.
@@ -598,10 +599,27 @@ export function coGmInput(scene: Scene, view: TurnView, check: TurnCheck | undef
     `# Open routes\n${open.map(r => routeLine(scene, r, { revelation: true, ending: true, now: view })).join("\n") || "- (none)"}`,
     ...(check ? [`# This turn's check\nThe GM called ${titleCase(check.skill)} DC ${check.dc}, and the roll came to ${check.total}: a ${check.success ? "success" : "failure"} (${check.band.replace("_", " ")}).${dice.length ? ` It is the check of ${dice.map(r => `[${r.id}]`).join(" and ")}: take ${dice.length === 1 ? "it" : "the one the player was attempting"} with outcome ${check.success ? "success" : "failure"} if that's what the player was attempting.` : ""}`] : []),
     ...(view.established.length ? [`# Established in play\n${view.established.map(f => `- ${f}`).join("\n")}`] : []),
+    ...[notesOnPeople(view, present)].filter((n): n is string => !!n),
     `# Current character roles\n\n${rolesBody(scene, view.twoPart.roles)}`,
     `# Who's on stage now\n${present.map(c => `- ${c.name} [${c.id}]`).join("\n")}`,
     `The GM's reply to turn ${view.turn} is the latest exchange. Update the roles that need it, and move the scene on if a route's moment has come.`,
   ].join("\n\n") }];
+}
+
+/**
+ * The GM's notes on each person on stage from play (docs/notes.ts: the memory reviews', what each
+ * ending and the time between said of them, a talk's), when any have them, so their roles reflect
+ * the story so far: a promise kept or owed, how the player character treated them. Kell at the Rat
+ * remembers the yard. Only the co-GM reads them: what the mouthpiece plays of them is the roles.
+ */
+export function notesOnPeople(view: TurnView, present: Character[]): string | undefined {
+  const noted = present.flatMap(c => { const text = gmNotes(view.id, c.id); return text ? [`## ${c.name} [${c.id}]\n${text}`] : []; });
+  if (!noted.length) return undefined;
+  return [
+    "# Notes on the people here (what's happened with them in play)",
+    "The GM's notes on each of them so far, this scene's included: how they stand with the player character and why, what they've seen the player do, what they've learned, the promises made by them or to them, and what they did. Let a role follow from them where they bear on the moment (a promise kept or owed, how the player character has treated them): what the person does because of it, never the notes recited. They know only what they lived through, saw or were told.",
+    ...noted,
+  ].join("\n\n");
 }
 
 /** The nodes reached, in order, each with the turn it was reached on (the turn whose reply its move followed): "[start] (at the opening), [murder] (on turn 7)". The fake co-GM reads their ids off this line. */

@@ -17,8 +17,8 @@ import { bigints, callLog, check, doneTurn, mapUntil, moduleLog, nextTurn, note,
  * clerk opens as walking in does, and once the opening's in the act is turn 1, its mechanic on the
  * turn's row. A thing the stage manager makes in the yard gets a look of its own (look.invent). Then,
  * the yard ended, a word with Kell between scenes: a talk opens with her greeting and lines to
- * choose, told what she remembers of the yard (the memory reviews', which the two-part GM in a scene
- * doesn't read), a line chosen brings her reply and new lines, and walking on puts the player back on
+ * choose, told the GM's notes on her (the memory reviews' line, and what the yard's ending says of
+ * her), a line chosen brings her reply and new lines, and walking on puts the player back on
  * the map with the waiting Rat exactly as it was. The menu acts' times, as the module logged them.
  */
 
@@ -125,7 +125,7 @@ export async function theTown(stack: Stack, root: string, lead: Player, b: Playe
   check(`its look row is invented ${invented ? `(${String(invented.role)}: "${String(invented.glyph)}" in ${String(invented.fg)})` : ""}, ${seconds(performance.now() - t1)} after the turn`, !!invented && invented.role === "invented");
   await restartAi(stack, quiet, RAISED);
 
-  step("39. A word with Kell between scenes: the yard ended, a talk opens with her greeting and lines, told what she remembers; a line chosen brings her reply and new ones; walking on leaves the waiting Rat as it was");
+  step("39. A word with Kell between scenes: the yard ended, a talk opens with her greeting and lines, told the GM's notes on her; a line chosen brings her reply and new ones; walking on leaves the waiting Rat as it was");
   const ended = { text: [] as string[] };
   check("the yard ended as the owner (end --exit murder-unknown)", await verbs.end(lead.conn, "murder-unknown", { print: t => ended.text.push(t), progress: () => {} }) === 0);
   await until(lead, "the Rat to wait as the lead", 60_000, r => r.story?.game.leadScene === "drowned-rat" && r.story.game.onward === undefined && r);
@@ -148,7 +148,7 @@ export async function theTown(stack: Stack, root: string, lead: Player, b: Playe
   const [gameRow] = await stack.sql(`SELECT uid FROM game WHERE id = ${game}`);
   const greeting = callLog(root, String(gameRow!.uid)).filter(c => !c.started && c.operation === "gm.talk.opening" && String(c.key).endsWith(`:s${talk.scene.id}:t0:open`)).at(-1) as { request?: { input?: Array<{ content: string }> } } | undefined;
   const told = greeting?.request?.input?.map(m => m.content).join("\n") ?? "";
-  check("her greeting was told what she remembers of the yard (the memory reviews' note, and how it ended)", /remembers \(index[^\n]*\n[\s\S]*What the investigator did/.test(told) && told.includes("The Hanged Clerk: how it ended"));
+  check("her greeting was told the GM's notes on her (the memory reviews' line, and what the yard's ending says of her)", /The GM's notes on Sergeant Agnes Kell from play \(what's happened with them\):\n[\s\S]*Watched everything the King’s investigator did in the yard/.test(told) && told.includes("The Hanged Clerk, as it ended: The King's investigator proved Prout was murdered"));
   await until(b, "B's seat to follow into the talk", 10_000, r => r.scene.id === talk.scene.id);
   ok("B's seat went into the talk with the lead");
   check(`${lead.name} chooses the first: "${lines[0]!.text}"`, (await lead.conn.say(lines[0]!.text)) === undefined);

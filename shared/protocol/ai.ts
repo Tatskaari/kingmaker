@@ -382,14 +382,15 @@ export interface ReactionsResponse { reactions: Record<string, Reaction>; direct
 
 /**
  * POST /v1/turns/remember (full-gm-design §4.1): the memory reviews of a turn once it's over (the
- * attention filter, then the memories and lore agents it fires), written into the game's docs.
- * turn: the scene up to and including the reviewed turn; reviewed: its number.
+ * attention filter, then the reviews it fires: the GM's notes on the people present, and the lore),
+ * written into the game's docs. turn: the scene up to and including the reviewed turn; reviewed: its
+ * number.
  */
 export interface RememberRequest extends AiRequest { turn: SceneContext; reviewed: number }
 /** What the attention filter flagged, and each review it fired: what it changed, or why it failed. */
 export interface RememberResponse { flags: string[]; reviews: ReviewRecord[]; usage: Usage }
 /** A memory review's record, as ai/docs/reviews.ts makes it (its shape written out here: shared imports nothing of the AI service's). */
-export interface ReviewRecord { kind: "memories" | "lore"; summary: string; changes: string[]; costUsd: number; latencyMs: number; error?: string }
+export interface ReviewRecord { kind: "notes" | "lore"; summary: string; changes: string[]; costUsd: number; latencyMs: number; error?: string }
 
 /** POST /v1/turns/repair (full-gm-design §4.1): the background co-GM's review of a turn once it's over. turn and reviewed as remember's. */
 export interface RepairRequest extends AiRequest { turn: SceneContext; reviewed: number }
@@ -419,8 +420,8 @@ export interface BoundaryRequest extends AiRequest { turn: SceneContext; exit: s
  * scenes skipped and why, where its prep is out of date, its opening rewritten, the lead, the cast
  * absent, its prep's patches with what's owed brought over, the owed essentials already hinted at);
  * what the story still owes after it, its things by entity key; and what moved in the fronts.
- * The game's docs (the ending's memories, the time between, the played scene, the fronts) are
- * written by then, once per key.
+ * The game's docs (the GM's notes on the people, from the ending and the time between, the played
+ * scene, the fronts) are written by then, once per key.
  */
 export interface BoundaryResponse {
   handOff: string;

@@ -1,6 +1,7 @@
-// Copied from the prototype at 44c6d4a: src/runtime/talk.ts (the AI service's half: facts 82-98, knewThere 106-113, confidences 166-175, inTheStory 182-196, earlierTalks 199-205, sift 216-244, plan 251-309, prepare 315-346, choices 349-354, suggest 391-411, and endTalk's memory 431-437) and scenes/talk.ts (section and firstParagraph 37-50, talkScene's words from lore 58-87), with the usual edits: a TurnView for the SessionState, each call through the request's calls (respond, respondJson, and the director's decider: luna-decisions, the v2 approach's), the story's scenes (gm/story.ts) for SCENES and sceneById. What's the simulation's isn't here: startTalk, talkTurn, leaveTalk and endTalk's rows (a talk is a scene row of its own, and the waiting scene is never touched, so nothing is set aside or put back). So startTalk's facts are talkFacts, for the greeting; prepare returns the TalkPrep the open's commit keeps (withhold's note in its withheld) instead of writing the session; the next lines are asked in the settle (talkLines); and endTalk's memory of telling it is written by the settle that finds it told (rememberTold: once, by its title). talkScene fills the campaign's talk template (scenes/talk/, with shared/scene/talk.ts) and gives the companion their lore's look and voice.
+// Copied from the prototype at 44c6d4a: src/runtime/talk.ts (the AI service's half: facts 82-98, knewThere 106-113, confidences 166-175, inTheStory 182-196, earlierTalks 199-205, sift 216-244, plan 251-309, prepare 315-346, choices 349-354, suggest 391-411, and endTalk's memory 431-437) and scenes/talk.ts (section and firstParagraph 37-50, talkScene's words from lore 58-87), with the usual edits: a TurnView for the SessionState, each call through the request's calls (respond, respondJson, and the director's decider: luna-decisions, the v2 approach's), the story's scenes (gm/story.ts) for SCENES and sceneById. What's the simulation's isn't here: startTalk, talkTurn, leaveTalk and endTalk's rows (a talk is a scene row of its own, and the waiting scene is never touched, so nothing is set aside or put back). So startTalk's facts are talkFacts, for the greeting; prepare returns the TalkPrep the open's commit keeps (withhold's note in its withheld) instead of writing the session; the next lines are asked in the settle (talkLines); and endTalk's memory of telling it is written by the settle that finds it told (rememberTold: once, a line of the GM's notes on them). talkScene fills the campaign's talk template (scenes/talk/, with shared/scene/talk.ts) and gives the companion their lore's look and voice.
 
-import { characterEntry, linksIn, memoryLines, permitted, readDoc, saveMemory, seedDoc, titleOf, type Doc } from "../docs/docs.ts";
+import { characterEntry, linksIn, permitted, readDoc, seedDoc, titleOf, type Doc } from "../docs/docs.ts";
+import { gmNotes, note } from "../docs/notes.ts";
 import { dirname, join } from "../docs/paths.ts";
 import type { Decider } from "../llm/decide.ts";
 import { respond, respondJson, type CallContext } from "../llm/openrouter.ts";
@@ -23,7 +24,7 @@ import type { TurnView } from "./view.ts";
  *
  * Backstory comes slowly, through the GM's own machinery rather than a system of its own:
  * - At the start of each talk, one small call (alongside the greeting) reads how things stand
- *   between them (their memories of the player), what they've told already, anywhere, and how
+ *   between them (the GM's notes on them), what they've told already, anywhere, and how
  *   many times the two have talked, and picks the one thing they might open up about this time: a
  *   note of their lore not yet told. It goes on their card as what they're keeping back, and the
  *   GM is told by name what's already been told and what may come out now.
@@ -31,7 +32,7 @@ import type { TurnView } from "./view.ts";
  *   after each reply as in any scene, starting as near the surface as the prep says it is. How far
  *   they got carries over to the next talk that turns to it.
  * - Once it's out (an outcome only they can give, judged after a reply), the talk moves to its
- *   "told" beat, and it goes in the talk record and their memories: never told twice, not in a
+ *   "told" beat, and it goes in the talk record and the GM's notes on them: never told twice, not in a
  *   later talk and not in a scene of the story either.
  * Each reply also brings the next few dialogue choices: one small call, alongside the after-reply
  * decision, so a talk's turn takes no longer than a scene's.
@@ -124,7 +125,7 @@ function facts(state: TurnView, name: string, record: TalkRecord, where: string,
 
 /**
  * What the companion knew in the last scene of the story they were in (their card there, still
- * true), for the talk's GM, which otherwise has only their lore and memories: asked how she knew the
+ * true), for the talk's GM, which otherwise has only their lore and the GM's notes: asked how she knew the
  * thief's real name, Kell made something up, then wouldn't say, though her card at the granary had
  * it plainly (a palace page came to the watch house with it).
  */
@@ -244,14 +245,14 @@ export async function planTalk(state: TurnView, scene: Scene, talk: TalkOpen, ho
   const told = record.told;
   // The GM's truth about them is for when the deepest may come out; before then it only tempts.
   const gm = record.count >= DEEPEST_FROM ? readDoc(state.id, join(dirname(entry), "gm.md")) : undefined;
-  const memories = memoryLines(state.id, talk.with);
+  const notes = gmNotes(state.id, talk.with);
   const earlier = earlierTalks(state, scene, talk.with);
   const input = [
     `# A talk with ${name} between scenes: the prep`,
     `## Their lore entry (${entry}): who they are, written to them\n${readDoc(state.id, entry)?.body ?? "(none)"}`,
     ...(candidates.length ? [`## The notes they might open up about now: what they know and believe\n${candidates.map(d => `### ${d.path}\n${d.body}`).join("\n\n")}`] : []),
     ...(gm ? [`## The truth about them (the GM's notes)\n${gm.body}`] : []),
-    `## How things stand: what they remember (their memories of the player and the story, by title)\n${memories.join("\n") || "(nothing yet)"}`,
+    `## How things stand: the GM's notes on them from play (how they stand with the player and why, what they've seen and learned, promises, what they did)\n${notes ?? "(nothing yet)"}`,
     `## What they've already told the player of their own story\n${told.length ? told.map(t => `- ${t.topic} (${t.note})`).join("\n") : "(nothing yet)"}`,
     `## Their earlier talks with the player between scenes, word for word\n${earlier || "(none: this is their first)"}`,
     `## The story so far (the hand-offs between scenes)\n${state.history.map(h => h.summary).join("\n\n") || "(it's just begun)"}`,
@@ -264,7 +265,7 @@ export async function planTalk(state: TurnView, scene: Scene, talk: TalkOpen, ho
     instructions: [
       `You prepare a short talk between the player character of a roleplaying game and ${name}, who walks with them between the scenes of the story: the kind of conversation a cRPG offers with a companion between quests. The player gets to know ${name} slowly, as with a real person: each talk opens one more thing at most, and nothing is told twice.`,
       `- told: what ${name} has already told the player of their own story, anywhere (look through the replies from the story's scenes and the earlier talks, not only the hand-offs), each in a few words ("Prout came to her three days before he died"); empty if nothing yet.`,
-      `- standing: how things stand between ${name} and the player now, in a sentence, from their memories and the story so far.`,
+      `- standing: how things stand between ${name} and the player now, in a sentence, from the GM's notes on them and the story so far.`,
       `- willing: whether ${name} would open up about any of their own story in this talk: yes, unless things stand badly between them (distrust, hurt, anger) or there's nothing left they'd tell.`,
       `- note: the one thing about themselves ${name} would open up about next, as the note it's in (one listed under "This talk"). Their own story: what happened to them, what someone means to them, why something matters to them. Pace it as a good cRPG paces a companion: the first talks open small things (someone they're fond of, an old embarrassment, a habit and where it comes from), and what costs them more comes later, once things stand well between them. Within that, choose by what's in the air after the story so far.`,
       `- topic: that thing in a few words, in the third person ("the door at the Drowned Rat", "why she lets Cob go").`,
@@ -365,25 +366,17 @@ export async function talkLines(state: TurnView, scene: Scene, talk: TalkState, 
   return { lines: choices(result.text.split("\n").map(l => l.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, ""))), costUsd: result.costUsd };
 }
 
-/** A memory titled so is in someone's index already (a settle run again: it's written once). */
-function remembers(game: string, id: string, title: string): boolean {
-  const linked = `- [${title.replace(/\s+/g, " ").replace(/[[\]()]/g, "")}](`;
-  return memoryLines(game, id).some(l => l.startsWith(linked));
-}
-
 /**
- * The one thing they were keeping back is out: it goes in their memories, so no scene of the story
- * has them tell it as news either (endTalk's, written once it's told rather than as the talk ends,
- * since the simulation ends the talk: once, by its title). True when it was written now.
+ * The one thing they were keeping back is out: it goes in the GM's notes on them, under what they
+ * did, so no scene of the story has them tell it as news either (endTalk's memory, written once it's
+ * told rather than as the talk ends, since the simulation ends the talk: once, a line the notes have
+ * already being kept as it is). True when it was written now.
  */
 export function rememberTold(state: TurnView, scene: Scene, talk: TalkState): boolean {
   if (!talk.confide) return false;
   const name = companionOf(scene).name;
-  const title = `Told ${firstName(state.player.name)} about ${talk.confide.topic}`;
-  if (remembers(state.id, talk.with, title)) return false;
   try {
-    saveMemory(state.id, { id: talk.with, name }, { title, context: `A word with ${state.player.name} between scenes: ${talk.where}.`, content: talk.confide.memory }, { scene: state.sceneId, turn: state.turn });
-    return true;
+    return note(state.id, { id: talk.with, name }, "did", `Told ${firstName(state.player.name)} about ${talk.confide.topic}, in a word between scenes (${talk.where}).`, { origin: { scene: state.sceneId, turn: state.turn } }).did !== "kept";
   } catch {
     return false; // the talk record still has it
   }

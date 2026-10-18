@@ -19,9 +19,10 @@ import { callLog, check, doneTurn, mapUntil, modelCalls, nextTurn, ok, restartAi
  * does. Each
  * scene's end writes its chapter and the endings' story rows and crosses the boundary on the AI
  * service (the hand-off, the verdict, the fronts and presence, under the ended scene's last turn's
- * key); the next scene waits until the lead walks to it, the spectator's seat following; the Heron's
- * fight is the stand-in, picked up by its aftermath; the King's morning is a summons, opened in the
- * boundary's own commit; and its ending is The End.
+ * key); the next scene waits until the lead walks to it, the spectator's seat following, and its
+ * co-GM is given the GM's notes on Kell, which the endings before it wrote; the Heron's fight is the
+ * stand-in, picked up by its aftermath; the King's morning is a summons, opened in the boundary's own
+ * commit; and its ending is The End.
  */
 
 /** Step 20 left $10 in today's ledger, so the AI service keeps its ceiling raised from here on. */
@@ -72,9 +73,10 @@ export async function theWholeStory(stack: Stack, root: string, lead: Player, b:
     story.quests.some(q => q.key === "hanged-clerk" && q.status === "complete") && story.flags.some(f => f.name === "prout_death" && f.value === "murder")
       && story.followers.some(f => f.castKey === "kell") && story.journal.some(j => j.text === "Wendell Prout didn't hang himself. Big Hobb Mallory, the Drowned Rat's champion, was there: find him at the Rat."));
   const docs = join(root, "ai", "games", game.uid, "docs");
-  const kell = join(docs, "Cast", "Sergeant Agnes Kell", "memories", "index.md");
-  check("the game's docs: the played scene in the story's index, and Kell's memory of how it ended",
-    existsSync(join(docs, "story", "scenes", "hanged-clerk.md")) && existsSync(kell) && readFileSync(kell, "utf8").includes("[The Hanged Clerk: how it ended]"));
+  const kell = join(docs, "Cast", "Sergeant Agnes Kell", "notes.md");
+  const notes = existsSync(kell) ? readFileSync(kell, "utf8") : "";
+  check("the game's docs: the played scene in the story's index, and the GM's notes on Kell with what the ending says of her (her standing, her memory of how it ended)",
+    existsSync(join(docs, "story", "scenes", "hanged-clerk.md")) && notes.includes("## Standing with the player\n- Friendly: The King's investigator made Prout's case properly.") && notes.includes("- The Hanged Clerk, as it ended: The King's investigator proved Prout was murdered"));
   await until(b, "B to see the Rat as the lead", 10_000, r => r.story?.game.leadScene === "drowned-rat" && !r.story.game.onward);
   ok("B sees the story moved on, the yard still on screen");
 
@@ -105,6 +107,9 @@ export async function theWholeStory(stack: Stack, root: string, lead: Player, b:
   const atHeron = await until(lead, "the Heron to be live", 30_000, r => r.scene.title === "The Heron Warehouse" && r.scene.status === "live" && r);
   const heronGame: Game = { ...game, scene: atHeron.scene.id };
   await toTheEnding(lead, ["I'll take that book off the desk.", "Someone's coming: the Master?", "Sallow, you're cornered."], undefined, "Roll for initiative");
+  const coGmSaw = modelInput(root, heronGame, "two-part.co-gm", keyOf(heronGame, 1, "settle"));
+  check("the Heron's co-GM was given the GM's notes on Kell: her standing from the yard's ending, and that she was there when the Rat ended",
+    coGmSaw.includes("# Notes on the people here (what's happened with them in play)") && /## Sergeant Agnes Kell \[kell\]\nStanding with the player: Friendly: The King's investigator made Prout's case properly\./.test(coGmSaw) && /The Drowned Rat(?:, as it)? ended/.test(coGmSaw));
   const n = nextTurn(lead);
   check("the lead goes for Sallow, as the scene closes on the fight", (await lead.conn.say("(I go for Sallow with my blade)")) === undefined);
   const fighting = await until(lead, "the Heron to be fighting", 60_000, r => r.scene.status === "fighting" && r);
