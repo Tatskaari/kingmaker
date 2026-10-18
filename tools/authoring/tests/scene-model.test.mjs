@@ -160,8 +160,8 @@ test('the problems are the campaign check\'s: none on the real scenes, and one w
   for(const scene of campaign.scenes)assert.deepEqual(problemsOf(scene.id,scene.doc,contextOf(campaign,scene.id)),[],scene.id);
   const broken=setRouteField(setCastField(clerk(),'cob','limits',undefined),'signed-murder','requires',undefined);
   assert.deepEqual(problemsOf('hanged-clerk',broken,contextOf(campaign,'hanged-clerk')),[
-    {message:'route signed-murder goes to a good ending (murder-unknown) but requires nothing found',at:{kind:'route',id:'signed-murder'}},
-    {message:'discovery hobb is required, but no route into a good ending requires it',at:{kind:'node',id:'hobb'}},
+    {message:'route signed-murder goes to a good ending (murder-unknown) but requires nothing found',at:{kind:'route',id:'signed-murder',field:'requires'}},
+    {message:'discovery hobb is required, but no route into a good ending requires it',at:{kind:'node',id:'hobb',field:'required'}},
   ]);
   const unlisted=problemsOf('the-lamplighter',skeletonScene('The Lamplighter'),contextOf(campaign,'the-lamplighter'));
   assert.deepEqual(unlisted.map(problem=>problem.message),[

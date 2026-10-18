@@ -39,7 +39,7 @@ test("every scene of the campaign keeps the rules, as the campaign check finds",
   }
 });
 
-test("each problem says where it is: the scene and its field, a node, a route, a person", () => {
+test("each problem says where it is: the scene and its field, a node, a route, a person, and the part of it", () => {
   const doc = clerk();
   doc.premise = "";
   doc.cast[1]!.look = " ";
@@ -49,11 +49,11 @@ test("each problem says where it is: the scene and its field, a node, a route, a
 
   assert.deepEqual(sceneRuleProblems("hanged-clerk", doc, contextFor(doc)), [
     { message: "it has no premise", at: { kind: "scene", field: "premise" } },
-    { message: "cob has no look", at: { kind: "cast", id: "cob" } },
-    { message: "lore Places/Atlantis.md isn't in lore/", at: { kind: "node", id: "murder" } },
-    { message: "route cart-comes has no condition, and only a route into a discovery may go without", at: { kind: "route", id: "cart-comes" } },
+    { message: "cob has no look", at: { kind: "cast", id: "cob", field: "look" } },
+    { message: "lore Places/Atlantis.md isn't in lore/", at: { kind: "node", id: "murder", field: "lore" } },
+    { message: "route cart-comes has no condition, and only a route into a discovery may go without", at: { kind: "route", id: "cart-comes", field: "condition" } },
     { message: "its place the-moon isn't one of the campaign's places", at: { kind: "scene", field: "place" } },
-    { message: "afterwards: remove names unknown prout", at: { kind: "scene", field: "afterwards" } },
+    { message: "afterwards: remove names unknown prout", at: { kind: "scene", field: "afterwards.0" } },
   ]);
 });
 
@@ -72,5 +72,5 @@ test("the carried things another scene brings in count: Prout's page comes into 
   const rat = scenes.find(s => s.id === "drowned-rat")!;
   const alone: SceneContext = { ...contextFor(rat), others: [] };
   assert.deepEqual(sceneRuleProblems(rat.id, rat, contextFor(rat)), []);
-  assert.deepEqual(sceneRuleProblems(rat.id, rat, alone), [{ message: "beat prouts-page carries ledger-page, which isn't a thing of its place, nor carried from another scene", at: { kind: "node", id: "prouts-page" } }]);
+  assert.deepEqual(sceneRuleProblems(rat.id, rat, alone), [{ message: "beat prouts-page carries ledger-page, which isn't a thing of its place, nor carried from another scene", at: { kind: "node", id: "prouts-page", field: "carry" } }]);
 });
