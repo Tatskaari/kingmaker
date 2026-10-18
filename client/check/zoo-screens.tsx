@@ -1,10 +1,15 @@
-// New (M6): the zoo on the title, drawn by the real App over fixture rows with its moves recorded, at 80x24 and 130x42: its line and z, its menu a step at a time (the combat ring, then who to be), a visit made with the ring and the build picked, Esc back a step at a time, a click, and the zoo not installed.
+// New (M6): the zoo on the title, drawn by the real App over fixture rows with its moves recorded, at 80x24 and 130x42: its line and z, its menu a step at a time (the combat ring, then who to be), a visit made with the ring and the build picked, Esc back a step at a time, a click, and the zoo not installed. And a zoo fight on the fight's screen (the recorded wolf run's rows, said to come from the ring): the side panel's n and o, again, the line-ups' list and other foes picked, and once it's over Enter fighting it again where a story's fight goes back to the map.
 import { act } from "react";
 import { testRender } from "@opentui/react/test-utils";
 import { App } from "../app.tsx";
 import { AppModel } from "../app/model.ts";
 import type { HomeRows } from "../backend.ts";
+import { FightModel } from "../fight/model.ts";
+import type { FightView } from "../fight/view.ts";
 import { NO_ZOO } from "../title/model.ts";
+import { FightPlay } from "../ui/fight.tsx";
+import { zooFightOf, type FightZoo } from "../zoo/zoo.ts";
+import { frameOf, WOLVES, wolvesAt } from "./fight.ts";
 import { gameRow } from "./rows.ts";
 import { CAERWYN, StubBackend } from "./stub.ts";
 import { ZOO_ROW } from "./zoo.ts";
@@ -77,5 +82,58 @@ export async function checkZoo(checks: Array<[string, boolean]>, show: boolean):
     frame = await bare.key("z");
     checks.push([`the zoo ${label(size)}: with the zoo not installed, its menu says so`, flat(frame).includes(flat(NO_ZOO).slice(0, 40))]);
     await bare.setup.dispose();
+  }
+}
+
+/** The recorded wolf run at a frame, said to come from the zoo's ring (with Sallow and the Crakes): what the zoo reads of a fight is its board's zoo. */
+const asZoo = (view: FightView): FightView => ({ ...view, board: { ...view.board, zoo: { exhibit: "ring", foes: "sallow" } } });
+
+/** A zoo fight on the fight's screen, its zoo moves recorded. */
+async function zooFight([w, h]: Size, frame: number) {
+  const made: string[] = [];
+  const zoo: FightZoo = {
+    fight: view => zooFightOf(view, { campaigns: [ZOO_ROW] }),
+    again: f => { made.push(`again ${f.exhibit.id}`); return Promise.resolve(undefined); },
+    pickFoes: (f, foes) => { made.push(`foes ${f.exhibit.id} ${foes}`); return Promise.resolve(undefined); },
+  };
+  let outs = 0;
+  const model = new FightModel(asZoo(wolvesAt(frame)), {
+    move: () => Promise.resolve(undefined), turn: () => Promise.resolve(undefined), out: () => { outs++; return Promise.resolve(undefined); }, quit: () => {},
+  }, { now: () => 900_000, timers: false, zoo });
+  const setup = await testRender(<FightPlay fight={model} />, { width: w, height: h });
+  const draw = async () => { await setup.renderOnce(); return setup.captureCharFrame(); };
+  const key = async (k: string) => { await act(async () => { setup.mockInput.pressKey(k); await new Promise(r => setTimeout(r, 20)); }); return await draw(); };
+  const arrow = async (way: "up" | "down") => { await act(async () => { setup.mockInput.pressArrow(way); await new Promise(r => setTimeout(r, 20)); }); return await draw(); };
+  const enter = async () => { await act(async () => { setup.mockInput.pressEnter(); await new Promise(r => setTimeout(r, 20)); }); return await draw(); };
+  return { model, setup, draw, key, arrow, enter, made, outs: () => outs };
+}
+
+/** A zoo fight on the fight's screen (M6), at the two sizes. */
+export async function checkZooFight(checks: Array<[string, boolean]>, show: boolean): Promise<void> {
+  for (const size of [[80, 24], [130, 42]] as const) {
+    const f = await zooFight(size, frameOf("you: attack@3,2"));
+    let frame = await f.draw();
+    if (show) console.log(`a zoo fight ${label(size)}\n${frame}`);
+    checks.push([`a zoo fight ${label(size)}: the side panel says it's the zoo's, n fights again and o picks other foes`,
+      flat(frame).includes("The zoo: Sallow and the") && /n again · o other foes/.test(frame)]);
+
+    await f.key("n");
+    checks.push([`a zoo fight ${label(size)}: n fights it again (open_exhibit, the same foes)`, f.made.join("|") === "again ring"]);
+
+    frame = await f.key("o");
+    if (show) console.log(`other foes ${label(size)}\n${frame}`);
+    const listed = frame.includes("Other foes") && ["1 Sallow and the Crakes", "2 The Crakes alone", "3 A pack of dogs"].every(l => frame.includes(l)) && frame.includes("(this fight)");
+    await f.arrow("down");
+    await f.enter();
+    checks.push([`a zoo fight ${label(size)}: o lists the line-ups (this fight's marked), and the next one picked sets the Crakes alone`,
+      listed && f.made.join("|") === "again ring|foes ring crakes" && f.model.overlay === undefined]);
+    await f.setup.dispose();
+
+    const end = await zooFight(size, WOLVES.frames.length - 1);
+    frame = await end.draw();
+    await end.enter();
+    checks.push([`a zoo fight ${label(size)}: once it's over, Enter fights it again (not back to the map), and the keys say so`,
+      flat(frame).includes("Enter fight again") && !frame.includes("Back to the map") && end.made.join("|") === "again ring" && end.outs() === 0]);
+    await end.setup.dispose();
   }
 }

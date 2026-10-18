@@ -24,6 +24,7 @@ import { ActionMenu, menuKey, menuLayout } from "./actions.tsx";
 import { BOLD, Clickable, fit, FPS, isEnter, ITALIC, Keys, SCROLLBAR, useStore, wrap, type KeyHint } from "./common.tsx";
 import { sheetHeight } from "./sheet-layout.ts";
 import { SheetView, type SheetHandle } from "./sheet.tsx";
+import { ZooFoes, zooFoesKey, zooFoesRows, zooFightKey, zooHints, zooPanel } from "./zoo.tsx";
 
 /** Arrow keys and WASD step with the screen (up is up), as on the map. */
 const WALK = new Set(["up", "down", "left", "right", "w", "a", "s", "d", "home", "pageup", "end", "pagedown"]);
@@ -152,6 +153,8 @@ function fightKey(model: FightModel, key: KeyEvent): void {
   if (key.name === "r") { model.overlay = { kind: "log" }; model.emit(); return; }
   if (key.sequence === "?" || key.name === "f1") { model.overlay = { kind: "help" }; model.emit(); return; }
   if (key.name === "escape" || key.name === "q") { model.overlay = { kind: "menu", index: 0 }; model.emit(); return; }
+  // A zoo fight (M6): n again, o other foes, and once it's over Enter again (client/ui/zoo.tsx).
+  if (zooFightKey(model, key)) return;
   if (view.status !== "on") { if (isEnter(key) && model.player.caughtUp) void model.out(); return; }
   if (!model.canAct()) return;
   if (key.name === "m" || isEnter(key)) model.openMenu();
@@ -266,7 +269,7 @@ function SidePanel({ model, play, header, inner, rows, mine, over, othersPlaying
     out.push(<text key="gap" height={1} flexShrink={0}>{" "}</text>);
     for (const [i, l] of wrap(view.result?.summary ?? "", inner).slice(0, Math.max(1, rows - 7)).entries()) line(`sum${i}`, <span fg={C.text}>{l}</span>);
     out.push(<text key="gap2" height={1} flexShrink={0}>{" "}</text>);
-    if (!view.watching) out.push(<Clickable key="out" height={1} flexShrink={0} onClick={() => void model.out()}><text><span fg={C.lead}>{"▶ "}</span><span fg={C.lead} attributes={BOLD}>{truncate("Back to the map", inner - 10)}</span><span fg={C.faint}>{"  Enter"}</span></text></Clickable>);
+    if (!view.watching && !zooHints(model, true).length) out.push(<Clickable key="out" height={1} flexShrink={0} onClick={() => void model.out()}><text><span fg={C.lead}>{"▶ "}</span><span fg={C.lead} attributes={BOLD}>{truncate("Back to the map", inner - 10)}</span><span fg={C.faint}>{"  Enter"}</span></text></Clickable>);
   } else if (mine && o) {
     const pip = (used: boolean) => (used ? "○ spent" : "● ready");
     line("action", <><span fg={C.dim}>{"Action      "}</span><span fg={o.actionUsed ? C.faint : C.good}>{pip(o.actionUsed)}</span></>);
@@ -289,6 +292,7 @@ function SidePanel({ model, play, header, inner, rows, mine, over, othersPlaying
       if (!view.watching) out.push(<Clickable key="f" height={1} flexShrink={0} onClick={() => model.skip()}><text><span fg={C.title}>{"F     "}</span><span fg={C.text}>{truncate("skip to your turn", inner - 6)}</span></text></Clickable>);
     }
   }
+  out.push(...zooPanel(model, inner));
   const status = model.status ? wrap(model.status, inner) : [];
   const room = rows - out.length - (status.length ? 1 : 0);
   return <>
@@ -328,7 +332,7 @@ function BottomLine({ model, play, width, mine, over, othersPlaying }: { model: 
     if (said) return <text flexShrink={0} height={1} fg={C.title}>{truncate(said, width)}</text>;
   }
   const button = (run: () => void) => run;
-  const hints: KeyHint[] = over ? [["Enter", "back to the map", button(() => void model.out())], ["r", "the log"], ["?", "help"]]
+  const hints: KeyHint[] = over ? [...(zooHints(model, true).length ? zooHints(model, true) : [["Enter", "back to the map", button(() => void model.out())] as KeyHint]), ["r", "the log"], ["?", "help"]]
     : mine ? [["m", "actions", button(() => model.openMenu())], ["click", "walk or act"], ["←↑→↓", "step"], ["e", "end turn", button(() => model.endTurn())], ["c", "sheet"], ["r", "the log"], ["?", "help"], ["Esc", "menu"]]
     : [["Space", "finish this move", button(() => model.finish())], ...(model.view.watching ? [] : [["F", "skip to your turn", button(() => model.skip())] as KeyHint]), ["r", "the log"], ["?", "help"], ["Esc", "menu"]];
   void othersPlaying;
@@ -408,6 +412,7 @@ function FightOverlay({ model }: { model: FightModel }) {
       return;
     }
     key.preventDefault();
+    if (o.kind === "foes") { zooFoesKey(model, key); return; }
     if (o.kind === "menu") {
       const n = FIGHT_MENU.length;
       if (key.name === "up") o.index = (o.index + n - 1) % n;
@@ -447,6 +452,7 @@ function FightOverlay({ model }: { model: FightModel }) {
       <Keys items={keys} />
     </box>
   </>; };
+  if (o.kind === "foes") return box("Other foes", <ZooFoes model={model} width={w} />, [["↑↓", "choose"], ["Enter", "fight them"], ["1–9", ""], ["Esc", "back", close]], zooFoesRows(model));
   if (o.kind === "log") {
     const rows = logRows(model.player.log, w - 6, 100000);
     return box("The fight", <scrollbox ref={scroll} flexGrow={1} scrollX={false} stickyScroll stickyStart="bottom" paddingRight={1} verticalScrollbarOptions={SCROLLBAR}>

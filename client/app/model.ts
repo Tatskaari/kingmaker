@@ -8,6 +8,7 @@ import type { FightView } from "../fight/view.ts";
 import { SceneModel, type SheetShown } from "../scene/model.ts";
 import type { SceneView } from "../scene/view.ts";
 import { TitleModel } from "../title/model.ts";
+import { fightZoo } from "../zoo/zoo.ts";
 
 /**
  * Which screen is up (v1-design §3.10): the title, character creation's six, or the game, from the
@@ -306,7 +307,7 @@ export class AppModel implements AppPart {
       turn: act => this.backend.act("fightTurn", { act }),
       out: () => this.backend.walk({ toward: OUT }),
       quit: () => this.go("title"),
-    }, { fromStart: fresh, sheet: () => this.sheetShown() });
+    }, { fromStart: fresh, sheet: () => this.sheetShown(), zoo: fightZoo(this.backend, () => this.rows) });
   }
 
   /** The seat's sheet for /sheet: none while the engine hasn't made one (a spectator's seat has none of its own). */

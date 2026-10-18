@@ -68,6 +68,18 @@ export function pickFoes(game: Pick<Backend, "act">, fight: ZooFight, foes: stri
   return game.act("openExhibit", { exhibit: fight.exhibit.id, foes, fast: undefined });
 }
 
+/** What a fight's screen needs of the zoo: the exhibit a fight came from, with its line-ups, and the moves that fight it again or with other foes. */
+export interface FightZoo {
+  fight(view: Pick<FightView, "board">): ZooFight | undefined;
+  again(fight: ZooFight): Promise<Rejection | undefined>;
+  pickFoes(fight: ZooFight, foes: string): Promise<Rejection | undefined>;
+}
+
+/** The zoo for a fight's screen, over the backend's moves and the rows as they are when asked. */
+export function fightZoo(game: Pick<Backend, "act">, rows: () => Pick<HomeRows, "campaigns">): FightZoo {
+  return { fight: view => zooFightOf(view, rows()), again: f => again(game, f), pickFoes: (f, foes) => pickFoes(game, f, foes) };
+}
+
 /** The ready-made build a visit is as, when it doesn't say: the zoo's first (the fighter). */
 export const firstBuild = (zoo: Zoo) => zoo.builds[0]?.id ?? "fighter";
 
