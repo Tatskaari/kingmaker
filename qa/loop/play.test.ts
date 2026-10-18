@@ -118,9 +118,9 @@ test("say: a scene that ended behind the loop's back (the owner ended it, or a c
 
 /**
  * The yard on a backend whose turns fail as the game's do when the GM can't answer (`fails` times,
- * with `words`), then answer when carried on (retry); `said` counts the lines said.
+ * with `words`), then answer when carried on (retry), with `reply`'s entries; `said` counts the lines said.
  */
-function staged(words: string, fails: number): Backend & { said: number } {
+function staged(words: string, fails: number, reply: (turn: number) => SceneView["entries"] = turn => [{ turn, speaker: "kell", kind: "dialogue", name: "Sergeant Agnes Kell", text: "The porters." }]): Backend & { said: number } {
   let view: SceneView = { ...YARD, phase: "done", mayType: true, suggestions: [], suggestionsOn: false, suggestionsComing: false };
   const listeners = new Set<() => void>();
   const set = (patch: Partial<SceneView>) => { view = { ...view, ...patch }; for (const l of listeners) l(); };
@@ -130,7 +130,7 @@ function staged(words: string, fails: number): Backend & { said: number } {
     const turn = view.entries.at(-1)!.turn;
     const { failed: _, ...rest } = view;
     view = rest as SceneView;
-    set({ entries: [...view.entries, { turn, speaker: "kell", kind: "dialogue", name: "Sergeant Agnes Kell", text: "The porters." }], phase: "done", mayType: true });
+    set({ entries: [...view.entries, ...reply(turn)], phase: "done", mayType: true });
   };
   const game = {
     said: 0,
@@ -186,6 +186,24 @@ test("say: a turn that failed is waited on and carried on, the wait on the turn;
   assert.match(broke.text, /That's the day's budget for the models: stop here, and say so in your notes\.\)$/);
   assert.match(readRecord(recordPath(config3, "r1", "g01"))!.stopped!, /^the day's budget/);
   assert.equal(readRecord(recordPath(config3, "r1", "g01"))!.turns[String(Math.max(...YARD.entries.map(e => e.turn)) + 1)]!.waits.length, 0, "the ceiling isn't waited on");
+});
+
+test("say: a check the GM calls, as the player sees it: the narration that sets it up, the dice line with how far it made or missed the DC, then the outcome that came up, its speaker by name", async () => {
+  const outcome = "Up close, a thin cord mark runs straight across his throat. “That's no rope,” Kell says.";
+  const checked = staged("", 0, turn => [
+    { turn, speaker: "gm", kind: "narration", text: "You climb the outside stair and lean out towards the body." },
+    { turn, speaker: "dice", kind: "roll", text: "Medicine check: 11 + 2 = 13 vs DC 12: success (only just)." },
+    { turn, speaker: "gm", kind: "narration", text: outcome, markup: { speech: [{ start: outcome.indexOf("“"), end: outcome.indexOf("”") + 1, speaker: "kell" }] } },
+  ]);
+  const config = CONFIG();
+  const said = await say(config, "r1", "g01", "(I climb the outside stair and look at his neck)", startedOn(config, checked));
+  assert.equal(said.code, 0, said.text);
+  assert.equal(said.text, [
+    "You climb the outside stair and lean out towards the body.",
+    "🎲 Medicine check: 11 + 2 = 13 vs DC 12: success (only just).",
+    "Up close, a thin cord mark runs straight across his throat. Sergeant Agnes Kell: “That's no rope,” Kell says.",
+    "(Turn 3 of 5.)",
+  ].join("\n\n"));
 });
 
 test("a later scene reached: the scene before it ended for QA on its first good or mixed ending the game takes, the story moved on, then on to the lead", async () => {

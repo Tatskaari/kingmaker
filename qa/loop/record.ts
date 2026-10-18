@@ -92,8 +92,10 @@ export const newRecord = (at: Pick<GameRecord, "round" | "game" | "scene" | "sta
 
 /**
  * The scene's entries as the player saw them: each spoken line's speaker named as the screen's
- * colour tells them apart (the name they've heard, or what they'd call them), the player's own
- * words by their character's name, and no notes (the marks' notes aren't the GM's reply).
+ * colour tells them apart (the name they've heard, or what they'd call them), and the player's own
+ * words by their character's name. A check the GM calls is three entries in its turn, as the screen
+ * has them: the narration that sets it up, the dice line (the roll against the DC, and how far it
+ * made or missed it), then the outcome that came up, the GM's words with their speakers.
  */
 export function entriesOf(view: SceneView): Entry[] {
   const name = (key: string | undefined, tag?: string) =>
