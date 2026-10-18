@@ -46,7 +46,8 @@ export function closeScene(tx: TxCtx, scene: SceneRow, exit: Exit, how: "played"
   addChapter(tx, game, scene, at.graph, exit);
   const done = applyEffects(tx, at, [...(at.graph.onEnd ?? []), ...(exit.effects ?? [])]);
   const afterwards = applyAfterwards(tx, sceneRow(tx, scene.id), at.graph);
-  tx.log(`${label}: applied: ${done.applied.join("; ") || "nothing"} · recorded: ${done.recorded.join("; ") || "nothing"}${afterwards}`);
+  const notDone = done.notDone.length ? ` · not done: ${done.notDone.join("; ")}` : "";
+  tx.log(`${label}: applied: ${done.applied.join("; ") || "nothing"} · recorded: ${done.recorded.join("; ") || "nothing"}${notDone}${afterwards}`);
 
   goOn(tx, game, sceneRow(tx, scene.id), at.graph, exit);
 }

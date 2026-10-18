@@ -665,8 +665,22 @@
             "op": "give",
             "what": "true-book",
             "to": "$player",
+            "if": {
+              "established": "book-in-hand"
+            },
             "unless": {
               "established": "book-gone"
+            }
+          },
+          {
+            "op": "remove",
+            "what": "true-book",
+            "text": "evidence: gone with Master Sallow to the watch-house",
+            "unless": {
+              "established": [
+                "book-gone",
+                "book-in-hand"
+              ]
             }
           },
           {
@@ -706,7 +720,10 @@
             "op": "journal",
             "text": "The true book went with him as evidence: every 'lost' wagon, initialled J.S.",
             "unless": {
-              "established": "book-gone"
+              "established": [
+                "book-gone",
+                "book-in-hand"
+              ]
             }
           }
         ],

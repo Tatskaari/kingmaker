@@ -1,7 +1,7 @@
 // Copied from the prototype's src/runtime/story.test.ts at 44c6d4a (here as story-so-far.test.ts: story.test.ts is gm/story.ts's): its cases but the actors' next speaker (the actors' voice isn't v2's). A session is a TurnView of the test story (fixtures.ts), the boundary gm/boundary.ts's chainScene over the candidates the simulation sends, and the lore the campaign's.
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { configureDocs } from "../docs/config.ts";
@@ -10,7 +10,10 @@ import { JevDecider, LUNA_DECISIONS_MODEL } from "../llm/decide.ts";
 import { fakeFetch } from "../llm/fake-openrouter.ts";
 import type { CallContext } from "../llm/openrouter.ts";
 import { prompt } from "../prompts/index.ts";
+import type { PlaceFile } from "../../shared/scene/files.ts";
 import { effectiveScene } from "../../shared/scene/graph.ts";
+import { inventory } from "../../shared/world/inventory.ts";
+import { buildWorld } from "../../shared/world/scene-world.ts";
 import { chainScene } from "./boundary.ts";
 import { sceneBrief } from "./brief.ts";
 import { CAERWYN, sceneById, stateIn } from "./fixtures.ts";
@@ -76,6 +79,21 @@ test("a scene's facts go on with the story, and the hand-off keeps what was admi
   const handoff = fake.sent.find(b => b.instructions?.startsWith("You write the hand-off"))!;
   assert.match(handoff.instructions!, /Always keep, when there are any: what anyone confessed or admitted, in their own words and in whose hearing/);
   assert.match(handoff.instructions!, /what each person who goes on with the player \(a partner, a companion\) saw and heard for themselves, from where they were/);
+});
+
+test("the hand-off and the verdict know what the player carries as the scene ends, by the world: a token an ending or a skipped scene put in their hands, which the transcript never mentions", async () => {
+  const fake = fakeFetch({ replies: ["Wren leaves the Rat with Hobb's token."] });
+  const calls: CallContext = { fetch: fake.fetch, apiKey: "test", log: () => {}, cost: () => {} };
+  const rat = sceneById("drowned-rat");
+  const place = JSON.parse(readFileSync(join(CAERWYN, "places", "drowned-rat.json"), "utf8")) as PlaceFile;
+  const world = buildWorld(rat.id, place, rat.cast.map(c => ({ id: c.id, name: c.name })), { name: "Wren Ashdown" });
+  inventory(world, 0).settle("heron-token", "player");
+  const state = stateIn("drowned-rat", { world, transcript: [{ turn: 1, scene: "drowned-rat", speaker: "system", kind: "system", text: "Scene ends: What Big Hobb knows" }] });
+  await chainScene(rat, state, rat.exits.find(e => e.id === "hobb-talks")!, ["heron-warehouse", "kings-morning"].map(sceneById), { calls, sceneById, decider: new JevDecider(LUNA_DECISIONS_MODEL, "luna-decisions", calls) });
+  const inputOf = (start: string) => (fake.sent.find(b => b.instructions?.startsWith(start))!.input as Array<{ content: string }>).map(m => m.content).join("\n");
+  for (const call of ["You write the hand-off", "The upcoming scenes of a roleplaying game"]) {
+    assert.match(inputOf(call), /What the player character carries as it ends, by the world's record \(what play put in their hands, and what the ending gave them\): a brass heron token on a greasy string\./, call);
+  }
 });
 
 test("nobody answers a question put to the player for them, and nobody knows what they couldn't (the King's morning: Kell answered for the investigator, and the King asked after a barge nobody had told him of)", () => {

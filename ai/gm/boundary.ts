@@ -9,6 +9,7 @@ import type { Chapter } from "../../shared/protocol/ai.ts";
 import type { ScenePatch } from "../../shared/gm/state.ts";
 import { nameTokens } from "../../shared/scene/names.ts";
 import type { Exit, Scene } from "../../shared/scene/types.ts";
+import type { SceneWorld } from "../../shared/world/scene-world.ts";
 import { sceneEntries, strangers } from "./brief.ts";
 import { bringOver, OWED_INSTRUCTION, owedAtEnd, owedKey, owedPrep, owedSchema, owedText, type Owed, type OwedVerdict } from "./owed.ts";
 import { settlePresence } from "./presence.ts";
@@ -100,6 +101,18 @@ function rememberBetween(scene: Scene, next: Scene, state: TurnView, lead: strin
 }
 
 /**
+ * What the player character holds as a scene ends, by its world, in a line (as the GM's world view
+ * lists it): the hand-off and the verdict say who holds what from it as well as from the transcript,
+ * which says nothing of what an ending gave, or of a scene ended for QA, whose things were taken
+ * without a word. Undefined with no world, or no player in it.
+ */
+function carriedOf(world: SceneWorld | undefined): string | undefined {
+  if (!world?.entities.player) return undefined;
+  const held = Object.values(world.entities).filter(e => e.parent === "player" && !e.states.includes("gone"));
+  return held.length ? held.map(e => `${(e.quantity ?? 1) > 1 ? `${e.quantity} ` : ""}${e.name}`).join(", ") : "nothing";
+}
+
+/**
  * The scene boundary: the hand-off (the state of things as established in play), and, in parallel,
  * which upcoming scene still holds (a scene whose premise play has already settled or bypassed is
  * skipped) and where that scene's prep is out of date. Prep is written before play; this is where
@@ -109,9 +122,10 @@ function rememberBetween(scene: Scene, next: Scene, state: TurnView, lead: strin
 async function crossBoundary(scene: Scene, state: TurnView, exit: Exit, combatResult: string, candidates: Scene[], frontsDoc: string | undefined, owed: Owed[], how: BoundaryCall): Promise<{ handoff: string; sceneId: string; adjustments: string[]; skipped: Array<{ sceneId: string; why: string }>; opening?: string; lead?: string; fronts: string[]; owed?: OwedVerdict[] }> {
   const transcript = sceneEntries(state).map(e => e.kind === "player" ? `${state.player.name} (player): ${e.text}` : e.kind === "dialogue" ? `${scene.cast.find(c => c.id === e.speaker)?.name ?? e.speaker}: ${e.text}` : e.kind === "narration" ? `GM: ${e.text}` : `[${e.text}]`).join("\n\n");
   const ended = `${exit.title} (${scene.id}: ${exit.id}). ${exit.outcome}${exit.kind === "combat" ? ` The fight was then played out on the map: ${combatResult}.` : ""}`;
+  const carries = carriedOf(state.world);
   const story = [
     ...(state.history.length ? [`## The story before the last scene\n${state.history.map(h => h.summary).join("\n\n")}`] : []),
-    `## The last scene: ${scene.title}\nHow it ended: ${ended}\nThe player character: ${state.player.name}, ${state.player.concept} (the only player character).\n\n${transcript}`,
+    `## The last scene: ${scene.title}\nHow it ended: ${ended}\nThe player character: ${state.player.name}, ${state.player.concept} (the only player character).${carries === undefined ? "" : `\nWhat the player character carries as it ends, by the world's record (what play put in their hands, and what the ending gave them): ${carries}.`}\n\n${transcript}`,
   ].join("\n\n");
   const prep = (c: Scene) => [
     `### ${c.id}: ${c.title}`,
