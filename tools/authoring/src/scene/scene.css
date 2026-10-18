@@ -119,7 +119,7 @@
 .km-workshop.km-scene .list-item textarea {flex:1}
 .km-workshop.km-scene .list-item-actions {display:flex;flex-direction:column;gap:1px}
 .km-workshop.km-scene .list-item-actions button {padding:3px;color:var(--km-muted)}
-.km-workshop.km-scene .add-item {border:1px dashed var(--km-line);color:var(--km-muted);font-size:11px;padding:6px 10px;margin-top:6px}
+.km-workshop.km-scene .add-item {border:1px dashed var(--km-line);color:var(--km-muted);font-size:11px;padding:6px 10px;margin-top:6px;align-self:flex-start}
 .km-workshop.km-scene .add-item:hover {color:var(--km-text);border-color:var(--km-accent)}
 .km-workshop.km-scene .icon-button {padding:4px !important;color:var(--km-muted)}
 .km-workshop.km-scene .text-button {gap:5px}

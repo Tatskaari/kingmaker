@@ -140,9 +140,17 @@ export const titleOf=(doc:SceneDocument,id:string):string=>doc.nodes.find(node=>
 /** The scene with a top-level field set (undefined takes it out). */
 export const setSceneField=(doc:SceneDocument,key:string,value:unknown):SceneDocument=>withKey(doc,key,value,ORDER.scene);
 
-/** The scene with a node's data changed by `change`. */
+/** The scene with a node's data changed by `change` (the same scene when nothing changes, so a no-op is no step of undo). */
 export function updateNode(doc:SceneDocument,id:string,change:(data:NodeData)=>NodeData):SceneDocument{
-  return {...doc,nodes:doc.nodes.map(node=>node.id===id?{...node,data:change(node.data)}:node)};
+  let changed=false;
+  const nodes=doc.nodes.map(node=>{
+    if(node.id!==id)return node;
+    const data=change(node.data);
+    if(data===node.data)return node;
+    changed=true;
+    return {...node,data};
+  });
+  return changed?{...doc,nodes}:doc;
 }
 
 /** The scene with one field of a node's data set (undefined takes it out), where its kind's order puts it. */
@@ -150,19 +158,23 @@ export function setNodeField(doc:SceneDocument,id:string,key:string,value:unknow
   return updateNode(doc,id,data=>withKey(data,key,value,ORDER[data.kind]));
 }
 
-/** The scene with a route changed by `change`. */
+/** The scene with a route changed by `change` (the same scene when nothing changes). */
 export function updateRoute(doc:SceneDocument,id:string,change:(route:Route)=>Route):SceneDocument{
-  return {...doc,edges:doc.edges.map(route=>route.id===id?change(route):route)};
+  let changed=false;
+  const edges=doc.edges.map(route=>{if(route.id!==id)return route;const next=change(route);if(next!==route)changed=true;return next});
+  return changed?{...doc,edges}:doc;
 }
 
 /** The scene with one field of a route's data set (undefined takes it out). */
 export function setRouteField(doc:SceneDocument,id:string,key:string,value:unknown):SceneDocument{
-  return updateRoute(doc,id,route=>({...route,data:withKey(route.data,key,value,ORDER.route)}));
+  return updateRoute(doc,id,route=>{const data=withKey(route.data,key,value,ORDER.route);return data===route.data?route:{...route,data}});
 }
 
-/** The scene with a person of the cast changed by `change`. */
+/** The scene with a person of the cast changed by `change` (the same scene when nothing changes). */
 export function updateCast(doc:SceneDocument,id:string,change:(member:CastMember)=>CastMember):SceneDocument{
-  return {...doc,cast:doc.cast.map(member=>member.id===id?change(member):member)};
+  let changed=false;
+  const cast=doc.cast.map(member=>{if(member.id!==id)return member;const next=change(member);if(next!==member)changed=true;return next});
+  return changed?{...doc,cast}:doc;
 }
 
 /** The scene with one field of a person's card set (undefined takes it out). */
