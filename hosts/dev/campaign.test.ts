@@ -227,10 +227,10 @@ test("the clerk's lead reaches the player before the scene runs out: once the ca
 test("Kell signs Prout in once the case holds and the lead is in her notebook, writing down what she has until then and saying nothing aloud of what's missing (QA round qa3-1018's g05: she signed four turns before the lead, and the closing signed him again)", () => {
   const clerk = JSON.parse(files[SCENE]!);
   const kell = clerk.cast.find((c: any) => c.id === "kell");
-  assert.match(node(clerk, "cart-arrives").description, /Kell will sign Prout in as a murder over the Captain's order once the player's case holds and the lead to who was there is in her notebook: [^]*until then writes down what she has, without saying aloud what's missing\./);
-  assert.match(node(clerk, "cart-arrives").cast.kell, /Signs Prout in as a murder once the case holds and the lead to who was there is in her notebook; until then she writes what she has, and says nothing aloud of what's missing\./);
+  assert.match(node(clerk, "cart-arrives").description, /Kell will sign Prout in as a murder over the Captain's order once the player's case holds and the lead to who was there is in her notebook by name, a man to go and find \(if a description of the big man has reached her, she names him first, unasked: Big Hobb Mallory, of the Drowned Rat\)\. [^]*until then writes down what she has, without saying aloud what's missing\./);
+  assert.match(node(clerk, "cart-arrives").cast.kell, /Signs Prout in as a murder once the case holds and the lead to who was there is in her notebook by name, a man to go and find; until then she writes what she has, and says nothing aloud of what's missing\./);
   assert.match(node(clerk, "porters-break").cast.kell, /With the lead in her notebook now, she signs Prout in as a murder once the case holds\.$/);
-  assert.match(kell.attitude, /once the lead to who was there is in her notebook too, she'll sign Prout in as a murder over the Captain's word; until then she writes down what she has and says nothing aloud of what's missing\./);
+  assert.match(kell.attitude, /once the lead to who was there is in her notebook too, by name, a man to go and find \(a description she names herself, if she knows the man by it\), she'll sign Prout in as a murder over the Captain's word; until then she writes down what she has and says nothing aloud of what's missing\./);
 });
 
 test("the Heron's people and things go by what the player can see, not the prep's labels for them (QA round qa3-1018's g02 and g04: \"the talking bruiser\" before either had spoken, and \"the true book\" for a ledger nobody had called that)", () => {
