@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import type { LoopConfig } from "./paths.ts";
+import { CAMPAIGNS, TRUTH, type LoopConfig } from "./paths.ts";
 import { newRecord, type Entry, type GameRecord } from "./record.ts";
 import { checkReview, locate, packText, quoted, rubricChecks, type Review } from "./review.ts";
+import { campaignAt, playable, sceneOf } from "./scenes.ts";
 
 const ENTRIES: Entry[] = [
   { turn: 0, kind: "narration", text: "Kell looks up. “You’re the King’s man?”", speech: [{ start: 15, end: 39, who: "Sergeant Agnes Kell" }] },
@@ -80,10 +81,21 @@ test("the pack: the brief with the check's command, where the review goes, the r
     config, round: "r1", prep: "# The prep: The Drowned Rat",
     record: { ...record, scene: "drowned-rat", skipped: [{ scene: "hanged-clerk", exit: "case-made", title: "The case is made", result: "good" }], notebook: ["The Hanged Clerk: The case is made\n· Wendell Prout didn't hang himself."], handedOn: { adjustments: ["Sallow has been named."], owed: [], absent: [], lead: "Kell followed the big man here." }, ended: { turn: 1, title: "What Big Hobb knows" } },
   });
-  assert.doesNotMatch(later, /# The fact sheet for this scene/, "no truth sheet for the Rat");
+  assert.match(later, /# The truth behind the screen \(the player never saw this\)\n\n# The fact sheet for this scene\n[\s\S]*\nThis morning a palace clerk, Wendell Prout, was found hanged from the sack hoist[\s\S]*\[the-loft\]/, "the Rat's own sheet");
   assert.match(later, /# What the story handed on to this scene\n\nThe scenes before this one were ended for the test, not played \(each with its discoveries made first, as a thorough player's game would have them, and the story moved on from each as it would have\): hanged-clerk on "The case is made"\./);
   assert.match(later, /\*\*How the story led the player here:\*\* Kell followed the big man here\./);
   assert.match(later, /\*\*Where the prep no longer matched the story \(the GM was told\):\*\*\n- Sallow has been named\./);
   assert.match(later, /Their notebook of the story so far:\n\nThe Hanged Clerk: The case is made\n· Wendell Prout didn't hang himself\./);
   assert.match(later, /— The scene ended \(What Big Hobb knows\)\. —$/);
 });
+
+test("every scene a round can play has a truth sheet, in step with the scene: each of its discoveries named by its id", async () => {
+  const loaded = await campaignAt(join(CAMPAIGNS, "caerwyn"));
+  for (const key of playable(loaded)) {
+    const sheet = readFileSync(join(TRUTH, `${key}.md`), "utf8");
+    assert.match(sheet, /^# The fact sheet for this scene\n/, key);
+    const discoveries = sceneOf(loaded, key).beats.filter(b => b.revelation !== undefined).map(b => b.id);
+    assert.deepEqual(discoveries.filter(id => !sheet.includes(`[${id}]`)), [], `${key}'s sheet names each discovery`);
+  }
+});
+

@@ -87,7 +87,7 @@ On the prototype a flagged turn became a case (`loop case`, `loop fixture`: the 
 | the rubric (checks, severities, penalties 1/2/4/8/16) | qa/loop/rubric.md |
 | the tester's and the reviewer's briefs | qa/loop/brief/tester.md, reviewer.md |
 | personas | qa/loop/personas.json |
-| truth sheets (what the prep doesn't spell out) | qa/loop/truth/<scene>.md (the hanged clerk's) |
+| truth sheets (what the prep doesn't spell out) | qa/loop/truth/<scene>.md (one for each scene a round can play) |
 | rounds and their triage | runs/loop/<round>/ (KM_LOOP_DIR), archived to KM_LOOP_ARCHIVE |
 | the loop's stack | runs/loop-stack (its logs in logs/, its call logs in ai/games/<uid>/calls.jsonl) |
 | the saved workflow | .claude/workflows/gm-qa-round.js |
@@ -99,4 +99,4 @@ On the prototype a flagged turn became a case (`loop case`, `loop fixture`: the 
 - **The fake model** answers every scene with the yard's golden replies, so a fake round tests the loop's plumbing, never the GM. Its co-GM walks each scene to its first good ending, a route a line (required discoveries first), so a fake game longer than four lines in the yard ends there (the closing is the fifth reply). `KM_AI_FAKE='{"mouthpiece":{"check":{"skill":"medicine","dc":12}}}'` before `stack up --fake` makes every reply but an opening or a closing call a check, to see the dice in `say`.
 - **The suggested lines are off:** the testers write their own lines, and the review is of the GM's replies. (The notes on marked words went in M2.)
 - **A turn cut off** (an agent's command timed out) goes on on the stack: the next `say` waits for it first and prints what answered it with the new answer; `transcript` shows where things stand.
-- **Truth sheets matter:** the reviewers see the prep (with each scene's own truth, cards and discoveries, which say what's held and by whom) plus `qa/loop/truth/<scene>.md`, which says what's public: what anyone can see and what the campaign's public lore lets anyone say, which the GM had and the prep doesn't hold. Only the hanged clerk has a sheet, in step with its re-authored scene; keep it in step with the scene and its lore's public and private marking, and expect reviewers of the other scenes to flag a public fact from the lore as a leak now and then (triage it).
+- **Truth sheets matter:** the reviewers see the prep (with each scene's own truth, cards and discoveries, which say what's held and by whom) plus `qa/loop/truth/<scene>.md`, which says what's public: what anyone can see and what the campaign's public lore lets anyone say, which the prep doesn't hold, and for a later scene what the scenes before may have given the player. Every scene a round can play has one; keep each in step with its scene and its lore's public and private marking (a test checks that each names its scene's discoveries; the rest is yours to check), and expect a reviewer to flag a public fact a sheet missed as a leak now and then (triage it).
