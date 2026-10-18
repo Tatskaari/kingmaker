@@ -2,7 +2,7 @@ import type { Asked, Backstory, LoreIssue, Who } from "../creation/types.ts";
 import type { Confide, GmState, OwedRow, ScenePatch, TalkRecord, TwoPartRole } from "../gm/state.ts";
 import type { Band } from "../gm/two-part.ts";
 import type { Markup } from "../markup.ts";
-import type { Act, BuildOption, FeatureRef, Mechanic, Offer, OwnPicks, Reaction, SpellRef, SrdLists, WeaponRef } from "../rules/types.ts";
+import type { Act, BuildOption, FeatureRef, Mechanic, Offer, OwnPicks, Reaction, SpellFacts, SrdLists, WeaponRef } from "../rules/types.ts";
 import type { RouteOutcome } from "../scene/beats.ts";
 import type { Skill } from "../scene/types.ts";
 import type { PlaceRows } from "../world/rows.ts";
@@ -73,11 +73,13 @@ export interface Entry { turn: number; speaker: string; kind: "player" | "narrat
  * A player's sheet as the GM is told it; backstory: theirs from character creation, when they wrote
  * one (the brief and the player's doc read it). The spells ready, the weapons carried and the class
  * features with uses are the sheet row's own columns (world-bridge-design §3.1): what the decider
- * offers the rules' act (director.ts's RulesOptions).
+ * offers the rules' act (director.ts's RulesOptions). Each spell comes with what the rules say of
+ * its reach when that's known (the sheet's spellFacts: its range, its effects' kinds, an area), so
+ * the act step can tell a spell that needs aiming at someone or something from one that doesn't.
  */
 export interface SheetRow {
   name: string; concept: string; build?: string; skills: Partial<Record<Skill, number>>; status?: string; backstory?: Backstory;
-  spells?: SpellRef[];
+  spells?: SpellFacts[];
   weapons?: WeaponRef[];
   features?: Array<FeatureRef & { target: "self" | "creature" }>;
 }

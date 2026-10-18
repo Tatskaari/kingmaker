@@ -37,6 +37,8 @@ import { director, sceneAndView } from "./turn.ts";
 const CAERWYN = join(import.meta.dirname, "..", "..", "..", "campaigns", "caerwyn");
 const GAME = "0d1e2f3a-0000-4000-8000-0000000000c7";
 const MISSILE = "(I cast Magic Missile at the hoist rope)";
+/** The same spell in words that don't name it: asked whether it's one, and which. */
+const DARTS = "(I send three darts of force at the hoist rope)";
 
 const SCRATCH = mkdtempSync(join(tmpdir(), "km-world-"));
 after(() => rmSync(SCRATCH, { recursive: true, force: true }));
@@ -110,7 +112,7 @@ async function ruled(options: FakeOptions, line: string, party: SheetRow[] = [WI
 }
 
 test("the rules' act on a scripted cast, at what the player aimed it, its details asked in a second small call with the world", async () => {
-  const { mechanic, sent } = await ruled({ choices: { mechanic: "cast", spell: "magic-missile", aim_thing: "hoist-rope" } }, MISSILE);
+  const { mechanic, sent } = await ruled({ choices: { mechanic: "cast", spell: "magic-missile", aim_thing: "hoist-rope" } }, DARTS);
 
   assert.deepEqual(mechanic, { kind: "cast", spell: "magic-missile", targets: ["hoist-rope"] });
   const [question, details] = sent;
@@ -120,6 +122,11 @@ test("the rules' act on a scripted cast, at what the player aimed it, its detail
   assert.equal(Object.keys(details!.questions!.aim_thing!.criteria)[0], "hoist-rope", "what the line names first, of what's near enough to aim at");
   assert.deepEqual(Object.keys(details!.questions!).filter(k => k.startsWith("aim_")), ["aim_kell", "aim_cob", "aim_moll", "aim_self", "aim_thing"]);
   assert.match(JSON.stringify((details as Request & { state?: { world?: string } }).state?.world), /hoist rope/, "where they act from means something: the world is in the call");
+
+  // Cast by its name, it's that spell: no question whether it's one, nor which.
+  const named = await ruled({ choices: { aim_thing: "hoist-rope" } }, MISSILE);
+  assert.deepEqual(named.mechanic, { kind: "cast", spell: "magic-missile", targets: ["hoist-rope"] });
+  assert.deepEqual([named.sent.length, named.sent[0]!.questions!.mechanic, named.sent[0]!.questions!.spell], [1, undefined, undefined], "the details alone");
 
   // A quiet turn asks nothing more; a sheet with no build isn't asked what the rules resolve at all.
   const quiet = await ruled({}, "Sergeant, who found him?");
@@ -138,7 +145,7 @@ function actRequest(gm: GmState, rows: PlaceRows, line: string, party: SheetRow[
 test("the act step (POST /v1/turns/act): a spell in a line, read for what the rules resolve, a scene's acts offered and the details asked in a second call; the report's rogue reaching for Fire Bolt, which isn't hers, with no second call; a line that's no act, and a sheet with no build", async () => {
   const gm = initialGm({ start: "yard" });
   const { fake, contextFor, rows } = await setUp({ choices: { mechanic: "cast", spell: "magic-missile", aim_thing: "hoist-rope" } });
-  const cast = await pipeline.act(actRequest(gm, rows(gm), MISSILE), contextFor(`${GAME}:s1:t1:act`));
+  const cast = await pipeline.act(actRequest(gm, rows(gm), DARTS), contextFor(`${GAME}:s1:t1:act`));
   assert.deepEqual(cast.mechanic, { kind: "cast", spell: "magic-missile", targets: ["hoist-rope"] });
   assert.deepEqual(Object.keys(fake.sent[0]!.questions!.mechanic!.criteria), ["cast", "attack", "none"], "a scene's acts, and no feature on her sheet: a grab, a shove, a jump or a rest is the GM's or the map's");
   assert.deepEqual(Object.keys(cast.usage.byOperation).sort(), ["director.mechanic", "director.rules"]);
