@@ -3,7 +3,7 @@ import type { GmState, OwedRow, PathStep, ScenePatch, TalkRecord, TwoPartState }
 import type { Markup } from "../../shared/markup.ts";
 import type { Chapter, Entry, OpenRequest, SceneContext, SheetRow, Story as Told } from "../../shared/protocol/ai.ts";
 import { isTurnKey, keyParts } from "../../shared/protocol/keys.ts";
-import type { SpellRef, WeaponRef } from "../../shared/rules/types.ts";
+import type { SpellFacts, WeaponRef } from "../../shared/rules/types.ts";
 import { unnamed } from "../../shared/scene/names.ts";
 import type { Essential, Scene, Skill } from "../../shared/scene/types.ts";
 import { fullKey, keysFor, localKey, rowsToWorld, type Keys, type PlaceRows } from "../../shared/world/rows.ts";
@@ -42,7 +42,7 @@ export interface TurnView {
    * with uses (the sheet row's: world-bridge-design §3.1) are what the suggested lines hear of, and
    * what the rules' mechanic question offers (parked for combat: gm/mechanics.ts rulesOptions).
    */
-  rules?: { status?: string; aliases?: Record<string, string>; spells?: SpellRef[]; weapons?: WeaponRef[]; features?: Array<{ id: string; name: string; target: "self" | "creature" }> };
+  rules?: { status?: string; aliases?: Record<string, string>; spells?: SpellFacts[]; weapons?: WeaponRef[]; features?: Array<{ id: string; name: string; target: "self" | "creature" }> };
   /** The story the scene belongs to: the scenes the copied code reads besides this one (gm/story.ts, in place of the prototype's SCENES and sceneById). */
   story?: Story;
 
