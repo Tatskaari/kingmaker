@@ -7,11 +7,13 @@ import type { Refusal } from "./refusals.ts";
  * undefined kept), but leaves the SDK's classes only their fields: revive() puts the classes back,
  * handed in by whoever imports the SDK, since shared imports nothing outside itself.
  *
- *   client → server   connect {protocol, session?} first, a move {id, name, args} for each move, and
+ *   client → server   connect {protocol, session?} first, a move {id, name, args} for each move, a
+ *                     call {id, name, args} for each procedure (a report's game: M5), and
  *                     disconnect when the client goes (a port has no close event of its own)
  *   server → client   connected {identity}, a snapshot {tables} once, then a tx {changes} for each
- *                     committed transaction, an answer {id, rejection?} for each move, and a status
- *                     {trouble?, cutOff?} while the server is in trouble
+ *                     committed transaction, an answer {id, rejection?, value?} for each move and
+ *                     call (a call's value its procedure's text), and a status {trouble?, cutOff?}
+ *                     while the server is in trouble
  *
  * What a server keeps to (the client and the e2e rely on it):
  * 1. Full push, not subscriptions: the snapshot and the txs carry every row of the public tables and
@@ -32,8 +34,8 @@ import type { Refusal } from "./refusals.ts";
  *    page's own.
  */
 
-/** The wire's version, in connect: a server that doesn't speak it cuts the client off, saying so. */
-export const PROTOCOL = 1;
+/** The wire's version, in connect: a server that doesn't speak it cuts the client off, saying so. (2: calls, M5.) */
+export const PROTOCOL = 2;
 
 /**
  * The caller's own views, by their SQL names, each with its accessor in the bindings and its primary
@@ -127,10 +129,17 @@ export const OWNER_MOVES = ["endScene"] as const;
 /** A move's name on the wire. */
 export type MoveWire = (typeof PLAYER_MOVES)[number] | (typeof OWNER_MOVES)[number];
 
+/** The procedures a client calls as itself, by their names in the bindings: report_game, a report's game (V16, M5), which only the game's owner may ask for. */
+export const PLAYER_CALLS = ["reportGame"] as const;
+
+/** A procedure's name on the wire. */
+export type CallWire = (typeof PLAYER_CALLS)[number];
+
 /** What a client sends: who it is first, then its moves, each with an id its answer comes back with. */
 export type ToServer =
   | { kind: "connect"; protocol: typeof PROTOCOL; session?: string }
   | { kind: "move"; id: number; name: MoveWire; args: unknown }
+  | { kind: "call"; id: number; name: CallWire; args: unknown }
   | { kind: "disconnect" };
 
 /** What a server sends: who the client is, everything it may see, each transaction's changes, each move's answer, and its own trouble. */
@@ -141,8 +150,8 @@ export type ToClient =
   | { kind: "snapshot"; tables: Record<ClientTable, Row[]> }
   /** One committed transaction's net changes, in order. */
   | { kind: "tx"; changes: RowChange[] }
-  /** A move's answer, after its tx: no rejection when it was made. */
-  | { kind: "answer"; id: number; rejection?: Rejection }
+  /** A move's answer, after its tx: no rejection when it was made. A call's: its procedure's text (value), or why not. */
+  | { kind: "answer"; id: number; rejection?: Rejection; value?: string }
   /** The server's trouble, in words for the status line: while it lasts (trouble), or for good (cutOff: every move is refused with it). */
   | { kind: "status"; trouble?: string; cutOff?: string };
 

@@ -43,6 +43,12 @@ export interface Backend {
   travel(args: TravelArgs): Promise<Rejection | undefined>;
   /** One of V1's moves (v1-design §3.3), by its reducer's name. The refusal's words are home()'s `refusal` too, until the next move. */
   act<K extends MoveName>(move: K, args: Moves[K]): Promise<Rejection | undefined>;
+  /**
+   * A report of a problem's game (V16, M5): report_game, which only the game's owner may ask for,
+   * its text JSON (shared/report/format.ts GameAnswer); else why it couldn't be asked. A backend with
+   * no host to ask (the demo, a screen check's stub) hasn't got it.
+   */
+  reportGame?(game: bigint): Promise<string | Rejection>;
   close(): void;
 }
 

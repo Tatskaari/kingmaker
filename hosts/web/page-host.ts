@@ -63,9 +63,10 @@ const KEY_REFUSED = "OpenRouter turned the key down: change it from the bar unde
 const KEEP_ANSWERS_MS = 24 * 60 * 60 * 1000;
 
 export async function startHost(config: HostConfig, storage: Storage, content: Content): Promise<PageHost> {
-  const commits = commitsTo(storage.sim.write, config.log);
-  const sim = newSimulation(storage.sim, commits.tell, config, request => ai.answer(request));
-  const ai = newAiService(storage.ai, content, sim, config);
+  const kept = keptLog(config);
+  const commits = commitsTo(storage.sim.write, kept.log);
+  const sim = newSimulation(storage.sim, commits.tell, kept, request => ai.answer(request));
+  const ai = newAiService(storage.ai, content, sim, kept);
   await installCampaign(content, ai, sim, storage.sim);
 
   const push = pushTo(sim);
@@ -75,9 +76,35 @@ export async function startHost(config: HostConfig, storage: Storage, content: C
 
   return {
     sim, ai,
-    serve: duplex => serveClient(duplex, { sim, push, sessions: storage.sim, ownerMoves: config.ownerMoves, log: config.log }),
+    serve: duplex => serveClient(duplex, { sim, push, sessions: storage.sim, ownerMoves: config.ownerMoves, log: kept.log, reportGame: reportFor(sim, kept, config.model) }),
     idle: jobs.idle,
     stop: jobs.stop,
+  };
+}
+
+/** How many of the simulation's and the AI service's latest log lines the page host keeps, for a report (browser-design §8's "a ring buffer"). */
+export const KEEP_LOG = 300;
+
+/** The config with its log kept too: the latest KEEP_LOG lines, each as the host's log has it (the key out). */
+function keptLog(config: HostConfig): HostConfig & { lines(): string[] } {
+  const lines: string[] = [];
+  return {
+    ...config,
+    log(line) {
+      config.log(line);
+      lines.push(config.model.redact(line));
+      if (lines.length > KEEP_LOG) lines.splice(0, lines.length - KEEP_LOG);
+    },
+    lines: () => [...lines],
+  };
+}
+
+/** report_game as the page makes it: the memory host's, with the log's latest lines beside the game, and the player's key taken out of all of it. */
+function reportFor(sim: MemoryHost, kept: { lines(): string[] }, model: Model) {
+  return async (identity: Identity, game: bigint): Promise<string> => {
+    const text = await sim.report(identity, game);
+    const withLog = text.startsWith('{"kind":"kingmaker-game"') ? `${text.slice(0, -1)},"log":${JSON.stringify(kept.lines())}}` : text;
+    return model.redact(withLog);
   };
 }
 

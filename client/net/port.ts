@@ -1,6 +1,6 @@
 import { Identity, TimeDuration, Timestamp } from "spacetimedb";
-import { CLIENT_TABLES, keyOf, PROTOCOL, revive, rowKey, type ClientTable, type MoveWire, type Rejection, type Row, type RowChange, type ToClient, type ToServer } from "../../shared/protocol/port.ts";
-import type { ClientTables, Link, LinkMoves, LinkStatus, RowListener } from "./link.ts";
+import { CLIENT_TABLES, keyOf, PROTOCOL, revive, rowKey, type CallWire, type ClientTable, type MoveWire, type Rejection, type Row, type RowChange, type ToClient, type ToServer } from "../../shared/protocol/port.ts";
+import type { ClientTables, Link, LinkCalls, LinkMoves, LinkStatus, RowListener } from "./link.ts";
 
 /**
  * A link over a MessagePort (browser-design §4.1): the page's channel to its server worker, which
@@ -41,8 +41,8 @@ export class PortLink implements Link {
   private readonly stores = new Map<ClientTable, TableStore>();
   private readonly rowListeners = new Set<RowListener>();
   private readonly statusListeners = new Set<(status: LinkStatus) => void>();
-  /** The moves sent and not yet answered, by id: each one's resolve. */
-  private readonly waiting = new Map<number, (why: Rejection | undefined) => void>();
+  /** The moves and calls sent and not yet answered, by id: each one's resolve, with its answer's rejection and value. */
+  private readonly waiting = new Map<number, (why: Rejection | undefined, value?: string) => void>();
   private nextId = 1;
   /** The snapshot is in. */
   private settled = false;
@@ -82,6 +82,16 @@ export class PortLink implements Link {
     });
   }
 
+  /** A procedure called with an id of its own: its text, else why not. Cut off, none is sent: the words say why. */
+  call<K extends CallWire>(name: K, args: LinkCalls[K]): Promise<string | Rejection> {
+    if (this.status.cutOff) return Promise.resolve({ code: "error", text: this.status.cutOff });
+    const id = this.nextId++;
+    return new Promise(resolve => {
+      this.waiting.set(id, (rejection, value) => resolve(rejection ?? value ?? { code: "error", text: "(The game's server gave no answer.)" }));
+      this.send({ kind: "call", id, name, args });
+    });
+  }
+
   /** Tells the server this client has gone (a port has no close event of its own), and stops listening. */
   close(): void {
     this.send({ kind: "disconnect" });
@@ -98,7 +108,7 @@ export class PortLink implements Link {
       case "connected": this.identity = message.identity; return;
       case "snapshot": return this.snapshot(message.tables);
       case "tx": return this.apply(message.changes);
-      case "answer": return this.answer(message.id, message.rejection);
+      case "answer": return this.answer(message.id, message.rejection, message.value);
       case "status": return this.troubled(message);
     }
   }
@@ -121,10 +131,10 @@ export class PortLink implements Link {
     for (const { table, op, row } of mine) for (const listener of this.rowListeners) listener(table, op, row);
   }
 
-  private answer(id: number, rejection: Rejection | undefined): void {
+  private answer(id: number, rejection: Rejection | undefined, value?: string): void {
     const resolve = this.waiting.get(id);
     this.waiting.delete(id);
-    resolve?.(rejection);
+    resolve?.(rejection, value);
   }
 
   /**
