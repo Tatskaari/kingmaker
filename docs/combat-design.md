@@ -31,7 +31,7 @@ Each event plays in order, its caption up while it plays:
 | An area spell | Its tiles light up, then the blast plays on everyone caught |
 | Damage | The number pops up over the target in its damage type's colour; their bar drops |
 | A condition | A small tag on the fighter: prone, grappled, dodging |
-| A fall | Their letter tips to "x", greys, and stays where they fell |
+| A fall | They flash red, then lie where they fell, dimmed, a mark at their feet (a sprite lies down; the fight's own letters tip over to an "x") |
 | An opportunity attack | The move stops, the swing plays, the move goes on: three events |
 
 How long each takes is one table (`shared/fight/pace.ts`), which the simulation also spaces the other side's turns by, so a spectator sees the same pace.
@@ -62,6 +62,28 @@ The fight is rows: `fight` (the board, whose turn, your options), `fight_rules` 
 
 **The screen** (`client/ui/fight.tsx` over `client/fight/model.ts`, the terminal client's and the page's alike) is up whenever the game has a fight on. The turn-order bar is across the top: each fighter a portrait in their own glyph and colour, whose turn marked (▶, gold), a hit-point gauge each, conditions as tags, anyone down or gone crossed out. Under it the board, the ring's own map drawn by the map's renderer (`client/fight/draw.ts`); the caption line; the log; and beside the board whose turn it is, with one clear YOUR TURN on yours and your action, bonus action and movement left.
 
-**The moves play out** (`client/fight/script.ts`, `client/fight/player.ts`): each moment is a script of beats laid out by the pace table's parts (`shared/fight/pace.ts partsOf`, which the simulation's spacing reads too): a beat between combatants; the bar moving on; a walk a tile at a time (110 ms a tile); a blow's flash between them (a blade's sweep, a club's knock, a bite) or a shot or a bolt crossing the floor; the one hit flickering, its number popping up and drifting, or "miss"; a fall tipping their letter over to an x. The look is procedural, in the look layer (`client/look/fight.ts`, and the effects' new slash). Space finishes the move playing; F skips to your turn (`hurry`, a new `fight_turn` act, makes the simulation play the rest of their turns at once). Reduced motion shows each move's end at once with its caption (`KM_REDUCED_MOTION=1`, the browser's own setting, or the fight's Esc menu).
+**The moves play out** (`client/fight/script.ts`, `client/fight/player.ts`): each moment is a script of beats laid out by the pace table's parts (`shared/fight/pace.ts partsOf`, which the simulation's spacing reads too): a beat between combatants; the bar moving on; a walk a tile at a time (110 ms a tile); a blow's flash between them (a blade's sweep, a club's knock, a bite) or a shot or a bolt crossing the floor; the one hit flickering, its number popping up and drifting, or "miss"; a fall lit red, then lying where they fell (a sprite lies down, a letter dims with a mark at its feet, the fight's own letters tip over to an x); a Sleep spell's sleepers lying down with a Z. The look is procedural, in the look layer (`client/look/fight.ts`, and the effects' new slash). Space finishes the move playing; F skips to your turn (`hurry`, a new `fight_turn` act, makes the simulation play the rest of their turns at once). Reduced motion shows each move's end at once with its caption (`KM_REDUCED_MOTION=1`, the browser's own setting, or the fight's Esc menu).
 
-**Your turn** is the action menu (m or Enter), its lines by what they spend (action, bonus action, movement, your turn), its attacks and spells aimed on the board with their reach and targets lit before you commit, Tab between targets. A click on a blue tile walks there; rust tiles draw a swing. A click on someone opens what can be done to them. The options say what the menu needs: each one's name, cost, aim, reach and area, and which tiles draw a swing. Headless, under each moment's caption, a `▸` line says what the screen plays of it.
+**Your turn** is the action menu (m or Enter), its lines by what they spend (action, bonus action, movement, your turn), its attacks and spells aimed on the board with their reach and targets lit before you commit, Tab between targets. A click on a blue tile walks there; red tiles draw a swing. A click on someone opens what can be done to them. The options say what the menu needs: each one's name, cost, aim, reach and area, and which tiles draw a swing. Headless, under each moment's caption, a `▸` line says what the screen plays of it.
+
+## 8. First play (M6)
+
+Three fights played to the end as the user will play them, headless (`npm run play` on the dev stack's SpacetimeDB) and in the page (the site's `play/` in headless Chromium, driven by Playwright): a fighter against the Crakes, a wizard against Sallow and the Crakes, and a rogue who fled through the gate, then fought again and made them yield. Screenshots of the key moments and a video of the other side's turns are in `kingmaker-scratch/v2/m6/final`.
+
+**Broken or unclear, and fixed** (the migration log's M6, "First play", has each):
+
+- In the page the fight stood still on the other side's first turn: the page host's clock woke a fraction early and never again. The browser check pressed F, so it never saw it; it now waits without.
+- The cast were drawn standing when they fell (Kell, Sallow, the Crakes: the whole ring), the two Crakes were one letter and colour, the panel showed your hit points under the other side's name, the caption's mark was the next one's during the beat, and the red warning of a swing was rust on sand.
+- The words said less than the dice did: Sleep "catching nobody" while it put a Crake to sleep, Sneak Attack's damage unnamed and every line showing the end's hit points, a concentration save unexplained, advantage without why, "unless you disengage first" after you had, "The player" in your own summary.
+- A caption was gone in half a second: now 900 ms.
+
+**What works:** one turn at a time, every move played out on the board (a walk a tile at a time, a blow's flash, a bolt in flight, an area lighting up, the damage popping up, a fall); the bar, the caption line and the log say whose turn it is and what just happened; the captions match the dice line for line; the menu aims before you commit, with the targets, the reach, the odds and why, and whom an area would catch (a warning when it's you or Kell); Space and F; n and o in the zoo.
+
+**To iterate on next** (the user's call):
+
+1. **Class features:** the ready-made fighter has no Second Wind or Action Surge and the rogue no Cunning Action, so their bonus action is "none" every turn, and the rogue's flight costs its action.
+2. **The ring's balance:** Kell (11 hit points) goes down in round 1 or 2 of most fights against Sallow and the Crakes, who have Pack Tactics; the fighter and the wizard lost about half their fights to them.
+3. **The pace:** a round of four others' turns takes 10 to 12 seconds at 900 ms a caption (F skips). It's one table, `shared/fight/pace.ts`.
+4. **The board:** an impact's light whitens the bystanders and its sparks hide the one hit for a moment; an area's tint is faint on sand; there's still no line drawn to the target aimed.
+5. **The AI and the words:** Kell swings at a sleeper (the critical the rules give, but it wakes them); a disadvantage the fight can't see the cause of is still bare; "they" for named men; spell lines don't say the slots left.
+
