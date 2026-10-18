@@ -1,4 +1,4 @@
-// Cut from the prototype's src/app/app.tsx at 44c6d4a: the screen switch over an AppModel in place of the Game (the title, character creation's six, the map between scenes and the game: its scene, the moment between scenes, the fight's stand-in and The End), with what's open over the scene and the map; Ctrl+C or Ctrl+D leaves; the title, the scene and the map are told where they're drawn (the app's surface: a terminal or a page).
+// Cut from the prototype's src/app/app.tsx at 44c6d4a: the screen switch over an AppModel in place of the Game (the title, character creation's six, the map between scenes, a fight on the map (M6) and the game: its scene, the moment between scenes, the fight's stand-in and The End), with what's open over the scene and the map; Ctrl+C or Ctrl+D leaves; the title, the scene and the map are told where they're drawn (the app's surface: a terminal or a page).
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useCallback, useSyncExternalStore } from "react";
 import type { AppModel, Surface } from "./app/model.ts";
@@ -9,6 +9,7 @@ import { BackstoryScreen, ChooseScreen, CreatedScreen, CreateScreen, CreatingScr
 import { BetweenScreen, FightScreen } from "./ui/between.tsx";
 import { EndScreen } from "./ui/end.tsx";
 import { ExploreScreen } from "./ui/explore.tsx";
+import { FightPlay } from "./ui/fight.tsx";
 import { ExploreOverlay, Overlay } from "./ui/overlay.tsx";
 import { SceneScreen } from "./ui/scene.tsx";
 import { TitleScreen } from "./ui/title.tsx";
@@ -36,6 +37,7 @@ export function App({ app }: { app: AppModel }) {
       case "created": return <CreatedScreen game={app.creation} />;
       case "scene": return scene ? <ScenePlay scene={scene} surface={app.surface} /> : null;
       case "explore": return app.explore ? <ExplorePlay explore={app.explore} surface={app.surface} /> : null;
+      case "fight": return app.fight ? <FightPlay fight={app.fight} surface={app.surface} /> : null;
     }
   })();
   return <box width={width} height={height} backgroundColor={C.bg}>{screen}</box>;
@@ -75,5 +77,5 @@ function usePage(scene: SceneModel): SceneModel["page"] {
  */
 function useScreen(app: AppModel): void {
   const subscribe = useCallback((listener: () => void) => app.subscribe(listener), [app]);
-  useSyncExternalStore(subscribe, () => (app.screen === "scene" ? app.scene ?? app.screen : app.screen === "explore" ? app.explore ?? app.screen : app.screen));
+  useSyncExternalStore(subscribe, () => (app.screen === "scene" ? app.scene ?? app.screen : app.screen === "explore" ? app.explore ?? app.screen : app.screen === "fight" ? app.fight ?? app.screen : app.screen));
 }
