@@ -7,7 +7,7 @@ import type { Markup } from "../../shared/markup.ts";
 import type { CoGmAnswer, Reply, SpokenCheck, TurnCheck } from "../../shared/protocol/ai.ts";
 import { enteringAt, isDiscovery, isEvent, limitOf, openRoutes, reachedOf, reachedTurns, stageOf, takeRoute, targetsOf, type RouteOutcome } from "../../shared/scene/beats.ts";
 import { presentCast } from "../../shared/scene/graph.ts";
-import { SKILLS, type Character, type Exit, type Scene, type SceneRoute, type Skill } from "../../shared/scene/types.ts";
+import { SKILLS, type Beat, type Character, type Exit, type Scene, type SceneRoute, type Skill } from "../../shared/scene/types.ts";
 import { worldView } from "../../shared/world/scene-world.ts";
 import { PHYSICS } from "../../shared/world/systems.ts";
 import { respond, type CallContext, type Message } from "../llm/openrouter.ts";
@@ -315,8 +315,8 @@ ${w.names} ${w.v("goes", "go")} with the player, and it's the player's case, not
 /**
  * The companion, as the co-GM is told to write their role (QA round qa2-1018: its role for Kell had
  * her "state plainly that the cord mark and blow show Prout was struck and strangled" and "still
- * need a concrete lead placing someone at the scene", and the mouthpiece said both): ours, after its
- * tools, so her role every turn carries what she holds back.
+ * need a concrete lead placing someone at the scene", and the mouthpiece said both): ours, before its
+ * tools section, so her role every turn carries what she holds back.
  */
 export function companionRoles(scene: Scene, view: TurnView): string | undefined {
   const who = companionsOf(scene, view);
@@ -393,11 +393,16 @@ export function hiddenNote(scene: Scene, view: TurnView): string | undefined {
  * hand it over: it still comes out as it's earned.
  */
 export function holdersNote(scene: Scene, view: TurnView): string | undefined {
-  const present = presentCast(scene, view);
-  const needed = targetsOf(scene, view).filter(b => b.required).map(b => ({ b, who: present.filter(c => b.paths?.some(p => p.via === c.id)) })).filter(n => n.who.length);
+  const needed = heldHere(scene, view);
   if (!needed.length) return undefined;
   const names = (who: Character[]) => who.map(c => c.name).join(who.length === 2 ? " and " : ", ");
   return `## Who holds what the player still needs\n${needed.map(n => `- ${n.b.title} [${n.b.id}], which the scene can't end well without: ${names(n.who)}`).join("\n")}\nNo check's outcome puts it out of reach: none of them leaves, bolts or goes silent for good on a roll. A failure costs something else (a higher price, a condition, a wrong impression, time), and the way to it stays open. That's so nothing closes it off, not a reason to hand it over: it still comes out only as it's earned.`;
+}
+
+/** Each required discovery not reached yet, and who here holds it (a path of it via them): holdersNote's and inReach's. */
+function heldHere(scene: Scene, view: TurnView): Array<{ b: Beat; who: Character[] }> {
+  const present = presentCast(scene, view);
+  return targetsOf(scene, view).filter(b => b.required).map(b => ({ b, who: present.filter(c => b.paths?.some(p => p.via === c.id)) })).filter(n => n.who.length);
 }
 
 /** Words that send someone out of the scene, not across it: bolting, fleeing, off through the gate. */
@@ -414,8 +419,7 @@ const goesOff = (sentence: string) => [...sentence.matchAll(OFF)].some(m => !NOT
  * when that one keeps them. When both do, they stand: the format and the per-turn note have said it.
  */
 export function inReach(scene: Scene, view: TurnView, outcomes: Record<Band, string>): Record<Band, string> {
-  const present = presentCast(scene, view);
-  const who = present.filter(c => targetsOf(scene, view).some(b => b.required && b.paths?.some(p => p.via === c.id)));
+  const who = [...new Set(heldHere(scene, view).flatMap(n => n.who))];
   if (!who.length) return outcomes;
   const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const words = who.flatMap(c => [...c.name.split(/\s+/).filter(w => w.length >= 3 && /^\p{Lu}/u.test(w) && !/^(?:Sergeant|Corporal|Master|Mister|Big|Old|Young|Little|Captain|Marshal|King|Queen)$/.test(w)), ...(c.aka ?? [])].map(w => new RegExp(`\\b${escape(w)}\\b`)).concat(c.called ? [c.called, shortOf(c.called)].map(w => new RegExp(`\\b${escape(w)}\\b`, "i")) : []));
