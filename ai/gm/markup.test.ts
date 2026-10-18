@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { sceneById, stateIn } from "./fixtures.ts";
 import { speakersOf } from "./knowledge.ts";
 import { markupOf, parseMarkup, speechIn, stripMarkup, withSpeakers, type Marked, type Parsed } from "./markup.ts";
-import { speaker, type Speaker } from "./speakers.ts";
+import { distinct, speaker, type Speaker } from "./speakers.ts";
 import type { TurnView } from "./view.ts";
 
 const PEOPLE: Speaker[] = [
@@ -364,6 +364,10 @@ test("who says a line, on QA round qa2-1018's own replies: the big man by what h
   // At “granary rope,” his face drains: the player's words quoted in a sentence aren't a line, the player's or anyone's (g04's T7).
   const t7 = withSpeakers(parseMarkup("His eyes rise to yours, then flick toward the closed door. At “granary rope,” his face drains of colour. [Big Hobb Mallory] “Sir.” His voice is low and careful. “I don’t want to hang.” He looks down at the table. “I only held him. I only held the rope.”"), rat);
   assert.deepEqual(t7.speech.map(s => [t7.text.slice(s.start, s.end), s.speaker]), [["“Sir.”", "hobb"], ["“I don’t want to hang.”", "hobb"], ["“I only held him. I only held the rope.”", "hobb"]]);
+  // A name that's what someone is ("the silent Crake") isn't told by its describing words: the room falling silent isn't him (g08's Heron).
+  const crakes = distinct([speaker("crake-1", "the talking Crake", "the talking bruiser"), speaker("crake-2", "the silent Crake", "the silent bruiser")]);
+  assert.deepEqual(speakers("The room falls silent. “Out.”", crakes), [undefined]);
+  assert.deepEqual(speakers("[the talking bruiser] “A shilling extra for the uniform.” The talking bruiser grins at Kell. “Two to put a man down.”", crakes), ["crake-1", "crake-1"]);
   // A sentence about the mastiff at his boots goes on about him: the watchman's line, not nobody's (g03's T1).
   assert.deepEqual(speakers("Kell gives one short nod and stays by the door, whistle ready. The old watchman squints at the brass token, then turns his right ear toward you. At his boots, the mastiff opens one eye and sniffs. “Hobb sent you, you say?” He glances at the dog. “She says you smell of river and trouble.”", castOf("heron-warehouse")), ["saul", "saul"]);
 });

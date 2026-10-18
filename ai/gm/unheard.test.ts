@@ -9,6 +9,8 @@ import { loadScene } from "../../shared/scene/load.ts";
 import type { Scene } from "../../shared/scene/types.ts";
 import { buildWorld, joinWorld } from "../../shared/world/scene-world.ts";
 import { CAERWYN } from "./fixtures.ts";
+import { speakersOf } from "./knowledge.ts";
+import { namesNote } from "./two-part.ts";
 import { asKnown, shortOf, unheardOf, type Unheard } from "./unheard.ts";
 import type { TurnView } from "./view.ts";
 
@@ -57,6 +59,44 @@ test("who the player hasn't heard named, with what to call them: the cast with a
   assert.deepEqual(wharf.find(u => u.id === "hep"), { id: "hep", name: "Hepzibah Grist", aka: ["Hep"], called: "the forewoman with the sack-needle", short: "the forewoman", here: true });
   assert.equal(wharf.find(u => u.id === "sallow")?.here, false, "Sallow comes at midnight");
   assert.ok(!wharf.some(u => u.id === "gang" || u.id === "bargees"), "the place's people go by what they are, not a name");
+});
+
+/** The Heron once the Master has come, with his group in the world (the lantern-boy and the Crakes). */
+function heronAtMidnight(transcript: TurnView["transcript"] = []): { scene: Scene; view: TurnView } {
+  const scene = sceneFile("heron-warehouse");
+  const view: TurnView = { ...viewOf(scene, transcript), reached: [scene.start, "midnight"], beat: "midnight" };
+  const cast = presentCast(scene, view).map(c => ({ id: c.id, name: c.name, ...(c.members ? { members: c.members } : {}) }));
+  view.world = buildWorld(scene.id, placeOf(scene), cast, view.player);
+  joinWorld(view.world, cast, 0);
+  return { scene, view };
+}
+
+test("a group's members who go by a name inside what they are: the Crakes until someone says it (QA round qa2-1018, g08's T16 and T17)", () => {
+  const { scene, view } = heronAtMidnight();
+  const crakes = unheardOf(scene, view).filter(u => u.word);
+  assert.deepEqual(crakes.map(u => [u.id, u.name, u.called, u.here, u.word]), [
+    ["crake-1", "the talking Crake", "the talking bruiser", true, { name: "Crake", kind: "bruiser" }],
+    ["crake-2", "the silent Crake", "the silent bruiser", true, { name: "Crake", kind: "bruiser" }],
+  ], "the silent one's look says nothing of what he is: his brother's does");
+  assert.ok(!unheardOf(scene, view).some(u => u.id === "lantern-boy"), "the lantern-boy goes by what he is");
+  assert.deepEqual(unheardOf(scene, viewOf(scene)).filter(u => u.word).map(u => u.here), [false, false], "before the Master comes, not here");
+  assert.match(namesNote(unheardOf(scene, view))!, /\n- the talking Crake: "the talking bruiser"\n- the silent Crake: "the silent bruiser"$/);
+  // The screen knows them by it too: a line tagged "[the talking bruiser]" is his.
+  assert.ok(speakersOf(scene, view).find(p => p.id === "crake-1")?.names.includes("talking bruiser"));
+  // Sallow says it: heard.
+  const said = heronAtMidnight([{ turn: 16, speaker: "gm", kind: "narration", text: "He smiles thinly. “Crake.” Both bruisers move." }]);
+  assert.ok(!unheardOf(said.scene, said.view).some(u => u.word));
+
+  // The round's narration, as the model wrote it.
+  const people = unheardOf(scene, view).filter(u => u.word);
+  assert.equal(asKnown("Sallow’s courtesy vanishes. He snatches for the open ledger; the silent Crake steps between him and Kell, while the other reaches inside his coat.", people).text,
+    "Sallow’s courtesy vanishes. He snatches for the open ledger; the silent bruiser steps between him and Kell, while the other reaches inside his coat.");
+  assert.equal(asKnown("The boards shine slick beneath Sallow and the Crakes. One Crake’s boots shoot out; he lands hard against the counting-box rail. Kell stays clear of the grease, truncheon up, as the talking Crake swears and tries to rise.", people).text,
+    "The boards shine slick beneath Sallow and the bruisers. One bruiser’s boots shoot out; he lands hard against the counting-box rail. Kell stays clear of the grease, truncheon up, as the talking bruiser swears and tries to rise.");
+  // Alone it takes "the"; plural, it owns with the apostrophe alone; said in a line, it's heard and kept from there on.
+  assert.deepEqual(asKnown("Crake swears. The Crakes’ cudgels come up. [Master Josiah Sallow] “Crake. The door.” The talking Crake grins.", people), {
+    text: "The bruiser swears. The bruisers’ cudgels come up. [Master Josiah Sallow] “Crake. The door.” The talking Crake grins.", heard: ["crake-1", "crake-2"],
+  });
 });
 
 test("the round's replies: a name nobody has said is what the player calls them, in full the first time, at a sentence's start with a capital", () => {

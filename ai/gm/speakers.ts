@@ -86,7 +86,9 @@ function aliasOf(called?: string): { alias: string; head?: string; rest: string[
 export function namesFor(name: string, called?: string, aka: string[] = []): string[] {
   const lower = name.toLowerCase();
   const alias = aliasOf(called)?.alias;
-  return [...new Set([lower, ...lower.split(/\s+/).filter(w => w.length >= 3 && !COMMON.test(w)),
+  // A name that's what someone is ("the silent Crake", "the re-sacking gang") is told apart by its own names and its last word, not the words that describe them ("silent" is anyone's).
+  const words = /^(?:the|a|an)\s/i.test(name) ? name.split(/\s+/).filter((w, i, all) => i === all.length - 1 || /^\p{Lu}/u.test(w)).map(w => w.toLowerCase()) : lower.split(/\s+/);
+  return [...new Set([lower, ...words.filter(w => w.length >= 3 && !COMMON.test(w)),
     ...(alias ? [alias] : []), ...aka.map(a => a.toLowerCase())])];
 }
 
