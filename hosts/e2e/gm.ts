@@ -58,8 +58,10 @@ export async function aMemory(stack: Stack, root: string, a: Player, fake: FakeO
  * 23. The co-GM steers (STEERING): after each reply, beside the stage manager, it gives Moll her role,
  * which gm_state keeps and its note for the next turn carries, so the next reply reads it before the
  * player's line; and it walks the scene on a route a line, each move taken again on the rows (the
- * path, what's reached): the dead-cart's arrival moves the stage and brings Tull on with his stage
- * note as his role, and the next reply is told to show it, once.
+ * path, what's reached): the Hobb lead refused while nobody has said his name, so the name is owed
+ * on the rows and the next reply told that Kell names him, which the fake's Kell does, so the lead is
+ * taken after it; the dead-cart's arrival moves the stage and gives Tull his stage note as his role,
+ * and the next reply is told to show it, once; he's in the world and on stage once it has.
  */
 export async function theCoGmSteers(stack: Stack, root: string, a: Player, game: Game, fake: FakeOptions): Promise<void> {
   step("23. The co-GM steers");
@@ -69,28 +71,35 @@ export async function theCoGmSteers(stack: Stack, root: string, a: Player, game:
   await doneTurn(a, n);
   const first = await gmOf(stack, game);
   check(`Moll's role is the co-GM's: "${first.twoPart.roles.moll?.conversation_role}"`, first.twoPart.roles.moll?.conversation_role === MOLL.conversation_role && first.twoPart.roles.moll.status === MOLL.status);
-  check(`its move is on the rows: ${first.path.map(p => `${p.turn}: ${p.from} -> ${p.to} via ${p.via}`).join("; ")}; reached ${first.reached.join(", ")}`, first.path.at(-1)?.via === "find-hobb" && first.path.at(-1)?.turn === n && first.reached.includes("hobb"));
+  check(`its move is on the rows, the lead's name owed: ${first.path.map(p => `${p.turn}: ${p.from} -> ${p.to} via ${p.via}`).join("; ")}; reached ${first.reached.join(", ")}`, first.path.at(-1)?.via === "owed:hobb" && first.path.at(-1)?.turn === n && !first.reached.includes("hobb"));
 
   const m = n + 1;
   check("A says the next line", (await a.conn.say("Moll, you never saw him jump from up there. What did you see?")) === undefined);
   await doneTurn(a, m);
   const told = modelInput(root, game, "two-part.reply", keyOf(game, m, "reply"));
   check(`turn ${m}'s reply read the co-GM's note for it, Moll's role in it`, told.includes(`Co-GM note, before turn ${m}`) && told.includes(`Character role for Moll:\nStatus: ${MOLL.status}\nMental state: ${MOLL.mental_state}\nConversation role: ${MOLL.conversation_role}`));
+  const named = await gmOf(stack, game);
+  check(`and it was told that Kell names him now; the fake's Kell did, so the lead was taken after it: ${named.path.at(-1)?.via}`, told.includes("Sergeant Agnes Kell names him now: Big Hobb Mallory.") && named.path.at(-1)?.via === "find-hobb" && named.path.at(-1)?.turn === m);
 
-  const cart = m + 1;
+  const murder = m + 1;
+  check("A says another line", (await a.conn.say("Sergeant, look at his throat.")) === undefined);
+  await doneTurn(a, murder);
+
+  const cart = murder + 1;
   check("A says another line", (await a.conn.say("Is that the dead-cart I hear in the lane?")) === undefined);
   await doneTurn(a, cart);
   const moved = await gmOf(stack, game);
   check(`the stage moved to ${moved.beat} (${moved.twoPart.moved ? "to show" : "nothing to show"}), Tull brought on: "${moved.twoPart.roles.tull?.conversation_role.slice(0, 40)}…"`,
     moved.path.at(-1)?.via === "cart-comes" && moved.beat === "cart-arrives" && moved.twoPart.moved === "cart-arrives" && /^Helmet off to the dead/.test(moved.twoPart.roles.tull?.conversation_role ?? ""));
-  check("Tull is in the world, and on stage", (await stack.sql(`SELECT * FROM entity WHERE game_id = ${game.id}`)).some(e => e.key === "tull") && a.conn.view()!.present.some(p => p.key === "tull"));
+  check("Tull isn't in the world or on stage until a reply has shown him arriving", !(await stack.sql(`SELECT * FROM entity WHERE game_id = ${game.id}`)).some(e => e.key === "tull") && !a.conn.view()!.present.some(p => p.key === "tull"));
 
   const after = cart + 1;
   check("A says another line", (await a.conn.say("Corporal, a word before you take him.")) === undefined);
   await doneTurn(a, after);
   const shown = modelInput(root, game, "two-part.reply", keyOf(game, after, "reply"));
   const done = await gmOf(stack, game);
-  check("the reply after the move was told to show it, Tull seen arriving; shown, it's done with", /The scene has just moved on to "[^"]+": [\s\S]*arrives now, seen arriving/.test(shown) && done.twoPart.moved === undefined);
+  check("the reply after the move was told to show it, Tull seen arriving; shown, it's done with", /The scene has just moved on to "[^"]+": [\s\S]*comes in now, seen arriving/.test(shown) && done.twoPart.moved === undefined);
+  check("and with it Tull is in the world, and on stage", (await stack.sql(`SELECT * FROM entity WHERE game_id = ${game.id}`)).some(e => e.key === "tull") && a.conn.view()!.present.some(p => p.key === "tull"));
 }
 
 /**

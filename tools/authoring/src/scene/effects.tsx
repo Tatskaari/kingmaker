@@ -1,4 +1,4 @@
-// Effects: an ending's, the scene's onEnd, and its afterwards (world ops alone, and no conditions). Every
+// Effects: an ending's, the scene's onStart and onEnd, and its afterwards (world ops alone, and no conditions). Every
 // op the format has is a form (the story's, the world's and the fight's set-up), with its conditions on
 // the scene's facts picked from them or made new; anything the form doesn't show is named, and any
 // effect can be edited as JSON, kept only once it's whole.

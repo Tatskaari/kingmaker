@@ -12,8 +12,8 @@ export type Confirmation={title:string;description:string;confirmLabel:string;on
 /** The scene editor's views: the graph (with the inspector of what's selected on it), and the scene's own. */
 export type View='graph'|'scene'|'cast'|'facts'|'problems';
 
-/** Where a list of effects is: an ending's effects, or the scene's onEnd or afterwards. */
-export type EffectsAt={kind:'node';id:string}|{kind:'scene';field:'onEnd'|'afterwards'};
+/** Where a list of effects is: an ending's effects, or the scene's onStart, onEnd or afterwards. */
+export type EffectsAt={kind:'node';id:string}|{kind:'scene';field:'onStart'|'onEnd'|'afterwards'};
 
 /** What the scene editor's panels share: the scene, the campaign around it, and the ways to change them and to go to a part of them. */
 export type SceneApi={

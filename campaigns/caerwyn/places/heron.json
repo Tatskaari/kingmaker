@@ -44,7 +44,7 @@
         "w": 15,
         "h": 15
       },
-      "description": "A glass-sided box hung over the floor in the north-east corner: a high desk, a lamp, and the true book under Mister Scrope's hand."
+      "description": "A glass-sided box hung over the floor in the north-east corner: a high desk, a lamp, and the green ledger under Mister Scrope's hand."
     },
     {
       "id": "plank-walk",
@@ -416,7 +416,7 @@
     },
     {
       "id": "true-book",
-      "name": "the Heron's true book",
+      "name": "the green ledger",
       "kind": "item",
       "in": "counting-desk",
       "size": "small",
@@ -560,7 +560,7 @@
         77,
         22
       ],
-      "note": "at his desk, his left hand on the true book"
+      "note": "at his desk, his left hand on the green ledger"
     },
     "hobb": {
       "in": "floor",

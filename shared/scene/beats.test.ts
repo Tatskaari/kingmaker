@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { initialGm, type GmState } from "../gm/state.ts";
-import { endingOf, enteringAt, limitOf, openRoutes, reachDiscoveries, reachedOf, reachedTurns, stageOf, takeRoute, targetsOf, type Taken } from "./beats.ts";
+import { endingNeeds, endingOf, enteringAt, limitOf, openRoutes, oweName, owedLeads, reachDiscoveries, reachedOf, reachedTurns, stageOf, takeRoute, targetsOf, type Taken } from "./beats.ts";
 import type { SceneDocument } from "./document.ts";
 import { presentCast } from "./graph.ts";
 import { sceneOf } from "./load.ts";
@@ -62,16 +62,32 @@ test("the cue moves the stage to the event and brings on who enters there; the r
   assert.deepEqual(ids(enteringAt(scene, "cart-arrives")), ["tull"]);
   assert.ok(ids(presentCast(scene, cart)).includes("tull"), "the corporal is here now");
   assert.ok(!ids(presentCast(scene, initialGm(scene))).includes("tull"), "and wasn't before");
-  assert.deepEqual(ids(openRoutes(scene, cart)), ["find-murder", "find-motive", "find-hobb", "case-lost"], "the start's routes stay open; neither signing is, with nothing found");
+  assert.deepEqual(ids(openRoutes(scene, cart)), ["find-murder", "find-motive", "find-hobb", "case-lost", "porters-come"], "the start's routes stay open, and the porters' break opens; neither signing is, with nothing found");
 
   const error = refused(takeRoute(scene, cart, "signed-murder", "none", 3));
   assert.match(error, /^\[signed-murder\] isn't open: it requires The victim was murdered \[murder\] and Hobb was spotted at the scene \[hobb\], not reached yet\. The open routes: \[find-murder\] It was murder \(to The victim was murdered\); /);
-  assert.match(error, /\[case-lost\] Last resort \(to Failed\)\.$/);
+  assert.match(error, /\[case-lost\] Last resort \(to Failed\); \[porters-come\] The porters' break \(to The porters' noon break; a cue\)\.$/);
 
   const hobb = took(takeRoute(scene, cart, "find-hobb", "none", 3));
   assert.deepEqual(ids(openRoutes(scene, hobb)).filter(id => id.startsWith("signed")), ["signed-suicide"], "the lead alone: Kell can only object in writing");
   assert.match(refused(takeRoute(scene, hobb, "signed-murder", "none", 4)), /it requires The victim was murdered \[murder\], not reached yet/);
   assert.equal(stageOf(scene, hobb).id, "cart-arrives", "a discovery doesn't move the stage");
+});
+
+test("the porters' noon break, after the cart: its outer limit is four exchanges from the cart and stops once the lead is reached; it brings Old Wat on, and the signing goes on from the cart (QA round qa3-1018's H6: the clerk's lead never reached two players before their turns ran out)", () => {
+  const porters = scene.routes.find(r => r.id === "porters-come")!;
+  assert.deepEqual(limitOf(porters, initialGm(scene), 20), { counts: [{ exchanges: 4, after: "cart-arrives" }], overdue: false }, "before the cart, it isn't counting");
+  const cart = took(takeRoute(scene, initialGm(scene), "cart-comes", "none", 11));
+  assert.equal(limitOf(porters, cart, 14)!.overdue, false, "the cart shown in reply 12");
+  assert.equal(limitOf(porters, cart, 15)!.overdue, true, "overdue after reply 15, so the porters come in in reply 16");
+  const lead = took(takeRoute(scene, cart, "find-hobb", "none", 13));
+  assert.deepEqual(limitOf(porters, lead, 15), { counts: [{ exchanges: 4, after: "cart-arrives", reachedOn: 11, next: 4, stopped: "hobb" }], overdue: false }, "not once the lead is reached");
+
+  const noon = took(takeRoute(scene, cart, "porters-come", "none", 14));
+  assert.deepEqual([stageOf(scene, noon).id, ids(enteringAt(scene, "porters-break"))], ["porters-break", ["wat"]]);
+  assert.ok(["tull", "wat"].every(id => ids(presentCast(scene, noon)).includes(id)), "Old Wat comes in, and the corporal is still here");
+  const told = took(takeRoute(scene, took(takeRoute(scene, noon, "find-hobb", "none", 15)), "find-murder", "none", 15));
+  assert.ok(ids(openRoutes(scene, told)).includes("signed-murder"), "the signing goes on from the cart, wherever the stage is");
 });
 
 test("an ending reached sets closing; after it nothing is open and no route is taken", () => {
@@ -188,4 +204,17 @@ test("the turn each node was reached on; a cue's outer limit counts from the ope
   const inside = took(takeRoute(heron, initialGm(heron), "taken-on", "none", 3));
   assert.deepEqual(limitOf(master, inside, 7), { counts: [{ exchanges: 6, next: 8, stopped: "floor" }, { exchanges: 5, after: "floor", reachedOn: 3, next: 4 }], overdue: false }, "inside, the wharf's count stops and five inside runs");
   assert.equal(limitOf(master, inside, 8)!.overdue, true);
+});
+
+test("a discovery an ending's way in requires (a lead, where it names someone elsewhere); a lead's name owed is a step on the path that moves nothing, once, and not for a lead reached (QA round qa3-1018)", () => {
+  assert.deepEqual(scene.beats.filter(b => endingNeeds(scene, b)).map(b => b.id), ["murder", "hobb"], "signed-murder needs both, signed-suicide Hobb; the motive no ending needs");
+  const cart = took(takeRoute(scene, initialGm(scene), "cart-comes", "none", 2));
+  const owed = oweName(scene, cart, "hobb", 5);
+  assert.deepEqual(owed.path.at(-1), { turn: 5, from: "cart-arrives", to: "cart-arrives", via: "owed:hobb", source: "post" }, "from the stage to itself");
+  assert.deepEqual([owedLeads(owed), owed.reached, owed.beat, [...reachedTurns(owed)]], [["hobb"], ["start", "cart-arrives"], "cart-arrives", [["start", 0], ["cart-arrives", 2]]], "nothing reached or moved");
+  assert.equal(oweName(scene, owed, "hobb", 6), owed, "owed once");
+  assert.deepEqual(ids(openRoutes(scene, owed)), ids(openRoutes(scene, cart)), "the routes as they were");
+  assert.deepEqual(cart.path.length, 1, "the state it was handed is as it was");
+  const found = took(takeRoute(scene, cart, "find-hobb", "none", 4));
+  assert.equal(oweName(scene, found, "hobb", 5), found, "a lead reached is owed nothing");
 });

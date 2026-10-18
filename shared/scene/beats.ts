@@ -107,6 +107,32 @@ export function enteringAt(scene: Pick<Scene, "cast">, node: string): Character[
   return scene.cast.filter(c => c.enters === node);
 }
 
+/**
+ * Whether a way into one of the scene's endings requires a discovery (the clerk's murder and Hobb).
+ * One whose revelation names someone of the story's other scenes is a lead to them (the clerk's Hobb,
+ * whom the story goes on to find), reached only once that name has been said (ai/gm/two-part.ts).
+ */
+export const endingNeeds = (scene: Pick<Scene, "routes" | "exits">, beat: Beat) => scene.routes.some(r => r.requires?.includes(beat.id) && scene.exits.some(e => e.id === r.target));
+
+/** A path step's `via` for a lead whose name is owed: "owed:hobb". */
+const OWED = "owed:";
+
+/**
+ * A lead's name owed (QA round qa3-1018, H6 and H7: the co-GM took the clerk's Hobb lead on a
+ * description, or waited on a sergeant who never named him, and the name came first in the closing,
+ * or never): a step on the path that moves nothing, from the stage to itself (as the rules' and the
+ * reactions' are), on the turn the co-GM's move into it was refused for a name nobody had said. Once:
+ * a lead already owed, or reached, is as it was. Both sides take it, as they take a route.
+ */
+export function oweName(scene: Scene, gm: GmState, beat: string, turn: number): GmState {
+  if (reachedOf(gm).includes(beat) || owedLeads(gm).includes(beat)) return gm;
+  const stage = stageOf(scene, gm).id;
+  return { ...gm, path: [...gm.path, { turn, from: stage, to: stage, via: `${OWED}${beat}`, source: "post" }] };
+}
+
+/** The leads whose names are owed, in the order they came to be (oweName's steps), reached or not. */
+export const owedLeads = (gm: Pick<GmState, "path">): string[] => gm.path.filter(p => p.via.startsWith(OWED)).map(p => p.via.slice(OWED.length));
+
 /** A move made (`reached`: the node it took the scene to, none when a check failed with nowhere to go), or why it can't be made. */
 export type Taken = { gm: GmState; reached?: string } | { error: string };
 

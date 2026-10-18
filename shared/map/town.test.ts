@@ -140,7 +140,7 @@ test("people go by what the player would call them until their names are heard",
   const scene = sceneOf(read("scenes/hanged-clerk.kmscene") as SceneDocument);
   const hook = scene.hook;
   const unheard = strangers([scene], { transcript: [] }, [hook]);
-  assert.deepEqual(unheard.map(u => u.called), ["the boy in the too-big boots", "the girl in the shawl", "the corporal"]);
+  assert.deepEqual(unheard.map(u => u.called), ["the boy in the too-big boots", "the girl in the shawl", "the corporal", "the old porter"]);
   const ex = exploreOf(morning());
   const label = (id: string) => targets(ex, unheard).find(t => t.id === id)?.label;
   assert.equal(label("talk_cob"), "Talk to the boy in the too-big boots");

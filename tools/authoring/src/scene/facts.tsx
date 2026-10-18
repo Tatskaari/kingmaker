@@ -124,7 +124,7 @@ function SettlerLink({at}:{at:{kind:'node'|'route';id:string}}){
 
 function TestLink({test}:{test:FactTest}){
   const {doc,showEffect}=useScene();
-  const where=test.at.kind==='node'?`Ending · ${titleOf(doc,test.at.id)}`:'Every ending (onEnd)';
+  const where=test.at.kind==='node'?`Ending · ${titleOf(doc,test.at.id)}`:test.at.field==='onStart'?'As it starts (onStart)':'Every ending (onEnd)';
   return <button type="button" className="use-link" onClick={()=>showEffect(test.at,test.index,test.key)}><span className={`kind-dot ${test.at.kind==='node'?'ending':'scene'}`}/><span>{where} · effect {test.index+1} ({test.op}), {test.key==='if'?'only if settled':'unless settled'}</span></button>;
 }
 

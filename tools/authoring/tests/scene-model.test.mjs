@@ -13,7 +13,7 @@ const bundle=async entry=>{
 };
 const model=await bundle('../src/scene/model.ts');
 const {campaignRootOf,contextOf,readCampaign,sceneKeyOf}=await bundle('../src/scene/campaign.ts');
-const {openSceneFile,serializeScene,SceneOpenError,withKey,ORDER,setSceneField,setNodeField,setRouteField,setCastField,addNode,addRoute,addCast,removeNodes,removeCast,addFact,removeFact,renameFact,settlesOf,testsOf,idProblem,renameNode,renameRoute,renameCast,makeEvent,makeDiscovery,moveRoutes,skeletonScene,slugOf,uniqueId,problemsOf,shapeOf,setArrival,freePosition,retitleNode,changeKind,kindLosses}=model;
+const {openSceneFile,serializeScene,SceneOpenError,withKey,ORDER,setSceneField,setNodeField,setRouteField,setCastField,addNode,addRoute,addCast,removeNodes,removeCast,addFact,removeFact,renameFact,settlesOf,testsOf,idProblem,renameNode,renameRoute,renameCast,makeEvent,makeDiscovery,moveRoutes,skeletonScene,slugOf,uniqueId,problemsOf,shapeOf,setArrival,freePosition,retitleNode,changeKind,kindLosses,nodeKind,eventsOf,countingFrom}=model;
 
 const CAMPAIGN=new URL('../../../campaigns/caerwyn/',import.meta.url);
 const TESTDATA=new URL('../../../shared/scene/testdata/',import.meta.url);
@@ -59,6 +59,8 @@ test('unknown keys are kept where they are, through edits; a key the format know
   // A key taken out and set again goes back where the format puts it: the file is as it was.
   const original=clerk();
   assert.equal(serializeScene(setSceneField(setSceneField(original,'clock',undefined),'clock',original.clock)),clerkText);
+  assert.equal(serializeScene(setSceneField(setSceneField(original,'onStart',undefined),'onStart',original.onStart)),clerkText,'onStart goes before onEnd');
+  assert.deepEqual(Object.keys(setSceneField(skeletonScene('The Short Weight'),'onStart',[{op:'journal',text:'x'}])).slice(-3),['onStart','nodes','edges']);
   const noRequires=setRouteField(original,'signed-murder','requires',undefined);
   assert.deepEqual(Object.keys(noRequires.edges.find(route=>route.id==='signed-murder').data),['condition','phase','skill','dc']);
   assert.equal(serializeScene(setRouteField(noRequires,'signed-murder','requires',['murder','hobb'])),clerkText);
@@ -166,9 +168,11 @@ test('a fact renamed or taken out follows every place it\'s named: the facts, es
     {op:'journal',text:'Hobb was there.',if:{established:'hobb-at-granary'}},
     {op:'journal',text:'The motive too.',if:{established:['hobb-at-granary','motive-known']},unless:{established:'killed-not-suicide'}}]);
   doc=setSceneField(doc,'onEnd',[{op:'follow',who:'kell',unless:{established:['hobb-at-granary']}}]);
+  doc=setSceneField(doc,'onStart',[...doc.onStart,{op:'journal',text:'Nobody saw Hobb yet.',unless:{established:'hobb-at-granary'}}]);
   doc=setRouteField(doc,'case-lost','establishes',['hobb-at-granary']);
   assert.deepEqual(settlesOf(doc,'hobb-at-granary'),[{kind:'node',id:'hobb'},{kind:'route',id:'case-lost'}]);
   assert.deepEqual(testsOf(doc,'hobb-at-granary'),[
+    {at:{kind:'scene',field:'onStart'},index:1,key:'unless',op:'journal'},
     {at:{kind:'scene',field:'onEnd'},index:0,key:'unless',op:'follow'},
     {at:{kind:'node',id:'failed'},index:4,key:'if',op:'journal'},
     {at:{kind:'node',id:'failed'},index:5,key:'if',op:'journal'},
@@ -183,6 +187,8 @@ test('a fact renamed or taken out follows every place it\'s named: the facts, es
   assert.deepEqual(effects[4].if,{established:'hobb-seen'});
   assert.deepEqual(effects[5].if,{established:['hobb-seen','motive-known']});
   assert.deepEqual(renamed.onEnd[0].unless,{established:['hobb-seen']},'a list stays a list');
+  assert.deepEqual(renamed.onStart[1].unless,{established:'hobb-seen'});
+  assert.equal(renamed.onStart[0],doc.onStart[0],'the quest it starts names no fact, and is the same object');
   assert.equal(nodeOf(renamed,'murder'),nodeOf(doc,'murder'),'what doesn\'t name it is the same object');
   assert.deepEqual(shapeOf(renamed),[]);
   assert.equal(renameFact(doc,'no-such-fact','x'),doc);
@@ -194,6 +200,7 @@ test('a fact renamed or taken out follows every place it\'s named: the facts, es
   assert.deepEqual(left[4],{op:'journal',text:'Hobb was there.'},'a condition with no fact left goes');
   assert.deepEqual(left[5],{op:'journal',text:'The motive too.',if:{established:'motive-known'},unless:{established:'killed-not-suicide'}},'one fact left is written as its id');
   assert.deepEqual(removed.onEnd,[{op:'follow',who:'kell'}]);
+  assert.deepEqual(removed.onStart,[clerk().onStart[0],{op:'journal',text:'Nobody saw Hobb yet.'}]);
   assert.deepEqual(shapeOf(removed),[]);
   assert.deepEqual(testsOf(removed,'hobb-seen'),[]);
 });
@@ -206,8 +213,9 @@ test('a node, a route or a person renamed: every reference in the file follows, 
 
   const doc=setRouteField(clerk(),'signed-suicide','onFailure','hobb');
   const node=renameNode(renameNode(doc,'cart-arrives','dead-cart'),'hobb','hobb-spotted');
-  assert.deepEqual(node.nodes.map(n=>n.id),['start','murder','motive','hobb-spotted','dead-cart','murder-unknown','suspicious','failed']);
-  assert.deepEqual(node.edges.map(route=>[route.id,route.source,route.target]),[['find-murder','start','murder'],['find-motive','start','motive'],['find-hobb','start','hobb-spotted'],['cart-comes','start','dead-cart'],['signed-murder','dead-cart','murder-unknown'],['signed-suicide','dead-cart','suspicious'],['case-lost','start','failed']]);
+  assert.deepEqual(node.nodes.map(n=>n.id),['start','murder','motive','hobb-spotted','dead-cart','murder-unknown','suspicious','failed','porters-break']);
+  assert.deepEqual(node.edges.map(route=>[route.id,route.source,route.target]),[['find-murder','start','murder'],['find-motive','start','motive'],['find-hobb','start','hobb-spotted'],['cart-comes','start','dead-cart'],['signed-murder','dead-cart','murder-unknown'],['signed-suicide','dead-cart','suspicious'],['case-lost','start','failed'],['porters-come','dead-cart','porters-break']]);
+  assert.deepEqual(node.edges.find(route=>route.id==='porters-come').data.limit,[{exchanges:4,after:'dead-cart',until:['hobb-spotted']}],'the porters\' cue counts from the cart and until the lead by their new ids');
   assert.deepEqual(node.edges.find(route=>route.id==='signed-murder').data.requires,['murder','hobb-spotted']);
   assert.equal(node.edges.find(route=>route.id==='signed-suicide').data.onFailure,'hobb-spotted');
   assert.equal(node.cast.find(member=>member.id==='tull').enters,'dead-cart');
@@ -219,6 +227,7 @@ test('a node, a route or a person renamed: every reference in the file follows, 
 
   let withEffects=setNodeField(clerk(),'failed','effects',[...nodeOf(clerk(),'failed').data.effects,{op:'promise',by:'cob',to:'$player',text:'A boot back.'},{op:'remove',what:'cob',text:'off up the lane'}]);
   withEffects=setSceneField(withEffects,'onEnd',[{op:'follow',who:'cob'},{op:'startFight',enemies:[{asset:'bandit',count:2,leader:'cob'}],allies:['kell','cob'],at:'yard'}]);
+  withEffects=setSceneField(withEffects,'onStart',[...withEffects.onStart,{op:'attitude',who:'cob',to:'wary',text:'The watch is in his yard.'}]);
   const person=renameCast(withEffects,'cob','cob-the-boy');
   assert.equal(person.cast[1].id,'cob-the-boy');
   assert.deepEqual(Object.keys(person.cast[1]),Object.keys(clerk().cast[1]));
@@ -227,6 +236,7 @@ test('a node, a route or a person renamed: every reference in the file follows, 
   assert.deepEqual(nodeOf(person,'motive').data.paths.map(path=>path.via),['cob-the-boy','kell','cob-the-boy','the tally loft','tull']);
   assert.deepEqual(nodeOf(person,'failed').data.effects.slice(-2),[{op:'promise',by:'cob-the-boy',to:'$player',text:'A boot back.'},{op:'remove',what:'cob-the-boy',text:'off up the lane'}]);
   assert.deepEqual(person.onEnd,[{op:'follow',who:'cob-the-boy'},{op:'startFight',enemies:[{asset:'bandit',count:2,leader:'cob-the-boy'}],allies:['kell','cob-the-boy'],at:'yard'}]);
+  assert.deepEqual(person.onStart.at(-1),{op:'attitude',who:'cob-the-boy',to:'wary',text:'The watch is in his yard.'});
   // The place's people name him by his old id: the campaign's file, which the problems name.
   const campaign=await readCampaign('scenes/hanged-clerk.kmscene',await campaignFiles());
   assert.deepEqual(problemsOf('hanged-clerk',renameCast(clerk(),'cob','cob-the-boy'),contextOf(campaign,'hanged-clerk')).map(problem=>problem.message),['granary-yard\'s people: cob isn\'t in the cast']);
@@ -251,16 +261,17 @@ test('a beat\'s kind changes with its revelation: an event has no paths, a disco
 test('a node changes kind, a beat to an ending and back, losing what the new kind has no use for and what named it as the old one',()=>{
   const nodeOf=(doc,id)=>doc.nodes.find(node=>node.id===id);
   // The dead-cart made an ending: its pressure, roles and arrival go, and its routes out (none leaves an ending).
-  assert.deepEqual(kindLosses(clerk(),'cart-arrives','ending'),['its pressure','its 4 conversation roles','its 1 arrival (they\'re here from the start instead)','its 2 routes out (no route leaves an ending)']);
+  assert.deepEqual(kindLosses(clerk(),'cart-arrives','ending'),['its pressure','its 4 conversation roles','its 1 arrival (they\'re here from the start instead)','its 3 routes out (no route leaves an ending)']);
   const ending=changeKind(clerk(),'cart-arrives','ending');
   assert.deepEqual(nodeOf(ending,'cart-arrives').data,{kind:'exit',title:'The dead-cart arrives',description:nodeOf(clerk(),'cart-arrives').data.description,closing:'',result:'good',exitKind:'progress',lore:[]});
   assert.deepEqual(ending.edges.map(route=>route.id),['find-murder','find-motive','find-hobb','cart-comes','case-lost']);
   assert.equal(ending.cast.find(member=>member.id==='tull').enters,undefined);
   assert.deepEqual(shapeOf(ending),[]);
   // A discovery made an ending: what required it requires it no more (only a beat is required).
-  assert.deepEqual(kindLosses(clerk(),'hobb','ending'),['its revelation','its 4 paths','its required mark','the 1 fact it settles','what the story carries of it','what 2 routes require of it']);
+  assert.deepEqual(kindLosses(clerk(),'hobb','ending'),['its revelation','its 4 paths','its required mark','the 1 fact it settles','what the story carries of it','what 2 routes require of it','how 1 cue counts from or until it']);
   const hobb=changeKind(clerk(),'hobb','ending');
   assert.deepEqual(hobb.edges.find(route=>route.id==='signed-murder').data.requires,['murder']);
+  assert.deepEqual(hobb.edges.find(route=>route.id==='porters-come').data.limit,[{exchanges:4,after:'cart-arrives'}],'the porters\' cue counts until it no more');
   assert.equal(hobb.edges.find(route=>route.id==='signed-suicide').data.requires,undefined);
   assert.deepEqual(shapeOf(hobb),[]);
   // An ending made a beat: its closing, effects and next scene go; a discovery's revelation and paths are to write.
@@ -309,6 +320,52 @@ test('a cue\'s outer limit follows the beats it counts from and until: renamed, 
   assert.deepEqual(Object.keys(counted.edges.find(route=>route.id==='cart-comes').data),['condition','phase','skill','dc','limit']);
   assert.deepEqual(Object.keys(setRouteField(setRouteField(clerk(),'find-murder','limit',[{exchanges:3}]),'find-murder','establishes',['hobb-at-granary']).edges[0].data),['condition','phase','skill','dc','establishes','limit']);
   assert.equal(renameNode(rat,'the-loft','loft').edges.find(route=>route.id==='bell-rings'),rat.edges.find(route=>route.id==='bell-rings'));
+});
+
+test('the clerk\'s porters\' noon break, its cue and Old Wat are the model\'s as the others are: an event with an arrival, roles and a pressure; a cue counted from the cart until the lead; a person every reference follows',async()=>{
+  const nodeOf=(doc,id)=>doc.nodes.find(node=>node.id===id);
+  const doc=clerk();
+  // The event: Old Wat arrives there, with the roles of five and a pressure.
+  assert.equal(nodeKind(nodeOf(doc,'porters-break')),'event');
+  assert.deepEqual(eventsOf(doc).map(node=>node.id),['cart-arrives','porters-break']);
+  assert.deepEqual(Object.keys(nodeOf(doc,'porters-break').data.cast),['wat','kell','tull','cob','moll']);
+  assert.ok(nodeOf(doc,'porters-break').data.pressure);
+  assert.equal(doc.cast.find(member=>member.id==='wat').enters,'porters-break');
+  // The cue: from the cart, its outer limit four exchanges after it, until the lead is reached.
+  const cue=doc.edges.find(route=>route.id==='porters-come');
+  assert.deepEqual([cue.source,cue.target,cue.data.phase,cue.data.limit],['cart-arrives','porters-break','cue',[{exchanges:4,after:'cart-arrives',until:['hobb']}]]);
+  assert.deepEqual(countingFrom(doc,'hobb').map(route=>route.id),['porters-come'],'it counts until the lead');
+  // Old Wat renamed: his arrival, his role (in its place) and the lead's path via him follow; nothing else names him.
+  const renamed=renameCast(doc,'wat','old-wat');
+  assert.equal(renamed.cast.at(-1).id,'old-wat');
+  assert.equal(renamed.cast.at(-1).enters,'porters-break');
+  assert.deepEqual(Object.keys(nodeOf(renamed,'porters-break').data.cast),['old-wat','kell','tull','cob','moll']);
+  assert.deepEqual(nodeOf(renamed,'hobb').data.paths.map(path=>path.via),['cob','moll','old-wat','kell']);
+  assert.deepEqual(shapeOf(renamed),[]);
+  const campaign=await readCampaign('scenes/hanged-clerk.kmscene',await campaignFiles());
+  const context=contextOf(campaign,'hanged-clerk');
+  assert.deepEqual(problemsOf('hanged-clerk',renamed,context),[]);
+  // Taken out of the cast: his role goes with him, and the path via him is a problem where it is.
+  const gone=removeCast(doc,'wat');
+  assert.deepEqual(Object.keys(nodeOf(gone,'porters-break').data.cast),['kell','tull','cob','moll']);
+  assert.deepEqual(problemsOf('hanged-clerk',gone,context),[{message:'discovery hobb\'s path 3 is via wat, who isn\'t in the cast',at:{kind:'node',id:'hobb',field:'paths.2.via'}}]);
+  // The event taken out: its cue goes, and Old Wat is here from the start.
+  const noBreak=removeNodes(doc,['porters-break']);
+  assert.equal(noBreak.edges.find(route=>route.id==='porters-come'),undefined);
+  assert.equal(noBreak.cast.find(member=>member.id==='wat').enters,undefined);
+  assert.deepEqual(shapeOf(noBreak),[]);
+  // The lead taken out: the cue still counts four after the cart, until nothing.
+  assert.deepEqual(removeNodes(doc,['hobb']).edges.find(route=>route.id==='porters-come').data.limit,[{exchanges:4,after:'cart-arrives'}]);
+});
+
+test('onStart is held to the effects\' rules as onEnd is, each problem at its effect',async()=>{
+  const campaign=await readCampaign('scenes/hanged-clerk.kmscene',await campaignFiles());
+  const started=setSceneField(clerk(),'onStart',[...clerk().onStart,{op:'quest',quest:'lost-dog',do:'start',text:'x'},{op:'follow',who:'nobody'},{op:'give',what:'',to:'$player'}]);
+  assert.deepEqual(problemsOf('hanged-clerk',started,contextOf(campaign,'hanged-clerk')).map(problem=>[problem.message,problem.at]),[
+    ['onStart: quest lost-dog isn\'t one of campaign.json\'s quests',{kind:'scene',field:'onStart.1'}],
+    ['onStart: follow names unknown nobody',{kind:'scene',field:'onStart.2'}],
+    ['onStart: give doesn\'t say what it acts on',{kind:'scene',field:'onStart.3'}],
+  ]);
 });
 
 test('a new scene is the format\'s skeleton: a start, a discovery, an ending and a route, its ids slugs of their titles',()=>{

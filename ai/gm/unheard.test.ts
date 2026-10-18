@@ -48,10 +48,11 @@ test("who the player hasn't heard named, with what to call them: the cast with a
     ["cob", "the boy in the too-big boots", "the boy", true],
     ["moll", "the girl in the shawl", "the girl", true],
     ["tull", "the corporal", "the corporal", false],
+    ["wat", "the old porter", "the old porter", false],
   ]);
   // Once someone has said it (Cob, of himself), it's heard.
   const heard = unheardOf(clerk, viewOf(clerk, [{ turn: 1, speaker: "gm", kind: "narration", text: "“Cob don’t take orders off palace pigeons.”" }]));
-  assert.deepEqual(heard.map(u => u.id), ["moll", "tull"]);
+  assert.deepEqual(heard.map(u => u.id), ["moll", "tull", "wat"]);
 
   const heron = sceneFile("heron-warehouse");
   const wharf = unheardOf(heron, viewOf(heron));
@@ -71,18 +72,22 @@ function heronAtMidnight(transcript: TurnView["transcript"] = []): { scene: Scen
   return { scene, view };
 }
 
-test("a group's members who go by a name inside what they are: the Crakes until someone says it (QA round qa2-1018, g08's T16 and T17)", () => {
+test("a group's members who go by a name inside what they are: the Crakes until someone says it (QA round qa2-1018, g08's T16 and T17), each called by what can be seen of him (QA round qa3-1018: \"the talking bruiser\" was the author's note, before either had said a word)", () => {
   const { scene, view } = heronAtMidnight();
   const crakes = unheardOf(scene, view).filter(u => u.word);
   assert.deepEqual(crakes.map(u => [u.id, u.name, u.called, u.here, u.word]), [
-    ["crake-1", "the talking Crake", "the talking bruiser", true, { name: "Crake", kind: "bruiser" }],
-    ["crake-2", "the silent Crake", "the silent bruiser", true, { name: "Crake", kind: "bruiser" }],
+    ["crake-1", "the first Crake", "the first bruiser", true, { name: "Crake", kind: "bruiser" }],
+    ["crake-2", "the second Crake", "the second bruiser", true, { name: "Crake", kind: "bruiser" }],
   ], "the silent one's look says nothing of what he is: his brother's does");
   assert.ok(!unheardOf(scene, view).some(u => u.id === "lantern-boy"), "the lantern-boy goes by what he is");
   assert.deepEqual(unheardOf(scene, viewOf(scene)).filter(u => u.word).map(u => u.here), [false, false], "before the Master comes, not here");
-  assert.match(namesNote(unheardOf(scene, view))!, /\n- the talking Crake: "the talking bruiser"\n- the silent Crake: "the silent bruiser"$/);
-  // The screen knows them by it too: a line tagged "[the talking bruiser]" is his.
-  assert.ok(speakersOf(scene, view).find(p => p.id === "crake-1")?.names.includes("talking bruiser"));
+  assert.match(namesNote(unheardOf(scene, view))!, /\n- the first Crake: "the first bruiser"\n- the second Crake: "the second bruiser"$/);
+  // The screen knows them by it too: a line tagged "[the first bruiser]" is his.
+  assert.ok(speakersOf(scene, view).find(p => p.id === "crake-1")?.names.includes("first bruiser"));
+  // And in the reply they arrive in, before they're in the world (the simulation joins them as it's written: QA round qa3-1018).
+  const arriving = heronAtMidnight();
+  for (const id of ["crake-1", "crake-2", "lantern-boy"]) delete arriving.view.world!.entities[id];
+  assert.ok(speakersOf(arriving.scene, arriving.view).find(p => p.id === "crake-1")?.names.includes("first bruiser"), "his line is his in the reply he arrives in");
   // Sallow says it: heard.
   const said = heronAtMidnight([{ turn: 16, speaker: "gm", kind: "narration", text: "He smiles thinly. “Crake.” Both bruisers move." }]);
   assert.ok(!unheardOf(said.scene, said.view).some(u => u.word));

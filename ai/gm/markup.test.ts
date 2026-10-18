@@ -372,6 +372,20 @@ test("who says a line, on QA round qa2-1018's own replies: the big man by what h
   assert.deepEqual(speakers("Kell gives one short nod and stays by the door, whistle ready. The old watchman squints at the brass token, then turns his right ear toward you. At his boots, the mastiff opens one eye and sniffs. “Hobb sent you, you say?” He glances at the dog. “She says you smell of river and trouble.”", castOf("heron-warehouse")), ["saul", "saul"]);
 });
 
+test("who says a line, on QA round qa3-1018's own replies: a speech verb just before it names its speaker, and a lead-in about nobody goes back a sentence", () => {
+  // "…, and the forewoman with the sack-needle calls, “…”": hers, though "and the" before her name reads as a mention (g04's T6).
+  const heron = castOf("heron-warehouse");
+  assert.deepEqual(speakers("The grain dust makes the cloth whisper against your armour; the hoist creaks, and the forewoman with the sack-needle calls, “Twenty-four to the hatch! Mind the seams!” No one turns.", heron), ["hep"]);
+  assert.deepEqual(speakers("Kell turns to the forewoman and calls, “Hold the count.”", heron), ["kell"], "a verb with no subject of its own before it is the sentence's subject's");
+  assert.deepEqual(speakers("Kell watches the door; the hoist creaks, and a voice calls, “Mind the hatch!”", heron), [undefined], "someone the prose can't name, not the sentence's first named");
+  // "The room’s attention follows.": about nobody, so the sentence before it says who (g06's T3, the young lighterman's challenge).
+  const rat = castOf("drowned-rat");
+  assert.deepEqual(speakers("The landlady draws the four pennies across the bar with one square finger. “A pint about Hobb’s night work, my duck.”\n\nAcross the room, the young lighterman plants his elbow on Hobb’s table. The room’s attention follows. “Come on, champ. Third time. Elbow down.” Hobb keeps his face lowered over his pot. “Not tonight, Arlo.”", rat), ["nan-quill", "arlo", "hobb"]);
+  // Only when the sentence before is about one of them alone, and nobody the prose can't name (round 1's Heron, g01's T16 and T17: the talking brother's line, and Sallow's surrender after a sentence about Hobb and Scrope).
+  assert.deepEqual(speakers("Hobb still grips the hoist rope; Scrope clutches the stair rail. Nothing is burning, though the lanterns sway above the dust. “I surrender, Sergeant.”", heron), [undefined]);
+  assert.deepEqual(speakers("The forewoman puts herself between them and the door. The talking brother gives a small shrug. “We’re paid to carry, investigator.”", heron), [undefined]);
+});
+
 test("words written and read aren't anyone's line", () => {
   const yard = castOf("hanged-clerk");
   const page = withSpeakers(parseMarkup("The page lists a dozen grain wagons for the King’s Road, each marked “lost to goblins,” each countersigned “J. Sallow, for the Royal Purveyor.” At the bottom, in pencil: “Not goblins. Who pays the hedge-folk?”\n\nKell reads over your shoulder. “I should have listened.”"), yard);

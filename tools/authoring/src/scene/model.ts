@@ -49,7 +49,7 @@ export const shapeOf=(doc:SceneDocument):string[]=>shapeProblems(doc);
 
 /** Each object's keys in the order the format and the campaign's files have them. A key added goes where this puts it. */
 export const ORDER={
-  scene:['format','version','kind','id','title','description','lore','time','place','interlude','rest','milestone','hook','setting','premise','truth','clock','limits','known','cast','facts','background','assumes','overtaken','onEnd','afterwards','fronts','companion','nodes','edges'],
+  scene:['format','version','kind','id','title','description','lore','time','place','interlude','rest','milestone','hook','setting','premise','truth','clock','limits','known','cast','facts','background','assumes','overtaken','onStart','onEnd','afterwards','fronts','companion','nodes','edges'],
   cast:['id','name','called','aka','lore','look','voice','wants','fears','whyHere','knows','secrets','attitude','limits','roles','enters','group','statblock','weapon','members'],
   start:['kind','title','description','cast','lore'],
   beat:['kind','title','description','revelation','paths','required','cast','pressure','establishes','carry','lore'],
@@ -330,8 +330,8 @@ export const newFactId=(doc:SceneDocument,id:string,sentence:string):string=>uni
 
 /**
  * A fact taken out, and every place that names it: each beat's and route's establishes (the game
- * refuses a file that settles a fact it hasn't got) and each effect's condition on it (onEnd's and the
- * endings'; a condition left with no fact goes).
+ * refuses a file that settles a fact it hasn't got) and each effect's condition on it (onStart's,
+ * onEnd's and the endings'; a condition left with no fact goes).
  */
 export function removeFact(doc:SceneDocument,id:string):SceneDocument{
   const facts=Object.fromEntries(Object.entries(doc.facts??{}).filter(([fact])=>fact!==id));
@@ -365,9 +365,11 @@ function changeFactReferences(doc:SceneDocument,change:(facts:string[])=>string[
   });
   const edges=doc.edges.map(route=>{const data=establishes(route.data,ORDER.route);return data===route.data?route:{...route,data}});
   let next:SceneDocument={...doc,nodes,edges};
-  if(doc.onEnd){
-    const onEnd=doc.onEnd.map(effect=>withFactsChanged(effect as EffectLike,change));
-    if(onEnd.some((effect,i)=>effect!==doc.onEnd![i]))next=setSceneField(next,'onEnd',onEnd);
+  for(const key of ['onStart','onEnd'] as const){
+    const list=doc[key];
+    if(!list)continue;
+    const changed=list.map(effect=>withFactsChanged(effect as EffectLike,change));
+    if(changed.some((effect,i)=>effect!==list[i]))next=setSceneField(next,key,changed);
   }
   return next;
 }
@@ -422,13 +424,14 @@ export function settlesOf(doc:SceneDocument,fact:string):FactSettler[]{
   ];
 }
 
-/** Where a fact is tested: an effect's condition (if or unless), in an ending's effects or the scene's onEnd. */
-export type FactTest={at:{kind:'node';id:string}|{kind:'scene';field:'onEnd'};index:number;key:ConditionKey;op:string};
+/** Where a fact is tested: an effect's condition (if or unless), in an ending's effects or the scene's onStart or onEnd. */
+export type FactTest={at:{kind:'node';id:string}|{kind:'scene';field:'onStart'|'onEnd'};index:number;key:ConditionKey;op:string};
 export function testsOf(doc:SceneDocument,fact:string):FactTest[]{
   const tests:FactTest[]=[];
   const look=(at:FactTest['at'],effects:readonly unknown[]|undefined)=>(effects??[]).forEach((effect,index)=>{
     for(const key of ['if','unless'] as const)if(factsIn((effect as EffectLike)[key]).includes(fact))tests.push({at,index,key,op:(effect as EffectLike).op});
   });
+  look({kind:'scene',field:'onStart'},doc.onStart);
   look({kind:'scene',field:'onEnd'},doc.onEnd);
   for(const node of doc.nodes.filter(isEnding))look({kind:'node',id:node.id},node.data.effects);
   return tests;
@@ -501,7 +504,7 @@ export function renameRoute(doc:SceneDocument,from:string,to:string):SceneDocume
 /**
  * A person's id changed, and everything in the file naming them: the start's and events' notes for
  * them (in their place), the paths via them, the effects naming them (who, a promise's by and to, a
- * fight's allies and leaders, a world op's what and to, in onEnd, the endings' effects and afterwards)
+ * fight's allies and leaders, a world op's what and to, in onStart, onEnd, the endings' effects and afterwards)
  * and the talk template's companion. Files outside the scene that name them (the place's people,
  * looks.json) are the campaign's: the problems say where.
  */
@@ -520,7 +523,7 @@ export function renameCast(doc:SceneDocument,from:string,to:string):SceneDocumen
     return data===node.data?node:{...node,data};
   });
   let next:SceneDocument={...doc,cast,nodes};
-  for(const key of ['onEnd','afterwards'] as const){
+  for(const key of ['onStart','onEnd','afterwards'] as const){
     const list=doc[key] as EffectLike[]|undefined;
     if(!list)continue;
     const changed=list.map(effect=>effectRenamingPerson(effect,from,to));

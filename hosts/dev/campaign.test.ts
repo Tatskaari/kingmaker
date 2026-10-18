@@ -210,6 +210,42 @@ test("the Heron's bells are felt coming, and Hep's count falls each time she cal
   assert.match(node(heron, "floor").cast.hep, /calls the count as it falls: a few fewer every exchange, never the same number twice/);
 });
 
+test("the clerk's lead reaches the player before the scene runs out: once the cart has come, the porters' noon break brings Old Wat to tell it, and Kell names him unasked from any description (QA round qa3-1018's H6: g07 and g08 ran out of turns without it)", () => {
+  const clerk = JSON.parse(files[SCENE]!);
+  const porters = route(clerk, "porters-come");
+  assert.deepEqual([porters.source, porters.target, porters.data.phase, porters.data.limit], ["cart-arrives", "porters-break", "cue", [{ exchanges: 4, after: "cart-arrives", until: ["hobb"] }]]);
+  assert.match(porters.data.condition, /^Once the cart has come and the player still hasn't the Hobb lead \(who was there, by name, and where to find him\), and the case is being made to Kell or has stalled/);
+  assert.match(porters.data.condition, /Not needed while Cob or Moll is in the middle of telling who else was there, or a description has just reached Kell for her to name him from \(let that lead land first\), or once the player has the lead \[hobb\]\.$/, "it never comes over a lead about to land");
+  const wat = clerk.cast.find((c: any) => c.id === "wat");
+  assert.deepEqual([wat.enters, wat.called], ["porters-break", "the old porter"]);
+  assert.match(node(clerk, "porters-break").cast.wat, /^Cap off to the dead clerk, then straight to the Sarge, unasked/);
+  assert.match(node(clerk, "hobb").paths.find((p: any) => p.via === "wat").earn, /^No dice: when the porters come in for their noon break, after the cart, he comes to the Sarge and tells it unasked/, "the porters' path has someone to give it");
+  assert.equal(node(clerk, "hobb").paths.find((p: any) => p.via === "kell").earn, "No dice: as soon as any description of him reaches her (his size, his bandaged hand, the Rat's arm-wrestling), or at once if one already has, she names him unasked and writes it down, and concludes nothing else.");
+  assert.match(node(clerk, "cart-arrives").cast.kell, /If any description of the big man has reached her already, or the moment one does \(his size, his bandaged hand, the Rat's arm-wrestling\), she names him unasked/, "and her note at the cart says so, a description given before the cart too");
+});
+
+test("Kell signs Prout in once the case holds and the lead is in her notebook, writing down what she has until then and saying nothing aloud of what's missing (QA round qa3-1018's g05: she signed four turns before the lead, and the closing signed him again)", () => {
+  const clerk = JSON.parse(files[SCENE]!);
+  const kell = clerk.cast.find((c: any) => c.id === "kell");
+  assert.match(node(clerk, "cart-arrives").description, /Kell will sign Prout in as a murder over the Captain's order once the player's case holds and the lead to who was there is in her notebook by name, a man to go and find \(if a description of the big man has reached her, she names him first, unasked: Big Hobb Mallory, of the Drowned Rat\)\. [^]*until then writes down what she has, without saying aloud what's missing\./);
+  assert.match(node(clerk, "cart-arrives").cast.kell, /Signs Prout in as a murder once the case holds and the lead to who was there is in her notebook by name, a man to go and find; until then she writes what she has, and says nothing aloud of what's missing\./);
+  assert.match(node(clerk, "porters-break").cast.kell, /With the lead in her notebook now, she signs Prout in as a murder once the case holds\.$/);
+  assert.match(kell.attitude, /once the lead to who was there is in her notebook too, by name, a man to go and find \(a description she names herself, if she knows the man by it\), she'll sign Prout in as a murder over the Captain's word; until then she writes down what she has and says nothing aloud of what's missing\./);
+});
+
+test("the Heron's people and things go by what the player can see, not the prep's labels for them (QA round qa3-1018's g02 and g04: \"the talking bruiser\" before either had spoken, and \"the true book\" for a ledger nobody had called that)", () => {
+  const heron = JSON.parse(files[HERON]!);
+  const place = JSON.parse(files["places/heron.json"]!);
+  const crakes = heron.cast.find((c: any) => c.id === "sallow").members.filter((m: any) => /Crake/.test(m.name));
+  assert.deepEqual(crakes.map((m: any) => m.name), ["the first Crake", "the second Crake"], "nobody can tell them apart until one of them speaks");
+  assert.doesNotMatch(JSON.stringify(heron), /talking (?:one|Crake)|silent Crake/, "which one talks is shown, not named");
+  assert.equal(place.things.find((t: any) => t.id === "true-book").name, "the green ledger");
+  assert.doesNotMatch(JSON.stringify(place), /true book/, "the world the narration reads calls it what it looks like");
+  assert.doesNotMatch(heron.cast.find((c: any) => c.id === "scrope").look, /true book/);
+  assert.doesNotMatch(heron.setting, /true book/);
+  assert.match(node(heron, "wharf").description, /"the true book" is this prep's name for Scrope's real accounts, and to the player it's the fat green ledger with the brass clasp under the clerk's hand until someone here calls it the true book where they can hear/);
+});
+
 test("a discovery: a revelation, two paths or more, three for a required one with one free of dice, each path whole and via the cast or a thing; never behind a roll alone", () => {
   const paths = changed(SCENE, s => {
     node(s, "murder").paths = node(s, "murder").paths.slice(0, 1);
@@ -243,7 +279,8 @@ test("every node can be reached, a good or mixed ending among them; a good endin
 
   assert.deepEqual(sceneChecks(stuck), [
     "scenes/hanged-clerk.kmscene: cart-arrives can't be reached from the start", "scenes/hanged-clerk.kmscene: murder-unknown can't be reached from the start",
-    "scenes/hanged-clerk.kmscene: suspicious can't be reached from the start", "scenes/hanged-clerk.kmscene: it has no good or mixed ending that can be reached",
+    "scenes/hanged-clerk.kmscene: suspicious can't be reached from the start", "scenes/hanged-clerk.kmscene: porters-break can't be reached from the start",
+    "scenes/hanged-clerk.kmscene: it has no good or mixed ending that can be reached",
   ]);
   assert.deepEqual(sceneChecks(bleak), [
     "scenes/hanged-clerk.kmscene: it has no good or mixed ending that can be reached",
@@ -300,8 +337,9 @@ test("the story goes on: every overtaken is a scene, a scene that can be overtak
   assert.deepEqual(sceneChecks(loose), ["scenes/heron-warehouse.kmscene: it assumes things, but doesn't say where the story goes when play has overtaken them (overtaken)"]);
 });
 
-test("the effects name an op, facts, people, things and quests the story has, onEnd's too", () => {
+test("the effects name an op, facts, people, things and quests the story has, onStart's and onEnd's too", () => {
   const files2 = changed(RAT, s => {
+    s.onStart = [{ op: "quest", quest: "lost-dog", do: "start", text: "x" }];
     s.onEnd = [{ op: "follow", who: "moll" }];
     node(s, "taken-in").effects.push(
       { op: "teleport", what: "hobb" },
@@ -314,6 +352,7 @@ test("the effects name an op, facts, people, things and quests the story has, on
   const fight = changed(HERON, s => { node(s, "fight").effects = [{ op: "startFight", enemies: [{ asset: "bandit", count: 2, leader: "sallow" }], allies: ["kell", "duchess"], at: "the-roof" }]; });
 
   assert.deepEqual(sceneChecks(files2), [
+    "scenes/drowned-rat.kmscene: onStart: quest lost-dog isn't one of campaign.json's quests",
     "scenes/drowned-rat.kmscene: onEnd: follow names unknown moll",
     "scenes/drowned-rat.kmscene: ending taken-in: teleport isn't an effect the story knows",
     "scenes/drowned-rat.kmscene: ending taken-in: quest lost-cat isn't one of campaign.json's quests",

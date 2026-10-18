@@ -101,7 +101,7 @@ test('a glance tells the kinds apart: a discovery\'s paths and required mark, an
 test('the inspector is what\'s selected on the graph and nothing else; the scene\'s own views are in the bar under its title',async({page})=>{
   await expect(inspector(page)).toContainText('Select a node or a route on the graph');
   await expect(page.locator('.scene-inspector [role=tab]')).toHaveCount(0);
-  await expect(page.getByRole('tablist',{name:'Views of the scene'}).getByRole('tab')).toHaveText(['Graph','Scene','Cast4','Facts3','Problems0']);
+  await expect(page.getByRole('tablist',{name:'Views of the scene'}).getByRole('tab')).toHaveText(['Graph','Scene','Cast5','Facts3','Problems0']);
   await select(page,'cart-arrives');
   await expect(page.locator('.inspector-top')).toHaveText('Event');
   // Each view has the main area; the inspector is the graph's.
@@ -243,6 +243,62 @@ test('an event: add an arrival, a role and a pressure, and remove them',async({p
   await page.screenshot({path:'dist/screenshots/scene-event.png'});
 });
 
+test('the porters\' noon break, its cue and Old Wat, as the others are: an event with its arrival, roles and pressure, a cue whose outer limit counts from the cart until the lead, and a person renamed everywhere',async({page})=>{
+  // On the graph: an event card, clear of the others, saying who arrives; its cue a connection from the cart.
+  await settled(card(page,'porters-break'));
+  const boxes=await page.locator('.scene-card').evaluateAll(cards=>cards.map(card=>{const box=card.getBoundingClientRect();return {id:(card as HTMLElement).dataset.nodeId,left:box.left,top:box.top,right:box.right,bottom:box.bottom}}));
+  const mine=boxes.find(box=>box.id==='porters-break')!;
+  expect(boxes.filter(box=>box!==mine&&box.left<mine.right&&mine.left<box.right&&box.top<mine.bottom&&mine.top<box.bottom).map(box=>box.id)).toEqual([]);
+  await expect(card(page,'porters-break')).toHaveClass(/\bevent\b/);
+  await expect(card(page,'porters-break')).toContainText('Old Wat arrives');
+  await expect(page.locator('.react-flow__edge-text').filter({hasText:'The porters\' break'})).toHaveCount(1);
+  await select(page,'porters-break');
+  const body=inspector(page);
+  await expect(page.locator('.inspector-top')).toHaveText('Event');
+  await expect(body.locator('[data-field="arrivals"]').getByRole('list',{name:'Who arrives here'}).getByRole('listitem')).toHaveText(['Old Wat']);
+  const roles=body.locator('[data-field="cast"]');
+  await expect(roles.getByRole('article')).toHaveCount(5);
+  await expect(roles.getByLabel('Old Wat (wat)',{exact:true})).toHaveValue(node(clerk(),'porters-break').data.cast.wat);
+  await expect(body.getByRole('textbox',{name:'Pressure',exact:true})).toHaveValue(node(clerk(),'porters-break').data.pressure);
+  await body.getByRole('textbox',{name:'Pressure',exact:true}).fill('The porters drift back to the far gate.');
+  await expect.poll(async()=>node(await saved(page),'porters-break').data.pressure).toBe('The porters drift back to the far gate.');
+  // Its cue: a route card with its outer limit, four exchanges after the cart, until the lead.
+  await body.locator('[data-field="routes"] button').filter({hasText:'The porters\' break'}).click();
+  const cue=await editRoute(page,'porters-come');
+  await expect(cue.getByRole('radio',{name:'Cue'})).toBeChecked();
+  await expect(cue.locator('.way-badges')).toContainText('By 4 exchanges after The dead-cart arrives (until Hobb was spotted at the scene)');
+  const count=cue.locator('section[data-field="limit"]').getByRole('article',{name:'Count 1'});
+  await expect(count.getByLabel('Exchanges',{exact:true})).toHaveValue('4');
+  await expect(count.getByLabel('Counted from',{exact:true})).toHaveValue('cart-arrives');
+  await expect(count.locator('[data-field="until"]').getByRole('listitem')).toHaveText([/^Hobb was spotted at the scene/]);
+  await count.getByLabel('Exchanges',{exact:true}).fill('5');
+  await expect.poll(async()=>route(await saved(page),'porters-come').data.limit).toEqual([{exchanges:5,after:'cart-arrives',until:['hobb']}]);
+  // Old Wat in the Cast view: what the player calls him, where the scene uses him, and his id renamed everywhere it's named.
+  await view(page,'Cast').click();
+  const pick_=page.locator('.cast-pick',{hasText:'Old Wat'});
+  await expect(pick_).toContainText('“the old porter”');
+  await expect(pick_).toContainText('Arrives at The porters\' noon break');
+  await pick_.click();
+  const wat=page.locator('section[data-cast="wat"]');
+  await expect(wat.locator('.cast-uses')).toContainText('Arrives at The porters\' noon break');
+  await expect(wat.locator('.cast-uses')).toContainText('Has a conversation role at The porters\' noon break');
+  await expect(wat.locator('.cast-uses')).toContainText('Holds 1 path: Hobb was spotted at the scene (path 3)');
+  await wat.getByRole('button',{name:'Rename id wat'}).click();
+  await wat.getByLabel('New id',{exact:true}).fill('old-wat');
+  await wat.getByRole('button',{name:'Rename',exact:true}).click();
+  await expect(page.locator('section[data-cast="old-wat"]')).toBeVisible();
+  const after=await saved(page);
+  expect(person(after,'old-wat').enters).toBe('porters-break');
+  expect(Object.keys(node(after,'porters-break').data.cast)).toEqual(['old-wat','kell','tull','cob','moll']);
+  expect(node(after,'hobb').data.paths.map((path:any)=>path.via)).toEqual(['cob','moll','old-wat','kell']);
+  await problems(page,0);
+  // Undone a step at a time, the file is the clerk's again.
+  await undo(page);
+  await undo(page);
+  await undo(page);
+  await expect.poll(()=>savedText(page)).toBe(clerkText);
+});
+
 test('a fact made in place from an event, then in the Facts view with where it\'s settled; one undo takes both',async({page})=>{
   await select(page,'cart-arrives');
   const facts=inspector(page).locator('[data-field="establishes"]');
@@ -336,10 +392,34 @@ test('the Scene view: the scene\'s own fields, grouped, each edited where it is'
   expect(after.known).toEqual(['The noon bell is the Assembly bell.']);
   expect(after.milestone).toBe(true);
   // Keys new to the file go where the format puts them.
-  expect(Object.keys(after)).toEqual(['format','version','kind','id','title','description','lore','time','place','milestone','hook','setting','premise','truth','clock','limits','known','cast','facts','onEnd','afterwards','fronts','nodes','edges']);
+  expect(Object.keys(after)).toEqual(['format','version','kind','id','title','description','lore','time','place','milestone','hook','setting','premise','truth','clock','limits','known','cast','facts','onStart','onEnd','afterwards','fronts','nodes','edges']);
   await page.screenshot({path:'dist/screenshots/scene-view.png'});
-  // The effects on every ending are forms here too, and the world ops afterwards a draft until they say what they act on.
+  // The effects as it starts are forms, as the endings' are: the clerk starts its quest with the King's request.
   const story=scene.getByRole('region',{name:'The story'});
+  const start=story.locator('[data-field="onStart"]');
+  const quest=start.getByRole('article',{name:'As it starts 1'});
+  await expect(quest.getByLabel('Op',{exact:true})).toHaveValue('quest');
+  await expect(quest.getByLabel('Quest',{exact:true})).toHaveValue('hanged-clerk');
+  await expect(quest.getByLabel('Step',{exact:true})).toHaveValue('start');
+  await expect(quest.getByLabel('Journal text',{exact:true})).toHaveValue(clerk().onStart[0].text);
+  await quest.getByLabel('Journal text',{exact:true}).fill('The King asked you to see Wendell Prout done right by.');
+  await expect.poll(async()=>(await saved(page)).onStart).toEqual([{...clerk().onStart[0],text:'The King asked you to see Wendell Prout done right by.'}]);
+  await pick(start,'Add effect',/^Journal/);
+  await start.getByRole('article',{name:'As it starts 2'}).getByLabel('Text',{exact:true}).fill('Kell is waiting in the yard.');
+  await expect.poll(async()=>(await saved(page)).onStart.at(-1)).toEqual({op:'journal',text:'Kell is waiting in the yard.'});
+  await start.getByRole('button',{name:'Remove effect 2'}).click();
+  await expect.poll(async()=>(await saved(page)).onStart).toHaveLength(1);
+  // Taken out whole, the key goes; given again, it goes back before onEnd; two undos bring the quest back.
+  await start.getByRole('button',{name:'Remove effect 1'}).click();
+  await expect.poll(async()=>'onStart' in await saved(page)).toBe(false);
+  await expect(start).toContainText('None.');
+  await pick(start,'Add effect',/^Journal/);
+  await expect.poll(async()=>(await saved(page)).onStart).toEqual([{op:'journal',text:''}]);
+  expect(Object.keys(await saved(page))).toEqual(Object.keys(after));
+  await undo(page);
+  await undo(page);
+  await expect.poll(async()=>(await saved(page)).onStart).toEqual([{...clerk().onStart[0],text:'The King asked you to see Wendell Prout done right by.'}]);
+  // The effects on every ending are forms here too, and the world ops afterwards a draft until they say what they act on.
   await expect(story.locator('[data-field="onEnd"]').getByLabel('Who',{exact:true})).toHaveValue('kell');
   const afterwards=story.locator('[data-field="afterwards"]');
   await pick(afterwards,'Add world op',/^Destroy/);
@@ -478,7 +558,7 @@ test('an ending made a beat, and a beat an ending: asked first, what the new kin
   await select(page,'cart-arrives');
   await inspector(page).getByRole('radio',{name:'Ending'}).click();
   const ending=page.getByRole('alertdialog',{name:'Make it an ending?'});
-  await expect(ending).toContainText('Its pressure, its 4 conversation roles, its 1 arrival (they\'re here from the start instead) and its 2 routes out (no route leaves an ending) go');
+  await expect(ending).toContainText('Its pressure, its 4 conversation roles, its 1 arrival (they\'re here from the start instead) and its 3 routes out (no route leaves an ending) go');
   await ending.getByRole('button',{name:'Make it an ending'}).click();
   await expect(card(page,'cart-arrives')).toHaveClass(/\bending\b/);
   const after=await saved(page);
@@ -705,7 +785,7 @@ test('several routes between the same two nodes: one connection on the graph, ea
   await added.getByLabel('Condition',{exact:true}).fill('The player is caught doing what ends the case.');
   await expect.poll(async()=>route(await saved(page),'to-failed')).toEqual({id:'to-failed',source:'start',target:'failed',type:'smoothstep',label:'Caught red-handed',data:{condition:'The player is caught doing what ends the case.',phase:'outcome',skill:'',dc:12}});
   expect(route(await saved(page),'case-lost')).toEqual(route(clerk(),'case-lost'));
-  await expect(page.locator('.react-flow__edge')).toHaveCount(7);
+  await expect(page.locator('.react-flow__edge')).toHaveCount(8);
   await expect(page.locator('.react-flow__edge-text').filter({hasText:'2 routes'})).toHaveCount(1);
   // Its id renamed, by asking.
   await added.getByRole('button',{name:'Rename id to-failed'}).click();
@@ -719,7 +799,7 @@ test('several routes between the same two nodes: one connection on the graph, ea
   await page.getByRole('alertdialog',{name:'Remove route?'}).getByRole('button',{name:'Remove route'}).click();
   await expect(page.locator('.route-card')).toHaveCount(1);
   expect(route(await saved(page),'case-lost')).toBeUndefined();
-  await expect(page.locator('.react-flow__edge')).toHaveCount(7);
+  await expect(page.locator('.react-flow__edge')).toHaveCount(8);
   await undo(page);
   await expect.poll(async()=>route(await saved(page),'case-lost')).toEqual(route(clerk(),'case-lost'));
 });
