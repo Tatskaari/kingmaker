@@ -57,7 +57,8 @@ test("the zoo in the page: installed beside the campaign, play new --zoo ring's 
   assert.equal(await verbs.visitZoo(game, { exhibit: "ring", build: "fighter", fast: true }, visited.out, { ms: 30_000 }), 0);
   const first = visited.last();
   assert.match(first, /^MODE: fight\n\nThe combat ring \(the combat ring\): (your turn\.|it's over)/);
-  for (const who of ["you \\(Wren Ashdown\\)", "Sergeant Agnes Kell", "Master Josiah Sallow", "the talking Crake", "the silent Crake"]) assert.match(first, new RegExp(`${who} +\\d+/\\d+ HP`), who);
+  // Everyone in the order (the page host's dice are its own: someone may be hurt, or down, before the player's first turn).
+  for (const who of ["you \\(Wren Ashdown\\)", "Sergeant Agnes Kell", "Master Josiah Sallow", "the talking Crake", "the silent Crake"]) assert.match(first, new RegExp(`Order, round \\d+:\\n(.+\\n)*.* {2}${who} `), who);
   assert.match(first, /What happened:\nRoll for initiative! /);
   assert.match(first, /\n- again: Fight it again \(Sallow and the Crakes, everyone whole\)\n- foes_crakes: Fight the Crakes alone instead \(.+\)\n- foes_dogs: Fight a pack of dogs instead \(.+\)$/);
   assert.deepEqual(game.home().games.map(g => g.campaign), ["zoo"], "my_games has the visit, and says it's the zoo's");
@@ -67,10 +68,10 @@ test("the zoo in the page: installed beside the campaign, play new --zoo ring's 
   const again = printed();
   assert.equal(await verbs.act(game, "again", again.out, { ms: 30_000 }), 0);
   assert.notEqual(game.fight?.()?.id, fightId, "a new fight");
-  assert.match(again.last(), /Master Josiah Sallow +33\/33 HP/);
+  assert.match(again.last(), /Master Josiah Sallow +(\d+\/33 HP|down|gave up)/, "Sallow back in it");
   const dogs = printed();
   assert.equal(await verbs.act(game, "foes_dogs", dogs.out, { ms: 30_000 }), 0);
-  assert.match(dogs.last(), /a brindle mastiff +5\/5 HP/);
+  assert.match(dogs.last(), /a brindle mastiff +(\d+\/5 HP|down|gave up|gone)/, "the dogs in it (Kell may have had a go at one already)");
   assert.doesNotMatch(dogs.last(), /Master Josiah Sallow/);
   assert.match(dogs.last(), /\n- again: Fight it again \(A pack of dogs, everyone whole\)\n- foes_sallow: Fight Sallow and the Crakes instead/);
   const wolves = printed();
