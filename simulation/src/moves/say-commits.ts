@@ -16,7 +16,6 @@ import { applyMove, holdEnding, keepOpened, moveOnAfterReply, movedOn, resolveMo
 import { landRuling, settleRuling } from "../gm/consider.ts";
 import { getGm, putGm } from "../gm/rows.ts";
 import { playerRow, sceneRow, updateScene, updateTurn, type SceneRow } from "../rows.ts";
-import { guardAfter, talkLines } from "../map/talk.ts";
 import { carryGearAfter, inPlay, playedOut } from "../rules/play.ts";
 import { engineCall, refreshPockets } from "../rules/session.ts";
 import { exitOf, sceneGraph } from "../scenes.ts";
@@ -145,10 +144,9 @@ export function afterReply(tx: TxCtx, plan: SayPlan, answer: ReplyResponse): Nex
   const turnId = idOf(plan.turn);
 
   writeReply(tx, at.scene, plan.n, turnId, answer.entries ?? []);
-  // A talk's next lines come with its settle (talk.suggest, beside the after-reply read: town-design §3.6).
-  if (!endsScene(at, plan) && at.scene.kind !== "talk") suggestAfter(tx, at.scene, turnId);
+  if (!endsScene(at, plan)) suggestAfter(tx, at.scene, turnId);
   noteReply(at.gm, answer);
-  if (at.scene.kind !== "talk") bringOnArrivals(tx, at, plan.n);
+  bringOnArrivals(tx, at, plan.n);
   noteHeard(tx, at.scene, at.graph);
 
   if (plan.outcome?.windDown) return windDown(tx, at, plan);
@@ -172,7 +170,6 @@ export function afterReply(tx: TxCtx, plan: SayPlan, answer: ReplyResponse): Nex
  */
 export function afterSettle(tx: TxCtx, plan: SayPlan, answer: SettleResponse): Next<SayPlan> {
   const at = atTurn(tx, plan);
-  if (at.scene.kind === "talk") return afterTalkSettle(tx, at, plan, answer);
   const place = placeWorldOf(tx, at.scene);
 
   const read = at.gm.ended ? {} : moveOn(tx, at, plan, answer.after);
@@ -197,35 +194,6 @@ export function afterSettle(tx: TxCtx, plan: SayPlan, answer: SettleResponse): N
   if (ending) endScene(tx, at.scene.id, ending, plan.n);
   else if (at.gm.closing) updateScene(tx, at.scene.id, { status: "closing" });
   noteHeard(tx, at.scene, at.graph);
-
-  afterTurn(tx, at.scene.id, plan, at.gm);
-  finishTurn(tx, at.scene.id, idOf(plan.turn));
-  return { done: true };
-}
-
-/**
- * A talk's settle (town-design §3.6): the read after the reply as any scene's (how it's going, the
- * route or ending it found: the goodbye), but no world to settle (a talk has none) and nothing left
- * hanging; the staged secrets moved on (guardAfter); the next lines to choose, unless it's over; the
- * talk ended on its goodbye. No co-GM, as the prototype's talk approach has none.
- */
-function afterTalkSettle(tx: TxCtx, at: At, plan: SayPlan, answer: SettleResponse): Next<SayPlan> {
-  if (!at.gm.ended && answer.after) {
-    if (answer.after.status) at.gm.sceneStatus = answer.after.status;
-    if (!plan.decision?.outOfCharacter) {
-      const moved = moveOnAfterReply(at.graph, at.gm, answer.after, plan.onStage, plan.n, rollerFor(tx, at.scene));
-      if (moved.move?.roll) diceLine(tx, at.scene, plan.n, moved.move);
-      landRuling(at.gm, { withheld: [] }, answer.after.landed ?? []);
-      guardAfter(at.gm, answer.after.guard, plan.n);
-    }
-  }
-  if (!plan.decision?.outOfCharacter && !movedOn(at.gm, plan.n)) at.gm.turnsInBeat++;
-  const ending = endingOf(at, undefined, plan.n);
-  putGm(tx, at.scene.id, at.gm);
-  if (!ending && playerRow(tx, at.scene.controllerId).suggestions) talkLines(tx, at.scene, plan.n, answer.talk?.suggestions ?? [], plan.input);
-  tx.log(`[scene ${at.scene.id} turn ${plan.n}] the talk settled${ending ? `; it ends: ${ending.id}` : ""}`);
-  if (ending) endScene(tx, at.scene.id, ending, plan.n);
-  else if (at.gm.closing) updateScene(tx, at.scene.id, { status: "closing" });
 
   afterTurn(tx, at.scene.id, plan, at.gm);
   finishTurn(tx, at.scene.id, idOf(plan.turn));

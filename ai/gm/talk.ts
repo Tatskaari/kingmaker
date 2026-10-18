@@ -142,7 +142,7 @@ function knewThere(state: TurnView, companion: string, name: string): string[] {
 // ---------------------------------------------------------------------------------------------
 // The prep, alongside the greeting.
 
-interface Plan { told: string[]; standing: string; willing: "yes" | "no"; note: string; topic: string; what: string; shows: string; opens: string; first: string; ready: Ready; memory: string; suggestions: string[] }
+interface Plan { told: string[]; standing: string; willing: "yes" | "no"; note: string; topic: string; what: string; shows: string; opens: string; first: string; ready: Ready; suggestions: string[] }
 
 /**
  * How readily they'd tell it, readiest first, as the old pipeline's staged secrets had it: the stage
@@ -159,9 +159,8 @@ const READY_EARN: Record<Ready, string> = {
   not_yet: "It would take a great deal this time: a moment that truly earns it, or it stays theirs.",
 };
 
-/** Has it come out? Its discovery reached (the co-GM's move), or in a talk from before, its route taken or its staged secret settled. */
-export const toldIt = (state: Pick<TurnView, "path" | "guard"> & Partial<Pick<TurnView, "reached">>, companion: string) =>
-  !!state.reached?.includes(TOLD) || state.path.some(p => p.via === CONFIDED) || state.guard?.[companion]?.stage === "settled";
+/** Has it come out? Its discovery reached (the co-GM's move), or in a talk from before, its route taken. */
+export const toldIt = (state: Pick<TurnView, "path"> & Partial<Pick<TurnView, "reached">>) => !!state.reached?.includes(TOLD) || state.path.some(p => p.via === CONFIDED);
 
 /**
  * What a companion might open up about, each once: their own notes (what they know and believe of
@@ -288,12 +287,11 @@ export async function planTalk(state: TurnView, scene: Scene, talk: TalkOpen, ho
       `- opens: what would bring it out: the question or the moment.`,
       `- first: the first of it they'd say, before the heart of it, a few words in their own voice ("I'd met him.").`,
       `- ready: how readily they'd tell it this time, from what it costs them, how things stand, and how near an earlier talk came to it (word for word above: nearer than before, they're readier now). when_asked: they'd tell it as soon as the player asks (most small things, and anything once trust is there). asked_twice: asked, they hold back a moment, and tell it if the player asks again. picked_at: it shows when the talk comes near it, and the player has to pick at it a while. not_yet: it would take a great deal, this time.`,
-      `- memory: if they tell it, how they'd remember having told it, in one sentence in their own voice.`,
       `- suggestions: 2 to 4 lines the player might open the talk with, like a cRPG's dialogue choices: in the player character's own voice, plain speech without quotes, under 15 words each, each about something different: one about ${name}'s own life or past (not the story), one about the story so far, one about someone they've met. One of them may lead towards the thing above without naming what it is. Nothing ${name} has already told them.`,
     ].join("\n"),
     input: [{ role: "user", content: input }],
     json: { name: "talk", schema: {
-      type: "object", additionalProperties: false, required: ["told", "standing", "willing", "note", "topic", "what", "shows", "opens", "first", "ready", "memory", "suggestions"],
+      type: "object", additionalProperties: false, required: ["told", "standing", "willing", "note", "topic", "what", "shows", "opens", "first", "ready", "suggestions"],
       properties: {
         told: { type: "array", items: { type: "string" } },
         standing: { type: "string" },
@@ -301,7 +299,6 @@ export async function planTalk(state: TurnView, scene: Scene, talk: TalkOpen, ho
         note: { type: "string", enum: candidates.length ? candidates.map(d => d.path) : ["none"] },
         topic: { type: "string" }, what: { type: "string" }, shows: { type: "string" }, opens: { type: "string" }, first: { type: "string" },
         ready: { type: "string", enum: Object.keys(READY) },
-        memory: { type: "string" },
         suggestions: { type: "array", items: { type: "string" } },
       },
     } },
@@ -333,7 +330,7 @@ export function prepareTalk(state: TurnView, scene: Scene, talk: TalkOpen, plann
   if (!note || !prep.what?.trim()) return { established: [...facts(state, name, record, talk.where, talk.lead, told, undefined, held), ...knew], patches: [nothingToConfide(state.turn)], withheld, suggestions };
   const topic = prep.topic?.trim() || titleOf(note);
   const what = prep.what.trim();
-  const confide: Confide = { note: note.path, topic, what, memory: prep.memory?.trim() || `I told ${state.player.name} about ${topic}.` };
+  const confide: Confide = { note: note.path, topic, what };
   const ready = readiness(prep.ready, record.stages?.[note.path]);
   const patches: ScenePatch[] = [
     { turn: state.turn, why: `What ${name} might open up about in this talk: ${topic}.`, cast: { id: talk.with, secrets: secretsOf(prep, what) } },
@@ -435,7 +432,7 @@ export function talkNotes(scene: Scene, view: TurnView): string | undefined {
 export async function talkLines(state: TurnView, scene: Scene, talk: TalkState, calls: CallContext): Promise<{ lines: string[]; costUsd: number }> {
   const name = companionOf(scene).name;
   const told = state.talks?.[talk.with]?.told ?? [];
-  const keeping = talk.confide && !toldIt(state, talk.with) ? talk.confide : undefined;
+  const keeping = talk.confide && !toldIt(state) ? talk.confide : undefined;
   const story = state.history.slice(-2).map(h => h.summary).join("\n\n");
   // Plain lines, not JSON: structured output costs about a second more before the first word.
   const result = await respond({

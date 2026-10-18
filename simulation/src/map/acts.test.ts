@@ -204,7 +204,7 @@ const PREP: TalkPrep = {
       { via: "kell", clue: "She let a thief go through the Rat's door once.", earn: "Asked about it, they tell it.", strength: "strong" },
     ] } },
   ],
-  confide: { note: "Cast/Kell/notes/rat.md", topic: "the door at the Drowned Rat", what: "She let a thief go once.", memory: "I told Wren about the Rat's door." },
+  confide: { note: "Cast/Kell/notes/rat.md", topic: "the door at the Drowned Rat", what: "She let a thief go once." },
   withheld: ["Cast/Kell/notes/deepest.md"], suggestions: ["How long have you been with the watch?", "What do you make of Prout?"],
 };
 const GREETING: OpenResponse = { present: ["kell"], entries: [{ speaker: "gm", kind: "narration", text: "Kell looks up from her notebook. \"Investigator.\"" }], opened: [], talk: PREP, usage: none };
@@ -250,7 +250,7 @@ test("after the yard, a word with Kell on the two-part GM: a talk opens with her
   assert.deepEqual([opened.scene.kind, opened.talk?.with, opened.talk?.record.count, opened.talk?.suggest, opened.twoPart], ["talk", "kell", 1, true, true]);
   assert.match(opened.gm.twoPart.roles.kell!.conversation_role, /^Characterise: at their own business in their own manner/, "her opening role, the template's start's, which the greeting reads");
   let gm = sceneNow(host, talk.id).gm;
-  assert.deepEqual([gm.guard, gm.withheld, gm.talk?.confide?.topic, gm.patches.map(p => p.fill?.id ?? (p.cast ? "card" : "?"))], [undefined, ["Cast/Kell/notes/deepest.md"], "the door at the Drowned Rat", ["card", TOLD]]);
+  assert.deepEqual([gm.withheld, gm.talk?.confide?.topic, gm.patches.map(p => p.fill?.id ?? (p.cast ? "card" : "?"))], [["Cast/Kell/notes/deepest.md"], "the door at the Drowned Rat", ["card", TOLD]]);
   assert.ok(gm.established.includes(PREP.established[0]!));
   assert.deepEqual([gm.twoPart.notes.map(n => n.turn), gm.reached], [[-1], ["talk"]]);
   assert.deepEqual([...host.db.sceneSuggestion.sceneId.filter(talk.id)].map(s => s.text), PREP.suggestions);

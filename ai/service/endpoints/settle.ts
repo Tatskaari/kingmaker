@@ -6,7 +6,7 @@ import { coGm } from "../../gm/two-part.ts";
 import { turnSource, type TurnView } from "../../gm/view.ts";
 import type { After, CoGmAnswer, SettleRequest, SettleResponse } from "../../../shared/protocol/ai.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
-import { CONFIDED, TOLD } from "../../../shared/scene/talk.ts";
+import { TOLD } from "../../../shared/scene/talk.ts";
 import type { Scene } from "../../../shared/scene/types.ts";
 import { keysFor, opToGame } from "../../../shared/world/rows.ts";
 import type { AiContext, Handler } from "../context.ts";
@@ -22,18 +22,16 @@ import { director, sceneAndView } from "./turn.ts";
  * over them (threat: someone's blow, or a danger and its severity, which lands as their next turn
  * starts; threatRead, the question's raw choice). No reading when this reply closed the scene.
  *
- * A talk's (town-design §3.6, talk.ts talkTurn) has no world to keep in step (a talk has none). On
- * the two-part GM (`twoPart`, every talk since the old pipeline's salvage) it's the co-GM's, as a
- * scene's, beside the next lines (talk.suggest, when the controller has lines suggested), and once
- * the one thing they were keeping back is out (the co-GM's move into the talk's discovery, now or
- * before) a line that they told it goes in the GM's notes on them, once. The old pipeline's talk
- * settle (no game asks it now) read staged secrets after the reply instead (`after.guard`).
+ * A talk's (town-design §3.6, talk.ts talkTurn) has no world to keep in step (a talk has none): it's
+ * the two-part GM's co-GM's, as a scene's, beside the next lines (talk.suggest, when the controller
+ * has lines suggested), and once the one thing they were keeping back is out (the co-GM's move into
+ * the talk's discovery, now or before) a line that they told it goes in the GM's notes on them, once.
  */
 export const settle: Handler<SettleRequest, SettleResponse> = async (req, ctx) => {
   const { scene, view } = sceneAndView(ctx, req.turn.scene.key, turnSource(req));
   const line = req.turn.line.text;
-  if (req.twoPart) return scene.companion ? twoPartTalkSettle(req, ctx, scene, view) : twoPartSettle(req, ctx, scene, view, line);
-  if (scene.companion) return talkSettle(req, ctx, scene, view, line);
+  if (scene.companion) return twoPartTalkSettle(req, ctx, scene, view);
+  if (req.twoPart) return twoPartSettle(req, ctx, scene, view, line);
   const world = view.world!;
   const keys = keysFor(req.turn.world.place.key, req.turn.scene.key, req.turn.pc);
 
@@ -77,29 +75,14 @@ async function twoPartTalkSettle(req: SettleRequest, ctx: AiContext, scene: Scen
   const [made, co] = await Promise.all([next, coGming]);
   const { costUsd: _cost, ...answer } = co as CoGmAnswer & { costUsd?: number };
   const intoTold = answer.moves.some(m => scene.routes.find(r => r.id === m.route)?.target === TOLD && m.outcome !== "failure");
-  if (talk?.confide && (toldIt(view, talk.with) || intoTold)) rememberTold(view, scene, talk);
+  if (talk?.confide && (toldIt(view) || intoTold)) rememberTold(view, scene, talk);
   return { ops: [], coGm: answer, talk: { suggestions: made?.lines ?? [] }, usage: ctx.usage() };
 }
 
-/** The old pipeline's talk settle (no game asks it since the old pipeline's salvage): the after-reply decision with staged secrets, and the next lines beside it; once it's told, out is out, and remembered. */
-async function talkSettle(req: SettleRequest, ctx: AiContext, scene: Scene, view: TurnView, line: string): Promise<SettleResponse> {
-  const talk = req.turn.gm.talk;
-  const asking = !view.ended && !!talk && req.talk?.suggest === true;
-  const next = asking ? talkLines(view, scene, talk!, ctx.calls).catch(() => undefined) : undefined;
-  const after = view.ended ? undefined : await afterReply(scene, view, line, req.reply, ctx.calls, { staging: true });
-  const made = await next;
-  if (talk?.confide) {
-    const out = toldIt(view, talk.with) || after?.outcome?.route === CONFIDED || after?.guard?.[talk.with] === "settled";
-    if (out && after && view.guard?.[talk.with]?.stage !== "settled") after.guard = { ...after.guard, [talk.with]: "settled" };
-    if (out) rememberTold(view, scene, talk);
-  }
-  return { ops: [], ...(after ? { after } : {}), talk: { suggestions: made?.lines ?? [] }, usage: ctx.usage() };
-}
-
 /** The after-reply decision, an ending held back this turn left out of it (it can't be confirmed by the reply that held it). */
-async function afterReply(scene: Scene, view: TurnView, line: string, reply: string, calls: CallContext, options: { staging?: boolean } = {}): Promise<After> {
+async function afterReply(scene: Scene, view: TurnView, line: string, reply: string, calls: CallContext): Promise<After> {
   const hold = view.pendingExit?.turn === view.turn ? view.pendingExit.exitId : undefined;
-  const asked = afterQuestions(scene, view, hold, { ...options, exchange: `${line}\n${reply}` });
+  const asked = afterQuestions(scene, view, hold);
   const answers = await director(calls).decide(decisionState(scene, view, line, reply), asked.questions, "director.after");
   return readAfter(scene, answers, asked);
 }

@@ -206,10 +206,8 @@ const RulingRow = t.object("RulingRow", {
 const Threat = t.object("Threat", { kind: t.string(), by: t.option(t.string()), hazard: t.option(t.string()), severity: t.option(t.string()), turn: t.u32() });
 /** A fight the player's violence started, as shared/rules's Brawl has it: who goes for the player, who's with them, who fled. */
 const Brawl = t.object("Brawl", { turn: t.u32(), cause: t.string(), against: t.array(t.string()), allies: t.array(t.string()), fled: t.array(t.string()) });
-/** A staged secret's holder (shared/gm/state.ts GmState.guard): how far they've opened up (surface, tell, stirred, torn, settled) and the turn they got there. */
-const Guard = t.object("Guard", { cast: t.string(), stage: t.string(), turn: t.u32() });
 /** The one thing a companion might open up about in a talk (shared/gm/state.ts Confide). */
-const Confide = t.object("Confide", { note: t.string(), topic: t.string(), what: t.string(), memory: t.string() });
+const Confide = t.object("Confide", { note: t.string(), topic: t.string(), what: t.string() });
 /** A talk's own (shared/gm/state.ts TalkState, its `with` the companion): with whom, where and when, and what they might tell. */
 const TalkRow = t.object("TalkRow", { companion: t.string(), where: t.string(), confide: t.option(Confide) });
 /** A person's conversation role as the two-part GM's co-GM keeps it (shared/gm/state.ts TwoPartRole), by their cast id. */
@@ -223,7 +221,7 @@ const TwoPart = t.object("TwoPart", { roles: t.array(TwoPartRole), notes: t.arra
  * The GM's bookkeeping for a scene, a column a field of shared/gm/state.ts's GmState (gmToRow and
  * gmFromRow map the two): V0's, then the co-GM's and the rulings (full-gm-design §4.2), then what the
  * rules in a scene leave hanging and who's away (world-bridge-design §3.3), then what the boundary
- * handed on (story-design §4.1), then a talk's staged secrets and its own (town-design §3.1), then the
+ * handed on (story-design §4.1), then a talk's own (town-design §3.1), then the
  * nodes the scene has reached and the two-part GM's own (M2: docs/two-part-design.md), each with a
  * default, so a scene from before them reads as one with none yet; the world bridge's before the
  * story's, as they stack, so a database of either migrates. `entered` has no column yet.
@@ -281,8 +279,6 @@ export const gmState = table({ name: "gm_state" }, {
   owed: t.array(OwedRow).default([]),
   /** The combat exits already fought (the stand-in's). */
   fought: t.array(t.string()).default([]),
-  /** Staged secrets (a talk stages them): how far each of the cast who keeps something back has come towards giving it up. Never back. */
-  guard: t.array(Guard).default([]),
   /** Notes disclosure keeps out of the scene: a talk's, the deepest of the companion's story before its time. */
   withheld: t.array(t.string()).default([]),
   /** A talk's own: none in a scene of the story. */

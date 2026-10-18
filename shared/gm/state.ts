@@ -7,8 +7,7 @@ import type { RulingRecord } from "./consider.ts";
 /**
  * The GM's bookkeeping for a scene: where it stands in its beats, what's been settled, the notes
  * open, the endings coming, the co-GM's steering, the GM's rulings, and what the story handed on to
- * it at the boundary before it (story-design §4.1), and a talk's staged secrets and its own state
- * (town-design §3.6). The simulation keeps it in
+ * it at the boundary before it (story-design §4.1), and a talk's own state (town-design §3.6). The simulation keeps it in
  * the private `gm_state` table, a column a field, and sends it whole in every request to the AI
  * service. The field names are the prototype's (src/runtime/session.ts), so the code copied from it
  * reads this unchanged.
@@ -85,8 +84,6 @@ export interface GmState {
   entered: string[];
   // A talk with a companion between scenes (town-design §3.6; the prototype's session.ts:268, 333),
   // under the prototype's names: absent in a scene that has none.
-  /** Staged secrets: how far each of the cast who keeps something back has come towards giving it up (never back), and the turn it got there. A talk stages them. */
-  guard?: Record<string, { stage: GuardStage; turn: number }>;
   /** Notes disclosure keeps out of the scene (memory.withheld): a talk's, the deepest of the companion's story before its time. */
   withheld?: string[];
   /** A talk's own: with whom (their cast id), where and when, and the one thing they might open up about this time. */
@@ -111,12 +108,12 @@ export interface TwoPartState {
   held?: boolean;
 }
 
-/** How far someone has opened up about what they're keeping back (staged secrets), in order: it never goes back (director.ts:1220). */
+/** How far someone had opened up about what they kept back (the old pipeline's staged secrets, in order: director.ts:1220), as a talk record from before has it. */
 export type GuardStage = "surface" | "tell" | "stirred" | "torn" | "settled";
 export const GUARD_STAGES: readonly GuardStage[] = ["surface", "tell", "stirred", "torn", "settled"];
 
-/** The one thing a companion might open up about in a talk (talk.ts's confide): the note of their lore it's in, what it is in a few words, what they'd tell, and how they'd remember telling it. */
-export interface Confide { note: string; topic: string; what: string; memory: string }
+/** The one thing a companion might open up about in a talk (talk.ts's confide): the note of their lore it's in, what it is in a few words, and what they'd tell. */
+export interface Confide { note: string; topic: string; what: string }
 
 /**
  * A talk in progress, as its gm_state keeps it (the prototype's TalkState less what v2 keeps
@@ -226,8 +223,6 @@ export interface GmRow {
   held: number | undefined;
   brawl: Brawl | undefined;
   absent: string[];
-  /** GmState's guard, a row a holder: stage one of GUARD_STAGES. */
-  guard: Array<{ cast: string; stage: string; turn: number }>;
   withheld: string[];
   /** TalkState, `with` as `companion`; confide an empty option when there's none. */
   talk: { companion: string; where: string; confide: Confide | undefined } | undefined;
@@ -286,7 +281,6 @@ export function gmToRow(sceneId: bigint, gm: GmState): GmRow {
     held: gm.held,
     brawl: gm.brawl ? brawlOf(gm.brawl) : undefined,
     absent: [...gm.absent],
-    guard: Object.entries(gm.guard ?? {}).map(([cast, g]) => ({ cast, stage: g.stage, turn: g.turn })),
     withheld: [...(gm.withheld ?? [])],
     talk: gm.talk ? { companion: gm.talk.with, where: gm.talk.where, confide: gm.talk.confide ? { ...gm.talk.confide } : undefined } : undefined,
     reached: [...gm.reached],
@@ -332,7 +326,6 @@ export function gmFromRow(row: GmRow): GmState {
     ...(row.brawl ? { brawl: brawlOf(row.brawl) } : {}),
     absent: [...row.absent],
     // A row read from an older module (the dev tools' SQL) may lack the town's columns: none yet.
-    ...(row.guard?.length ? { guard: Object.fromEntries(row.guard.map(g => [g.cast, { stage: g.stage as GuardStage, turn: g.turn }])) } : {}),
     ...(row.withheld?.length ? { withheld: [...row.withheld] } : {}),
     ...(row.talk ? { talk: { with: row.talk.companion, where: row.talk.where, ...(row.talk.confide ? { confide: { ...row.talk.confide } } : {}) } } : {}),
     // A row from before M2 has no nodes reached: its stage stands for them.

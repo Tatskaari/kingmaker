@@ -108,7 +108,7 @@ test("the runtime's Scene: the start and the beats with the routes that leave th
   assert.deepEqual(validateScene(scene), []);
 });
 
-test("a dice route is an attempt with its check, its facts settled on success; a talk's ways into its ending are anytime attempts", () => {
+test("a dice route is an attempt with its check, its facts settled on success", () => {
   const d = clerk();
   d.edges[4]!.data = { ...d.edges[4]!.data, skill: "persuasion", dc: 14, onFailure: "suspicious", establishes: ["motive-known"] };
   const signed = sceneOf(d).beats[4]!.transitions[0]!;
@@ -117,8 +117,4 @@ test("a dice route is an attempt with its check, its facts settled on success; a
     skill: "persuasion", dc: 14, success: undefined, failure: undefined, onSuccess: "murder-unknown", onFailure: "suspicious",
     establishes: { success: [d.facts!["motive-known"]] },
   });
-
-  const talk = sceneOf({ ...clerk(), companion: "kell" });
-  assert.deepEqual(talk.anytime?.map(t => [t.id, t.on, t.to]), [["signed-murder", "attempt", "murder-unknown"], ["signed-suicide", "attempt", "suspicious"], ["case-lost", "attempt", "failed"]]);
-  assert.deepEqual(talk.beats.map(b => b.transitions.length), [4, 0, 0, 0, 0], "the ways into the discoveries and the cue stay where they leave from");
 });

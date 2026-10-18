@@ -109,7 +109,6 @@ export const Confide = __t.object("Confide", {
   note: __t.string(),
   topic: __t.string(),
   what: __t.string(),
-  memory: __t.string(),
 });
 export type Confide = __Infer<typeof Confide>;
 
@@ -359,9 +358,6 @@ export const GmState = __t.object("GmState", {
     return __t.array(OwedRow);
   },
   fought: __t.array(__t.string()),
-  get guard() {
-    return __t.array(Guard);
-  },
   withheld: __t.array(__t.string()),
   get talk() {
     return __t.option(TalkRow);
@@ -372,13 +368,6 @@ export const GmState = __t.object("GmState", {
   },
 });
 export type GmState = __Infer<typeof GmState>;
-
-export const Guard = __t.object("Guard", {
-  cast: __t.string(),
-  stage: __t.string(),
-  turn: __t.u32(),
-});
-export type Guard = __Infer<typeof Guard>;
 
 export const Health = __t.object("Health", {
   entityId: __t.u64(),

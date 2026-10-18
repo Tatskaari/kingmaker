@@ -2,7 +2,7 @@ import type { Asked, Backstory, LoreIssue, Who } from "../creation/types.ts";
 import type { RollResult } from "../dice.ts";
 import type { Ruling, RulingOutcome, Verdict } from "../gm/consider.ts";
 import type { RepairResult } from "../gm/repair.ts";
-import type { Confide, GmState, GuardStage, OpenedNote, OwedRow, ScenePatch, SceneStatus, TalkRecord, TwoPartRole } from "../gm/state.ts";
+import type { Confide, GmState, OpenedNote, OwedRow, ScenePatch, SceneStatus, TalkRecord, TwoPartRole } from "../gm/state.ts";
 import type { Band } from "../gm/two-part.ts";
 import type { Markup } from "../markup.ts";
 import type { Act, BuildOption, FeatureRef, Mechanic, Offer, OwnPicks, Reaction, SpellRef, SrdLists, ThreatRead, WeaponRef } from "../rules/types.ts";
@@ -180,15 +180,14 @@ export interface TalkOpen { with: string; where: string; record: TalkRecord; lea
  * What a talk's prep came to (talk.ts prepare), for the open's commit to keep: the facts the talk's
  * GM takes as given (where and when, how often they've talked, what they've told, what they may open
  * up about now, what waits for a later talk, what they knew in the story's scenes); the prep's
- * patches (the one thing they might tell, a secret on their card, and the route by which it comes out,
- * to the talk's `told` beat); how near the surface it starts (the companion's staged secret); what
- * they'd tell, for the record and the memory once it's out; the notes disclosure keeps out of this
- * talk (the deepest of their story, before its time); and the opening choices, two to four lines.
+ * patches (the one thing they might tell on their card, and the talk's discovery `told` filled with
+ * it, or dropped with nothing to tell); what they'd tell, for the record once it's out; the notes
+ * disclosure keeps out of this talk (the deepest of their story, before its time); and the opening
+ * choices, two to four lines.
  */
 export interface TalkPrep {
   established: string[];
   patches: ScenePatch[];
-  guard?: { stage: GuardStage; turn: number };
   confide?: Confide;
   withheld: string[];
   suggestions: string[];
@@ -332,12 +331,6 @@ export interface After {
   threat?: ThreatRead;
   /** The threat question's raw choice ("attack:kell", "hazard:grab_or_shove", "none"): a hold the reply no longer has them in lets them go (threats.ts holdAfterReply). */
   threatRead?: string;
-  /**
-   * Staged secrets (town-design §3.6: director.ts:1263-1275), in a scene that stages them (a talk):
-   * how far each of the cast present who keeps something back has come towards giving it up, judged
-   * after the reply. The settle commit moves each one step at most, and never back.
-   */
-  guard?: Record<string, GuardStage>;
 }
 /**
  * ops: at most 16, by game key; after absent when the reply closed the scene (and in a two-part

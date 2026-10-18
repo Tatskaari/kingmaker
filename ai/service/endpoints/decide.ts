@@ -1,6 +1,6 @@
 import { URGENT } from "../../docs/disclosure.ts";
 import type { Decider } from "../../llm/decide.ts";
-import { beforeQuestions, decisionState, outOfCharacter, readBefore, talkSettings, withMechanic } from "../../gm/director.ts";
+import { beforeQuestions, decisionState, outOfCharacter, readBefore, withMechanic } from "../../gm/director.ts";
 import { exitOf } from "../../gm/directives.ts";
 import { aimable, type RulesOptions } from "../../gm/mechanics.ts";
 import { turnSource, type TurnView } from "../../gm/view.ts";
@@ -25,9 +25,7 @@ import { director, disclosed, sceneAndView } from "./turn.ts";
  *
  * With `forced` (town-design §3.4: the map's menu's act, played as the scene's first turn), what the
  * rules resolve is chosen already: no mechanic question and no details call, and the act is the
- * decision's mechanic, as the prototype's decideBefore takes it (director.ts:793, :889-901). A talk
- * (town-design §3.6) is decided as scenes/talk.ts's approach has it: no considered rolls and no co-GM,
- * so no roll call, no plan off the graph, and the means only for a route with a social check.
+ * decision's mechanic, as the prototype's decideBefore takes it (director.ts:793, :889-901).
  */
 export const decide: Handler<DecideRequest, DecideResponse> = async (req, ctx) => {
   const { scene, view } = sceneAndView(ctx, req.turn.scene.key, turnSource(req));
@@ -38,7 +36,7 @@ export const decide: Handler<DecideRequest, DecideResponse> = async (req, ctx) =
 
   const disclosing = disclosed(scene, view, line, ctx.calls);
   const rules = rulesOptions(scene, view, line);
-  const asked = beforeQuestions(scene, view, view.pendingExit && exitOf(scene, view.pendingExit.exitId), { ...(rules ? { rules } : {}), ...(req.forced ? { forced: req.forced } : {}), ...talkSettings(scene) });
+  const asked = beforeQuestions(scene, view, view.pendingExit && exitOf(scene, view.pendingExit.exitId), { ...(rules ? { rules } : {}), ...(req.forced ? { forced: req.forced } : {}) });
   const answers = await decider.decide(decisionState(scene, view, line), asked.questions, "director.before");
   const read = readBefore(scene, view, answers, asked);
   const decision = rules ? await withMechanic(decider, scene, view, line, read, rules) : read;

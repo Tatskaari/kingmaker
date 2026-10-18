@@ -77,7 +77,6 @@
       "opens": "asking her what she has against the Drowned Rat",
       "first": "I know the Rat’s door. From the wrong side.",
       "ready": "when_asked",
-      "memory": "I told the investigator about Nan Quill's door. They didn't laugh.",
       "suggestions": [
         "How long have you been with the watch, Sergeant?",
         "What did you make of the yard this morning?",

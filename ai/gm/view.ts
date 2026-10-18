@@ -1,6 +1,6 @@
 import type { Backstory } from "../docs/types.ts";
 import type { RulingRecord } from "../../shared/gm/consider.ts";
-import type { GmState, GuardStage, OpenedNote, OwedRow, PathStep, ScenePatch, SceneStatus, TalkRecord, TwoPartState } from "../../shared/gm/state.ts";
+import type { GmState, OpenedNote, OwedRow, PathStep, ScenePatch, SceneStatus, TalkRecord, TwoPartState } from "../../shared/gm/state.ts";
 import type { Markup } from "../../shared/markup.ts";
 import type { Chapter, Entry, OpenRequest, SceneContext, SheetRow, Story as Told } from "../../shared/protocol/ai.ts";
 import { isTurnKey, keyParts } from "../../shared/protocol/keys.ts";
@@ -92,9 +92,7 @@ export interface TurnView {
 
   // A later vertical's: always empty until then, read by the copied code.
   entered: string[];
-  // A talk's (town-design §3.6): its staged secrets, and what companions have told the player of themselves.
-  /** Staged secrets: how far each of the cast who keeps something back has come towards giving it up (a talk's; {} in a talk with none yet, as startTalk sets it). */
-  guard?: Record<string, { stage: GuardStage; turn: number }>;
+  // A talk's (town-design §3.6): what companions have told the player of themselves.
   /** What companions have told the player of themselves in talks between scenes, by their cast ids (the story's talk records). */
   talks?: Record<string, TalkRecord>;
   /** The lines offered last in this scene (only their words are read: none of them again). */
@@ -177,8 +175,7 @@ export function viewOf(source: ViewSource, scene: Scene, story?: Story, essentia
     history: structuredClone(source.told?.history ?? []), adjustments: gm.adjustments ?? [],
     ...(gm.opening !== undefined ? { opening: gm.opening } : {}), ...(gm.lead !== undefined ? { lead: gm.lead } : {}),
     owed: owedOf(gm.owed ?? [], world, keys, essentialOf),
-    // A talk's staged secrets ({} as a talk opens, as startTalk sets it), and the story's talk records.
-    ...(gm.guard ? { guard: gm.guard } : scene.companion ? { guard: {} } : {}),
+    // The story's talk records.
     ...(source.told?.talks && Object.keys(source.told.talks).length ? { talks: structuredClone(source.told.talks) } : {}),
     transcript: [...(source.told?.earlier ?? []), ...source.transcript].map(e => entryOf(e, keys)),
     // A talk has no world (the prototype's has none): the rows it's sent are the town's own place's.

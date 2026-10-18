@@ -1,6 +1,5 @@
 // New (M2), in place of the loader of a scene folder (scene.json and its Markdown) copied from the scratchpad's tools/convert-hanged-clerk.mts at 44c6d4a: a .kmscene file (document.ts) as the prototype's Scene, which types.ts extends with the scene format's fields.
 import { isBeat, isEnding, isStart, parseScene, type BeatData, type CastMember, type EndingData, type Route, type SceneDocument, type SceneNode, type StartData } from "./document.ts";
-import { TOLD } from "./talk.ts";
 import type { Beat, Character, Essential, Exit, Scene, SceneRoute, Transition } from "./types.ts";
 
 /**
@@ -11,11 +10,7 @@ import type { Beat, Character, Essential, Exit, Scene, SceneRoute, Transition } 
  * with its check; into a discovery with no condition, its revelation landing); the endings its exits;
  * the start's description its opening; every route, flat, its routes; and each beat with `carry` an
  * essential (its id the beat's, what it is its revelation, where it's placed its paths' `via`), so
- * the story's boundary and what it owes keep working. A talk (the template, with `companion`) has
- * its ways into its ending as anytime attempts, as the template's goodbye was: the player's farewell
- * is judged before the reply, whichever beat the talk is at. Its way into told (TOLD) is the talk's
- * own to give, worded for each talk from what it may bring out (ai/gm/talk.ts prepareTalk's route,
- * CONFIDED): the template's stands for it in the file, and isn't one of the beat's transitions.
+ * the story's boundary and what it owes keep working.
  */
 export function sceneOf(doc: SceneDocument): Scene {
   const start = doc.nodes.find(isStart)!;
@@ -23,13 +18,8 @@ export function sceneOf(doc: SceneDocument): Scene {
   const nodes = new Map(doc.nodes.map(n => [n.id, n]));
   const castIds = new Set(doc.cast.map(c => c.id));
   const routes = doc.edges.map(routeOf);
-  const talk = doc.companion !== undefined;
-  const intoEnding = (r: SceneRoute) => nodes.get(r.target)?.data.kind === "exit";
-  const toTransition = (r: SceneRoute) => transitionOfRoute(r, nodes, facts, talk && intoEnding(r));
-  const leaves = (n: SceneNode, r: SceneRoute) => r.source === n.id && !(talk && (intoEnding(r) || r.target === TOLD));
   const beats = doc.nodes.filter((n): n is SceneNode<StartData | BeatData> => !isEnding(n))
-    .map(n => beatOfNode(n, routes.filter(r => leaves(n, r)).map(toTransition)));
-  const anytime = talk ? routes.filter(intoEnding).map(toTransition) : [];
+    .map(n => beatOfNode(n, routes.filter(r => r.source === n.id).map(r => transitionOfRoute(r, nodes, facts))));
   const essentials = doc.nodes.filter(isBeat).flatMap(n => (n.data.carry ? [essentialOf(n, castIds)] : []));
 
   return {
@@ -38,7 +28,6 @@ export function sceneOf(doc: SceneDocument): Scene {
     cast: doc.cast.map(characterOfMember),
     start: start.id,
     beats,
-    ...(anytime.length ? { anytime } : {}),
     exits: doc.nodes.filter(isEnding).map(exitOfNode),
     ...(essentials.length ? { essentials } : {}),
     limits: [...(doc.limits ?? [])],
@@ -78,9 +67,9 @@ function routeOf(e: Route): SceneRoute {
  * A route as the copied code's transition. Its condition is its `when` (into a discovery with none,
  * the revelation landing); a cue is a cue; dice make it an attempt with a check, success to its
  * target and failure to `onFailure` (its facts settled on success); anything else is an outcome,
- * judged after the reply, unless `attempt` (a talk's farewell).
+ * judged after the reply.
  */
-function transitionOfRoute(r: SceneRoute, nodes: Map<string, SceneNode>, facts: Record<string, string>, attempt: boolean): Transition {
+function transitionOfRoute(r: SceneRoute, nodes: Map<string, SceneNode>, facts: Record<string, string>): Transition {
   const target = nodes.get(r.target)!;
   const title = (id: string) => nodes.get(id)?.data.title ?? id;
   const revelation = target.data.kind === "beat" ? target.data.revelation : undefined;
@@ -99,7 +88,7 @@ function transitionOfRoute(r: SceneRoute, nodes: Map<string, SceneNode>, facts: 
       },
     };
   }
-  return { ...common, on: r.phase === "cue" ? "cue" : attempt ? "attempt" : "outcome", to: r.target, ...(sentences.length ? { establishes: sentences } : {}) };
+  return { ...common, on: r.phase === "cue" ? "cue" : "outcome", to: r.target, ...(sentences.length ? { establishes: sentences } : {}) };
 }
 
 function beatOfNode(n: SceneNode<StartData | BeatData>, transitions: Transition[]): Beat {

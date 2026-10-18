@@ -66,15 +66,6 @@ test("on the two-part GM a talk's routes are the template's: the goodbye and the
 
   const none = effectiveScene(scene, [{ turn: 0, why: "nothing to confide", drop: TOLD }]);
   assert.deepEqual([none.beats.map(b => b.id), none.routes.map(r => r.id), openRoutes(none, gm).map(r => r.id)], [["talk"], [GOODBYE], [GOODBYE]]);
-  assert.deepEqual(none.anytime?.map(t => t.id), [GOODBYE, "improvised-ending"]);
-});
-
-test("as a Scene, a talk is what the template was: its beats talk and told with no transitions, its goodbye an anytime attempt, its way into told the talk's own", () => {
-  const scene = sceneOf(talkSceneDocument(TEMPLATE, { id: "kell", name: "Sergeant Agnes Kell" }, 2));
-
-  assert.deepEqual([scene.id, scene.companion, scene.start, scene.beats.map(b => [b.id, b.transitions.length])], ["talk-kell-2", "kell", "talk", [["talk", 0], [TOLD, 0]]]);
-  assert.deepEqual(scene.anytime, [{ id: "goodbye", when: `The player says goodbye or ends the talk ("${FAREWELL}"), or walks on.`, on: "attempt", to: "goodbye" }]);
-  assert.deepEqual(scene.exits.map(e => [e.id, e.kind]), [["goodbye", "leave"]]);
 });
 
 test("the campaign's own template is a talk's: its first cast entry the companion's, its beat told, its one ending goodbye", () => {
@@ -82,7 +73,5 @@ test("the campaign's own template is a talk's: its first cast entry the companio
   const scene = sceneOf(talkSceneDocument(parseScene(text, "talk.kmscene"), { id: "kell", name: "Sergeant Agnes Kell" }, 1));
 
   assert.deepEqual([scene.cast[0]!.id, scene.cast[0]!.name, scene.beats.map(b => b.id), scene.exits.map(e => e.id)], ["kell", "Sergeant Agnes Kell", ["talk", TOLD], ["goodbye"]]);
-  assert.deepEqual(scene.anytime?.map(t => [t.id, t.on]), [["goodbye", "attempt"]]);
-  assert.ok(scene.beats.every(b => !b.transitions.length));
   assert.match(scene.opening, /As the talk opens: the player has come over for a word with Sergeant Agnes Kell/);
 });

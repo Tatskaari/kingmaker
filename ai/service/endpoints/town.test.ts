@@ -103,7 +103,7 @@ const STORY: Story = {
 const PLAN = {
   told: [], standing: "Warming, a little.", willing: "yes", note: `${KELL}/knowledge/Nan Quill.md`, topic: "the door at the Drowned Rat",
   what: "Twenty years ago Nan Quill put her out through the Drowned Rat's door, and she has never been back.", shows: "a pause at the Rat's name", opens: "asking what she has against the Rat",
-  first: "I know the Rat's door. From the wrong side.", ready: "when_asked", memory: "I told the investigator about Nan Quill's door. They didn't laugh.",
+  first: "I know the Rat's door. From the wrong side.", ready: "when_asked",
   suggestions: ["How long have you been with the watch, Sergeant?", "What did you make of the yard this morning?", "Do you know the Drowned Rat at all?"],
 };
 const GREETING = "Kell is writing in her notebook by the granary lane. She looks up. “Investigator.”";
@@ -159,7 +159,7 @@ test("a talk's open on the two-part GM: the mouthpiece streams Kell's greeting (
   assert.doesNotMatch(inputOf(formatted(fake, "talk")[0]!), /The truth about them \(the GM's notes\)/, "the GM's truth only from the third talk");
 
   const prep = answer.talk as TalkPrep;
-  assert.deepEqual(prep.confide, { note: `${KELL}/knowledge/Nan Quill.md`, topic: "the door at the Drowned Rat", what: PLAN.what, memory: PLAN.memory });
+  assert.deepEqual(prep.confide, { note: `${KELL}/knowledge/Nan Quill.md`, topic: "the door at the Drowned Rat", what: PLAN.what });
   assert.deepEqual(prep.patches.map(p => (p.cast ? "card" : p.fill ? `fill ${p.fill.id}` : "?")), ["card", `fill ${TOLD}`]);
   assert.deepEqual(prep.patches[0]!.cast!.secrets, [
     "Shows: a pause at the Rat's name. Opens: asking what she has against the Rat. First: 'I know the Rat's door. From the wrong side.'",
@@ -171,7 +171,6 @@ test("a talk's open on the two-part GM: the mouthpiece streams Kell's greeting (
       { via: "kell", clue: `${PLAN.what} The first of it: 'I know the Rat's door. From the wrong side.'`, earn: "Asked about it, they tell it. What brings it out: asking what she has against the Rat.", strength: "strong" },
     ],
   });
-  assert.equal(prep.guard, undefined, "no staged secret: the co-GM stages it through her role");
   assert.deepEqual(prep.suggestions, PLAN.suggestions);
   assert.ok(prep.suggestions.length >= 2 && prep.suggestions.length <= 4);
   // The deepest of her story (the stand-in's sift picks the first note: Cob) waits for a later talk.
@@ -202,7 +201,7 @@ test("the third talk: the deepest may come out (nothing withheld) and the plan r
 
   const failing = setUp({ replies: [GREETING], capped: { talk: 0.001 } });
   const failed = (await pipeline.open(talkOpen(2, { count: 2, told: [] }), failing.contextFor(`${GAME}:s12:t0:open`))).talk!;
-  assert.deepEqual([failed.patches.map(p => p.drop), failed.guard, failed.confide, failed.withheld, failed.suggestions], [[TOLD], undefined, undefined, [], []], "the talk's discovery isn't this talk's");
+  assert.deepEqual([failed.patches.map(p => p.drop), failed.confide, failed.withheld, failed.suggestions], [[TOLD], undefined, [], []], "the talk's discovery isn't this talk's");
   assert.match(failed.established.join("\n"), /keeps their own story to themselves/);
 });
 
@@ -259,7 +258,7 @@ test("a talk's settle on the two-part GM: the co-GM, her role (the talk's discov
   assert.match(inputOf(lines), /Wren Ashdown \(player\): What have you got against the Drowned Rat\?\n\nGM: Kell's pencil stops/, "the talk so far, the reply included");
   assert.deepEqual(answer.ops, []);
   assert.equal(formatted(fake, "world_ops").length, 0, "no stage manager: a talk has no world");
-  assert.equal(asking(fake, "guard_kell").length, 0, "no staged secrets: her role stages it");
+  assert.equal(asking(fake, "guard_kell").length, 0, "nothing asks how far she's opened up: her role stages it");
   assert.equal(readNotes(GAME, "kell").did.length, 0, "nothing told, nothing in her notes");
 
   // Not asked for (the controller's setting): no lines, and no call for them.

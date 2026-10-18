@@ -78,7 +78,7 @@ export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start; ac
     const turnId = idOf(plan.turn);
     const talk = scene.kind === "talk";
 
-    putGm(tx, scene.id, { ...gm, opened: keepOpened(gm.opened, opened.opened ?? []), ...(talk && opened.talk ? prepared(gm, opened.talk, turnRow(tx, turnId).n) : {}) });
+    putGm(tx, scene.id, { ...gm, opened: keepOpened(gm.opened, opened.opened ?? []), ...(talk && opened.talk ? prepared(gm, opened.talk) : {}) });
     // The two-part GM's opening: what its mouthpiece said, and a check it called, rolled (docs/two-part-design.md).
     if (plan.twoPart && !plan.aftermath) writeSpoken(tx, scene, turnRow(tx, turnId).n, turnId, opened.entries, opened.check);
     else writeReply(tx, scene, turnRow(tx, turnId).n, turnId, opened.entries);
@@ -98,16 +98,13 @@ export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start; ac
 
 /**
  * A talk's prep kept (talk.ts prepare): what the talk's GM takes as given, the one thing the companion
- * might tell (on their card, and the route by which it comes out: the prep's patches), how near the
- * surface it starts (their staged secret, or as far as an earlier talk brought it: the AI service's
- * reading of the record), what they'd tell and how they'd remember it, and what disclosure keeps out.
+ * might tell (on their card, and the talk's discovery filled with it: the prep's patches), what they'd
+ * tell, and what disclosure keeps out.
  */
-function prepared(gm: GmState, prep: TalkPrep, n: number): Partial<GmState> {
-  const companion = gm.talk?.with;
+function prepared(gm: GmState, prep: TalkPrep): Partial<GmState> {
   return {
     established: [...gm.established, ...prep.established.filter(f => !gm.established.includes(f))],
     patches: [...gm.patches, ...prep.patches],
-    ...(companion && prep.guard ? { guard: { ...(gm.guard ?? {}), [companion]: { stage: prep.guard.stage, turn: prep.guard.turn ?? n } } } : {}),
     ...(prep.withheld.length ? { withheld: [...new Set([...(gm.withheld ?? []), ...prep.withheld])] } : {}),
     ...(gm.talk && prep.confide ? { talk: { ...gm.talk, confide: prep.confide } } : {}),
   };

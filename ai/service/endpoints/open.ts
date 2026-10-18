@@ -32,11 +32,10 @@ import { director, disclosed, sceneAndView, withOpened } from "./turn.ts";
  * GM takes as given what startTalk set (where and when, how often they've talked, where the story
  * goes next, what the companion knew in the story's scenes), and their greeting streams as an opening
  * does, beside the talk's prep: which of their notes are still theirs to tell (talk.sift), then the
- * one thing they might open up about this time and the opening lines (talk.plan). On the two-part GM
- * (`twoPart`, as the simulation sends every talk since the old pipeline's salvage) the greeting is the
- * mouthpiece's (`two-part.opening`), from the companion's opening role (note -1) and the talk's
- * opening; otherwise the old pipeline's (`gm.talk.opening`). The answer's `talk` is what the prep came
- * to (prepare: on the two-part GM, the talk's discovery filled with it), for the open's commit to
+ * one thing they might open up about this time and the opening lines (talk.plan). The greeting is the
+ * two-part GM's mouthpiece's (`two-part.opening`), from the companion's opening role (note -1) and
+ * the talk's opening, as every talk's has been since the old pipeline's salvage. The answer's `talk`
+ * is what the prep came to (prepare: the talk's discovery filled with it), for the open's commit to
  * keep; a prep that fails leaves the facts as the talk opened, and nothing kept back (the discovery
  * dropped). No disclosure, as openTalk opens none, and the earlier talks' entries join the view's
  * transcript (the prep reads them).
@@ -45,7 +44,7 @@ export const open: Handler<OpenRequest, OpenResponse> = async (req, ctx) => {
   const source = openSource(req);
   const { scene, view, byKey } = sceneAndView(ctx, req.scene.key, req.talk ? withEarlierTalks(source, req.talk) : source);
   if (req.aftermath) return aftermath(req, req.aftermath.summary, ctx, scene, view, byKey);
-  if (req.talk) return req.twoPart ? twoPartTalk(req, req.talk, ctx, scene, view, byKey) : talk(req, req.talk, ctx, scene, view, byKey);
+  if (req.talk) return twoPartTalk(req, req.talk, ctx, scene, view, byKey);
   writePlayerBackstory(view.id, view.player);
   if (req.twoPart) return twoPartOpening(req, ctx, scene, view, byKey);
 
@@ -91,28 +90,6 @@ function withEarlierTalks(source: ViewSource, open: TalkOpen): ViewSource {
   const told = source.told ?? { time: "", day: 1, flags: {} };
   const had = new Set((told.earlier ?? []).map(e => e.scene));
   return { ...source, told: { ...told, earlier: [...(told.earlier ?? []), ...open.earlier.filter(e => !had.has(e.scene))] } };
-}
-
-/**
- * A talk's opening (talk.ts openTalk): the facts it opens on, then the greeting streamed beside the
- * prep; the greeting failing fails the open (nothing is kept), the prep failing keeps the facts it
- * opened on.
- */
-async function talk(req: OpenRequest, open: TalkOpen, ctx: AiContext, scene: Scene, view: TurnView, byKey: (markup: Markup) => Markup): Promise<OpenResponse> {
-  // This talk counted, as startTalk counts it before anything reads the record.
-  view.talks = { ...view.talks, [open.with]: open.record };
-  view.established = talkFacts(view, scene, open);
-  const sink = ctx.stream(req.stream.turn);
-  const [greeting, prep] = await Promise.allSettled([
-    gmReply(scene, view, [`Open the talk. ${scene.opening}`], { operation: "gm.talk.opening", calls: ctx.calls, setting: ctx.campaign.title, onText: (text, markup) => sink.show(text, markup && byKey(markup)) }),
-    planTalk(view, scene, open, { calls: ctx.calls, decider: director(ctx.calls) }),
-  ]);
-  if (greeting.status === "rejected") throw greeting.reason;
-  const said = replyOf(greeting.value, byKey);
-  await sink.finish(said.text, said.markup);
-  const talk: TalkPrep = prep.status === "fulfilled" ? prepareTalk(view, scene, open, prep.value) : { established: view.established, patches: [], withheld: [], suggestions: [] };
-
-  return { present: presentCast(scene, view).map(c => c.id), entries: [said], opened: [], talk, usage: ctx.usage() };
 }
 
 /**

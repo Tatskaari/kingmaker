@@ -1,8 +1,8 @@
-// Copied from the prototype's src/runtime/director.ts at 44c6d4a: lines 24-52, 60-93, 95-327, 625-637, 1231-1232 and 1360-1369 as they are (reading a TurnView), freeformCheck (:639-650) as its questions and their reading (freeformQuestions, readFreeform: the roll is the simulation's), and decideBefore (:718-1019) and decideAfter (:1234-1358) trimmed to the v2 approach's questions and split in two each: the questions (beforeQuestions, afterQuestions) and their reading (readBefore, readAfter). With the full GM (full-gm-design §3.1): considered rolls' roll_call and the means in every beat, the co-GM's off_graph, the considered read (:878-880, :896, :902-932), offGraph and byPrep (:987, :1010-1016), and after the reply the rules' left (:1279-1283, :1350). With the world bridge (world-bridge-design §2.2): the rules' mechanic question (:793-809), the ruling, actSettles and the route an act holds (:887-893, :897-901, :925, :938), the act's details call (:988-1009, means_only included) as withMechanic, which the decide endpoint runs after the read, and after the reply the threat and its severity (:1284-1295, :1343-1349); the details' questions are gm/mechanics.ts. With the town (town-design §3.4, §3.6): `forced` (:705-711 rulingOf, :793, :889-901, :915, :993), the map's menu's act played as a turn, asked no mechanic question; a talk's settings (scenes/talk.ts's approach: no considered rolls and no co-GM, so no roll_call or off_graph, the means only for a route with a social check, and the limit's question without its pretending); and staged secrets after the reply (:1219-1229 guardHolders, :1263-1275, :1324), on in a talk. Left out: relocation, pressure rolls, the speaker and freeform checks; and the dice: a route's check is picked here (its skill the player's means where both are social) and rolled by the simulation, as are the rules' acts. The directives' words are gm/directives.ts.
+// Copied from the prototype's src/runtime/director.ts at 44c6d4a: lines 24-52, 60-93, 95-327, 625-637, 1231-1232 and 1360-1369 as they are (reading a TurnView), freeformCheck (:639-650) as its questions and their reading (freeformQuestions, readFreeform: the roll is the simulation's), and decideBefore (:718-1019) and decideAfter (:1234-1358) trimmed to the v2 approach's questions and split in two each: the questions (beforeQuestions, afterQuestions) and their reading (readBefore, readAfter). With the full GM (full-gm-design §3.1): considered rolls' roll_call and the means in every beat, the co-GM's off_graph, the considered read (:878-880, :896, :902-932), offGraph and byPrep (:987, :1010-1016), and after the reply the rules' left (:1279-1283, :1350). With the world bridge (world-bridge-design §2.2): the rules' mechanic question (:793-809), the ruling, actSettles and the route an act holds (:887-893, :897-901, :925, :938), the act's details call (:988-1009, means_only included) as withMechanic, which the decide endpoint runs after the read, and after the reply the threat and its severity (:1284-1295, :1343-1349); the details' questions are gm/mechanics.ts. With the town (town-design §3.4, §3.6): `forced` (:705-711 rulingOf, :793, :889-901, :915, :993), the map's menu's act played as a turn, asked no mechanic question. (A talk's settings and its staged secrets after the reply, :1219-1229, :1263-1275, :1324, went with the old pipeline's talk, since a talk plays on the two-part GM.) Left out: relocation, pressure rolls, the speaker and freeform checks; and the dice: a route's check is picked here (its skill the player's means where both are social) and rolled by the simulation, as are the rules' acts. The directives' words are gm/directives.ts.
 
 import type { ChoiceAnswer, ChoiceQuestion, Decider, Decision as Answers } from "../llm/decide.ts";
 import { describeRoll, titleCase } from "../../shared/dice.ts";
-import type { GuardStage, SceneStatus } from "../../shared/gm/state.ts";
+import type { SceneStatus } from "../../shared/gm/state.ts";
 import type { After, Decision } from "../../shared/protocol/ai.ts";
 import { HAZARD_KINDS } from "../../shared/rules/acts.ts";
 import type { Mechanic, ThreatRead } from "../../shared/rules/types.ts";
@@ -477,9 +477,6 @@ export function beforeQuestions(scene: Scene, state: TurnView, brink?: Exit, opt
  */
 export interface BeforeOptions { rules?: RulesOptions; forced?: Mechanic; considered?: boolean; offGraph?: boolean }
 
-/** A talk's settings (scenes/talk.ts's approach: { repair: "off", freeformChecks: false, considered: false, staging: true }), or none for a scene of the story. */
-export const talkSettings = (scene: Scene): Pick<BeforeOptions, "considered" | "offGraph"> => (scene.companion ? { considered: false, offGraph: false } : {});
-
 /** The decider's name for what a mechanic is, as the mechanic question would have answered it. */
 function rulingOf(m: Mechanic): string {
   switch (m.kind) {
@@ -693,15 +690,6 @@ export interface AfterAsked {
   pending: Essential[];
   /** Who's here (a rules session): whose blow the threat question offers. */
   present: Character[];
-  /** Staged secrets (a talk's): whose guard the decision was asked about. */
-  holders: Character[];
-}
-
-/** Staged secrets: who to ask about (people present with secrets, those in the latest exchange first; three at most). */
-function guardHolders(scene: Scene, state: TurnView, text: string): Character[] {
-  const holders = presentCast(scene, state).filter(c => c.secrets?.length && state.guard?.[c.id]?.stage !== "settled");
-  const named = (c: Character) => text.includes(c.name.split(" ").at(-1)!) || text.includes(c.name.split(" ")[0]!);
-  return [...holders.filter(named), ...holders.filter(c => !named(c))].slice(0, 3);
 }
 
 /** The player has left the scene's place altogether (asked after each reply in rules sessions). */
@@ -713,12 +701,10 @@ export const LEFT_CONFIDENCE = 0.7;
  * has walked out of the place and whether the reply left a blow or a danger hanging over them (asked
  * when their character is the rules engine's: their sheet has a build), which outcome route has
  * happened, whether they asked something left unanswered, and whether an ending would be their own
- * doing; and in a scene that stages them (a talk: `staging`), how far each of the cast here who keeps
- * something back has come towards giving it up (the player's line and the reply, `exchange`, say whom
- * to ask about first). `hold`: an ending held back this turn for the player's answer, which this
- * reply can't confirm.
+ * doing. `hold`: an ending held back this turn for the player's answer, which this reply can't
+ * confirm.
  */
-export function afterQuestions(scene: Scene, state: TurnView, hold?: string, options: { staging?: boolean; exchange?: string } = {}): AfterAsked {
+export function afterQuestions(scene: Scene, state: TurnView, hold?: string): AfterAsked {
   // An ending held back this turn (the player gets a last chance) can't be confirmed by the same reply.
   const leadsTo = (t: Transition) => [t.to, t.check?.onSuccess, t.check?.onFailure];
   // While an ending is held for the player's response, no other ending (not even the improvised one) can fire.
@@ -744,19 +730,6 @@ export function afterQuestions(scene: Scene, state: TurnView, hold?: string, opt
         landed: `Yes: the player now knows or has this: ${e.what}`,
         hinted: "Not yet, but the latest GM reply pointed towards it: a sign, a telltale detail or a remark the player could follow up.",
         not_yet: "Not yet: it hasn't reached the player, and the latest reply didn't point towards it.",
-      },
-    };
-  }
-  const holders = options.staging ? guardHolders(scene, state, options.exchange ?? "") : [];
-  for (const c of holders) {
-    questions[`guard_${c.id}`] = {
-      instructions: `Judge only what has actually happened in the story so far. How far has ${c.name} come towards giving up what they're keeping to themselves (${c.secrets!.join(" ").slice(0, 300)})?`,
-      criteria: {
-        surface: `Nothing has shown: ${c.name} is still their usual public self about it.`,
-        tell: "Something that doesn't fit has shown (a dodge, a slip, a reaction they couldn't hide), and the player could pick at it.",
-        stirred: `The player has picked at it; ${c.name} has got defensive, and something personal has shown (someone or something they care about).`,
-        torn: `${c.name}'s own conflict is out in the open: in their own words, what telling would cost them or what they're torn between.`,
-        settled: "It's settled: they've told it, bargained over it, or refused for good and turned against the player.",
       },
     };
   }
@@ -800,7 +773,7 @@ export function afterQuestions(scene: Scene, state: TurnView, hold?: string, opt
   // or it isn't their own doing.
   questions.ask = ASK_QUESTION;
   questions.own_exit = OWN_EXIT_QUESTION;
-  return { questions, outcomes, endings, pending, present, holders };
+  return { questions, outcomes, endings, pending, present };
 }
 
 /**
@@ -810,11 +783,10 @@ export function afterQuestions(scene: Scene, state: TurnView, hold?: string, opt
  * roll; landed and hinted; a question left unanswered; the player's own exit at 0.6; the player
  * gone from the place at 0.7; a blow or a danger left hanging over them at 0.6 (someone here's
  * blow, or a danger with its severity), with the threat question's raw choice, which lets go of a
- * hold the reply no longer has them in (threats.ts holdAfterReply); and each staged secret's stage
- * as judged (the settle commit keeps it if it's further on: they never go back, engine.ts:902-905).
+ * hold the reply no longer has them in (threats.ts holdAfterReply).
  */
 export function readAfter(scene: Scene, decision: Answers, asked: AfterAsked): After {
-  const { outcomes, endings, pending, present, holders } = asked;
+  const { outcomes, endings, pending, present } = asked;
   const probabilities = decision.answers.outcome?.probabilities ?? {};
   let picked = outcomes.find(t => t.id === decision.answers.outcome?.choice);
   // The built-in improvised ending is a last resort: if any authored ending is plausible, prefer it
@@ -839,7 +811,6 @@ export function readAfter(scene: Scene, decision: Answers, asked: AfterAsked): A
   }
   const landed = pending.filter(e => decision.answers[`landed_${e.id}`]?.choice === "landed").map(e => e.id);
   const hinted = pending.filter(e => decision.answers[`landed_${e.id}`]?.choice === "hinted").map(e => e.id);
-  const guard = Object.fromEntries(holders.map(c => [c.id, decision.answers[`guard_${c.id}`]?.choice as GuardStage | undefined]).filter(([, g]) => g)) as Record<string, GuardStage>;
   let threat: ThreatRead | undefined;
   const t = decision.answers.threat;
   if (t && t.choice !== "none" && (t.probabilities?.[t.choice] ?? 1) >= SCENE_ENDING_CONFIDENCE) {
@@ -857,6 +828,5 @@ export function readAfter(scene: Scene, decision: Answers, asked: AfterAsked): A
     ...(chosen ? { outcome: { route: chosen.id, ...(chosen.check ? { check: { skill: chosen.check.skill, dc: chosen.check.dc, ...(chosen.check.reason ? { reason: chosen.check.reason } : {}) } } : {}), ...(instead && instead.p >= 0.2 ? { exit: instead.e.id } : {}) } } : {}),
     ...(ending ? { ending } : {}), ...(status ? { status } : {}),
     landed, hinted, unanswered, theirs,
-    ...(Object.keys(guard).length ? { guard } : {}),
   };
 }

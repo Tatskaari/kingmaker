@@ -48,9 +48,8 @@ const busy: GmState = {
   held: 4,
   brawl: { turn: 5, cause: "cast Burning Hands at Sergeant Agnes Kell", against: ["kell"], allies: [], fled: ["cob", "moll"] },
   absent: ["cob", "moll"],
-  guard: { kell: { stage: "stirred", turn: 3 } },
   withheld: ["Cast/Kell/Notes/The door at the Drowned Rat.md"],
-  talk: { with: "kell", where: "Granary Street in Caerwyn, evening", confide: { note: "Cast/Kell/Notes/Her brother.md", topic: "her brother in the river watch", what: "Her brother drowned on duty.", memory: "I told Wren about my brother." } },
+  talk: { with: "kell", where: "Granary Street in Caerwyn, evening", confide: { note: "Cast/Kell/Notes/Her brother.md", topic: "her brother in the river watch", what: "Her brother drowned on duty." } },
   reached: ["yard", "murder", "doubt"],
   twoPart: {
     roles: { kell: { status: "watching the boy", mental_state: "patient, for now", conversation_role: "Characterise: brief and dry." }, cob: { status: "", mental_state: "", conversation_role: "Stones and cheek." } },
@@ -115,11 +114,11 @@ test("a row from before the world bridge's columns (their defaults) reads as a s
   assert.deepEqual(gm.rulings, busy.rulings);
 });
 
-test("a row from before the town's columns (their defaults) reads as a scene that stages nothing, keeps nothing back and isn't a talk", () => {
-  const { guard: _g, withheld: _w, talk: _t, ...gmOnly } = gmToRow(1n, busy);
-  const gm = gmFromRow({ ...gmOnly, guard: [], withheld: [], talk: undefined });
+test("a row from before the town's columns (their defaults) reads as a scene that keeps nothing back and isn't a talk", () => {
+  const { withheld: _w, talk: _t, ...gmOnly } = gmToRow(1n, busy);
+  const gm = gmFromRow({ ...gmOnly, withheld: [], talk: undefined });
 
-  assert.ok(!("guard" in gm) && !("withheld" in gm) && !("talk" in gm));
+  assert.ok(!("withheld" in gm) && !("talk" in gm));
   assert.deepEqual(gm.absent, busy.absent);
   assert.deepEqual(gmToRow(1n, { ...busy, talk: { with: "kell", where: "the lane" } }).talk, { companion: "kell", where: "the lane", confide: undefined });
 });
