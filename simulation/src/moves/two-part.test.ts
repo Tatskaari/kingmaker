@@ -122,3 +122,17 @@ test("a move the rows refuse is logged and left; a role for someone not in the s
   assert.deepEqual(now.gm.reached, ["start", "hobb"]);
   assert.equal(now.gm.twoPart.roles.nobody, undefined);
 });
+
+test("a lead's name the co-GM left owed goes on the path, once, from the stage to itself, and the next reply's request carries it (QA round qa3-1018: the reply after has whoever gives it say it)", async () => {
+  const { script, line } = await yard();
+  script.then("settle", { ops: [], coGm: { roles: {}, moves: [], owed: ["hobb"], log: [] }, usage });
+  const owed = await line("Cob, who was the big man with the bandage?");
+  assert.deepEqual(owed.gm.path.map(p => [p.turn, p.from, p.to, p.via]), [[1, "start", "start", "owed:hobb"]]);
+  assert.deepEqual([owed.gm.reached, owed.gm.turnsInBeat], [["start"], 1], "nothing reached, the stage where it was");
+
+  script.then("settle", { ops: [], coGm: { roles: {}, moves: [], owed: ["hobb"], log: [] }, usage });
+  const again = await line("Sergeant, do you know him?");
+  const reply = script.to("reply").at(-1)!.body as ReplyRequest;
+  assert.deepEqual(reply.turn.gm.path.map(p => p.via), ["owed:hobb"], "the reply after it has it");
+  assert.deepEqual(again.gm.path.map(p => p.via), ["owed:hobb"], "owed once");
+});

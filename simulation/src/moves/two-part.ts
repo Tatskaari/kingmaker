@@ -4,7 +4,7 @@ import { bandOf, defaultRole, diceLine, openingRoles, rolesNote } from "../../..
 import type { CoGmAnswer, Outcome, Reply, ReplyResponse, SettleResponse, SpokenCheck, TurnCheck } from "../../../shared/protocol/ai.ts";
 import { idOf } from "../../../shared/protocol/keys.ts";
 import type { Mechanic } from "../../../shared/rules/types.ts";
-import { openRoutes, takeRoute } from "../../../shared/scene/beats.ts";
+import { openRoutes, oweName, takeRoute } from "../../../shared/scene/beats.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import { GOODBYE, isFarewell } from "../../../shared/scene/talk.ts";
 import type { Scene } from "../../../shared/scene/types.ts";
@@ -204,8 +204,9 @@ function talkSettled(tx: TxCtx, at: At, plan: SayPlan, answer: SettleResponse): 
 
 /**
  * The co-GM's answer on the rows: each move taken again with takeRoute (one the rows refuse, which
- * the AI service's copy took, is logged and left), then the roles it set for the cast. What it did,
- * for the log.
+ * the AI service's copy took, is logged and left), each lead whose name it left owed kept on the
+ * path (oweName: the replies after it have its holder say the name, until it's said), then the roles
+ * it set for the cast. What it did, for the log.
  */
 function coGmTakesEffect(tx: TxCtx, at: At, n: number, answer: CoGmAnswer | undefined): string {
   if (!answer) return "didn't answer";
@@ -217,8 +218,9 @@ function coGmTakesEffect(tx: TxCtx, at: At, n: number, answer: CoGmAnswer | unde
     at.gm = done.gm;
     taken.push(`${move.route}${move.outcome === "none" ? "" : ` (${move.outcome})`}${done.reached ? ` to ${done.reached}` : ""}`);
   }
+  for (const lead of answer.owed ?? []) at.gm = oweName(at.graph, at.gm, lead, n);
   const cast = new Set(at.graph.cast.map(c => c.id));
   const roles = Object.entries(answer.roles ?? {}).filter(([id]) => cast.has(id));
   for (const [id, role] of roles) at.gm.twoPart.roles[id] = { status: role.status, mental_state: role.mental_state, conversation_role: role.conversation_role };
-  return `moved ${taken.join(", ") || "nothing"}, set ${roles.map(([id]) => id).join(", ") || "no roles"}`;
+  return `moved ${taken.join(", ") || "nothing"}${answer.owed?.length ? `, owes the name for ${answer.owed.join(", ")}` : ""}, set ${roles.map(([id]) => id).join(", ") || "no roles"}`;
 }

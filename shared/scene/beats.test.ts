@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { initialGm, type GmState } from "../gm/state.ts";
-import { endingOf, enteringAt, limitOf, openRoutes, reachDiscoveries, reachedOf, reachedTurns, stageOf, takeRoute, targetsOf, type Taken } from "./beats.ts";
+import { endingNeeds, endingOf, enteringAt, limitOf, openRoutes, oweName, owedLeads, reachDiscoveries, reachedOf, reachedTurns, stageOf, takeRoute, targetsOf, type Taken } from "./beats.ts";
 import type { SceneDocument } from "./document.ts";
 import { presentCast } from "./graph.ts";
 import { sceneOf } from "./load.ts";
@@ -188,4 +188,17 @@ test("the turn each node was reached on; a cue's outer limit counts from the ope
   const inside = took(takeRoute(heron, initialGm(heron), "taken-on", "none", 3));
   assert.deepEqual(limitOf(master, inside, 7), { counts: [{ exchanges: 6, next: 8, stopped: "floor" }, { exchanges: 5, after: "floor", reachedOn: 3, next: 4 }], overdue: false }, "inside, the wharf's count stops and five inside runs");
   assert.equal(limitOf(master, inside, 8)!.overdue, true);
+});
+
+test("a discovery an ending's way in requires (a lead, where it names someone elsewhere); a lead's name owed is a step on the path that moves nothing, once, and not for a lead reached (QA round qa3-1018)", () => {
+  assert.deepEqual(scene.beats.filter(b => endingNeeds(scene, b)).map(b => b.id), ["murder", "hobb"], "signed-murder needs both, signed-suicide Hobb; the motive no ending needs");
+  const cart = took(takeRoute(scene, initialGm(scene), "cart-comes", "none", 2));
+  const owed = oweName(scene, cart, "hobb", 5);
+  assert.deepEqual(owed.path.at(-1), { turn: 5, from: "cart-arrives", to: "cart-arrives", via: "owed:hobb", source: "post" }, "from the stage to itself");
+  assert.deepEqual([owedLeads(owed), owed.reached, owed.beat, [...reachedTurns(owed)]], [["hobb"], ["start", "cart-arrives"], "cart-arrives", [["start", 0], ["cart-arrives", 2]]], "nothing reached or moved");
+  assert.equal(oweName(scene, owed, "hobb", 6), owed, "owed once");
+  assert.deepEqual(ids(openRoutes(scene, owed)), ids(openRoutes(scene, cart)), "the routes as they were");
+  assert.deepEqual(cart.path.length, 1, "the state it was handed is as it was");
+  const found = took(takeRoute(scene, cart, "find-hobb", "none", 4));
+  assert.equal(oweName(scene, found, "hobb", 5), found, "a lead reached is owed nothing");
 });

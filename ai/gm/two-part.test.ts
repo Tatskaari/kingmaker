@@ -7,7 +7,7 @@ import { configureDocs } from "../docs/config.ts";
 import { note } from "../docs/notes.ts";
 import { rolesNote } from "../../shared/gm/two-part.ts";
 import type { GmState } from "../../shared/gm/state.ts";
-import { openRoutes, takeRoute } from "../../shared/scene/beats.ts";
+import { endingNeeds, openRoutes, oweName, takeRoute } from "../../shared/scene/beats.ts";
 import { effectiveScene } from "../../shared/scene/graph.ts";
 import { loadScene } from "../../shared/scene/load.ts";
 import { parseScene } from "../../shared/scene/document.ts";
@@ -18,7 +18,7 @@ import { fakeFetch, readPrep, walkTo, type FakeOptions } from "../llm/fake-openr
 import type { CallContext } from "../llm/openrouter.ts";
 import { CAERWYN, viewAt } from "./fixtures.ts";
 import { playerNow } from "./brief.ts";
-import { closingDirective, coGm, coGmInput, coGmInstructions, companionsOf, deniesItself, firstSentence, inReach, intoBad, intoBetter, mouthpieceInput, mouthpieceInstructions, movedDirective, movedText, narrationSoFar, prepOf, pressureOffered, routeLine, saidLast, speak, tellOf, twoPartNow, unsaidIn } from "./two-part.ts";
+import { closingDirective, coGm, coGmInput, coGmInstructions, companionRoles, companionsOf, deniesItself, deniesMoment, firstSentence, inReach, intoBad, intoBetter, mouthpieceInput, mouthpieceInstructions, movedDirective, movedText, narrationSoFar, owedDirective, prepOf, pressureOffered, routeLine, saidLast, saysNothing, speak, stillToCome, tellOf, twoPartNow, unsaidIn } from "./two-part.ts";
 import type { Story } from "./story.ts";
 import type { TurnView } from "./view.ts";
 
@@ -386,6 +386,12 @@ test("a move whose reason says it hasn't happened is refused, a cue's aside (its
     "Cob testified that the huge man with a bandaged right hand was in the loft with the gentleman when Prout was killed, but nobody has yet named him Big Hobb Mallory or identified where to find him.",
     "Cob testified that the enormous man with a bandaged right hand was present during the killing, but neither Cob nor Kell has yet identified him as Big Hobb Mallory or linked him to the Drowned Rat.",
     "Sallow reaches for the ledger; neither Sallow nor the Crakes have drawn blades, so the fight route has not occurred.",
+    // QA round qa3-1018's (g04's way in through Kell's eyes, taken while she stood outside; g06's loft on a rope burn) and its probes' (g02's book, the player still in the counting-box; g08's motive).
+    "No: Nell is concealed inside while Kell remains outside; she has not witnessed Sallow's transaction.",
+    "Arlo revealed that Hobb's palm was skinned in a stripe like rope burn, but no one has established that Hobb was in the tally loft or what happened there.",
+    "The player has the true book in hand, but has not left the Heron; they are still in the counting-box confrontation, and nobody is holding them.",
+    "Brann has seen the missing Granary Roll page and an adjacent King's Road entry marked 'Lost to goblins' and countersigned by J. Sallow, but the diversion of grain and Prout's discovery of its sales have not landed.",
+    "Cob has produced the page sewn into the boot, but no one has yet described the second man who was in the loft or connected that man to Big Hobb Mallory.",
   ]) assert.ok(deniesItself(why), why);
   for (const why of [
     "Pip recognized that Prout was strangled and struck before being hoisted, and Kell confirmed the cord mark and head wound were not caused by hanging.",
@@ -394,6 +400,8 @@ test("a move whose reason says it hasn't happened is refused, a cue's aside (its
     "Hobb has broken and begun to tell what he did.",
     "Pip slipped in past Saul's deaf side; neither the Crakes nor Hep has yet noticed her.",
     "Nobody has yet stopped them: Pip walks out of the land door with the true book under her arm.",
+    "No one stopped Nell as she went out of the land door with the true book.",
+    "Hobb went to work without being arrested, after telling Maren his part in the loft, his master's name and the Heron.",
   ]) assert.ok(!deniesItself(why), why);
 
   const rat = sceneFile("drowned-rat");
@@ -504,7 +512,7 @@ test("the co-GM's cue into a bad ending is held once in a turn while a good or m
   // A cue into an event (the Rat's bell) is never held, whatever endings are open.
   const rat = sceneFile("drowned-rat");
   const ratView = walked(rat, [[6, "arlo-calls-him-out"]], 14);
-  const rang = await coGm(rat, ratView, { ...ratView } as unknown as GmState, undefined, { fetch: scripted([[move("bell-rings", "The eleventh bell rings.")]]).fetch, apiKey: "test" });
+  const rang = await coGm(rat, ratView, { ...ratView } as unknown as GmState, undefined, { fetch: scripted([[move("bell-rings", "Eight exchanges after Arlo's challenge: the eleventh bell rings.")]]).fetch, apiKey: "test" });
   assert.deepEqual(rang.moves.map(m => m.route), ["bell-rings"]);
 
   // And a move's answer says a cue into a bad ending still overdue waits on the better endings.
@@ -512,11 +520,19 @@ test("the co-GM's cue into a bad ending is held once in a turn while a good or m
   assert.match(found, /\. Still overdue, into a bad ending: \[cast-off\]: bring it about now, unless a good or mixed ending's condition has happened, which is taken instead, or the player is in the middle of bringing one about, which comes first\.$/);
 });
 
-test("a discovery is reached once its heart has landed: who its revelation names from the story's other scenes that nobody has said yet, in the co-GM's targets, and a move into it held once in a turn", async () => {
+/** Lines of play, each a GM's narration on its own turn (what reads what's been said: unsaidIn, owedDirective). */
+const said = (...lines: string[]) => lines.map((text, i) => ({ turn: i + 1, speaker: "gm", kind: "narration" as const, text }));
+
+/** A view with a lead's name owed on its path, as the settle commit leaves it (beats.ts oweName). */
+const owing = (scene: Scene, view: TurnView, lead: string, turn: number): TurnView => ({ ...view, path: oweName(scene, bookkeeping(view), lead, turn).path });
+
+/** The clerk where Cob has described the big man, a turn in, with the campaign's story. */
+const describedAt = (turn: number, extra: Partial<TurnView> = {}) => yard({ turn, story: campaignStory(), transcript: said("“The big one was like a door, with a bandage on his right hand. He called the posh one ‘Master.’”"), ...extra });
+
+test("who a revelation names from the story's other scenes that nobody has said yet, in the co-GM's targets; a discovery that isn't a lead is held once in a turn, and taken again where the name is a detail of it", async () => {
   const story = campaignStory();
   const hobb = clerk.beats.find(b => b.id === "hobb")!;
-  const said = (...lines: string[]) => lines.map((text, i) => ({ turn: i + 1, speaker: "gm", kind: "narration" as const, text }));
-  const described = yard({ turn: 16, story, transcript: said("“The big one was like a door, with a bandage on his right hand. He called the posh one ‘Master.’”") });
+  const described = describedAt(16);
   assert.deepEqual(unsaidIn(clerk, described, hobb.revelation!), ["Big Hobb Mallory"], "the Rat's man, by name, is his lead");
   assert.deepEqual(unsaidIn(clerk, { ...described, transcript: [...described.transcript, ...said("Kell writes it down. “Big Hobb Mallory. The Drowned Rat's champion.”")] }, hobb.revelation!), [], "once Kell has named him");
   assert.deepEqual(unsaidIn(clerk, { ...described, story: undefined } as TurnView, hobb.revelation!), [], "no story, nobody elsewhere");
@@ -529,28 +545,140 @@ test("a discovery is reached once its heart has landed: who its revelation names
   assert.deepEqual(unsaidIn(rat, viewAt(rat, rat.start, { story, history: [{ sceneId: "hanged-clerk", exitId: "murder-unknown", summary: "Prout's page: wagons countersigned 'J. Sallow, for the Royal Purveyor'." }] }), master), [], "heard in the story before");
 
   const targets = coGmInput(clerk, described, undefined)[0]!.content;
-  assert.match(targets, /\n- Hobb was spotted at the scene \[hobb\] \(required\): A huge man with a bandaged right hand, Big Hobb Mallory, [^\n]* when Prout died\. \(Nobody has said Big Hobb Mallory's name in the story yet\.\)\n/);
+  assert.match(targets, /\n# The targets\nThe discoveries not reached yet:\n- The victim was murdered \[murder\]: Prout didn't hang himself[^\n]* to look like a suicide\.\n/);
+  assert.match(targets, /\n- Motive: supplies are being embezzled \[motive\]: [^\n]*and Prout had found out\. \(Nobody has said Master Josiah Sallow's name in the story yet\.\)\n/, "not a lead: the name is all it says");
+  assert.match(targets, /\n- Hobb was spotted at the scene \[hobb\] \(required\): A huge man with a bandaged right hand, Big Hobb Mallory, [^\n]* when Prout died\. \(Nobody has said Big Hobb Mallory's name in the story yet: a lead, it isn't reached until the name is said aloud\. Once he's been described as one of its paths has it, move it: it isn't taken, but the name is then owed, and Sergeant Agnes Kell gives it in the next reply\.\)\n/);
   assert.doesNotMatch(twoPartNow(clerk, described, []), /Nobody has said/, "the mouthpiece's note has none of it");
 
-  const gm = bookkeeping(described);
-  const again = scripted([[move("find-hobb", "Cob described the big man with the bandaged hand.")], [move("find-hobb", "It's his description that matters here.")]]);
-  const second = await coGm(clerk, described, gm, undefined, { fetch: again.fetch, apiKey: "test" });
-  assert.deepEqual(second.moves.map(m => m.why), ["It's his description that matters here."], "taken on the second call");
-  assert.match(second.log[0]!.result, /^Not taken yet: \[find-hobb\]'s revelation names Big Hobb Mallory, and nobody has said that name in the story yet\. If finding them is the point of it \(a lead to someone the player must go and find\), it hasn't landed: whoever holds the name gives it in the next reply, as their card says \(write it into their role, unasked where their card says so\), and the route is taken once it's said\. If the name is only a detail of it and its heart has landed, take \[find-hobb\] again\.$/);
+  // The motive names 'J. Sallow', nobody's said him, and it isn't a lead: held once, and taken on the second call.
+  const again = scripted([[move("find-motive", "The page out of Cob's boot was read: wagons 'lost to goblins', each countersigned by J. Sallow.")], [move("find-motive", "The page's entries have landed; his name is a detail of them.")]]);
+  const second = await coGm(clerk, described, bookkeeping(described), undefined, { fetch: again.fetch, apiKey: "test" });
+  assert.deepEqual(second.moves.map(m => m.why), ["The page's entries have landed; his name is a detail of them."], "taken on the second call");
+  assert.match(second.log[0]!.result, /^Not taken yet: \[find-motive\]'s revelation names Master Josiah Sallow, and nobody has said that name in the story yet\. [^\n]*If the name is only a detail of it and its heart has landed, take \[find-motive\] again\.$/);
   const named = { ...described, transcript: [...described.transcript, ...said("“Big Hobb Mallory,” Kell says. “He drinks at the Drowned Rat.”")] } as TurnView;
   const atOnce = await coGm(clerk, named, bookkeeping(named), undefined, { fetch: scripted([[move("find-hobb", "Kell named him from Cob's description.")]]).fetch, apiKey: "test" });
-  assert.deepEqual(atOnce.moves.map(m => m.route), ["find-hobb"], "once he's named, at once");
+  assert.deepEqual([atOnce.moves.map(m => m.route), atOnce.owed], [["find-hobb"], undefined], "once he's named, at once, nothing owed");
 
   const tools = coGmInstructions(clerk, described).split("## Your tools\n")[1]!;
-  assert.ok(tools.includes("A discovery is reached when its revelation, as written, has landed with the player. Its details and examples needn't all come out, but its heart must: what it says happened, and when it points to someone the player must go and find, who they are by name and where to find them. Someone described but not yet named, or a name without where to find them, is part of it, not yet the discovery."));
-  assert.ok(tools.includes("write it into their role to give in the next reply, unasked where their card says so, and take the route once it has landed."));
+  for (const words of [
+    "A discovery is reached when its revelation, as written, has landed with the player. Its details and examples needn't all come out, but its heart must: what it says happened, and when it points to someone the player must go and find, who they are by name and where to find them. Someone described but not yet named, or a name without where to find them, is part of it, not yet the discovery.",
+    "A lead (a discovery an ending needs, whose revelation names someone of the story's other scenes for the player to go and find) needs that name said aloud as well, by someone here or by the player: until it is, its route is refused, however well they've been described.",
+    "Once the rest of it has landed (who they are, described as one of its paths has it) but nobody has said the name, move it all the same: it isn't taken, but the name is then owed",
+    "Write it into their role with no condition (\"she names him now\", never \"if asked\" or \"if the description comes up\"), and move it again once the name has been said.",
+  ]) assert.ok(tools.includes(words), words);
 });
 
-test("the fake co-GM takes a move held for a second look again, once: the clerk's walk still takes Hobb, unnamed in its replies", async () => {
+test("a lead is never taken while the name it needs is unsaid (QA round qa3-1018, H7: g05's co-GM took Hobb on the hold's own exception, the name first said in the closing): refused every time, the name owed, whatever its reason; with nobody here whose path gives the name freely, the lead waits for it", async () => {
+  assert.ok(endingNeeds(clerk, clerk.beats.find(b => b.id === "hobb")!), "the ending needs it");
+  assert.ok(!endingNeeds(clerk, clerk.beats.find(b => b.id === "motive")!), "no ending needs the motive");
+  const described = describedAt(17);
+  const gm = bookkeeping(described);
+  const refusedText = /^Not taken: \[find-hobb\] is a lead, and its revelation names Big Hobb Mallory, whose name nobody has said in the story yet \(the game reads what's been said\): it isn't reached until a reply says the name aloud, however well he's been described\. The name is owed now: Sergeant Agnes Kell names him in the next reply, unasked, as her path in your prep has it, and the GM is told so\. Write it into that role with no condition \("names him now", never "if asked" or "if the description comes up"\)\. Don't move \[find-hobb\] again this turn: move it after the reply that says the name\.$/;
+  // g05's turn 17, both calls: the second on the reason that Kell would name him in the next reply.
+  const twice = scripted([[move("find-hobb", "Moll had already described the gentleman's huge, bandaged-handed companion calling him 'Master Sallow'; with the loft discovery, Kell can identify that description as Big Hobb Mallory, champion of the Drowned Rat.")], [move("find-hobb", "Moll's description of Sallow's huge, bandaged-handed companion has reached Kell; she will identify him as Big Hobb Mallory, champion of the Drowned Rat, in the next reply.")]]);
+  const refused = await coGm(clerk, described, gm, undefined, { fetch: twice.fetch, apiKey: "test" });
+  assert.deepEqual([refused.moves, refused.owed], [[], ["hobb"]], "refused both times, and the name owed");
+  assert.match(refused.log[0]!.result, refusedText);
+  assert.equal(refused.log[1]!.result, "Not taken: nobody has said Big Hobb Mallory in the story yet (the game reads what's been said), and no reason changes that: [find-hobb] waits for a reply that says the name. Don't move it again this turn.", "moved again, it waits");
+
+  // g05's turn 12: the co-GM moved it on the reason that nobody had named him, which is when the name is owed; and a probe's on "none", told to move it once he was described.
+  for (const why of ["Moll said the gentleman's bandaged-handed companion called him Master Sallow, but no one has named the companion as Big Hobb Mallory or identified where to find him.", "none"]) {
+    const unnamed = await coGm(clerk, described, gm, undefined, { fetch: scripted([[move("find-hobb", why)]]).fetch, apiKey: "test" });
+    assert.deepEqual([unnamed.moves, unnamed.owed], [[], ["hobb"]], why);
+    assert.match(unnamed.log[0]!.result, refusedText);
+  }
+
+  // Once owed, the targets say who names him.
+  const owed = owing(clerk, described, "hobb", 16);
+  assert.match(coGmInput(clerk, owed, undefined)[0]!.content, /\(Nobody has said Big Hobb Mallory's name in the story yet: a lead, it isn't reached until the name is said aloud\. The name is owed: Sergeant Agnes Kell names him in the next reply, as the GM is told; write it into that role with no condition\.\)\n/);
+
+  // The Rat's master: Hobb gives the name last of all, and nobody gives it freely, so it waits.
+  const rat = sceneFile("drowned-rat");
+  const ratView = viewAt(rat, rat.start, { turn: 5, story: campaignStory() });
+  delete ratView.world;
+  const waits = await coGm(rat, ratView, bookkeeping(ratView), undefined, { fetch: scripted([[move("find-the-master", "Hobb said 'Master' and stopped himself, white as a sheet.")]]).fetch, apiKey: "test" });
+  assert.deepEqual([waits.moves, waits.owed], [[], ["the-master"]]);
+  assert.match(waits.log[0]!.result, /^Not taken: \[find-the-master\] is a lead, and its revelation names Master Josiah Sallow, [^\n]* Whoever holds the name gives it as it's earned\. Don't move \[find-the-master\] again this turn: move it after the reply that says the name\.$/);
+  assert.equal(owedDirective(rat, owing(rat, ratView, "the-master", 5)), undefined, "nobody is told to give it");
+});
+
+test("a lead's name owed: the next reply has whoever gives it as their path has it name them, unasked, until the name has been said (QA round qa3-1018, H6: g07's Kell waited on \"If Grunda asks\" four turns, and the game ran out); the fake mouthpiece says it", async () => {
+  const view = describedAt(5);
+  assert.equal(owedDirective(clerk, view), undefined, "nothing owed yet");
+  const owed = owing(clerk, view, "hobb", 4);
+  const direction = owedDirective(clerk, owed)!;
+  assert.match(direction, /^Sergeant Agnes Kell names him now: Big Hobb Mallory\. What's been said of him has reached her, and her path in your prep has it: A porter the size of a door who's champion of the arm-wrestling at the Drowned Rat is Big Hobb Mallory[^\n]* No dice: when a description with his size or the Rat's arm-wrestling reaches her, she names him and writes it down, and concludes nothing else\. So in this reply, after answering the player's turn, she says the name aloud in a line of her own, unasked, and writes it down: the name and what she knows of him, nothing more\.$/);
+  assert.equal(owedDirective(clerk, { ...owed, transcript: [...owed.transcript, ...said("“Big Hobb Mallory,” Kell says.")] }), undefined, "said, so no more");
+  assert.equal(owedDirective(clerk, { ...owed, absent: ["kell"] }), undefined, "nobody here to give it");
+  assert.equal(owedDirective(clerk, { ...owed, reached: ["start", "hobb"] }), undefined, "reached");
+
+  const spoke = await speak(clerk, owed, [direction], { operation: "two-part.reply", calls: fake({ replies: ["Kell's pencil moves."] }), byKey: m => m });
+  assert.equal(spoke.narration.text, "Kell's pencil moves. “Big Hobb Mallory.”");
+  assert.deepEqual(spoke.narration.markup?.speech.map(s => s.speaker), ["kell"]);
+});
+
+test("the fake co-GM's walk through the clerk: the lead refused while its name is unsaid, so owed, said in the next reply by the fake's Kell, and taken then", async () => {
   const view = yard({ turn: 1, story: campaignStory() });
-  const answer = await coGm(clerk, view, bookkeeping(view), undefined, fake());
-  assert.deepEqual(answer.moves.map(m => m.route), ["find-hobb"]);
-  assert.deepEqual(answer.log.map(c => c.result.split(":")[0]), ["Not taken yet", "Reached \"Hobb was spotted at the scene\""]);
+  const first = await coGm(clerk, view, bookkeeping(view), undefined, fake());
+  assert.deepEqual([first.moves, first.owed], [[], ["hobb"]]);
+  assert.deepEqual(first.log.map(c => c.result.split(":")[0]), ["Not taken"], "a refusal, not a hold: the fake doesn't take it again");
+  const owed = { ...owing(clerk, view, "hobb", 1), turn: 2 };
+  const reply = await speak(clerk, owed, [owedDirective(clerk, owed)!], { operation: "two-part.reply", calls: fake(), byKey: m => m });
+  const named = { ...owed, transcript: [...owed.transcript, { turn: 2, scene: clerk.id, speaker: "gm", kind: "narration" as const, text: reply.narration.text }] } as TurnView;
+  const second = await coGm(clerk, named, bookkeeping(named), undefined, fake());
+  assert.deepEqual(second.moves.map(m => m.route), ["find-hobb"]);
+});
+
+test("a move's reason that says nothing of what happened is refused, a cue's too (QA round qa3-1018, H8: the Heron closed on \"Out with the true book\" for the reason \"none\", the player still in the counting-box)", async () => {
+  const away = heron.routes.find(r => r.id === "away-with-book")!;
+  for (const why of ["none", "", "None.", "n/a", "Out with the true book.", "away-with-book", "Taken: out with the true book"]) assert.ok(saysNothing(heron, away, why), JSON.stringify(why));
+  for (const why of ["Nell walked out of the land door with the true book under her coat, and nobody laid a hand on her.", "Over the side with the book, and nobody holding her."]) assert.ok(!saysNothing(heron, away, why), why);
+  const cart = clerk.routes.find(r => r.id === "cart-comes")!;
+  assert.ok(saysNothing(clerk, cart, "The noon bell."), "a cue's label back");
+  assert.ok(!saysNothing(clerk, cart, "The twelfth exchange has arrived, the cue's stated outer limit, so the dead-cart comes to the yard."));
+
+  const view = walked(heron, [[2, "taken-on"], [4, "find-kings-grain"], [7, "master-comes"], [8, "find-master-due"], [11, "took-the-book"]], 13, { reached: ["wharf"], beat: "wharf" });
+  const answer = await coGm(heron, view, bookkeeping(view), undefined, { fetch: scripted([[move("away-with-book", "none")]]).fetch, apiKey: "test" });
+  assert.deepEqual(answer.moves, []);
+  assert.match(answer.log[0]!.result, /^error: your reason says nothing of what happened, so \[away-with-book\] stays as it is\. Say in a sentence what happened in the story that takes it; if nothing has, leave it\.$/);
+  const bell = await coGm(clerk, yard({ turn: 12 }), bookkeeping(yard({ turn: 12 })), undefined, { fetch: scripted([[move("cart-comes", "The noon bell.")]]).fetch, apiKey: "test" });
+  assert.match(bell.log[0]!.result, /^error: your reason says nothing of what happened, so \[cart-comes\] stays as it is\. Say in a sentence what happened in the story that takes it \(for a cue, what brings it about now: its moment come, or its outer limit run out\); if nothing has, leave it\.$/);
+});
+
+test("a cue's reason that says its moment hasn't come is refused, one that says the cue hasn't rung yet is its own once it's overdue; a reason that says it's still to come is refused (QA round qa3-1018)", async () => {
+  for (const why of [
+    "Not yet: the midnight bell has not rung, and Nell is still speaking with Scrope in the counting-box rather than waiting for or watching the Master's arrival.",
+    "The ledger is in Nell's hands, so the barge-sailing cue is no longer needed to end the scene; its lines are already drawing taut in the background.",
+    "No: nobody is stalling yet.",
+  ]) assert.ok(deniesMoment(why), why);
+  for (const why of [
+    "The eleventh bell is drawing near, but it has not rung in the latest exchange.",
+    "The second bell has arrived at the outer limit: the Patience casts off on the ebb with the King's grain aboard while Sallow remains defiant and the Crakes are not yet dealt with.",
+    "No one has come for the boy yet, and the twelfth exchange is here: the dead-cart comes.",
+  ]) assert.ok(!deniesMoment(why), why);
+  // Before it's overdue, a cue's reason that says it hasn't happened says its moment hasn't come (a probe rang the Rat's bell at turn 3 on one); overdue, the move is what rings it.
+  const rat = sceneFile("drowned-rat");
+  const early = walked(rat, [[2, "arlo-calls-him-out"]], 3);
+  const rung = await coGm(rat, early, bookkeeping(early), undefined, { fetch: scripted([[move("bell-rings", "The eleventh bell has not yet rung; Hobb's third refusal has just happened, so there is still time for the player to act.")]]).fetch, apiKey: "test" });
+  assert.deepEqual(rung.moves, []);
+  assert.match(rung.log[0]!.result, /^error: your reason says its moment hasn't come, so \[bell-rings\] stays as it is: a cue's move says what brings it about now\./);
+  const late = walked(rat, [[6, "arlo-calls-him-out"]], 14);
+  const rings = await coGm(rat, late, bookkeeping(late), undefined, { fetch: scripted([[move("bell-rings", "The eleventh bell is overdue but has not yet rung: it rings now.")]]).fetch, apiKey: "test" });
+  assert.deepEqual(rings.moves.map(m => m.route), ["bell-rings"]);
+
+  for (const why of [
+    "Moll's description of Sallow's huge, bandaged-handed companion has reached Kell; she will identify him as Big Hobb Mallory, champion of the Drowned Rat, in the next reply.",
+    "Moll had already described the gentleman's huge, bandaged-handed companion calling him 'Master Sallow'; with the loft discovery, Kell can identify that description as Big Hobb Mallory, champion of the Drowned Rat.",
+    "After lowering Prout, Corvin has heard the body’s signs of strangulation and a head wound, while Cob’s account identifies the huge porter who was present during the hoisting, with a bandaged right hand; Kell can name him.",
+    "Kell is about to name him.",
+    "The page is out; once Kell names the big man, the lead is there.",
+  ]) assert.ok(stillToCome(why), why);
+  for (const why of [
+    "The King holds the true book as tangible proof and asks who will stand behind it in front of him, making clear that action requires both something to hold and a witness willing to swear.",
+    "Kell has seen Sallow initial the night's page and take his share over the re-sacked King's grain, so she can swear to the theft.",
+    "Hobb already told Nell at the Drowned Rat that Master Sallow would come to the Heron tonight.",
+    "Kell named him from Cob's description: Big Hobb Mallory, the Drowned Rat's champion.",
+  ]) assert.ok(!stillToCome(why), why);
 });
 
 test("the narration is read as the reply streams: its escapes undone, an escape cut off part-way held back, nothing before it starts", () => {
