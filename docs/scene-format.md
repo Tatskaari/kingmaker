@@ -48,7 +48,7 @@ interface SceneDocument {
   premise: string;
   /** What really happened, behind the screen: never said outright, it comes out through the beats' paths. */
   truth: string;
-  /** What happens if the player dawdles (the dead-cart at noon): the pressure, and its outer limit. */
+  /** What happens if the player dawdles (the dead-cart at noon): the pressure, its outer limit, and how it's felt coming, a step nearer each exchange and never the same sign twice (Hep's count falls each time she calls it). */
   clock?: string;
   /** Tempting things that don't exist or can't work here, so the GM can say "no, but" honestly. */
   limits?: string[];
@@ -191,7 +191,7 @@ interface Path {
   via: string;
   /** What's there to find or hear, concretely. */
   clue: string;
-  /** What earns it: free to a look, a kindness, a promise, getting up there, a roll. Say when it's free. */
+  /** What earns it: free to a look, a kindness, a promise, getting up there, a roll. An approach that needs no dice says so up front ("No dice: free to anyone who looks up"); where the path's check is for another approach, the free ones come first and the roll after them. */
   earn: string;
   /** What it amounts to as evidence. */
   strength: "hook" | "suggestive" | "strong" | "proof";
@@ -235,6 +235,9 @@ interface Route {
     /**
      * What has to have happened in the story to take it, in prose.
      * Into a discovery it may be empty: the route is taken when the revelation has landed.
+     * Into a bad or mixed ending that could be true at the same moment as a good one's, say it gives way to
+     * that one, by its id ("...: that's [let-him-go]"); a cue into an ending says what has it no longer needed
+     * ("Not needed once ...").
      */
     condition: string;
     /**
@@ -282,7 +285,7 @@ interface Route {
 
   The start is always reached, so its routes are open all scene long. That's how discoveries happen in any order, and how a last-resort ending stays available. Once an ending is reached, nothing is open: the scene is closing.
 - **Taking a route.** A route with dice is taken on its check's outcome: a success goes to its target, a failure to its `onFailure` or nowhere (the scene stays where it is, and the route stays open to try again). A route without dice can't fail: it's taken once its condition has happened.
-- **A cue's outer limit.** A count runs from the opening (reply 0), or from the reply after its `after` beat was reached (an event shows in the next reply). After each reply the co-GM is told, for each open cue, which exchange of each count the next reply would be, and once the next reply reaches a count still running, the cue is overdue: the co-GM takes its route, and the next reply shows it. So "15 exchanges into the scene" rings in reply 15, and "8 after Arlo's challenge", whose challenge showed in reply 7, rings in reply 15 too. Two replies before, it's due soon, and can be felt coming in someone's role. Endings come first: an ending whose condition has happened is taken ahead of any cue, overdue or not. And a cue into a `bad` ending (the time running out on the player) waits while a `good` or `mixed` ending's condition has happened or the player is in the middle of bringing one about (an arrest made but not yet secured): that plays out first. Its first move in a turn while such an ending is open is held, with those endings' conditions put to the co-GM, and taken if it moves it again.
+- **A cue's outer limit.** A count runs from the opening (reply 0), or from the reply after its `after` beat was reached (an event shows in the next reply). After each reply the co-GM is told, for each open cue, which exchange of each count the next reply would be, and once the next reply reaches a count still running, the cue is overdue: the co-GM takes its route, and the next reply shows it, unless its condition says it's no longer needed (the Heron's second bell isn't, once Kell is arresting the Master). So "15 exchanges into the scene" rings in reply 15, and "8 after Arlo's challenge", whose challenge showed in reply 7, rings in reply 15 too. Two replies before, it's due soon, and can be felt coming in someone's role. Endings come first: an ending whose condition has happened is taken ahead of any cue, overdue or not. And a cue into a `bad` ending (the time running out on the player) waits while a `good` or `mixed` ending's condition has happened or the player is in the middle of bringing one about (an arrest made but not yet secured): that plays out first. Its first move in a turn while such an ending is open is held, with those endings' conditions put to the co-GM, and taken if it moves it again.
 - **The stage.** The latest reached of the start and the event beats. Its `cast` notes are the co-GM's suggested roles, and its `pressure` is what the world does when the scene stalls.
 - **The targets.** The discoveries not yet reached, each with its paths. The GM steers towards them through the people's roles.
 - **Facts.** A reached beat's and a taken route's `establishes` are settled (a dice route's on a success). The GM is told their sentences, and the endings' effects test them.
