@@ -5,8 +5,9 @@ import { join } from "node:path";
 import { effectiveScene } from "../../shared/scene/graph.ts";
 import { loadScene } from "../../shared/scene/load.ts";
 import { CAMPAIGNS } from "./paths.ts";
+import { mouthpieceRules, twoPartNow } from "../../ai/gm/two-part.ts";
 import { initialGm } from "../../shared/gm/state.ts";
-import { afterReply, asOpen, checkOf, probeTurn, rolesAfter, stateBefore, swapped, transcriptOf, wasTaken, type LoggedCall } from "./probe.ts";
+import { afterReply, asOpen, checkOf, mouthpieceRequest, mouthpieceView, partsOf, probeTurn, rolesAfter, splicedNote, stateBefore, swapped, transcriptOf, wasTaken, type LoggedCall } from "./probe.ts";
 
 /** The co-GM's probe (qa/loop/probe.ts) on a round's call log, here a made-up one of the campaign's clerk. */
 
@@ -96,4 +97,49 @@ test("a reply asked again: the per-turn note's routes as the rebuilt bookkeeping
   const said = String(coGmAsked!.input[0]!.content);
   assert.match(said, /\n\nNim \(player\): \(I look up\) Who was the big one\?\n\nGM: “Big Hobb Mallory,” Kell says\.\n\n# Where the scene is: Stones at a hanged man \[start\]\nIt's turn 5:/);
   assert.match(said, /Character role for Sergeant Agnes Kell:\nStatus: By the hoist\nMental state: Patient\nConversation role: Names the big man\./);
+});
+
+// --- The mouthpiece's probe (QA round qa2-1018's fixes)
+
+test("the note spliced: the round's parts kept, this checkout's made again, the round's out-of-sight list kept in the hidden part, and a closing's directive made again", () => {
+  const recorded = [
+    "Co-GM note, before turn 4\n\nCharacter role for Cob:\nConversation role: The round's.",
+    "## Where the scene is now: Stones at a hanged man\nThe round's stage.\n\n(The scene has been at this point for 3 exchanges.)",
+    "## The world right now\nThe round's world.",
+    "## Hidden from the player right now\nBehind the screen.\nOut of the player's sight:\n- a folded page [ledger-page]\nKept back by the people here, the round's way:\n- Cob: The boots are Prout's.",
+    "## For this reply\nThe round's directive.\n\nThis reply closes the scene: The round's ending. Said there already, so not said again: [Kell] “Noted.”",
+  ].join("\n\n");
+  const made = [
+    "## Where the scene is now: Stones at a hanged man\nThis checkout's stage.",
+    "## The world right now\nThis checkout's world.",
+    "## Hidden from the player right now\nBehind the screen.\nOut of the player's sight:\n- this checkout's thing [thing]\nKept back, this checkout's way:\n- Cob: The boots are Prout's.",
+    "## A new part\nThis checkout's.",
+  ].join("\n\n");
+  const spliced = splicedNote(recorded, made, d => d.replace("The round's ending.", "Made again."));
+  assert.equal(spliced, [
+    "Co-GM note, before turn 4\n\nCharacter role for Cob:\nConversation role: The round's.",
+    "## Where the scene is now: Stones at a hanged man\nThe round's stage.\n\n(The scene has been at this point for 3 exchanges.)",
+    "## The world right now\nThe round's world.",
+    "## Hidden from the player right now\nBehind the screen.\nOut of the player's sight:\n- a folded page [ledger-page]\nKept back, this checkout's way:\n- Cob: The boots are Prout's.",
+    "## A new part\nThis checkout's.",
+    "## For this reply\nThe round's directive.\n\nThis reply closes the scene: Made again. Said there already, so not said again: [Kell] “Noted.”",
+  ].join("\n\n"));
+  assert.deepEqual(partsOf(spliced).map(p => p.slice(0, 12)), ["Co-GM note, ", "## Where the", "## The world", "## Hidden fr", "## A new par", "## For this "]);
+});
+
+test("the mouthpiece's request on a round's turn: as the round sent it, and with this checkout's rules and parts, which are the round's own when nothing has changed", () => {
+  const scene = clerk;
+  const view = mouthpieceView(scene, () => undefined, [], "7", 1, { player: { name: "Nim", concept: "a halfling cutpurse" }, entries: [{ turn: 0, kind: "narration", text: "A stone clangs off the hoist hook." }, { turn: 1, kind: "player", text: "(I wave.) Morning." }] }, "");
+  const note = `Co-GM note, before turn 1\n\nCharacter role for Cob:\nConversation role: Keep the cheek up.\n\n${twoPartNow(scene, view, ["Answer the player."])}`;
+  const instructions = `The user's prompt and the round's prep.\n\n${mouthpieceRules(scene, view).replace("## How to reply", "## How to reply (the round's)")}`;
+  const logged: LoggedCall[] = [{ key: key(1, "reply"), operation: "two-part.reply", request: { instructions, input: [{ role: "system", content: note }, { role: "user", content: "(I wave.) Morning." }] } }];
+  const game = { player: { name: "Nim", concept: "a halfling cutpurse" }, entries: [{ turn: 0, kind: "narration", text: "A stone clangs off the hoist hook." }, { turn: 1, kind: "player", text: "(I wave.) Morning." }] };
+  const before = mouthpieceRequest(scene, () => undefined, logged, "7", 1, game, "before");
+  assert.equal(before.instructions, instructions);
+  assert.equal(before.input[0]!.content, note);
+  const after = mouthpieceRequest(scene, () => undefined, logged, "7", 1, game, "after");
+  assert.equal(after.instructions, `The user's prompt and the round's prep.\n\n${mouthpieceRules(scene, view)}`, "this checkout's rules after the user's prompt");
+  assert.equal(after.input[0]!.content, note, "every part as the round had it, since nothing in this checkout makes it differently");
+  assert.equal(after.mayHold, false);
+  assert.throws(() => mouthpieceRequest(scene, () => undefined, logged, "7", 2, game, "after"), /no mouthpiece call on turn 2/);
 });

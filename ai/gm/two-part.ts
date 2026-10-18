@@ -1,4 +1,4 @@
-// Copied from PR #666's src/runtime/two-part.ts at origin/claude/two-part-gm c749270: FORMAT and SCHEMA (the reply format), routeLine, mouthpieceInstructions, characters, mouthpieceInput with gmText, speak, movedDirective, the wind-down's words (twoPartTurn's), the co-GM's tools (UPDATE_ROLE, MOVE_SCENE, CO_GM_TOOLS), coGmInput and coGm, whole but at the seams docs/two-part-design.md names. It reads a TurnView (gm/view.ts) for the session. Where the scene is, is shared/scene/beats.ts's (its stage, the routes open, a route taken) in place of the beat and its transitions; the prep ({{beats}}) is the scene format's, rendered as the design orders it, in place of beatsBlock; {{characters}} has the cards' whyHere and limits too, and the co-GM's each person's role palette and the clues via them. speak doesn't roll: the check comes back with its five outcomes, and the simulation rolls it; the narration streams through the game's markup (who says each line) as it's written. The per-turn note is twoPartNow, nowNote's copy (brief.ts) with the open routes. The co-GM's moves are beats.ts's takeRoute on a copy of the request's bookkeeping, and its answer is the roles it set and the moves it made, for the simulation to make again. The speakers paragraph is gm.md's, appended after the format. QA round qa1-1018 added what's ours after it: written words read untagged, what the player sees and hears (SEEN), the companion, the checks' outcomes following on from their setup, a closing going on from the last reply, and in the per-turn note what's hidden right now, the names not yet heard with what to call them, and what the player did or thought in brackets; and the narration's names the player hasn't heard are swapped for what they'd call them before it's shown or kept (unheard.ts). The co-GM's tools section, its input and its moves' answers have what QA round qa1-1018 showed they needed (docs/migration-log.md, M2's fixes from it): the turns counted, each cue's outer limit and whether it's overdue, what's true at each ending a route goes to, how to take a route, and a move whose own reason denies it refused. Its input also has the GM's notes on each person on stage from play (docs/notes.ts, the memory the user kept from the old pipeline), so a role reflects the story so far. Since the old pipeline's salvage a talk plays on it too: its reply format has no dice (TALK_FORMAT), the companion's lore is in the people (talk.ts talkLore), and the GM's notes on them are in the per-turn note as well (talkNotes). QA round qa2-1018 added to the co-GM's: endings read first and taken ahead of any cue, a cue into a bad ending waiting on the good and mixed ones (held once in a turn while they're open), a cue due soon felt coming, a discovery reached only once its heart has landed (who it names, by name, and where to find them), the people a revelation names whom nobody has said yet (held once in a turn), and more of the ways a reason denies itself.
+// Copied from PR #666's src/runtime/two-part.ts at origin/claude/two-part-gm c749270: FORMAT and SCHEMA (the reply format), routeLine, mouthpieceInstructions, characters, mouthpieceInput with gmText, speak, movedDirective, the wind-down's words (twoPartTurn's), the co-GM's tools (UPDATE_ROLE, MOVE_SCENE, CO_GM_TOOLS), coGmInput and coGm, whole but at the seams docs/two-part-design.md names. It reads a TurnView (gm/view.ts) for the session. Where the scene is, is shared/scene/beats.ts's (its stage, the routes open, a route taken) in place of the beat and its transitions; the prep ({{beats}}) is the scene format's, rendered as the design orders it, in place of beatsBlock; {{characters}} has the cards' whyHere and limits too, and the co-GM's each person's role palette and the clues via them. speak doesn't roll: the check comes back with its five outcomes, and the simulation rolls it; the narration streams through the game's markup (who says each line) as it's written. The per-turn note is twoPartNow, nowNote's copy (brief.ts) with the open routes. The co-GM's moves are beats.ts's takeRoute on a copy of the request's bookkeeping, and its answer is the roles it set and the moves it made, for the simulation to make again. The speakers paragraph is gm.md's, appended after the format. QA round qa1-1018 added what's ours after it: written words read untagged, what the player sees and hears (SEEN), the companion, the checks' outcomes following on from their setup, a closing going on from the last reply, and in the per-turn note what's hidden right now, the names not yet heard with what to call them, and what the player did or thought in brackets; and the narration's names the player hasn't heard are swapped for what they'd call them before it's shown or kept (unheard.ts). The co-GM's tools section, its input and its moves' answers have what QA round qa1-1018 showed they needed (docs/migration-log.md, M2's fixes from it): the turns counted, each cue's outer limit and whether it's overdue, what's true at each ending a route goes to, how to take a route, and a move whose own reason denies it refused. Its input also has the GM's notes on each person on stage from play (docs/notes.ts, the memory the user kept from the old pipeline), so a role reflects the story so far. Since the old pipeline's salvage a talk plays on it too: its reply format has no dice (TALK_FORMAT), the companion's lore is in the people (talk.ts talkLore), and the GM's notes on them are in the per-turn note as well (talkNotes). QA round qa2-1018 added to the co-GM's: endings read first and taken ahead of any cue, a cue into a bad ending waiting on the good and mixed ones (held once in a turn while they're open), a cue due soon felt coming, a discovery reached only once its heart has landed (who it names, by name, and where to find them), the people a revelation names whom nobody has said yet (held once in a turn), and more of the ways a reason denies itself. QA round qa2-1018 added to what's ours: the check rule's prep that wins over the dice, a setup that stops at the attempt and outcomes that add only what the roll decided, a failure that never puts a required discovery out of reach (said in the format, its holders listed in the per-turn note, and a failure that sends one of them out of the scene swapped for the other failure: inReach), nobody stating their own terms, the player character's body as the player's, the scene kept to its place, the companion's restraint (and the co-GM told to write it into the companion's role every turn: companionRoles), and a closing that plays only what its last reply didn't, where the player is.
 
 import { titleCase } from "../../shared/dice.ts";
 import type { GmState, TwoPartRole } from "../../shared/gm/state.ts";
@@ -8,7 +8,7 @@ import type { CoGmAnswer, Reply, SpokenCheck, TurnCheck } from "../../shared/pro
 import { enteringAt, isDiscovery, isEvent, limitOf, openRoutes, reachedOf, reachedTurns, stageOf, takeRoute, targetsOf, type RouteOutcome } from "../../shared/scene/beats.ts";
 import { presentCast } from "../../shared/scene/graph.ts";
 import { heardIn, namedIn } from "../../shared/scene/names.ts";
-import { SKILLS, type Character, type Exit, type Scene, type SceneRoute, type Skill } from "../../shared/scene/types.ts";
+import { SKILLS, type Beat, type Character, type Exit, type Scene, type SceneRoute, type Skill } from "../../shared/scene/types.ts";
 import { worldView } from "../../shared/world/scene-world.ts";
 import { PHYSICS } from "../../shared/world/systems.ts";
 import { gmNotes } from "../docs/notes.ts";
@@ -22,7 +22,7 @@ import { speechIn } from "./markup.ts";
 import { pronounOf } from "./speakers.ts";
 import { talkLore, talkNotes } from "./talk.ts";
 import type { TurnView } from "./view.ts";
-import { asKnown, unheardOf, type Unheard } from "./unheard.ts";
+import { asKnown, shortOf, unheardOf, type Unheard } from "./unheard.ts";
 import { asWritten, readReply, streamed } from "./voice.ts";
 
 /**
@@ -46,13 +46,15 @@ const FORMAT = `## How to reply
 Reply as JSON with two fields.
 - \`narration\`: what you say to the player this turn, with a blank line between paragraphs as usual.
 - \`check\`: null on most turns. But when the player makes a clear, risky attempt at a turning point, whether it works is for the dice to say, not you: when they try to frighten, persuade, trick or press someone who could go either way (break or bolt, give in or dig in), or try something whose failure would matter (seeing through a lie, a climb, a lock, a close look at something that hides a clue), and the roll would move the scene towards a beat, call for a skill check instead of deciding it yourself. Never for a remark, a compliment or a question: answer those in the story. Where your prep's routes say the dice decide something the player is trying, use that route's skill and DC. Then \`narration\` sets up the attempt and stops before the result, and \`check\` gives the skill, a DC (10 easy, 13 moderate, 15 hard, 18 very hard) and five outcomes. The game rolls the dice with the player's own modifiers, and the player sees your narration, the roll, and the one outcome that came up.
-  Write each outcome as the next words of the reply, carrying straight on from the narration, in the same voice and length as any reply (the characters react, then stop for the player). Each one follows on from the narration as you wrote it and never undoes it: what it had someone say, do or offer stands, so an offer made there is still on the table after a failure, which goes wrong another way (a higher price, a condition, someone interrupting). And each adds what's new: it never repeats what the narration has just said.
-  - major_failure (missed by 5 or more): it goes wrong, with a cost: offence taken, a door shut for now, a wrong impression.
+  What your prep says for certain wins over the dice. Where a path or someone's card says what an approach gets (no dice; what they do for a promise that answers their fear, or for someone they trust; what coin never buys), and the player has made that approach, it gets exactly that, with no check. The dice are only for what your prep leaves open (it could go either way, or a check suits it) or doesn't cover. What it says never works doesn't, with a roll or without: coin offered for a look at Cob's boot gets haggling, never the look. And a check is for what the player has just tried in their turn, never for something you're still waiting for them to say or do, nor for what's already in plain view or already told: what's there to see, they see.
+  The narration before a check stops at the attempt: the player reaching, looking or speaking, and where everyone is as they do. Nothing the roll is for comes before the dice: not what they find, see or hear, not how someone takes it, and, where it's whether anyone notices, nobody looks up, stops or watches their hands before the dice.
+  Write each outcome as the next words of the reply, carrying straight on from the narration, in the same voice and length as any reply (the characters react, then stop for the player). Each one follows on from the narration as you wrote it and never undoes it: what it had someone say, do or offer stands, so an offer made there is still on the table after a failure, which goes wrong another way (a higher price, a condition, someone interrupting). And each says only what the roll decided, once: never what the narration has already said.
+  - major_failure (missed by 5 or more): it goes wrong, with a cost: offence taken, a higher price, a wrong impression, a door shut for now.
   - minor_failure (missed by 1 to 4): no progress, a small complication, and a hint of another way in.
   - barely_passed (made it, by 0 to 2): the next step, with a catch or only part of it.
   - minor_success (beat it by 3 to 6): the next step, cleanly.
   - major_success (beat it by 7 or more): the next step and a little more: the character warms, or a further hook opens.
-  Even a major success gives only what the attempt could earn now: the next step for that character, never the whole of a secret.
+  A failure never puts what the player still needs out of reach: nobody who holds a required discovery leaves, bolts or goes silent for good on a roll (the per-turn note says who holds one), and the way stays open (no, but). Even a major success gives only what the attempt could earn now: the next step for that character, never the whole of a secret.
 - Don't roll or report numbers yourself, and don't ask the player to roll: the check is how you ask.`;
 
 /**
@@ -84,7 +86,14 @@ Your narration is what the player character sees and hears, and nothing they hav
 - Names: until someone says a name aloud where the player can hear it (or the player reads it, or says it), the narration calls that person what the player would. The per-turn note lists who, and what to call them. Someone who knows a name may say it in a line: that's how the player hears it.
 - What's hidden: what's out of the player's sight (in a fist, a pocket or a lining, behind something, behind a door or up in a loft they haven't got into) and what people are keeping back stays out of the narration until the player finds it, or someone shows or tells them of it. Don't name it, say where it is or that it's still hidden, or confirm or deny it from where the player can't see it. A fist that stays shut is a shut fist. Someone's tell can show (eyes going to the water butt, a hand that won't open), never what the tell is about. The per-turn note lists what's hidden right now.
 - The player's words: in their turn, what's in brackets or between asterisks is what their character does or thinks, not what they say aloud. People see what they do, and never hear what they only think, or their reasons: nobody answers, repeats or quotes those.
-- Your notes stay behind the screen. The narration shows what people do and say, never the game's workings in its own words: what a move has or hasn't earned, which lever is the right one, what someone's rules are, what the player should do next. Not "The promise has found the fear.", "rather than taking the decision from you" or "The shilling has bought no permission."`;
+- Your notes stay behind the screen. The narration shows what people do and say, never the game's workings in its own words: what a move has or hasn't earned, which lever is the right one, what someone's rules are, what the player should do next. Not "The promise has found the fear.", "rather than taking the decision from you" or "The shilling has bought no permission."
+- What would win someone over (a promise that answers their fear, a fair hand, a kindness, the right proof) is yours to know from their card, and it shows only in how they behave: what they want, test or haggle over, what they won't do yet. Nobody states their own terms or price unasked, or says their card's words for what would open them ("ask nice and you can look", "sit in, play fair, and tell me what becomes of him"): the player finds out by trying. Show it instead: a hand dealt to them, a look at how they play, a question about what they want with him. Answering an offer the player has made, they can haggle, or say what they're afraid of.
+
+## The player character
+Their body and mind are the player's. Never give them a wound, an ache, tiredness, fear or any other condition that play (a blow that landed, a fall, a spell, a roll) or the rules (the per-turn note's "The player character now") haven't given them, and never have them do, say, feel or go anywhere the player didn't say.
+
+## Where the scene plays
+This scene plays in its place, as your prep's "The place" has it. When the player sets off somewhere else, follow them as far as its edge (out of the door, to the top of the stairs) and stop there: what's at the other end is another scene's, which the story opens when this one ends. Never narrate the way there, arriving, or anything that happens there.`;
 
 const SCHEMA = {
   type: "object", additionalProperties: false, required: ["narration", "check"],
@@ -311,21 +320,50 @@ export function companionsOf(scene: Scene, view: TurnView): Character[] {
 }
 
 /**
+ * How the companion is spoken of: their names, and "she" or "he" with the verb's singular, or "they"
+ * with its plural (several, or one whose card doesn't say).
+ */
+function companionWords(who: Character[]) {
+  const one = who.length === 1 ? pronounOf([who[0]!.name, who[0]!.look].join(". ")) : undefined;
+  const [they, them, their, theirs] = one === "she" ? ["she", "her", "her", "hers"] : one === "he" ? ["he", "him", "his", "his"] : ["they", "them", "their", "theirs"];
+  return { names: who.map(c => c.name).join(" and "), they, They: they[0]!.toUpperCase() + they.slice(1), them, their, theirs, v: (singular: string, plural: string) => (one ? singular : plural) };
+}
+
+/**
  * The companion, as the mouthpiece is told to play them (QA round qa1-1018: Kell examined the body
  * and read out the evidence while the player was still up in the loft, and made the whole case in a
- * closing): it's the player's case, so they answer when asked and test a case once.
+ * closing; QA round qa2-1018: she drew the dragging from the heels, said what the case still needed
+ * ("I still need a lead placing someone here"), answered Hobb's question to the player with her own
+ * chair, kept the page the player had said not to take, and tested a case nobody had put to her).
  */
 function companionNote(scene: Scene, view: TurnView): string | undefined {
   const who = companionsOf(scene, view);
   if (!who.length) return undefined;
-  const one = who.length === 1 ? pronounOf([who[0]!.name, who[0]!.look].join(". ")) : undefined;
-  const names = who.map(c => c.name).join(" and ");
-  return `## The companion\n${one
-    ? `${names} goes with the player, and it's the player's case, not ${one === "she" ? "hers" : "his"}: ${one} never makes their case for them, examines or searches anything for them unasked, draws their conclusions, or chooses their next step or where they go, or hints at it. ${one === "she" ? "She" : "He"} answers when asked, does what ${one}'s asked, and tests a case once, at its weakest point.`
-    : `${names} ${who.length === 1 ? "goes" : "go"} with the player, and it's the player's case, not theirs: they never make the player's case for them, examine or search anything for them unasked, draw their conclusions, or choose their next step or where they go, or hint at it. They answer when asked, do what they're asked, and test a case once, at its weakest point.`}`;
+  const w = companionWords(who);
+  return `## The companion
+${w.names} ${w.v("goes", "go")} with the player, and it's the player's case, not ${w.theirs}:
+- What ${w.they} ${w.v("sees", "see")}, ${w.they} ${w.v("says", "say")} plainly when asked and ${w.v("writes", "write")} down, and ${w.v("stops", "stop")} there: what it means (murder or not, who did it, where it leads) and what the case still needs are the player's to say. Never "That tells us…", "That establishes…" or "I still need…".
+- A question put to the player is the player's to answer: ${w.they} never ${w.v("answers", "answer")} it for them, or ${w.v("makes", "make")} an offer or a promise in their place.
+- The player's word stands: a promise or a condition they've made ("don't take it", "his name stays out"), ${w.they} ${w.v("keeps", "keep")}, and ${w.they} never ${w.v("overrides", "override")} their choice.
+- ${w.They} ${w.v("tests", "test")} a case once, at its weakest point, when the player puts it to ${w.them}, never before.
+- ${w.They} never ${w.v("examines", "examine")} or ${w.v("searches", "search")} anything for them unasked, or ${w.v("chooses", "choose")} their next step or where they go, or ${w.v("hints", "hint")} at it. ${w.They} ${w.v("does", "do")} what ${w.they}${w.v("'s", "'re")} asked.`;
 }
 
-/** What's ours after the user's prompt: the reply format (a talk's has no dice), who says each line, what the player sees and hears, and the companion. */
+/**
+ * The companion, as the co-GM is told to write their role (QA round qa2-1018: its role for Kell had
+ * her "state plainly that the cord mark and blow show Prout was struck and strangled" and "still
+ * need a concrete lead placing someone at the scene", and the mouthpiece said both): ours, before its
+ * tools section, so her role every turn carries what she holds back.
+ */
+export function companionRoles(scene: Scene, view: TurnView): string | undefined {
+  const who = companionsOf(scene, view);
+  if (!who.length) return undefined;
+  const w = companionWords(who);
+  return `## The companion
+${who.map(c => `${c.name} [${c.id}]`).join(" and ")} ${w.v("goes", "go")} with the player, and it's the player's case. Every turn, ${w.their} conversation role says what ${w.they} ${w.v("holds", "hold")} back as well as what ${w.they} ${w.v("does", "do")}. What ${w.they} ${w.v("sees", "see")}, ${w.they} ${w.v("says", "say")} when asked and ${w.v("writes", "write")} down; what it means (murder or not, who did it, where it leads), what the case or an ending still needs, the answer to a question put to the player, and anything that would override the player's word, ${w.they} ${w.v("holds", "hold")} back for the player. Never put a conclusion, what the case still needs or the player's next step in ${w.their} status, mental state or role: the GM voices what it's given.`;
+}
+
+/** What's ours after the user's prompt: the reply format (a talk's has no dice), who says each line, what the player sees and hears (and the player character, and where the scene plays), and the companion. */
 export function mouthpieceRules(scene: Scene, view: TurnView): string {
   const companion = companionNote(scene, view);
   return [scene.companion ? TALK_FORMAT : FORMAT, SPEAKERS, SEEN, ...(companion ? [companion] : [])].join("\n\n");
@@ -358,7 +396,7 @@ export function twoPartNow(scene: Scene, view: TurnView, directive: string[]): s
     ...[talkNotes(scene, view)].filter((m): m is string => !!m),
     ...(playerNow(view) ? [playerNow(view)!] : []),
     ...(view.world ? [`## The world right now\nWhere everyone and everything is, and what state it's in (ids in brackets). Keep to it, since it's updated after every reply: people and things are where it says, and what's destroyed, burning or gone stays that way until the story changes it. Details it doesn't list are yours to invent, consistent with it. It's as things stood before the player's turn: what the player does in it (shutting a book and buttoning it into their coat, picking something up, crossing the room) has happened by your reply, and the world catches up after it. It's the truth behind the screen, not what the player has seen: of what people carry, the player sees what's out in the open (worn, in hand, held up), and of the rest (in a pocket, a fist, a lining, a box) they know only what they've seen or been told.\n${PHYSICS}\n\n${worldView(view.world)}`] : []),
-    ...[hiddenNote(scene, view), namesNote(unheardOf(scene, view)), asidesNote(view)].filter((n): n is string => !!n),
+    ...[hiddenNote(scene, view), holdersNote(scene, view), namesNote(unheardOf(scene, view)), asidesNote(view)].filter((n): n is string => !!n),
     ...(directive.length ? [`## For this reply\n${directive.join("\n\n")}`] : []),
   ];
   return parts.join("\n\n");
@@ -381,9 +419,62 @@ export function hiddenNote(scene: Scene, view: TurnView): string | undefined {
     "## Hidden from the player right now",
     "Behind the screen until the player finds it, or someone shows or tells them of it in play (the transcript says when: from then on it's theirs). Until then the narration never names it, says where it is or that it's still hidden, or confirms or denies it from where the player can't see it.",
     ...(unseen.length ? [`Out of the player's sight:\n${unseen.map(e => `- ${e.name} [${e.id}]`).join("\n")}`] : []),
-    ...(keeping.length ? [`Kept back by the people here, until it comes out in their own words, when it's earned (their cards have the whole of it):\n${keeping.map(c => `- ${c.name}: ${c.secrets!.filter(s => !isTell(s)).map(firstSentence).join(" ")}`).join("\n")}`] : []),
+    // QA round qa2-1018: "until it comes out in their own words, when it's earned" read as theirs to say, and people recited what would open them.
+    ...(keeping.length ? [`What the people here keep back, as you know it (their cards have the whole of it, and what would bring each of them round). It's your knowledge, not theirs to explain: until the player has earned it, it shows only in how they behave and in their tells, and nobody says what would earn it.\n${keeping.map(c => `- ${c.name}: ${c.secrets!.filter(s => !isTell(s)).map(firstSentence).join(" ")}`).join("\n")}`] : []),
     ...(tells.length ? [`What shows of it is their tells, now and then when the moment suits (not every reply), never what a tell is about: a shut fist stays a shut fist, and a glance goes towards a place, not to the hidden thing there.\n${tells.join("\n")}`] : []),
   ].join("\n");
+}
+
+/**
+ * Who here holds a required discovery the player hasn't reached (a path of it via them), so a
+ * check's outcomes can be read against them (QA round qa2-1018, H4: a failed Persuasion roll had
+ * Cob bolt with the scene's required lead, and it ran out of turns without it). Not a reason to
+ * hand it over: it still comes out as it's earned.
+ */
+export function holdersNote(scene: Scene, view: TurnView): string | undefined {
+  const needed = heldHere(scene, view);
+  if (!needed.length) return undefined;
+  const names = (who: Character[]) => who.map(c => c.name).join(who.length === 2 ? " and " : ", ");
+  return `## Who holds what the player still needs\n${needed.map(n => `- ${n.b.title} [${n.b.id}], which the scene can't end well without: ${names(n.who)}`).join("\n")}\nNo check's outcome puts it out of reach: none of them leaves, bolts or goes silent for good on a roll. A failure costs something else (a higher price, a condition, a wrong impression, time), and the way to it stays open. That's so nothing closes it off, not a reason to hand it over: it still comes out only as it's earned.`;
+}
+
+/** Each required discovery not reached yet, and who here holds it (a path of it via them): holdersNote's and inReach's. */
+function heldHere(scene: Scene, view: TurnView): Array<{ b: Beat; who: Character[] }> {
+  const present = presentCast(scene, view);
+  return targetsOf(scene, view).filter(b => b.required).map(b => ({ b, who: present.filter(c => b.paths?.some(p => p.via === c.id)) })).filter(n => n.who.length);
+}
+
+/** Words that send someone out of the scene, not across it: bolting, fleeing, off through the gate. */
+const OFF = /\b(?:bolt(?:s|ed)?|flee(?:s)?|fled|scarper(?:s|ed)?|legs? it|(?:is|are) gone|(?:runs?|ran|dash(?:es|ed)?|darts?|darted|races?|raced|hurr(?:ies|ied)) (?:off|away|out)|(?:slips?|slipped|makes?|made|takes?|took) off|slip(?:s|ped)? away|(?:runs?|ran|dash(?:es|ed)?|darts?|races?|heads?|makes?) for the (?:gate|door|lane|stairs|street)|(?:through|out of) the (?:gate|door)|over the wall|leaves? (?:the (?:yard|room|house|tavern)|without))\b/gi;
+/** A departure said not to happen ("they do not bolt", "neither leaves the yard"). */
+const NOT_OFF = /\b(?:not|never|no|neither|nor|won't|don't|doesn't|didn't|isn't|aren't)\s+(?:\w+\s+)?$/i;
+const goesOff = (sentence: string) => [...sentence.matchAll(OFF)].some(m => !NOT_OFF.test(sentence.slice(0, m.index)));
+
+/**
+ * A check's outcomes read against who holds what the player still needs (QA round qa2-1018, H4:
+ * on a failed Persuasion roll Cob "recoils and bolts with Moll through the gate", and the scene ran
+ * out of turns without its required lead): a failure that sends one of them out of the scene, by
+ * name, by what the player calls them, or as "he" or "she" just after, is the other failure instead
+ * when that one keeps them. When both do, they stand: the format and the per-turn note have said it.
+ */
+export function inReach(scene: Scene, view: TurnView, outcomes: Record<Band, string>): Record<Band, string> {
+  const who = [...new Set(heldHere(scene, view).flatMap(n => n.who))];
+  if (!who.length) return outcomes;
+  const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const words = who.flatMap(c => [...c.name.split(/\s+/).filter(w => w.length >= 3 && /^\p{Lu}/u.test(w) && !/^(?:Sergeant|Corporal|Master|Mister|Big|Old|Young|Little|Captain|Marshal|King|Queen)$/.test(w)), ...(c.aka ?? [])].map(w => new RegExp(`\\b${escape(w)}\\b`)).concat(c.called ? [c.called, shortOf(c.called)].map(w => new RegExp(`\\b${escape(w)}\\b`, "i")) : []));
+  const sendsAway = (text: string) => {
+    let named = false;
+    for (const sentence of text.replace(/[“"][^”"]*[”"]/g, "…").split(/(?<=[.!?…])\s+/)) {
+      const here = words.some(w => w.test(sentence));
+      if (goesOff(sentence) && (here || (named && /\b(?:he|she|they)\b/i.test(sentence)))) return true;
+      named = here;
+    }
+    return false;
+  };
+  const major = sendsAway(outcomes.major_failure), minor = sendsAway(outcomes.minor_failure);
+  if (major && !minor) return { ...outcomes, major_failure: outcomes.minor_failure };
+  if (minor && !major) return { ...outcomes, minor_failure: outcomes.major_failure };
+  return outcomes;
 }
 
 /** A card's secret that's what shows of the rest ("Shows: … Torn: … Opens: … First: …"). */
@@ -506,9 +597,10 @@ export async function speak(scene: Scene, view: TurnView, directive: string[], h
   const narration = asKnown(out.narration, unheard);
   // An outcome follows the narration: a name said aloud there has been heard.
   const after = unheard.filter(u => !narration.heard.includes(u.id));
-  const check = dice && out.check && SKILLS.includes(out.check.skill) && Number.isInteger(out.check.dc) && BANDS.every(b => typeof out.check!.outcomes?.[b] === "string")
-    ? { skill: out.check.skill, dc: out.check.dc, outcomes: Object.fromEntries(BANDS.map(b => [b, said(asKnown(out.check!.outcomes[b], after).text)])) as Record<Band, Reply> }
-    : undefined;
+  const whole = dice && out.check && SKILLS.includes(out.check.skill) && Number.isInteger(out.check.dc) && BANDS.every(b => typeof out.check!.outcomes?.[b] === "string");
+  // Each outcome's names as the player knows them, and its failures kept from sending away whoever holds what the player still needs.
+  const outcomes = whole ? inReach(scene, view, Object.fromEntries(BANDS.map(b => [b, asKnown(out.check!.outcomes[b], after).text])) as Record<Band, string>) : undefined;
+  const check = whole && outcomes ? { skill: out.check!.skill, dc: out.check!.dc, outcomes: Object.fromEntries(BANDS.map(b => [b, said(outcomes[b])])) as Record<Band, Reply> } : undefined;
   return { narration: said(narration.text), ...(check ? { check } : {}), closes: out.closes !== false, costUsd: result.costUsd, firstTextMs: result.firstTextMs };
 }
 
@@ -568,14 +660,21 @@ export function movedDirective(scene: Scene, view: TurnView): string | undefined
  * its ruling twice).
  */
 export function closingDirective(exit: Exit, mayHold: boolean, said: string[] = []): string {
-  const close = `bring the scene to a close in a few sentences, landing on a moment that belongs to the player. What this ending should feel like: ${exit.closing} Don't narrate beyond the ending into what comes next.${exit.kind === "combat" ? FIGHT_CLOSE : ""}`;
-  const goOn = `${GO_ON}${said.length ? ` Said there already, so not said again: ${said.join(" ")}` : ""}`;
+  const done = `${GO_ON}${said.length ? ` Said there already, so not said again, in those words or others: ${said.join(" ")}` : ""}`;
+  const close = `bring the scene to a close in a few sentences, where the player is now, landing on a moment that belongs to the player. ${done} Of what this ending should feel like, play only what your last reply didn't: ${exit.closing}${exit.kind === "combat" ? FIGHT_CLOSE : ""}`;
   return mayHold
-    ? `The scene is ending: ${exit.outcome} First answer what the player just said or did. If they've just started something this ending has to answer first (a challenge, a confrontation, a new move that would change how it ends), play that and set \`closes\` to false: the scene closes on your next reply. Otherwise ${close} and set \`closes\` to true. ${goOn}`
-    : `This reply closes the scene: ${exit.outcome} First answer what the player just said or did. Then ${close} ${goOn}`;
+    ? `The scene is ending: ${exit.outcome} First answer what the player just said or did. If they've just started something this ending has to answer first (a challenge, a confrontation, a new move that would change how it ends), play that and set \`closes\` to false: the scene closes on your next reply. Otherwise ${close} Set \`closes\` to true. ${STAY}`
+    : `This reply closes the scene: ${exit.outcome} First answer what the player just said or did. Then ${close} ${STAY}`;
 }
 
-const GO_ON = "Your last reply's moment has happened (an arrest made, a ruling given, words said), even where it's what this ending should feel like: don't stage it again or say it again, but go on from where it ended.";
+/**
+ * Where a closing stays (QA round qa2-1018: the Heron's put the player out on the wharf mid-arrest
+ * because its words leave them there, the Rat's walked on to the Heron's grille and through its door,
+ * and the clerk's had Kell give Tull his order again because its words ask for it).
+ */
+const STAY = "Those words are how the ending should feel, not a script: where they ask for something your last reply already did (an order given, an arrest made), leave it out, and where they put the player somewhere they aren't (outside, on the wharf, at a door), close where the player is. Don't move the player anywhere they haven't gone themselves, and don't narrate beyond the ending: not the way to the next place, through a door they haven't gone through, arriving there, or anything that happens there.";
+
+const GO_ON = "Your last reply's moment has happened (an arrest made, a ruling given, an order given, words said), even where it's what this ending should feel like: don't stage it again or say it again, but go on from where it ended.";
 
 /** The lines said in the last reply, by who said them as the player knows them ([Kell] “Noted.”), each at most 200 characters: a closing doesn't say them again. */
 export function saidLast(scene: Scene, view: TurnView): string[] {
@@ -722,7 +821,8 @@ function rolesBody(scene: Scene, roles: Record<string, TwoPartRole>): string {
 }
 
 export function coGmInstructions(scene: Scene, view: TurnView): string {
-  return `${prompt("two-part-co-gm", { tone: tone(), beats: prepOf(scene, view, { coGm: true }), characters: charactersOf(scene, view, { coGm: true }) })}\n\n${CO_GM_TOOLS}`;
+  const companion = companionRoles(scene, view);
+  return `${prompt("two-part-co-gm", { tone: tone(), beats: prepOf(scene, view, { coGm: true }), characters: charactersOf(scene, view, { coGm: true }) })}\n\n${companion ? `${companion}\n\n` : ""}${CO_GM_TOOLS}`;
 }
 
 /**

@@ -12,7 +12,9 @@ import type { TurnView } from "./view.ts";
  * heard for what they'd call that person ("Moll snorts." is "The girl in the shawl snorts."), in
  * the narration's own words only. A speaker's tag ([Moll]) is for the screen and stays as written,
  * and a name inside a line said aloud (or words quoted as written) stays too: someone saying it is
- * how the player hears it, and from there on the reply may use it.
+ * how the player hears it, and from there on the reply may use it. Since QA round qa2-1018 a cast
+ * group's members who go by a name inside what they are (the talking Crake, the silent Crake) are
+ * in the pass too, the name swapped where it stands for what they are.
  */
 
 /** Someone the player hasn't heard named, and what the narration calls them instead. */
@@ -28,6 +30,13 @@ export interface Unheard {
   short: string;
   /** In the place now (the per-turn note lists those). */
   here: boolean;
+  /**
+   * A group's member who goes by what they are with a name inside it ("the talking Crake"): the
+   * name ("Crake") is what the player hasn't heard, and the pass swaps it where it stands for what
+   * they are (`kind`, "bruiser"), so "the talking Crake" is "the talking bruiser", "the Crakes" "the
+   * bruisers" and "Crake" alone "the bruiser".
+   */
+  word?: { name: string; kind: string };
 }
 
 /** Titles a name can come with ("Master Sallow", "big Hobb", "Mr. Scrope"): taken with it, since what they're called says who they are. */
@@ -45,11 +54,41 @@ const headOf = (called: string): string => shortOf(called).split(/\s+/).at(-1)!.
  * Heron's mastiff, Duchess): what it is, from its description ("A vast, elderly brindle mastiff…"
  * is "the mastiff"), else what kind of thing it is.
  */
-const KINDS = "mastiff|hound|dog|cur|terrier|lurcher|cat|horse|mare|pony|mule|donkey|goat|pig|sow|boar|ox|cow|bull|rat|raven|crow|magpie|parrot|cockerel|goose|hen|bear|wolf|fox|man|woman|boy|girl|child|lad|lass|gentleman|lady|porter|clerk|watchman|sailor|bargee|soldier";
+const KINDS = "mastiff|hound|dog|cur|terrier|lurcher|cat|horse|mare|pony|mule|donkey|goat|pig|sow|boar|ox|cow|bull|rat|raven|crow|magpie|parrot|cockerel|goose|hen|bear|wolf|fox|man|woman|boy|girl|child|lad|lass|gentleman|lady|porter|clerk|watchman|sailor|bargee|soldier|bruiser|thug|ruffian|guard|bodyguard|footpad";
+/** What someone is, from the first sentence of how they look ("A vast, elderly brindle mastiff…", "An enormous river-bruiser…"). */
+const kindIn = (description: string | undefined) => new RegExp(`\\b(${KINDS})\\b`).exec((description ?? "").split(/(?<=[.;:])\s/)[0]!.toLowerCase())?.[1];
 function calledFor(e: Entity): string {
-  const first = (e.description ?? "").split(/(?<=[.;:])\s/)[0]!.toLowerCase();
-  const kind = new RegExp(`\\b(${KINDS})\\b`).exec(first)?.[1];
-  return `the ${kind ?? (e.kind === "creature" ? "animal" : "stranger")}`;
+  return `the ${kindIn(e.description) ?? (e.kind === "creature" ? "animal" : "stranger")}`;
+}
+
+/** The words of a member's name that are a name (capitalised, not a title, not the article it starts with): "Crake" in "the talking Crake". */
+const namesInside = (name: string) => name.split(/\s+/).slice(/^(?:The|A|An)$/.test(name.split(/\s+/)[0]!) ? 1 : 0).filter(w => /^\p{Lu}/u.test(w) && !TITLE_WORD.test(w)).map(w => w.replace(/[^\p{L}'’-]/gu, ""));
+
+/**
+ * A cast group's members who go by a name inside what they are ("the talking Crake", "the silent
+ * Crake": QA round qa2-1018 had the narration name the Crakes before anyone said it), by id: what
+ * to call them, their name's words swapped for what they are (from their look, else from another
+ * member's who shares the name, else "man"), the name, what they are, and whose group it is.
+ */
+export function namedMembers(scene: Scene): Map<string, { name: string; called: string; word: { name: string; kind: string }; leader: string }> {
+  const members = scene.cast.flatMap(c => (c.members ?? []).map(m => ({ ...m, leader: c.id })));
+  const kinds = new Map<string, string>();
+  for (const m of members) { const kind = kindIn(m.look); if (kind) for (const w of namesInside(m.name)) if (!kinds.has(w)) kinds.set(w, kind); }
+  return new Map(members.flatMap(m => {
+    const words = namesInside(m.name).filter(w => w.length >= 3);
+    if (!words.length) return [];
+    const kind = kindIn(m.look) ?? kinds.get(words[0]!) ?? "man";
+    const called = words.reduce((s, w) => s.replace(new RegExp(`\\b${escape(w)}\\b`, "u"), kind), /^(?:the|a|an)\s/i.test(m.name) ? m.name : `the ${m.name}`).replace(/^The\b/, "the");
+    return [[m.id, { name: m.name, called, word: { name: words.join(" "), kind }, leader: m.leader }] as const];
+  }));
+}
+
+/** The named members whose name the player hasn't heard, here while their leader is and they haven't gone. */
+function membersOf(scene: Scene, view: TurnView, here: Set<string>, heard: string): Unheard[] {
+  return [...namedMembers(scene)].filter(([, m]) => !namedIn({ name: m.word.name }, heard)).map(([id, m]) => {
+    const gone = view.world?.entities[id]?.states.includes("gone");
+    return { id, name: m.name, called: m.called, short: m.called, here: here.has(m.leader) && !gone, word: m.word };
+  });
 }
 
 /** A name the place gives someone off the cards, as a name ("Duchess"), not a description ("the re-sacking gang"). */
@@ -58,8 +97,9 @@ const properName = (name: string) => /^[A-Z]/.test(name) && !/^(?:The|A|An|Some|
 /**
  * Everyone whose name the player hasn't heard (in anything said or shown so far, their own turns
  * too), with what to call them: the scene's cast with a `called` (here or not: a name the narration
- * drops for someone away is theirs to hear first too), and whoever of the place's people goes by a
- * name and has no card (a dog called Duchess), what they are.
+ * drops for someone away is theirs to hear first too), whoever of the place's people goes by a
+ * name and has no card (a dog called Duchess), what they are, and a group's members who go by a name
+ * inside what they are (the talking Crake), with the name swapped for what they are.
  */
 export function unheardOf(scene: Scene, view: TurnView): Unheard[] {
   const known = knownCast(scene, view);
@@ -69,11 +109,11 @@ export function unheardOf(scene: Scene, view: TurnView): Unheard[] {
   const others = Object.values(view.world?.entities ?? {})
     .filter(e => (e.kind === "creature" || e.kind === "person") && !e.player && !e.cast && !scene.cast.some(c => c.id === e.id) && !e.states.includes("gone") && properName(e.name) && !namedIn({ name: e.name }, heard))
     .map(e => ({ id: e.id, name: e.name, called: calledFor(e), here: true }));
-  const all = [...cast, ...others];
+  const all: Array<Omit<Unheard, "short">> = [...cast, ...others, ...membersOf(scene, view, here, heard)];
   // A short form two of them would share ("the man", "the clerk") isn't theirs: they keep their whole one.
   const heads = new Map<string, number>();
   for (const u of all) heads.set(headOf(u.called), (heads.get(headOf(u.called)) ?? 0) + 1);
-  return all.map(u => ({ ...u, short: heads.get(headOf(u.called))! > 1 ? u.called : shortOf(u.called) }));
+  return all.map(u => ({ ...u, short: heads.get(headOf(u.called))! > 1 ? u.called : shortOf(u.called) } as Unheard));
 }
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -151,7 +191,9 @@ const sentenceStart = (before: string) => { const b = before.replace(/[ \t]+$/, 
  * the short way ("the girl", "the girl's fist"); a capital at a sentence's start; a title taken with
  * the name ("Master Sallow" is "the gentleman with the silver-topped cane"). Lines said and words
  * quoted keep their names, and a name in one is heard from there on (`heard`: their ids); a tag
- * keeps its name too, but nobody hears a tag. `partial`: the reply so far, as it streams: whatever
+ * keeps its name too, but nobody hears a tag. A group member's name inside what they are is swapped
+ * where it stands for what they are ("the silent Crake" is "the silent bruiser", "the Crakes" "the
+ * bruisers", "Crake" alone "the bruiser"). `partial`: the reply so far, as it streams: whatever
  * might yet be a name, or a title before one, waits for the next words, so what's shown only grows.
  */
 export function asKnown(raw: string, unheard: Unheard[], options: { partial?: boolean } = {}): { text: string; heard: string[] } {
@@ -160,31 +202,49 @@ export function asKnown(raw: string, unheard: Unheard[], options: { partial?: bo
   // As it streams: the last word (it may grow into a name, or own something), any titles just before it, and a quote mark that may open a quotation, wait.
   const tail = partial ? new RegExp(`(?:(?:${HONORIFIC}|[A-Z]\\.)\\s+)*[\\p{L}'’‘.-]*$`, "u").exec(raw)!.index : raw.length;
   const { pieces, held } = piecesOf(raw.slice(0, tail), partial);
-  const people = unheard.map(u => ({ u, runs: runsOf(u) })).filter(p => p.runs.length);
+  const people = unheard.map(u => ({ u, runs: runsOf(u.word ? { name: u.word.name } : u) })).filter(p => p.runs.length);
   if (!people.length) return { text: raw.slice(0, Math.min(tail, held)), heard: [] };
-  const named = new RegExp(`(?<![\\p{L}\\p{N}'’-])(?:(?:${HONORIFIC}|[A-Z]\\.)\\s+)*(${people.map(p => wordsOf(p.runs)).join("|")})((?:['’]s|(?<=s)['’](?!\\p{L}))?)(?![\\p{L}\\p{N}-])`, "gu");
+  const plain = people.filter(p => !p.u.word), members = people.filter(p => p.u.word);
+  const OWNS = "((?:['’]s|(?<=s)['’](?!\\p{L}))?)";
+  const named = plain.length ? new RegExp(`(?<![\\p{L}\\p{N}'’-])(?:(?:${HONORIFIC}|[A-Z]\\.)\\s+)*(${plain.map(p => wordsOf(p.runs)).join("|")})${OWNS}(?![\\p{L}\\p{N}-])`, "gu") : undefined;
+  // A member's name may be plural ("the Crakes") as well as owning something.
+  const member = members.length ? new RegExp(`(?<![\\p{L}\\p{N}'’-])(${members.map(p => wordsOf(p.runs)).join("|")})(s?)${OWNS}(?![\\p{L}\\p{N}-])`, "gu") : undefined;
   const heard = new Set<string>();
   const mentioned = new Set<string>();
-  const whose = (word: string) => people.find(p => p.runs.some(r => new RegExp(`^${r.split(" ").map(escape).join("\\s+")}$`).test(word)))?.u;
+  const whose = (word: string, among: typeof people) => among.find(p => p.runs.some(r => new RegExp(`^${r.split(" ").map(escape).join("\\s+")}$`).test(word)))?.u;
   let out = "";
   for (const piece of pieces) {
     if (piece.kind !== "narration") {
       // Said aloud, or written and read: heard from here on (a tag is for the screen, never heard).
-      if (piece.kind === "quoted") for (const p of people) if (new RegExp(`(?<![\\p{L}])(?:${wordsOf(p.runs)})(?![\\p{L}])`, "u").test(piece.text)) heard.add(p.u.id);
+      if (piece.kind === "quoted") for (const p of people) if (new RegExp(`(?<![\\p{L}])(?:${wordsOf(p.runs)})${p.u.word ? "s?" : ""}(?![\\p{L}])`, "u").test(piece.text)) heard.add(p.u.id);
       out += piece.text;
       continue;
     }
+    // Both kinds of name where they stand, in order, an overlap left to the first.
+    const hits = [...(named ? [...piece.text.matchAll(named)].map(m => ({ m, member: false })) : []), ...(member ? [...piece.text.matchAll(member)].map(m => ({ m, member: true })) : [])]
+      .sort((a, b) => a.m.index - b.m.index);
     let last = 0;
-    for (const m of piece.text.matchAll(named)) {
-      const u = whose(m[1]!);
+    for (const { m, member: isMember } of hits) {
+      if (m.index < last) continue;
+      const u = whose(m[1]!, isMember ? members : plain);
       if (!u || heard.has(u.id)) continue;
       const before = out + piece.text.slice(last, m.index);
-      // What they own is theirs by the short way, with its apostrophe as written ("Duchess’ bowl" is "the mastiff’s bowl").
-      const owns = m[2] ? `${m[2][0]}s` : "";
-      let name = owns || mentioned.has(u.id) ? u.short : u.called;
+      let name: string, owns: string;
+      if (isMember) {
+        const plural = !!m[2];
+        // Plural, it owns with the apostrophe alone ("the bruisers’ cudgels").
+        owns = m[3] ? (plural ? m[3][0]! : `${m[3][0]}s`) : "";
+        const kind = plural ? pluralOf(u.word!.kind) : u.word!.kind;
+        // After "the", "his" or "one" (and a word or two), the name is the noun of what's written: "the silent Crake" is "the silent bruiser".
+        name = DETERMINED.test(before) ? kind : `the ${kind}`;
+      } else {
+        // What they own is theirs by the short way, with its apostrophe as written ("Duchess’ bowl" is "the mastiff’s bowl").
+        owns = m[2] ? `${m[2][0]}s` : "";
+        name = owns || mentioned.has(u.id) ? u.short : u.called;
+        // "the Master Sallow" isn't "the the gentleman…".
+        if (/\bthe\s+$/i.test(before) && /^the\s/i.test(name)) name = name.replace(/^the\s+/i, "");
+      }
       mentioned.add(u.id);
-      // "the Master Sallow" isn't "the the gentleman…".
-      if (/\bthe\s+$/i.test(before) && /^the\s/i.test(name)) name = name.replace(/^the\s+/i, "");
       if (sentenceStart(before)) name = name[0]!.toUpperCase() + name.slice(1);
       out = before + name + owns;
       last = m.index + m[0].length;
@@ -193,3 +253,9 @@ export function asKnown(raw: string, unheard: Unheard[], options: { partial?: bo
   }
   return { text: out, heard: [...heard] };
 }
+
+/** Words before a name that make it the noun of what's written ("the silent ", "One ", "his two ", "Sallow’s "): a determiner, and a word at most between. */
+const DETERMINED = /(?:\b(?:the|a|an|one|his|her|their|its|our|your|both|two|three|another|each|either|neither|that|this|these|those)|\p{L}+(?<!\b(?:it|that|there|here|he|she|what|who|where))['’]s)\s+(?:[\p{L}’'-]+\s+)?$/iu;
+
+/** More than one of what someone is: "bruisers", "men", "watchmen". */
+const pluralOf = (kind: string) => (/man$/.test(kind) ? kind.replace(/man$/, "men") : kind === "child" ? "children" : /(?:s|x|z|ch|sh)$/.test(kind) ? `${kind}es` : `${kind}s`);
