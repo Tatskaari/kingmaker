@@ -1,1 +1,1 @@
-Mark this reply up for the screen as your instructions say: [who] before every spoken line; when someone refuses, bristles or comes round for a reason, their line in round brackets with a why note; and a know or a you on the words that need one.
+Mark this reply up for the screen as your instructions say: [who] before every spoken line.

@@ -15,12 +15,16 @@ import { validateScene } from "./types.ts";
  * or the vault it's edited in (the plugin).
  */
 
-/** Where a problem is: the scene (a field of it, when it's one field's), a node, a route, or a person of the cast. */
+/**
+ * Where a problem is: the scene, a node, a route, or a person of the cast, and the part of it when it's
+ * one part's (`field`, a dot path into it: "closing", "paths.1.clue" for the second path's clue,
+ * "effects.0" for the first effect).
+ */
 export type ProblemAt =
   | { kind: "scene"; field?: string }
-  | { kind: "node"; id: string }
-  | { kind: "route"; id: string }
-  | { kind: "cast"; id: string };
+  | { kind: "node"; id: string; field?: string }
+  | { kind: "route"; id: string; field?: string }
+  | { kind: "cast"; id: string; field?: string };
 
 /** What's wrong (a sentence, as the campaign check prints it after the file's name), and where. */
 export interface SceneProblem { message: string; at: ProblemAt }
@@ -87,9 +91,9 @@ export function sceneStoryProblems(doc: SceneDocument, sceneIds: ReadonlySet<str
 type Scene = { doc: SceneDocument; context: SceneContext; p: (message: string, at: ProblemAt) => void };
 
 const field = (name?: string): ProblemAt => (name === undefined ? { kind: "scene" } : { kind: "scene", field: name });
-const node = (id: string): ProblemAt => ({ kind: "node", id });
-const route = (id: string): ProblemAt => ({ kind: "route", id });
-const person = (id: string): ProblemAt => ({ kind: "cast", id });
+const node = (id: string, part?: string): ProblemAt => (part === undefined ? { kind: "node", id } : { kind: "node", id, field: part });
+const route = (id: string, part?: string): ProblemAt => (part === undefined ? { kind: "route", id } : { kind: "route", id, field: part });
+const person = (id: string, part?: string): ProblemAt => (part === undefined ? { kind: "cast", id } : { kind: "cast", id, field: part });
 
 /** A slug, as the format's ids are. */
 export const SLUG = /^[a-z0-9][a-z0-9-]*$/;
@@ -100,9 +104,9 @@ function idProblems(key: string, { doc, context, p }: Scene): void {
   if (doc.id !== key) p(`its id ${doc.id} isn't its file's name`, field("id"));
   const ids = [
     ["scene", [doc.id], () => field("id")],
-    ["node", doc.nodes.map(n => n.id), node],
-    ["route", doc.edges.map(e => e.id), route],
-    ["cast", doc.cast.map(c => c.id), person],
+    ["node", doc.nodes.map(n => n.id), (id: string) => node(id, "id")],
+    ["route", doc.edges.map(e => e.id), (id: string) => route(id, "id")],
+    ["cast", doc.cast.map(c => c.id), (id: string) => person(id, "id")],
   ] as const;
   for (const [what, list, at] of ids) {
     for (const id of list) if (!SLUG.test(id) && !(talk && what === "cast" && id === "{companion}")) p(`the ${what} id ${JSON.stringify(id)} isn't a slug ([a-z0-9][a-z0-9-]*)`, at(id));
@@ -112,10 +116,10 @@ function idProblems(key: string, { doc, context, p }: Scene): void {
 /** The prose it must have (an interlude needs no premise or truth), each person's, each node's. */
 function proseProblems({ doc, p }: Scene): void {
   for (const k of ["title", "description", "hook", "setting", "premise", "truth"] as const) if (!doc[k].trim() && !(doc.interlude && (k === "premise" || k === "truth"))) p(`it has no ${k}`, field(k));
-  for (const c of doc.cast) for (const k of ["name", "look", "voice", "wants", "whyHere", "attitude"] as const) if (!c[k].trim()) p(`${c.id} has no ${k}`, person(c.id));
+  for (const c of doc.cast) for (const k of ["name", "look", "voice", "wants", "whyHere", "attitude"] as const) if (!c[k].trim()) p(`${c.id} has no ${k}`, person(c.id, k));
   for (const n of doc.nodes) {
-    if (!n.data.title.trim() || !n.data.description.trim()) p(`${n.id} has no ${n.data.title.trim() ? "description" : "title"}`, node(n.id));
-    if (isEnding(n) && !n.data.closing.trim()) p(`ending ${n.id} has no closing`, node(n.id));
+    if (!n.data.title.trim() || !n.data.description.trim()) p(`${n.id} has no ${n.data.title.trim() ? "description" : "title"}`, node(n.id, n.data.title.trim() ? "description" : "title"));
+    if (isEnding(n) && !n.data.closing.trim()) p(`ending ${n.id} has no closing`, node(n.id, "closing"));
   }
 }
 
@@ -124,8 +128,8 @@ function loreProblems({ doc, context, p }: Scene): void {
   const named: Array<[string, ProblemAt]> = [
     ...doc.lore.map(path => [path, field("lore")] as [string, ProblemAt]),
     ...(doc.fronts ? [[doc.fronts, field("fronts")] as [string, ProblemAt]] : []),
-    ...doc.cast.flatMap(c => (c.lore ? [[c.lore, person(c.id)] as [string, ProblemAt]] : [])),
-    ...doc.nodes.flatMap(n => n.data.lore.map(path => [path, node(n.id)] as [string, ProblemAt])),
+    ...doc.cast.flatMap(c => (c.lore ? [[c.lore, person(c.id, "lore")] as [string, ProblemAt]] : [])),
+    ...doc.nodes.flatMap(n => n.data.lore.map(path => [path, node(n.id, "lore")] as [string, ProblemAt])),
   ];
   const seen = new Set<string>();
   for (const [path, at] of named) {
@@ -140,8 +144,8 @@ function routeProblems({ doc, p }: Scene): void {
   const nodes = new Map(doc.nodes.map(n => [n.id, n]));
   for (const e of doc.edges) {
     if (nodes.get(e.source)?.data.kind === "exit") p(`route ${e.id} leaves an ending (${e.source})`, route(e.id));
-    for (const r of e.data.requires ?? []) if (nodes.get(r)?.data.kind !== "beat") p(`route ${e.id} requires ${r}, which isn't a beat`, route(e.id));
-    if (!e.data.condition.trim() && !isDiscovery(nodes.get(e.target)!)) p(`route ${e.id} has no condition, and only a route into a discovery may go without`, route(e.id));
+    for (const r of e.data.requires ?? []) if (nodes.get(r)?.data.kind !== "beat") p(`route ${e.id} requires ${r}, which isn't a beat`, route(e.id, "requires"));
+    if (!e.data.condition.trim() && !isDiscovery(nodes.get(e.target)!)) p(`route ${e.id} has no condition, and only a route into a discovery may go without`, route(e.id, "condition"));
   }
 }
 
@@ -151,15 +155,15 @@ function discoveryProblems({ doc, p }: Scene): void {
   for (const n of doc.nodes.filter(isBeat)) {
     const paths = n.data.paths ?? [];
     if (n.data.revelation === undefined) {
-      if (paths.length) p(`beat ${n.id} has paths but no revelation`, node(n.id));
+      if (paths.length) p(`beat ${n.id} has paths but no revelation`, node(n.id, "paths"));
       continue;
     }
-    if (!n.data.revelation.trim()) p(`discovery ${n.id} has no revelation`, node(n.id));
-    if (paths.length < 2) p(`discovery ${n.id} has ${paths.length} path${paths.length === 1 ? "" : "s"}, not two or more`, node(n.id));
-    if (n.data.required && (paths.length < 3 || paths.every(path => path.check))) p(`discovery ${n.id} is required, but hasn't three paths with one that needs no dice`, node(n.id));
+    if (!n.data.revelation.trim()) p(`discovery ${n.id} has no revelation`, node(n.id, "revelation"));
+    if (paths.length < 2) p(`discovery ${n.id} has ${paths.length} path${paths.length === 1 ? "" : "s"}, not two or more`, node(n.id, "paths"));
+    if (n.data.required && (paths.length < 3 || paths.every(path => path.check))) p(`discovery ${n.id} is required, but hasn't three paths with one that needs no dice`, node(n.id, "paths"));
     paths.forEach((path, i) => {
-      for (const k of ["via", "clue", "earn"] as const) if (!path[k].trim()) p(`discovery ${n.id}'s path ${i + 1} has no ${k}`, node(n.id));
-      if (!path.via.includes(" ") && !castIds.has(path.via)) p(`discovery ${n.id}'s path ${i + 1} is via ${path.via}, who isn't in the cast`, node(n.id));
+      for (const k of ["via", "clue", "earn"] as const) if (!path[k].trim()) p(`discovery ${n.id}'s path ${i + 1} has no ${k}`, node(n.id, `paths.${i}.${k}`));
+      if (!path.via.includes(" ") && !castIds.has(path.via)) p(`discovery ${n.id}'s path ${i + 1} is via ${path.via}, who isn't in the cast`, node(n.id, `paths.${i}.via`));
     });
     if (!doc.edges.some(e => e.target === n.id && !e.data.skill)) p(`discovery ${n.id} is locked behind a roll: no route into it is free of dice`, node(n.id));
   }
@@ -171,9 +175,9 @@ function peopleProblems({ doc, p }: Scene): void {
   const castIds = new Set(doc.cast.map(c => c.id));
   for (const c of doc.cast) {
     const at = c.enters === undefined ? undefined : nodes.get(c.enters);
-    if (c.enters !== undefined && !(at && isBeat(at) && !isDiscovery(at))) p(`${c.id} enters at ${c.enters}, which isn't an event beat`, person(c.id));
+    if (c.enters !== undefined && !(at && isBeat(at) && !isDiscovery(at))) p(`${c.id} enters at ${c.enters}, which isn't an event beat`, person(c.id, "enters"));
   }
-  for (const n of doc.nodes) for (const id of Object.keys(("cast" in n.data ? n.data.cast : undefined) ?? {})) if (!castIds.has(id)) p(`${n.id} has a note for ${id}, who isn't in the cast`, node(n.id));
+  for (const n of doc.nodes) for (const id of Object.keys(("cast" in n.data ? n.data.cast : undefined) ?? {})) if (!castIds.has(id)) p(`${n.id} has a note for ${id}, who isn't in the cast`, node(n.id, "cast"));
 }
 
 /** Every node can be reached from the start, and it can end well. */
@@ -190,29 +194,29 @@ function evidenceProblems({ doc, p }: Scene): void {
   if (!required.length) return;
   const good = goodEndings(doc);
   const intoGood = doc.edges.filter(e => good.some(n => n.id === e.target && n.data.result === "good"));
-  for (const e of intoGood) if (!e.data.requires?.length) p(`route ${e.id} goes to a good ending (${e.target}) but requires nothing found`, route(e.id));
-  for (const n of required) if (!intoGood.some(e => e.data.requires?.includes(n.id))) p(`discovery ${n.id} is required, but no route into a good ending requires it`, node(n.id));
+  for (const e of intoGood) if (!e.data.requires?.length) p(`route ${e.id} goes to a good ending (${e.target}) but requires nothing found`, route(e.id, "requires"));
+  for (const n of required) if (!intoGood.some(e => e.data.requires?.includes(n.id))) p(`discovery ${n.id} is required, but no route into a good ending requires it`, node(n.id, "required"));
 }
 
 /** Where the story goes, the place, and what the effects may name. */
 function storyWiringProblems({ doc, context, p }: Scene): void {
   const castIds = new Set(doc.cast.map(c => c.id));
-  for (const n of doc.nodes.filter(isEnding)) if (n.data.next && !context.scenes.includes(n.data.next)) p(`ending ${n.id} goes on to ${n.data.next}, which isn't one of the campaign's scenes`, node(n.id));
+  for (const n of doc.nodes.filter(isEnding)) if (n.data.next && !context.scenes.includes(n.data.next)) p(`ending ${n.id} goes on to ${n.data.next}, which isn't one of the campaign's scenes`, node(n.id, "next"));
   const place = doc.place ? context.places.find(pl => pl.key === doc.place) : undefined;
   if (doc.place && !place) p(`its place ${doc.place} isn't one of the campaign's places`, field("place"));
 
   const carried = carriedThings([doc, ...context.others]);
   const carriedElsewhere = carriedThings(context.others);
-  for (const n of doc.nodes.filter(isBeat)) for (const t of n.data.carry?.things ?? []) if (!place?.things.some(x => x.id === t) && !carriedElsewhere.has(t)) p(`beat ${n.id} carries ${t}, which isn't a thing of its place, nor carried from another scene`, node(n.id));
+  for (const n of doc.nodes.filter(isBeat)) for (const t of n.data.carry?.things ?? []) if (!place?.things.some(x => x.id === t) && !carriedElsewhere.has(t)) p(`beat ${n.id} carries ${t}, which isn't a thing of its place, nor carried from another scene`, node(n.id, "carry"));
 
   // What an effect may name: the cast, the place's areas and things, and the things the story carries between scenes (Prout's page, owed into the Rat in Cob's boot).
   const keys = new Set([...castIds, ...(place ? [...place.areas.map(a => a.id), ...place.things.map(t => t.id)] : []), ...carried]);
   const effects: Array<[string, ProblemAt, Effect]> = [
-    ...(doc.onEnd ?? []).map(e => ["onEnd", field("onEnd"), e] as [string, ProblemAt, Effect]),
-    ...doc.nodes.filter(isEnding).flatMap(n => (n.data.effects ?? []).map(e => [`ending ${n.id}`, node(n.id), e] as [string, ProblemAt, Effect])),
+    ...(doc.onEnd ?? []).map((e, i) => ["onEnd", field(`onEnd.${i}`), e] as [string, ProblemAt, Effect]),
+    ...doc.nodes.filter(isEnding).flatMap(n => (n.data.effects ?? []).map((e, i) => [`ending ${n.id}`, node(n.id, `effects.${i}`), e] as [string, ProblemAt, Effect])),
   ];
   for (const [where, at, e] of effects) for (const problem of effectProblems(e, keys, castIds, doc.facts ?? {}, context.quests)) p(`${where}: ${problem}`, at);
-  for (const op of doc.afterwards ?? []) for (const k of namedKeys(op).filter(k => !keys.has(k))) p(`afterwards: ${op.op} names unknown ${k}`, field("afterwards"));
+  (doc.afterwards ?? []).forEach((op, i) => { for (const k of namedKeys(op).filter(k => !keys.has(k))) p(`afterwards: ${op.op} names unknown ${k}`, field(`afterwards.${i}`)); });
   for (const id of Object.keys(place?.people ?? {})) if (id !== "player" && !castIds.has(id)) p(`${doc.place}'s people: ${id} isn't in the cast`, field("place"));
 }
 
@@ -270,7 +274,11 @@ function effectProblems(effect: Effect, keys: Set<string>, cast: Set<string>, fa
     for (const who of [effect.by, effect.to]) if (who !== "$player" && !cast.has(who)) problems.push(`promise names unknown ${who}`);
   } else if (effect.op === "quest") {
     if (!(effect.quest in quests)) problems.push(`quest ${effect.quest} isn't one of the scenario's quests`);
-  } else if (effect.op !== "flag" && effect.op !== "journal") {
+  } else if (effect.op === "flag") {
+    if (!effect.name?.trim()) problems.push("flag has no name");
+  } else if (effect.op !== "journal") {
+    // A world op acts on something (a create makes something, by its name): without it, it does nothing.
+    if (effect.op === "create" ? !effect.name?.trim() : !effect.what?.trim()) problems.push(effect.op === "create" ? "create doesn't name what it creates" : `${effect.op} doesn't say what it acts on`);
     for (const k of namedKeys(effect)) if (!keys.has(k)) problems.push(`${effect.op} names unknown ${k}`);
   }
   return problems;

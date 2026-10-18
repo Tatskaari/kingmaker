@@ -4,22 +4,27 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Identity } from "spacetimedb";
 import type { FakeOptions } from "../ai/llm/fake-openrouter.ts";
-import type { Markup } from "../shared/markup.ts";
 import { rollFrom } from "../shared/dice.ts";
 import { all, sceneNow, TEST_CLERK } from "../simulation/src/host/testing.ts";
 import { devFake, onTop, quietGm } from "./dev/fake.ts";
-import { readCampaignFiles } from "./dev/campaign.ts";
+import { readCampaignFiles, scenarioPathOf } from "./dev/campaign.ts";
 import { localHost, type LocalHost } from "./local.ts";
 
-/** campaigns/caerwyn with the tests' own hanged clerk (its routes and endings by the ids these tests play: cart-comes, held-as-murder, open-case…). */
-const FILES = { ...readCampaignFiles(join(import.meta.dirname, "..", "campaigns", "caerwyn")), "scenes/hanged-clerk.kmscene": readFileSync(TEST_CLERK, "utf8") };
+/**
+ * campaigns/caerwyn with the tests' own hanged clerk (its routes and endings by the ids these tests
+ * play: cart-comes, held-as-murder, open-case…), played by the old pipeline these tests test
+ * (the scenario's gm: the game's scenes are the two-part GM's: docs/two-part-design.md).
+ */
+const CAMPAIGN = readCampaignFiles(join(import.meta.dirname, "..", "campaigns", "caerwyn"));
+const SCENARIO = scenarioPathOf(CAMPAIGN);
+const FILES = { ...CAMPAIGN, [SCENARIO]: `${JSON.stringify({ ...JSON.parse(CAMPAIGN[SCENARIO]!), gm: "pipeline" }, null, 2)}\n`, "scenes/hanged-clerk.kmscene": readFileSync(TEST_CLERK, "utf8") };
 
 /**
  * The local host (v0-design §10.3, v5-design §4.3): the simulation and the AI service's pipeline in
  * one process, on the fake model, every body through JSON. The scene's endings as the prototype
  * plays them (gm-port §16.4: its endings.test.ts and gates.test.ts), each turn said, decided, replied
  * and settled by the real code on both sides, the model's decisions scripted a turn at a time; then
- * the reply as drawn: the notes the turn waits for, and the lines suggested after it; and the story
+ * the reply as drawn: the lines suggested after it; and the story
  * crossing a boundary (story-design §5): the simulation's job asking the pipeline's boundary.
  */
 
@@ -66,7 +71,7 @@ const told = (local: LocalHost) => calls(local).filter(c => c.operation === "gm.
 
 const sayNow = (local: LocalHost, text: string) => local.sim.as(WREN).say({ text });
 
-test("a line on the local host: the opening and the reply streamed into their drafts, each step's answer committed, each reply's notes and lines asked for, the turn done", async () => {
+test("a line on the local host: the opening and the reply streamed into their drafts, each step's answer committed, each reply's lines asked for, the turn done", async () => {
   const { local, line, now } = await game();
   const opening = now();
   assert.equal(opening.scene.status, "live");
@@ -79,7 +84,7 @@ test("a line on the local host: the opening and the reply streamed into their dr
   assert.ok(turn.calls > 0 && turn.costMicros > 0n, "the answers' usage is on the turn");
   assert.deepEqual(after.lines.slice(-2).map(l => [l.kind, l.text]), [["player", "Sergeant, who found him?"], ["narration", REPLY]]);
   assert.equal(all(local.sim.db.replyDraft).length, 0, "the reply's commit deleted its draft");
-  assert.deepEqual(local.aiLogs.filter(l => /: 200 in/.test(l)).map(l => l.split(" ")[1]), ["open", "notes", "suggest", "decide", "reply", "notes", "suggest", "settle", "remember"]);
+  assert.deepEqual(local.aiLogs.filter(l => /: 200 in/.test(l)).map(l => l.split(" ")[1]), ["open", "suggest", "decide", "reply", "suggest", "settle", "remember"]);
   local.close();
 });
 
@@ -220,55 +225,14 @@ function failingSeed(skill: "intimidation", dc: number, modifier: number): numbe
 }
 
 // ---------------------------------------------------------------------------------------------
-// The reply as drawn (v5-design §4.3): the notes on a reply's marks, which its turn waits for, and
-// the lines suggested after it. The model plays the dev host's fake (hosts/dev/fake.json): the GM's
-// golden replies, a turn each from the opening, the notes written on their words, twelve lines.
+// The reply as drawn (v5-design §4.3): the lines suggested after it (the notes on its marks went in
+// M2). The model plays the dev host's fake (hosts/dev/fake.json): the GM's golden replies, a turn
+// each from the opening, twelve lines.
 
 const LINES = ["Sergeant, who found him?", "Moll, did you really see him jump from up on that wall?", "(out of character: what can I do here?)"];
 
-/** The dev host's fake, answering at once but where `timing` holds the notes or the lines back. */
+/** The dev host's fake, answering at once but where `timing` holds the lines back. */
 const drawn = (timing: FakeOptions = {}): FakeOptions => ({ ...devFake(), streamMs: 0, byNameDelayMs: {}, suggestDelayMs: 0, ...timing });
-
-test("a reply's notes land on its row, and its turn waits for them: noting once the world has settled, done when they're in", async t => {
-  const { local, say, now } = await game(7, drawn());
-  const jobs = procedures(local, t);
-  say(LINES[0]!, drawn({ byNameDelayMs: { notes: 1000 } }));
-
-  const noting = await jobs.until("turn 1 noting", () => now().turns[1]?.phase === "noting" && now());
-  assert.deepEqual(marksOf(replyOf(noting, 1)), [], "no marks until the notes are in");
-  const own = noting.jobs.filter(j => j.turnId === noting.turns[1]!.id).map(j => j.move);
-  assert.ok(own.includes("notes") && !own.includes("say"), `the settle is in, and the notes are still being written (${own.join(", ")})`);
-  assert.equal(noting.scene.turnId, noting.turns[1]!.id, "the turn keeps the lease");
-
-  const done = await jobs.until("turn 1 done", () => now().turns[1]?.phase === "done" && now());
-  await jobs.stop();
-  const reply = replyOf(done, 1);
-  assert.deepEqual(marksOf(reply).map(m => [m.kind, reply.text.slice(m.start, m.end), m.link?.kind === "person" ? m.link.id : undefined, m.card?.title]), [
-    ["why", "I haven’t written that down.", "kell", "Sergeant Agnes Kell"],
-    ["why", "And Cob don’t talk to bluebottles.", "cob", "Cob"],
-  ]);
-  assert.equal(done.turns[1]!.notes, "written");
-  local.close();
-});
-
-test("a line said while the turn is noting waits, and starts once the notes are in: its reply's history has them", async t => {
-  const { local, say, now } = await game(7, drawn());
-  const jobs = procedures(local, t);
-  say(LINES[0]!, drawn({ byNameDelayMs: { notes: 1000 } }));
-  await jobs.until("turn 1 noting", () => now().turns[1]?.phase === "noting");
-
-  say(LINES[1]!, drawn());
-  assert.equal(now().turns[2]!.phase, "queued", "it waits for turn 1's notes");
-  await jobs.until("turn 2 done", () => now().turns[2]?.phase === "done");
-  await jobs.stop();
-
-  const written = local.sim.logs.findIndex(l => /\[scene \d+ turn 1\] notes written: 2/.test(l));
-  const started = local.sim.logs.findIndex(l => /:t2:decide attempt 1\]/.test(l));
-  assert.ok(written >= 0 && written < started, "turn 2 was decided only after turn 1's notes were written");
-  const history = calls(local).filter(c => c.operation === "gm.reply" && c.key.endsWith(":t2:reply")).at(-1)!.request.input!.map(m => m.content).join("\n");
-  assert.ok(history.includes("(I haven’t written that down.)[why: Kell won’t put the Captain’s verdict in her book until she has seen for herself.]"), "the GM's history has turn 1's notes as it writes them");
-  local.close();
-});
 
 test("a set of lines whose moment has passed is dropped when it comes: the last set's rows stay, and it cost one call", async t => {
   const { local, say, now } = await game(7, drawn());
@@ -285,15 +249,6 @@ test("a set of lines whose moment has passed is dropped when it comes: the last 
   assert.deepEqual([...new Set(rowsOf(local).map(r => r.turn))], [2]);
   assert.equal(calls(local).filter(c => c.operation === "scene.suggest" && c.key.endsWith(":t1:suggest")).length, 1);
   assert.match(local.sim.logs.join("\n"), /\[scene \d+ turn 1\] lines dropped \(turn 2 has been said\)/);
-  local.close();
-});
-
-test("notes the model can't write leave the reply with no marks, and its turn ends all the same", async () => {
-  const { local, line } = await game(7, drawn());
-  const after = await line(LINES[0]!, drawn({ capped: { notes: 0.0002 } }));
-  assert.deepEqual([after.turns[1]!.phase, after.turns[1]!.notes, after.turns[1]!.error], ["done", "written", undefined]);
-  assert.deepEqual(marksOf(replyOf(after, 1)), []);
-  assert.ok(markupOf(replyOf(after, 1)).speech.length > 0, "who says what is kept");
   local.close();
 });
 
@@ -320,22 +275,20 @@ test("the story on the local host: a scene ended by its owner crosses the bounda
   local.close();
 });
 
-test("the same seed and the same lines give the same notes and the same suggested lines", async () => {
+test("the same seed and the same lines give the same suggested lines", async () => {
   const play = async () => {
-    const { local, line, now } = await game(11, drawn());
+    const { local, line } = await game(11, drawn());
     const sets = [rowsOf(local).map(r => `${r.kind}: ${r.text}`)];
     for (const text of LINES) {
       await line(text, drawn());
       sets.push(rowsOf(local).map(r => `${r.kind}: ${r.text}`));
     }
-    const marks = now().lines.filter(l => l.speaker === "gm").map(l => marksOf(l));
     local.close();
-    return { marks, sets };
+    return { sets };
   };
 
   const first = await play();
-  assert.equal(first.marks.flat().length, 7, "every reply has its notes");
-  assert.ok(first.sets.every(set => set.length >= 3), "and its lines");
+  assert.ok(first.sets.every(set => set.length >= 3), "every reply has its lines");
   assert.deepEqual(await play(), first);
 });
 
@@ -378,13 +331,92 @@ function procedures(local: LocalHost, t: TestContext) {
   };
 }
 
-type Scene = ReturnType<typeof sceneNow>;
-type Entry = Scene["lines"][number];
 
-/** Turn n's reply: the GM's entry. */
-const replyOf = (scene: Scene, n: number): Entry => scene.lines.find(l => l.turn === n && l.speaker === "gm")!;
-const markupOf = (entry: Entry): Markup => JSON.parse(entry.markup ?? '{"speech":[],"marks":[]}') as Markup;
-const marksOf = (entry: Entry) => markupOf(entry).marks;
 
 /** The scene's suggested lines, in order. */
 const rowsOf = (local: LocalHost) => all(local.sim.db.sceneSuggestion).sort((a, b) => a.ord - b.ord);
+
+/**
+ * The two-part GM on the local host (docs/two-part-design.md), on the campaign's own hanged clerk
+ * (its scenario names no GM: its scenes are the two-part GM's), every body through JSON: the
+ * opening's roles as note -1; each line replied by the mouthpiece and settled by the stage manager
+ * and the co-GM side by side, the co-GM's walk to murder by persons unknown (fake.json's: its required
+ * discovery first, a route a line) taken again on the rows; a check the mouthpiece calls rolled from
+ * the game's dice, its outcome written and the co-GM told how it went; the stage moving to the
+ * dead-cart, Tull brought on with his role and the next reply told so, once; then the scene closing,
+ * its wind-down by the mouthpiece with no settle, and the story's end crossing to the Rat.
+ */
+test("the two-part GM on the local host: the campaign's hanged clerk walked to murder by persons unknown a route a line, then its wind-down and the story on to the Rat", async () => {
+  const base = onTop(devFake(), { streamMs: 0, suggestDelayMs: 0 });
+  let next: FakeOptions = base;
+  const local = await localHost({ seed: 7, fake: () => next });
+  const sim = local.sim;
+  assert.equal(sim.as(WREN).newGame({ campaign: "caerwyn", name: "Wren Ashdown", concept: "a quick-witted investigator lent to the case by the King", build: "ranger" }), undefined);
+  assert.equal(sim.as(WREN).walk({ toward: "lead" }), undefined);
+  await sim.drain();
+  const scene = all(sim.db.scene)[0]!;
+  const now = () => sceneNow(sim, scene.id);
+  const of = (operation: string, n: number, step: string) => calls(local).filter(c => c.operation === operation && c.key.endsWith(`:s${scene.id}:t${n}:${step}`));
+  const opened = now();
+  assert.deepEqual([scene.sceneKey, opened.scene.status, Object.keys(opened.gm.twoPart.roles), opened.gm.twoPart.notes.map(n => n.turn)], ["hanged-clerk", "live", ["kell", "cob", "moll"], [-1]]);
+  assert.equal(of("two-part.opening", 0, "open").length, 1, "the mouthpiece opened it");
+  const line = async (text: string, fake: FakeOptions = {}) => {
+    next = onTop(base, fake);
+    const refused = sim.as(WREN).say({ text });
+    assert.equal(refused, undefined, `"${text}" was refused: ${refused?.text}`);
+    await sim.drain();
+    return now();
+  };
+
+  const first = await line("(I climb the outside stair and look at his neck)", { mouthpiece: { check: { skill: "medicine", dc: 12 } } });
+  assert.deepEqual(first.lines.filter(l => l.turn === 1).map(l => l.kind), ["player", "narration", "roll", "narration"], "the narration, the dice, the outcome that came up");
+  const rolled = first.lines.find(l => l.turn === 1 && l.kind === "roll")!.text;
+  assert.match(rolled, /^Medicine .*DC 12.* \((badly|narrowly|only just|cleanly|with room to spare|natural 20!|natural 1!)\)\.$/);
+  assert.equal(of("director.before", 1, "decide").length, 0, "no decide");
+  assert.match(of("two-part.co-gm", 1, "settle")[0]!.request.input!.map(m => m.content).join("\n"), /# This turn's check\nThe GM called Medicine DC 12, and the roll came to \d+/);
+  assert.deepEqual([first.gm.reached, first.gm.path.map(p => p.via)], [["start", "hobb"], ["find-hobb"]], "the required discovery first");
+
+  await line("Sergeant, what do you make of the knot?");
+  const cart = await line("Is that the dead-cart I hear?");
+  assert.deepEqual([cart.gm.path.map(p => p.via), cart.gm.beat, cart.gm.twoPart.moved], [["find-hobb", "find-murder", "cart-comes"], "cart-arrives", "cart-arrives"]);
+  assert.match(cart.gm.twoPart.roles.tull!.conversation_role, /^Helmet off to the dead/, "Tull's role, his stage note");
+  assert.ok(all(sim.db.entity).some(e => e.key === "tull"), "Tull is in the world");
+
+  const signed = await line("Corporal, Sergeant: write it down as murder.");
+  const told = of("two-part.reply", 4, "reply")[0]!.request.input!.at(-2)!.content;
+  assert.match(told, /The scene has just moved on to "[^"]+": [\s\S]*arrives now, seen arriving/, "the reply after the move was told to show it");
+  assert.deepEqual([signed.scene.status, signed.gm.closing?.exitId, signed.gm.twoPart.moved], ["closing", "murder-unknown", undefined]);
+
+  const ended = await line("Then we're done here.");
+  assert.equal(of("two-part.closing", 5, "reply").length, 1, "the wind-down is the mouthpiece's closing");
+  assert.deepEqual([of("world.stage", 5, "settle").length, of("two-part.co-gm", 5, "settle").length], [0, 0], "no settle on the wind-down");
+  assert.deepEqual([ended.scene.status, ended.scene.exitKey, ended.lines.at(-1)!.text], ["ended", "murder-unknown", "Scene ends: Murder by persons unknown"]);
+  assert.match(sim.db.chapter.sceneId.find(scene.id)!.summary, /^Previous scene, "The Hanged Clerk", ended: Murder by persons unknown \(hanged-clerk: murder-unknown\)\.\n/);
+  const rat = all(sim.db.scene).find(s => s.sceneKey === "drowned-rat")!;
+  assert.deepEqual([rat.status, all(sim.db.game)[0]!.leadScene], ["waiting", "drowned-rat"]);
+  local.close();
+});
+
+/**
+ * The owner's end, thorough (the GM loop's, for a scene it skips), on the local host with the
+ * campaign's own hanged clerk: each of its discoveries reached first, so its chapter has their facts
+ * and the boundary owes the Rat nothing; a plain end owes the clerk's carried discoveries on.
+ */
+test("a thorough end on the local host: the campaign's clerk ended with its discoveries reached first, and the Rat waits owing nothing; a plain end owes them on", async () => {
+  const ended = async (thorough: boolean) => {
+    const local = await localHost({ seed: 7, fake: () => onTop(devFake(), { streamMs: 0, suggestDelayMs: 0 }) });
+    const sim = local.sim;
+    assert.equal(sim.as(WREN).newGame({ campaign: "caerwyn", name: "Wren Ashdown", concept: "a quick-witted investigator lent to the case by the King", build: "ranger" }), undefined);
+    assert.equal(sim.as(WREN).walk({ toward: "lead" }), undefined);
+    await sim.drain();
+    const scene = all(sim.db.scene)[0]!;
+    assert.equal(sim.as(sim.owner).endScene({ game: scene.gameId, exit: "murder-unknown", ...(thorough ? { thorough } : {}) }), undefined);
+    await sim.drain();
+    const rat = all(sim.db.scene).find(s => s.sceneKey === "drowned-rat")!;
+    const out = { reached: sceneNow(sim, scene.id).gm.reached, facts: sim.db.chapter.sceneId.find(scene.id)!.facts.length, owed: sim.db.gmState.sceneId.find(rat.id)!.owed.map(o => `${o.from}:${o.id}`) };
+    local.close();
+    return out;
+  };
+  assert.deepEqual(await ended(true), { reached: ["start", "murder", "motive", "hobb"], facts: 3, owed: [] });
+  assert.deepEqual(await ended(false), { reached: ["start"], facts: 0, owed: ["hanged-clerk:motive", "hanged-clerk:hobb"] });
+});

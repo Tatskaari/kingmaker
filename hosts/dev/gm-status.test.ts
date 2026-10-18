@@ -40,11 +40,21 @@ test("a V1 game: the prototype's fields, and the full GM's there and empty", () 
     sceneStatus: null, offGraphTurn: null, lastRepairTurn: null, opened: [],
     threat: null, held: null, brawl: null, absent: [],
     adjustments: [], opening: null, lead: null, owed: [], fought: [],
+    reached: ["yard"], closing: null, roles: [], coGmNote: null, moved: null, heldOnce: null,
     repairs: [], memoryReviews: [], jobs: [],
     latency: { avgFirstTextMs: 4000, consideredTurns: 0, avgConsiderMs: 0 },
     costUsd: "0.00460",
     story: { status: null, time: null, lead: null, onward: null, chapters: [], quests: [], flags: [], followers: [], attitudes: [] },
   });
+});
+
+test("the two-part GM's side: what's reached, a closing on its way, each person's role and the co-GM's latest note", () => {
+  const status = statusOf(rows({
+    reached: ["start", "hobb", "cart-arrives"], beat: "cart-arrives", closing: { exit_id: "murder-unknown", turn: 4 },
+    two_part: { roles: [{ cast: "kell", status: "At the gate", mental_state: "", conversation_role: "Writes down only what is said." }], notes: [{ turn: -1, text: "Co-GM note, before turn 0" }, { turn: 4, text: "Co-GM note, before turn 5" }], moved: "cart-arrives", held: false },
+  }));
+
+  assert.deepEqual([status.reached, status.closing, status.roles, status.coGmNote, status.moved, status.heldOnce], [["start", "hobb", "cart-arrives"], "murder-unknown (turn 4)", ["kell: At the gate | Writes down only what is said."], "turn 4", "cart-arrives", null]);
 });
 
 test("the story between scenes: what was handed on to the scene waiting, the lead, the chapters, quests, flags and followers", () => {

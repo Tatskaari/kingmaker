@@ -15,7 +15,8 @@ import { FIGHT_NOT_PLAYED, FIGHT_SUMMARY, STANDIN_LINE } from "./words.ts";
  * The fight, fought by the stand-in (story-design §4.3): one action resolves it as won. Its line,
  * then "The fight: <how it went>" in the scene's transcript, and the notebook's line that it wasn't
  * played. The scene picks up where the fight left it (resumeAfterFight): its combat exit is spent
- * (fought), its ending is undone (ended, closing, pending, the lead towards one), and "The fight is
+ * (fought), its ending is undone (ended, closing, pending, the lead towards one, and its node no
+ * longer reached, so the scene's routes are open again but the fight's), and "The fight is
  * over: <how it went>" is settled; a new turn holds the scene while the GM tells the aftermath (the
  * opening's think, with how it went), and the scene is live again once it's told. `scene` is
  * fighting, and its controller's.
@@ -25,7 +26,7 @@ export function fightItOut(tx: TxCtx, scene: SceneRow): void {
   const exit = scene.exitKey ?? gm.ended?.exitId;
   const n = scene.turns + 1;
   let lease = scene.turnId === undefined ? undefined : tx.db.turn.id.find(scene.turnId);
-  // A turn still waiting on its reply's notes holds the scene: it's done now, so the notes landing don't let go of the aftermath's.
+  // A turn still holding the scene's lease is done now, so nothing finishing it lets go of the aftermath's.
   if (lease) lease = updateTurn(tx, lease.id, { phase: "done", endedAt: tx.now, note: undefined });
 
   addEntry(tx, scene, { turn: n, speaker: "system", kind: "system", text: STANDIN_LINE });
@@ -34,6 +35,8 @@ export function fightItOut(tx: TxCtx, scene: SceneRow): void {
 
   delete gm.ended; delete gm.closing; delete gm.pendingExit; delete gm.endingLead;
   if (exit && !gm.fought.includes(exit)) gm.fought.push(exit);
+  // The scene format's play (shared/scene/beats.ts): the fight's ending is no longer where the scene is, so its routes open again (all but the fight's).
+  if (exit) gm.reached = gm.reached.filter(id => id !== exit);
   gm.established.push(`The fight is over: ${FIGHT_SUMMARY}`);
   putGm(tx, scene.id, gm);
 

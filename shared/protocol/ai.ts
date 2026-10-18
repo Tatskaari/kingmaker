@@ -2,9 +2,11 @@ import type { Asked, Backstory, LoreIssue, Who } from "../creation/types.ts";
 import type { RollResult } from "../dice.ts";
 import type { Ruling, RulingOutcome, Verdict } from "../gm/consider.ts";
 import type { RepairResult } from "../gm/repair.ts";
-import type { Confide, GmState, GuardStage, OpenedNote, OwedRow, ScenePatch, SceneStatus, TalkRecord } from "../gm/state.ts";
-import type { Mark, MarkKind, Markup, Speech } from "../markup.ts";
+import type { Confide, GmState, GuardStage, OpenedNote, OwedRow, ScenePatch, SceneStatus, TalkRecord, TwoPartRole } from "../gm/state.ts";
+import type { Band } from "../gm/two-part.ts";
+import type { Markup } from "../markup.ts";
 import type { Act, BuildOption, FeatureRef, Mechanic, Offer, OwnPicks, Reaction, SpellRef, SrdLists, ThreatRead, WeaponRef } from "../rules/types.ts";
+import type { RouteOutcome } from "../scene/beats.ts";
 import type { Skill, Transition } from "../scene/types.ts";
 import type { PlaceRows } from "../world/rows.ts";
 import type { WorldOp } from "../world/scene-world.ts";
@@ -12,7 +14,7 @@ import type { CreationStep, Step } from "./keys.ts";
 
 /**
  * The AI service's HTTP API: what the simulation POSTs for each step of a think, and what comes
- * back (v0-design §5.1-5.2, gm-port §13; the notes and the suggested lines, v5-design §3.6;
+ * back (v0-design §5.1-5.2, gm-port §13; the suggested lines, v5-design §3.6;
  * character creation's two, v1-design §3.7; a considered turn's ruling, and the memory reviews and
  * the co-GM after a turn, full-gm-design §4.1; the rules' act in a turn and the reactions to it,
  * world-bridge-design §3.1; the boundary between scenes and a fight's aftermath, story-design §4.2;
@@ -23,7 +25,7 @@ import type { CreationStep, Step } from "./keys.ts";
  */
 
 export type Endpoint =
-  | "/v1/scenes/open" | "/v1/turns/decide" | "/v1/turns/reactions" | "/v1/turns/consider" | "/v1/turns/reply" | "/v1/turns/settle" | "/v1/turns/notes" | "/v1/turns/suggest"
+  | "/v1/scenes/open" | "/v1/turns/decide" | "/v1/turns/reactions" | "/v1/turns/consider" | "/v1/turns/reply" | "/v1/turns/settle" | "/v1/turns/suggest"
   | "/v1/turns/remember" | "/v1/turns/repair" | "/v1/scenes/boundary" | "/v1/looks"
   | "/v1/characters" | "/v1/backstories";
 
@@ -36,12 +38,12 @@ export type Endpoint =
  */
 export const STEP_ENDPOINT: Record<Step | CreationStep, Endpoint> = {
   open: "/v1/scenes/open", decide: "/v1/turns/decide", reactions: "/v1/turns/reactions", consider: "/v1/turns/consider", reply: "/v1/turns/reply", settle: "/v1/turns/settle",
-  notes: "/v1/turns/notes", suggest: "/v1/turns/suggest", remember: "/v1/turns/remember", repair: "/v1/turns/repair", boundary: "/v1/scenes/boundary", look: "/v1/looks",
+  suggest: "/v1/turns/suggest", remember: "/v1/turns/remember", repair: "/v1/turns/repair", boundary: "/v1/scenes/boundary", look: "/v1/looks",
   offer: "/v1/characters", pick: "/v1/characters", own: "/v1/characters",
   draft: "/v1/backstories", work: "/v1/backstories", check: "/v1/backstories", traits: "/v1/backstories",
 };
 export const STEP_TIMEOUT_MS: Record<Step | CreationStep, number> = {
-  open: 60_000, decide: 20_000, reactions: 20_000, consider: 20_000, reply: 60_000, settle: 60_000, notes: 30_000, suggest: 30_000, remember: 170_000, repair: 170_000, boundary: 120_000, look: 30_000,
+  open: 60_000, decide: 20_000, reactions: 20_000, consider: 20_000, reply: 60_000, settle: 60_000, suggest: 30_000, remember: 170_000, repair: 170_000, boundary: 120_000, look: 30_000,
   offer: 60_000, pick: 60_000, own: 30_000, draft: 60_000, work: 60_000, check: 60_000, traits: 60_000,
 };
 
@@ -90,8 +92,8 @@ export interface SheetRow {
  * `history`, and every entry of theirs, in order, each with its scene's key (without markup), as the
  * prototype's transcript holds the whole story. Both are absent (none) in a request built before
  * the story unit, and in a game's first scene. And (town-design §3.8) what companions have told the
- * player of themselves in talks between scenes, by their cast ids (talk.ts's records): the notes'
- * knowledge cards read it, and a talk's prep and lines; absent while there have been none.
+ * player of themselves in talks between scenes, by their cast ids (talk.ts's records): the GM's note
+ * of what the player knows reads it, and a talk's prep and lines; absent while there have been none.
  */
 export interface Story { time: string; day: number; flags: Record<string, string>; history?: Chapter[]; earlier?: Entry[]; talks?: Record<string, TalkRecord> }
 
@@ -104,13 +106,8 @@ export interface Chapter {
   sceneId: string; exitId: string; summary: string;
   lastMoments?: string[]; skipped?: Array<{ sceneId: string; why: string }>; fronts?: string[]; journal?: string[]; facts?: string[];
 }
-/**
- * A GM's entry. markup: who says each line, by game key where it resolves, and no marks (their notes
- * are written after, from what the player knows). drafted: the marks the GM made as it wrote.
- */
-export interface Reply { speaker: "gm"; kind: "narration"; text: string; markup?: Markup; drafted?: Drafted[] }
-/** A mark the GM made as it wrote: where, and what kind. Its own note is never kept (the prototype's notes.ts:23). */
-export interface Drafted { start: number; end: number; kind: MarkKind }
+/** A GM's entry. markup: who says each line, by game key where it resolves. */
+export interface Reply { speaker: "gm"; kind: "narration"; text: string; markup?: Markup }
 /**
  * A line the player might say or do next (the prototype's session.ts:192), as they'd type it:
  * something to say, a deed in brackets, a risky try in brackets that would call for a roll, or a way
@@ -159,9 +156,15 @@ export interface OpenRequest extends AiRequest {
   transcript?: Entry[];
   /** A talk's: with whom, where, their record, and what the prep reads besides the scene. */
   talk?: TalkOpen;
+  /** A scene of the story played by the two-part GM (docs/two-part-design.md): its mouthpiece speaks the opening, the roles as the scene opens its note -1. */
+  twoPart?: boolean;
 }
-/** ops: an aftermath's, what the stage manager says it did to the world (at most 16, by game key), applied through the gate. talk: a talk's prep, to keep. */
-export interface OpenResponse { present: string[]; entries: Reply[]; opened: OpenedNote[]; ops?: WorldOp[]; talk?: TalkPrep; usage: Usage }
+/**
+ * ops: an aftermath's, what the stage manager says it did to the world (at most 16, by game key),
+ * applied through the gate. talk: a talk's prep, to keep. check: the two-part GM's opening called
+ * one (the simulation rolls it and writes the outcome that came up, as a reply's).
+ */
+export interface OpenResponse { present: string[]; entries: Reply[]; opened: OpenedNote[]; ops?: WorldOp[]; talk?: TalkPrep; check?: SpokenCheck; usage: Usage }
 
 /**
  * A talk's open (town-design §3.6; talk.ts startTalk, openTalk and plan): the companion's cast id;
@@ -265,11 +268,47 @@ export interface Outcome {
   /** The player's violence started a fight this turn: the move's closing lines are dropped, and the reply ends on the fight breaking out. */
   brawl?: boolean;
 }
-export interface ReplyRequest extends AiRequest { turn: TurnContext; decision: Decision; outcome: Outcome; stream: { turn: string } }
-export interface ReplyResponse { entries: Reply[]; gm: { offered?: string; repeated: string | null }; firstTextMs: number | null; usage: Usage }
+/**
+ * decision: the decider's, for a talk (the old pipeline's). twoPart: a scene of the story, played by
+ * the two-part GM (docs/two-part-design.md): no decision, the outcome's directives (the rules' from
+ * before the player acted, and the map's act's) leading the mouthpiece's, and on the wind-down
+ * (outcome.windDown) its closing, which may wait once (the bookkeeping's twoPart.held not yet set).
+ */
+export interface ReplyRequest extends AiRequest { turn: TurnContext; decision?: Decision; outcome: Outcome; stream: { turn: string }; twoPart?: boolean }
+/**
+ * offered: the stage whose pressure this reply was offered. A two-part reply's check: the one its
+ * mouthpiece called, with each of its five outcomes as the screen would have it (the simulation rolls
+ * it and writes the dice line and the one that came up); closes: a closing that may wait once says
+ * whether it closed (false: it waits).
+ */
+export interface ReplyResponse { entries: Reply[]; gm: { offered?: string; repeated: string | null }; firstTextMs: number | null; check?: SpokenCheck; closes?: boolean; usage: Usage }
 
-/** reply: plain text. talk: a talk's turn, and whether its next lines are asked for (the controller's setting). */
-export interface SettleRequest extends AiRequest { turn: TurnContext; reply: string; lines: string[]; settled: string[]; talk?: { suggest: boolean } }
+/** A check the two-part GM's mouthpiece called: its skill and DC, and its five outcomes (shared/gm/two-part.ts BANDS), each the next words of the reply. */
+export interface SpokenCheck { skill: Skill; dc: number; outcomes: Record<Band, Reply> }
+
+/** A turn's check as the simulation rolled it: the co-GM takes a route the dice decide on how it went. */
+export interface TurnCheck { skill: string; dc: number; total: number; success: boolean; band: Band }
+
+/**
+ * What the two-part GM's co-GM did after a reply (its tools' calls): the roles it set, the latest
+ * for each person by cast id; the moves it made, in order, each taken at once with beats.ts's
+ * takeRoute on a copy of the bookkeeping (the simulation takes them again on its rows, the
+ * authority); and every call it made with what it was told. `error`: why it failed (nothing set or
+ * moved then).
+ */
+export interface CoGmAnswer {
+  roles: Record<string, TwoPartRole>;
+  moves: Array<{ route: string; outcome: RouteOutcome; why: string }>;
+  log: Array<{ name: string; args: Record<string, unknown>; result: string }>;
+  error?: string;
+}
+
+/**
+ * reply: plain text. talk: a talk's turn, and whether its next lines are asked for (the controller's
+ * setting). twoPart: a scene of the story, played by the two-part GM: the stage manager and its co-GM
+ * side by side, the co-GM told how this turn's check went (`check`, when the mouthpiece called one).
+ */
+export interface SettleRequest extends AiRequest { turn: TurnContext; reply: string; lines: string[]; settled: string[]; talk?: { suggest: boolean }; twoPart?: boolean; check?: TurnCheck }
 export interface After {
   /**
    * An outcome route the reply achieved, with its check for the simulation to roll. `exit`: the
@@ -300,8 +339,13 @@ export interface After {
    */
   guard?: Record<string, GuardStage>;
 }
-/** ops: at most 16, by game key; after absent when the reply closed the scene. talk: a talk's next lines (talk.suggest, beside the after-reply decision), none when they weren't asked for or the talk ended. */
-export interface SettleResponse { ops: WorldOp[]; after?: After; talk?: { suggestions: string[] }; usage: Usage }
+/**
+ * ops: at most 16, by game key; after absent when the reply closed the scene (and in a two-part
+ * scene, which has no read after the reply). talk: a talk's next lines (talk.suggest, beside the
+ * after-reply decision), none when they weren't asked for or the talk ended. coGm: a two-part
+ * scene's co-GM: its roles and moves.
+ */
+export interface SettleResponse { ops: WorldOp[]; after?: After; talk?: { suggestions: string[] }; coGm?: CoGmAnswer; usage: Usage }
 
 /**
  * POST /v1/turns/consider (full-gm-design §4.1): the GM's ruling on an act the decider flagged
@@ -351,18 +395,6 @@ export interface ReviewRecord { kind: "memories" | "lore"; summary: string; chan
 export interface RepairRequest extends AiRequest { turn: SceneContext; reviewed: number }
 /** The review (its turn the one reviewed): it waits in a co_gm_result row until the next turn's start merges it. */
 export interface RepairResponse { review: RepairResult; usage: Usage }
-
-/**
- * POST /v1/turns/notes: the notes on a reply's marks, written from what the player knows, placed on
- * its words, linked and carded. turn: the transcript up to and including the reply.
- */
-export interface NotesRequest extends AiRequest {
-  turn: SceneContext;
-  /** The reply's transcript seq, its words, who says each line (by game key) and the GM's marks. */
-  reply: { seq: number; text: string; speech: Speech[]; drafted: Drafted[] };
-}
-/** People by game key; [] when there was nothing to note, or the model failed (a 200 all the same). */
-export interface NotesResponse { marks: Mark[]; usage: Usage }
 
 /** POST /v1/turns/suggest: the lines to offer after a reply. turn: the transcript up to and including the reply. */
 export interface SuggestRequest extends AiRequest {

@@ -13,7 +13,7 @@ const bundle=async entry=>{
 };
 const model=await bundle('../src/scene/model.ts');
 const {campaignRootOf,contextOf,readCampaign,sceneKeyOf}=await bundle('../src/scene/campaign.ts');
-const {openSceneFile,serializeScene,SceneOpenError,withKey,ORDER,setSceneField,setNodeField,setRouteField,setCastField,addNode,addRoute,addCast,removeNodes,removeCast,addFact,removeFact,moveRoutes,skeletonScene,slugOf,uniqueId,problemsOf,shapeOf,setArrival,viaWarnings,viaNames,updateNode}=model;
+const {openSceneFile,serializeScene,SceneOpenError,withKey,ORDER,setSceneField,setNodeField,setRouteField,setCastField,addNode,addRoute,addCast,removeNodes,removeCast,addFact,removeFact,renameFact,settlesOf,testsOf,idProblem,renameNode,renameRoute,renameCast,makeEvent,makeDiscovery,moveRoutes,skeletonScene,slugOf,uniqueId,problemsOf,shapeOf,setArrival,freePosition,retitleNode,changeKind,kindLosses,viaWarnings,viaNames,updateNode}=model;
 
 const CAMPAIGN=new URL('../../../campaigns/caerwyn/',import.meta.url);
 const TESTDATA=new URL('../../../shared/scene/testdata/',import.meta.url);
@@ -103,6 +103,40 @@ test('ids are slugs made once from titles: free in the scene, and stable when th
   assert.equal(addCast(clerk(),'Kell','kell').id,'kell-2');
 });
 
+test('a new card goes beside the node it comes from, below the cards already there, never on one',()=>{
+  // The skeleton's discovery is where a second node from the start would go: the new one lands below it.
+  const skeleton=skeletonScene('The Short Weight');
+  assert.deepEqual(freePosition(skeleton,{x:400,y:0}),{x:400,y:220});
+  assert.deepEqual(freePosition(skeleton,{x:400,y:0},{discovery:{width:260,height:300}}),{x:400,y:340},'a measured card is its own height');
+  // And below the next one too, until it's clear of them all; clear ground is where it was wanted.
+  const two=addNode(skeleton,'discovery','Tam swaps the sacks',{x:400,y:220}).doc;
+  assert.deepEqual(freePosition(two,{x:400,y:0}),{x:400,y:440});
+  assert.deepEqual(freePosition(two,{x:1200,y:0}),{x:1200,y:0});
+  assert.deepEqual(freePosition(two,{x:600.6,y:-30}),{x:601,y:440},'overlapping a card sideways counts too');
+});
+
+test('a node retitled takes the routes into it that still have the label they were given from its title; one the author wrote stays',()=>{
+  const skeleton=skeletonScene('The Short Weight');
+  assert.equal(skeleton.edges[0].label,'Find Discovery');
+  const retitled=retitleNode(skeleton,'discovery','The weights are true');
+  assert.equal(retitled.nodes[1].data.title,'The weights are true');
+  assert.equal(retitled.edges[0].label,'Find The weights are true');
+  assert.equal(retitled.edges[0].id,'find-discovery','its id stays: game state keys on it');
+  // Typed a letter at a time, it follows each.
+  assert.equal(['T','Th','The'].reduce((doc,title)=>retitleNode(doc,'discovery',title),skeleton).edges[0].label,'Find The');
+  // Into an event or an ending, the label is the title.
+  const event=addNode(skeleton,'event','The cart comes',{x:0,y:400},{from:'start'});
+  assert.equal(retitleNode(event.doc,event.id,'The cart comes early').edges.find(route=>route.id===event.route).label,'The cart comes early');
+  // A label the author wrote stays as it is; a title unchanged is the same scene.
+  const written=setRouteField(skeleton,'find-discovery','condition','x');
+  const labelled={...written,edges:written.edges.map(route=>({...route,label:'Check the weights'}))};
+  assert.equal(retitleNode(labelled,'discovery','The weights are true').edges[0].label,'Check the weights');
+  assert.equal(retitleNode(skeleton,'discovery','Discovery'),skeleton);
+  const murder=clerk().nodes.find(other=>other.id==='murder');
+  assert.equal(retitleNode(clerk(),'murder','Murder, plainly').edges.find(route=>route.target==='murder').label,clerk().edges.find(route=>route.target==='murder').label,'the clerk\'s labels are written, and stay');
+  assert.ok(murder);
+});
+
 test('taking something out takes what named it with it, so the game can still load the file',()=>{
   const doc=setArrival(setRouteField(clerk(),'signed-murder','onFailure','hobb'),'kell','cart-arrives',true);
   const without=removeNodes(doc,['hobb','cart-arrives','start']);
@@ -123,6 +157,128 @@ test('taking something out takes what named it with it, so the game can still lo
   const noMoll=removeCast(clerk(),'moll');
   assert.ok(!noMoll.cast.some(member=>member.id==='moll'));
   assert.ok(!noMoll.nodes.some(node=>node.data.cast&&'moll' in node.data.cast));
+});
+
+test('a fact renamed or taken out follows every place it\'s named: the facts, establishes, and effects\' conditions',()=>{
+  const nodeOf=(doc,id)=>doc.nodes.find(node=>node.id===id);
+  let doc=clerk();
+  doc=setNodeField(doc,'failed','effects',[...nodeOf(doc,'failed').data.effects,
+    {op:'journal',text:'Hobb was there.',if:{established:'hobb-at-granary'}},
+    {op:'journal',text:'The motive too.',if:{established:['hobb-at-granary','motive-known']},unless:{established:'killed-not-suicide'}}]);
+  doc=setSceneField(doc,'onEnd',[{op:'follow',who:'kell',unless:{established:['hobb-at-granary']}}]);
+  doc=setRouteField(doc,'case-lost','establishes',['hobb-at-granary']);
+  assert.deepEqual(settlesOf(doc,'hobb-at-granary'),[{kind:'node',id:'hobb'},{kind:'route',id:'case-lost'}]);
+  assert.deepEqual(testsOf(doc,'hobb-at-granary'),[
+    {at:{kind:'scene',field:'onEnd'},index:0,key:'unless',op:'follow'},
+    {at:{kind:'node',id:'failed'},index:4,key:'if',op:'journal'},
+    {at:{kind:'node',id:'failed'},index:5,key:'if',op:'journal'},
+  ]);
+
+  const renamed=renameFact(doc,'hobb-at-granary','hobb-seen');
+  assert.deepEqual(Object.keys(renamed.facts),['killed-not-suicide','motive-known','hobb-seen'],'the key keeps its place');
+  assert.equal(renamed.facts['hobb-seen'],doc.facts['hobb-at-granary']);
+  assert.deepEqual(nodeOf(renamed,'hobb').data.establishes,['hobb-seen']);
+  assert.deepEqual(renamed.edges.find(route=>route.id==='case-lost').data.establishes,['hobb-seen']);
+  const effects=nodeOf(renamed,'failed').data.effects;
+  assert.deepEqual(effects[4].if,{established:'hobb-seen'});
+  assert.deepEqual(effects[5].if,{established:['hobb-seen','motive-known']});
+  assert.deepEqual(renamed.onEnd[0].unless,{established:['hobb-seen']},'a list stays a list');
+  assert.equal(nodeOf(renamed,'murder'),nodeOf(doc,'murder'),'what doesn\'t name it is the same object');
+  assert.deepEqual(shapeOf(renamed),[]);
+  assert.equal(renameFact(doc,'no-such-fact','x'),doc);
+
+  const removed=removeFact(renamed,'hobb-seen');
+  assert.ok(!('hobb-seen' in removed.facts));
+  assert.equal(nodeOf(removed,'hobb').data.establishes,undefined);
+  const left=nodeOf(removed,'failed').data.effects;
+  assert.deepEqual(left[4],{op:'journal',text:'Hobb was there.'},'a condition with no fact left goes');
+  assert.deepEqual(left[5],{op:'journal',text:'The motive too.',if:{established:'motive-known'},unless:{established:'killed-not-suicide'}},'one fact left is written as its id');
+  assert.deepEqual(removed.onEnd,[{op:'follow',who:'kell'}]);
+  assert.deepEqual(shapeOf(removed),[]);
+  assert.deepEqual(testsOf(removed,'hobb-seen'),[]);
+});
+
+test('a node, a route or a person renamed: every reference in the file follows, and only by asking',async()=>{
+  const nodeOf=(doc,id)=>doc.nodes.find(node=>node.id===id);
+  assert.equal(idProblem('Dead cart',[]),'An id is a slug: lower-case letters, digits and dashes, starting with a letter or digit.');
+  assert.equal(idProblem('murder',['murder','hobb']),'murder is taken.');
+  assert.equal(idProblem('murder',['murder','hobb'],'murder'),undefined,'its own id is free to it');
+
+  const doc=setRouteField(clerk(),'signed-suicide','onFailure','hobb');
+  const node=renameNode(renameNode(doc,'cart-arrives','dead-cart'),'hobb','hobb-spotted');
+  assert.deepEqual(node.nodes.map(n=>n.id),['start','murder','motive','hobb-spotted','dead-cart','murder-unknown','suspicious','failed']);
+  assert.deepEqual(node.edges.map(route=>[route.id,route.source,route.target]),[['find-murder','start','murder'],['find-motive','start','motive'],['find-hobb','start','hobb-spotted'],['cart-comes','start','dead-cart'],['signed-murder','dead-cart','murder-unknown'],['signed-suicide','dead-cart','suspicious'],['case-lost','start','failed']]);
+  assert.deepEqual(node.edges.find(route=>route.id==='signed-murder').data.requires,['murder','hobb-spotted']);
+  assert.equal(node.edges.find(route=>route.id==='signed-suicide').data.onFailure,'hobb-spotted');
+  assert.equal(node.cast.find(member=>member.id==='tull').enters,'dead-cart');
+  assert.deepEqual(shapeOf(node),[]);
+
+  const route=renameRoute(clerk(),'case-lost','walked-away');
+  assert.deepEqual(Object.keys(route.edges[6]),['id','source','target','type','label','data']);
+  assert.equal(route.edges[6].id,'walked-away');
+
+  let withEffects=setNodeField(clerk(),'failed','effects',[...nodeOf(clerk(),'failed').data.effects,{op:'promise',by:'cob',to:'$player',text:'A boot back.'},{op:'remove',what:'cob',text:'off up the lane'}]);
+  withEffects=setSceneField(withEffects,'onEnd',[{op:'follow',who:'cob'},{op:'startFight',enemies:[{asset:'bandit',count:2,leader:'cob'}],allies:['kell','cob'],at:'yard'}]);
+  const person=renameCast(withEffects,'cob','cob-the-boy');
+  assert.equal(person.cast[1].id,'cob-the-boy');
+  assert.deepEqual(Object.keys(person.cast[1]),Object.keys(clerk().cast[1]));
+  assert.deepEqual(Object.keys(nodeOf(person,'start').data.cast),['cob-the-boy','moll','kell'],'their note keeps its place');
+  assert.deepEqual(Object.keys(nodeOf(person,'cart-arrives').data.cast),['tull','kell','cob-the-boy','moll']);
+  assert.deepEqual(nodeOf(person,'motive').data.paths.map(path=>path.via),['cob-the-boy','kell','cob-the-boy','the tally loft','tull']);
+  assert.deepEqual(nodeOf(person,'failed').data.effects.slice(-2),[{op:'promise',by:'cob-the-boy',to:'$player',text:'A boot back.'},{op:'remove',what:'cob-the-boy',text:'off up the lane'}]);
+  assert.deepEqual(person.onEnd,[{op:'follow',who:'cob-the-boy'},{op:'startFight',enemies:[{asset:'bandit',count:2,leader:'cob-the-boy'}],allies:['kell','cob-the-boy'],at:'yard'}]);
+  // The place's people name him by his old id: the campaign's file, which the problems name.
+  const campaign=await readCampaign('scenes/hanged-clerk.kmscene',await campaignFiles());
+  assert.deepEqual(problemsOf('hanged-clerk',renameCast(clerk(),'cob','cob-the-boy'),contextOf(campaign,'hanged-clerk')).map(problem=>problem.message),['granary-yard\'s people: cob isn\'t in the cast']);
+});
+
+test('a beat\'s kind changes with its revelation: an event has no paths, a discovery is never the stage',()=>{
+  const nodeOf=(doc,id)=>doc.nodes.find(node=>node.id===id);
+  const event=makeEvent(setNodeField(clerk(),'hobb','pressure','Kept.'),'hobb');
+  assert.deepEqual(Object.keys(nodeOf(event,'hobb').data),['kind','title','description','pressure','establishes','carry','lore']);
+  assert.deepEqual(shapeOf(event),[]);
+  assert.equal(makeEvent(event,'hobb'),event,'an event already');
+  const discovery=makeDiscovery(clerk(),'cart-arrives');
+  const data=nodeOf(discovery,'cart-arrives').data;
+  assert.equal(data.revelation,'');
+  assert.deepEqual(data.paths,[]);
+  assert.equal(data.cast,undefined);
+  assert.equal(data.pressure,undefined);
+  assert.equal(discovery.cast.find(member=>member.id==='tull').enters,undefined,'who arrived there is here from the start');
+  assert.deepEqual(shapeOf(discovery),[]);
+});
+
+test('a node changes kind, a beat to an ending and back, losing what the new kind has no use for and what named it as the old one',()=>{
+  const nodeOf=(doc,id)=>doc.nodes.find(node=>node.id===id);
+  // The dead-cart made an ending: its pressure, roles and arrival go, and its routes out (none leaves an ending).
+  assert.deepEqual(kindLosses(clerk(),'cart-arrives','ending'),['its pressure','its 4 conversation roles','its 1 arrival (they\'re here from the start instead)','its 2 routes out (no route leaves an ending)']);
+  const ending=changeKind(clerk(),'cart-arrives','ending');
+  assert.deepEqual(nodeOf(ending,'cart-arrives').data,{kind:'exit',title:'The dead-cart arrives',description:nodeOf(clerk(),'cart-arrives').data.description,closing:'',result:'good',exitKind:'progress',lore:[]});
+  assert.deepEqual(ending.edges.map(route=>route.id),['find-murder','find-motive','find-hobb','cart-comes','case-lost']);
+  assert.equal(ending.cast.find(member=>member.id==='tull').enters,undefined);
+  assert.deepEqual(shapeOf(ending),[]);
+  // A discovery made an ending: what required it requires it no more (only a beat is required).
+  assert.deepEqual(kindLosses(clerk(),'hobb','ending'),['its revelation','its 4 paths','its required mark','the 1 fact it settles','what the story carries of it','what 2 routes require of it']);
+  const hobb=changeKind(clerk(),'hobb','ending');
+  assert.deepEqual(hobb.edges.find(route=>route.id==='signed-murder').data.requires,['murder']);
+  assert.equal(hobb.edges.find(route=>route.id==='signed-suicide').data.requires,undefined);
+  assert.deepEqual(shapeOf(hobb),[]);
+  // An ending made a beat: its closing, effects and next scene go; a discovery's revelation and paths are to write.
+  assert.deepEqual(kindLosses(clerk(),'murder-unknown','event'),['its closing','its 6 effects','its next scene']);
+  const discovery=changeKind(clerk(),'failed','discovery');
+  assert.deepEqual(nodeOf(discovery,'failed').data,{kind:'beat',title:'Failed',description:nodeOf(clerk(),'failed').data.description,revelation:'',paths:[],lore:[]});
+  assert.deepEqual(Object.keys(nodeOf(changeKind(clerk(),'failed','event'),'failed').data),['kind','title','description','lore']);
+  assert.deepEqual(shapeOf(discovery),[]);
+  // And back: a fresh ending loses nothing it was given; beats switch as before; the start stays the start.
+  assert.deepEqual(kindLosses(ending,'cart-arrives','event'),[]);
+  assert.deepEqual(nodeOf(changeKind(ending,'cart-arrives','event'),'cart-arrives').data,{kind:'beat',title:'The dead-cart arrives',description:nodeOf(clerk(),'cart-arrives').data.description,lore:[]});
+  assert.deepEqual(kindLosses(clerk(),'murder','event'),['its revelation','its 5 paths']);
+  const doc=clerk();
+  assert.equal(changeKind(doc,'start','ending'),doc);
+  assert.equal(changeKind(doc,'murder','discovery'),doc);
+  // Unknown keys stay where they were.
+  const marked=setNodeField(doc,'failed','tone','grim');
+  assert.deepEqual(Object.keys(nodeOf(changeKind(marked,'failed','discovery'),'failed').data),['kind','title','description','revelation','paths','lore','tone']);
 });
 
 test('a new scene is the format\'s skeleton: a start, a discovery, an ending and a route, its ids slugs of their titles',()=>{
@@ -153,6 +309,14 @@ test('the campaign around a scene: its root, its scenes, places and quests, its 
   assert.ok(!campaign.lore.some(note=>/\/(private|gm|index)\.md$|\/knowledge\//.test(note.path)&&note.path.startsWith('Cast/')),'a person\'s public card is offered, not their private notes');
   assert.ok(campaign.lore.some(note=>note.path==='World/Fronts.md'&&note.kind==='world'));
   assert.ok(campaign.lore.some(note=>note.path==='Places/Granary Yard.md'&&note.kind==='place'));
+  // A scene file the scenario doesn't list yet is one the story can be sent to (the problems say so until it's listed).
+  assert.deepEqual(campaign.unlisted,[]);
+  const files=await campaignFiles();
+  const writing={list:folder=>[...files.list(folder),...('scenes/the-short-weight.kmscene'.startsWith(folder)?['scenes/the-short-weight.kmscene']:[])],read:files.read};
+  const more=await readCampaign('scenes/hanged-clerk.kmscene',writing);
+  assert.deepEqual(more.unlisted,['the-short-weight']);
+  const sent=setNodeField(clerk(),'failed','next','the-short-weight');
+  assert.deepEqual(problemsOf('hanged-clerk',sent,contextOf(more,'hanged-clerk')).map(problem=>problem.message),['ending failed goes on to the-short-weight, which isn\'t one of the campaign\'s scenes']);
 });
 
 test('the problems are the campaign check\'s: none on the real scenes, and one where it is when a scene breaks a rule',async()=>{
@@ -160,8 +324,8 @@ test('the problems are the campaign check\'s: none on the real scenes, and one w
   for(const scene of campaign.scenes)assert.deepEqual(problemsOf(scene.id,scene.doc,contextOf(campaign,scene.id)),[],scene.id);
   const broken=setRouteField(setCastField(clerk(),'cob','limits',undefined),'signed-murder','requires',undefined);
   assert.deepEqual(problemsOf('hanged-clerk',broken,contextOf(campaign,'hanged-clerk')),[
-    {message:'route signed-murder goes to a good ending (murder-unknown) but requires nothing found',at:{kind:'route',id:'signed-murder'}},
-    {message:'discovery hobb is required, but no route into a good ending requires it',at:{kind:'node',id:'hobb'}},
+    {message:'route signed-murder goes to a good ending (murder-unknown) but requires nothing found',at:{kind:'route',id:'signed-murder',field:'requires'}},
+    {message:'discovery hobb is required, but no route into a good ending requires it',at:{kind:'node',id:'hobb',field:'required'}},
   ]);
   const unlisted=problemsOf('the-lamplighter',skeletonScene('The Lamplighter'),contextOf(campaign,'the-lamplighter'));
   assert.deepEqual(unlisted.map(problem=>problem.message),[

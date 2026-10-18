@@ -4,7 +4,7 @@ import { Identity } from "spacetimedb";
 import type { RollResult } from "../../../shared/dice.ts";
 import type { Backstory } from "../../../shared/creation/types.ts";
 import type {
-  BackstoriesRequest, BackstoriesResponse, BoundaryRequest, BoundaryResponse, CharactersRequest, CharactersResponse, ConsiderResponse, DecideResponse, LooksResponse, NotesResponse, OpenResponse, ReactionsResponse,
+  BackstoriesRequest, BackstoriesResponse, BoundaryRequest, BoundaryResponse, CharactersRequest, CharactersResponse, ConsiderResponse, DecideResponse, LooksResponse, OpenResponse, ReactionsResponse,
   RememberResponse, RepairRequest,
   RepairResponse, ReplyResponse, SettleResponse, SuggestResponse, Usage,
 } from "../../../shared/protocol/ai.ts";
@@ -40,10 +40,12 @@ export const TEST_CLERK = join(import.meta.dirname, "..", "..", "..", "shared", 
 
 /**
  * Whether a game starts on the campaign's map (map-design §3.3), or, as the stack's tests before the
- * map, in its first scene at once; and whether the hanged clerk is the campaign's own (`asIs`) rather
- * than the tests' (TEST_CLERK).
+ * map, in its first scene at once; whether the hanged clerk is the campaign's own (`asIs`) rather
+ * than the tests' (TEST_CLERK); and whether its scenes are played by the two-part GM (`twoPart`, as
+ * the game's are: docs/two-part-design.md) rather than the old pipeline, which the tests from before
+ * M2 test (the campaign's `gm: "pipeline"`, a scenario's key), kept until the user decides what to salvage of it.
  */
-export interface PackOptions { map?: boolean; asIs?: boolean }
+export interface PackOptions { map?: boolean; asIs?: boolean; twoPart?: boolean }
 
 /**
  * campaigns/caerwyn as install_campaign takes it: every scene's file whole (the hanged clerk the
@@ -55,8 +57,9 @@ export function caerwynPack(options: PackOptions = {}): CampaignPack {
   const campaign = loadScenario(read(scenarioPath("caerwyn")), scenarioPath("caerwyn"));
   const { map: _map, at: _at, ...offMap } = campaign.start;
   const scene = (key: string) => JSON.parse(key === "hanged-clerk" && !options.asIs ? readFileSync(TEST_CLERK, "utf8") : read(`scenes/${key}.kmscene`)) as SceneDocument;
+  const gm = { ...campaign, gm: options.twoPart ? "two-part" as const : "pipeline" as const };
   return {
-    campaign: options.map ? campaign : { ...campaign, start: offMap },
+    campaign: options.map ? gm : { ...gm, start: offMap },
     scenes: [...campaign.scenes, campaign.talk!].map(scene),
     places: campaign.places.map(key => loadPlace(read(placePath(key)), placePath(key))),
     builds: JSON.parse(read("builds.json")) as BuildsFile,
@@ -73,8 +76,8 @@ export const identity = (n: number) => new Identity(BigInt(0x1000 + n));
 // ---------------------------------------------------------------------------------------------
 // A scripted AI service.
 
-/** A turn's steps (its own, the notes and the lines beside it, and the jobs after it), a scene's boundary, and character creation's (named from the request: /v1/characters' ask, /v1/backstories' op). */
-export type Step = "open" | "decide" | "reactions" | "consider" | "reply" | "settle" | "notes" | "suggest" | "remember" | "repair" | "boundary" | "look" | CreationStep;
+/** A turn's steps (its own, the lines beside it, and the jobs after it), a scene's boundary, and character creation's (named from the request: /v1/characters' ask, /v1/backstories' op). */
+export type Step = "open" | "decide" | "reactions" | "consider" | "reply" | "settle" | "suggest" | "remember" | "repair" | "boundary" | "look" | CreationStep;
 
 /** What an endpoint answers: the answer itself (200, as JSON), another HTTP reply, a thrown error (a refused connection), or a function of the request that gives one of those. */
 export type Scripted = unknown | { http: AiReply } | ((request: any, headers: Record<string, string>) => unknown);
@@ -85,16 +88,16 @@ const usage = (calls: number, costUsd: number): Usage => ({ calls, costUsd, byOp
 
 /**
  * The answers each endpoint gives when the script has nothing queued for it. The opening and the
- * reply carry no markup, so nothing is noted unless a test says what's said; the lines are four.
+ * reply carry no markup; the lines are four.
  * Nobody reacts to the player's violence (as the canned GM: no reactions, no directive, no cost).
  * The GM rules on nothing (as the canned GM: no ruling, and no check to roll instead); after a turn,
  * nobody remembers anything, and the co-GM finds the scene on track with nothing to add. Those two
- * cost nothing here, so a turn's calls are its own steps' and its notes' and lines'. A boundary goes
+ * cost nothing here, so a turn's calls are its own steps' and its lines'. A boundary goes
  * on to the first scene it could, with the fallback hand-off, nothing rewritten, nobody absent and
  * nothing owed (the canned GM's), for three calls.
  */
 export const DEFAULTS: {
-  open: OpenResponse; decide: DecideResponse; reactions: ReactionsResponse; consider: ConsiderResponse; reply: ReplyResponse; settle: SettleResponse; notes: NotesResponse; suggest: SuggestResponse;
+  open: OpenResponse; decide: DecideResponse; reactions: ReactionsResponse; consider: ConsiderResponse; reply: ReplyResponse; settle: SettleResponse; suggest: SuggestResponse;
   remember: RememberResponse; repair: (request: RepairRequest) => RepairResponse; boundary: (request: BoundaryRequest) => BoundaryResponse; look: LooksResponse;
 } = {
   open: { present: ["kell", "cob", "moll"], entries: [{ speaker: "gm", kind: "narration", text: "Sergeant Kell looks up from her notebook as you come through the gate. \"You'll be the King's investigator.\"" }], opened: [], usage: usage(2, 0.002) },
@@ -103,7 +106,6 @@ export const DEFAULTS: {
   consider: { error: "scripted: no ruling", ms: 0, usage: usage(0, 0) },
   reply: { entries: [{ speaker: "gm", kind: "narration", text: "Kell taps her pencil on the notebook. \"Noted.\"" }], gm: { repeated: null }, firstTextMs: 3, usage: usage(1, 0.001) },
   settle: { ops: [], after: { landed: [], hinted: [], unanswered: false, theirs: false }, usage: usage(2, 0.0007) },
-  notes: { marks: [], usage: usage(1, 0.0002) },
   suggest: {
     lines: [
       { kind: "say", text: "Who found him, Sergeant?" },
@@ -137,7 +139,7 @@ export const onTrack = (turn: number): RepairResponse["review"] => ({
 });
 
 const STEPS: Record<string, Step> = {
-  "/v1/scenes/open": "open", "/v1/turns/decide": "decide", "/v1/turns/reactions": "reactions", "/v1/turns/consider": "consider", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle", "/v1/turns/notes": "notes", "/v1/turns/suggest": "suggest",
+  "/v1/scenes/open": "open", "/v1/turns/decide": "decide", "/v1/turns/reactions": "reactions", "/v1/turns/consider": "consider", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle", "/v1/turns/suggest": "suggest",
   "/v1/turns/remember": "remember", "/v1/turns/repair": "repair", "/v1/scenes/boundary": "boundary", "/v1/looks": "look",
 };
 
@@ -213,7 +215,7 @@ export const down = () => () => {
 
 export function scriptedAi() {
   const sent: Sent[] = [];
-  const queues: Record<Step, Scripted[]> = { open: [], decide: [], reactions: [], consider: [], reply: [], settle: [], notes: [], suggest: [], remember: [], repair: [], boundary: [], look: [], offer: [], pick: [], own: [], draft: [], work: [], check: [], traits: [] };
+  const queues: Record<Step, Scripted[]> = { open: [], decide: [], reactions: [], consider: [], reply: [], settle: [], suggest: [], remember: [], repair: [], boundary: [], look: [], offer: [], pick: [], own: [], draft: [], work: [], check: [], traits: [] };
 
   const ai: AiPost = async (endpoint, body, headers) => {
     const request = JSON.parse(body) as { key: string; ask?: { kind?: string }; op?: string };
@@ -262,9 +264,9 @@ export function hostWithCampaign(seed = 7, options: PackOptions = {}) {
   return { host, script };
 }
 
-/** A new game, its opening committed: the scene live and the player's line next. */
-export async function openedGame(seed = 7, build = "ranger") {
-  const { host, script } = hostWithCampaign(seed);
+/** A new game, its opening committed: the scene live and the player's line next (on the old pipeline, unless the pack's options say `twoPart`). */
+export async function openedGame(seed = 7, build = "ranger", options: PackOptions = {}) {
+  const { host, script } = hostWithCampaign(seed, options);
   const wren = identity(1);
   const refused = host.as(wren).newGame({ campaign: "caerwyn", name: "Wren Ashdown", concept: "a hedge wizard from the fens", build });
   if (refused) throw new Error(`new_game was refused: ${refused.text}`);

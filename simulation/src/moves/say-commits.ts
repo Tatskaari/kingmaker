@@ -26,7 +26,6 @@ import { finishTurn } from "../turns.ts";
 import { applyStage, joinArrivals, placeWorldOf, savePlaceWorld } from "../world/place.ts";
 import { syncStage } from "../world/stage.ts";
 import type { Next } from "./move.ts";
-import { askForNotes } from "./notes.ts";
 import type { SayPlan } from "./plans.ts";
 import { suggestAfter } from "./suggest.ts";
 import { keysIn, lookForNew } from "./looks.ts";
@@ -35,8 +34,7 @@ import { keysIn, lookForNew } from "./looks.ts";
  * A say turn's commits (v0-design §6.2; gm-port §6, §8, §9; full-gm-design §4.2; world-bridge-design
  * §3.4), each one transaction, a pure function of the rows, the plan and the answer (the dice are a
  * row, and the rules engine is pinned to it), so withTx can run one twice. Each ends with the next
- * step's plan, or with the turn finished (turns.ts: done, or noting while its reply's notes are
- * written, which v5-design §3.5 has the turn wait for). The turn's last commit queues the jobs that
+ * step's plan, or with the turn finished (turns.ts). The turn's last commit queues the jobs that
  * go over it once it's over (gm/background.ts afterTurn).
  */
 
@@ -44,7 +42,7 @@ import { keysIn, lookForNew } from "./looks.ts";
 export const SCENE_ENDED_FIRST = "The scene ended first.";
 
 /** What a commit works on: the scene, its graph (as play has changed it), and its GM bookkeeping, changed in place and written back. */
-interface At { scene: SceneRow; graph: Scene; gm: GmState }
+export interface At { scene: SceneRow; graph: Scene; gm: GmState }
 
 /**
  * After decide: the notes disclosure opened kept; then, on the wind-down, only whether the player
@@ -135,7 +133,7 @@ export function afterConsider(tx: TxCtx, plan: SayPlan, answer: ConsiderResponse
 }
 
 /**
- * After reply: the GM's entry, the draft gone; its notes asked for, and the lines to suggest after it
+ * After reply: the GM's entry, the draft gone; the lines to suggest after it
  * unless it ends the scene, both on the world as the reply left it (engine.ts:844, :869, before
  * :880); what the reply offered or repeated noted, whoever a cue brought on joined to the world and
  * the stage. The wind-down's reply closes the scene (unless the player spoke out of character); any
@@ -146,8 +144,7 @@ export function afterReply(tx: TxCtx, plan: SayPlan, answer: ReplyResponse): Nex
   const at = atTurn(tx, plan);
   const turnId = idOf(plan.turn);
 
-  const reply = writeReply(tx, at.scene, plan.n, turnId, answer.entries ?? []);
-  if (reply) askForNotes(tx, turnId, reply);
+  writeReply(tx, at.scene, plan.n, turnId, answer.entries ?? []);
   // A talk's next lines come with its settle (talk.suggest, beside the after-reply read: town-design §3.6).
   if (!endsScene(at, plan) && at.scene.kind !== "talk") suggestAfter(tx, at.scene, turnId);
   noteReply(at.gm, answer);
@@ -262,7 +259,7 @@ function dispelAtTheEnd(tx: TxCtx, scene: SceneRow, n: number): void {
 // ---------------------------------------------------------------------------------------------
 // afterDecide's parts.
 
-function atTurn(tx: TxCtx, plan: SayPlan): At {
+export function atTurn(tx: TxCtx, plan: Pick<SayPlan, "scene">): At {
   const scene = sceneRow(tx, idOf(plan.scene));
   const gm = getGm(tx, scene.id);
   return { scene, graph: sceneGraph(tx, scene, gm), gm };
@@ -360,7 +357,7 @@ function diceEntry(tx: TxCtx, scene: SceneRow, n: number, text: string): string 
  * reactions step's act. Not when the blow before their turn put them down (it doesn't happen), nor a
  * Shield already raised against it.
  */
-function takeAct(tx: TxCtx, at: At, plan: SayPlan, m: Mechanic, move: Move | undefined, outcome: Outcome): Act | undefined {
+export function takeAct(tx: TxCtx, at: At, plan: Pick<SayPlan, "n" | "input" | "rulesFirst">, m: Mechanic, move: Move | undefined, outcome: Outcome): Act | undefined {
   const first = plan.rulesFirst;
   const forestalled = !!first?.down || (!!first?.shielded && m.kind === "cast" && m.spell === "shield");
   if (forestalled && first?.down) outcome.lines.push(diceEntry(tx, at.scene, plan.n, "(Knocked down before you could act: it doesn't happen)"));
@@ -475,7 +472,7 @@ function endsScene(at: At, plan: SayPlan): boolean {
 }
 
 /** A beat's pressure, once offered, isn't offered again; a sentence the reply repeated word for word, the next is told not to (or that's cleared). */
-function noteReply(gm: GmState, answer: ReplyResponse): void {
+export function noteReply(gm: GmState, answer: ReplyResponse): void {
   const offered = answer.gm?.offered;
   if (offered && !gm.pressureOffered.includes(offered)) gm.pressureOffered.push(offered);
   if (answer.gm?.repeated) gm.repeated = answer.gm.repeated;

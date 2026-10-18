@@ -3,10 +3,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { initialGm, type GmState } from "../gm/state.ts";
-import { endingOf, enteringAt, openRoutes, reachedOf, stageOf, takeRoute, targetsOf, type Taken } from "./beats.ts";
+import { endingOf, enteringAt, openRoutes, reachDiscoveries, reachedOf, stageOf, takeRoute, targetsOf, type Taken } from "./beats.ts";
 import type { SceneDocument } from "./document.ts";
 import { presentCast } from "./graph.ts";
 import { sceneOf } from "./load.ts";
+import { loadScenario, scenarioPath } from "./scenario.ts";
 
 /** Where the scene is (docs/two-part-design.md "Where the scene is"), on the hanged clerk as the campaign has it. */
 
@@ -111,4 +112,53 @@ test("a dice route: it refuses none; success goes to its target, settling its fa
   assert.equal("reached" in fell ? fell.reached : undefined, undefined, "nowhere to go: the scene stays where it is");
   assert.deepEqual([stayed.reached, stayed.beat, stayed.path.at(-1)], [gm.reached, "cart-arrives", { turn: 3, from: "cart-arrives", to: "cart-arrives", via: "climb", source: "post", known: 1 }]);
   assert.ok(ids(openRoutes(dice, stayed)).includes("climb"), "and the route is still there to try again");
+});
+
+test("a fight already fought isn't offered again: the scene picked up after it can end another way", () => {
+  // The Heron's fight, fought by the stand-in (story/fight.ts): its ending no longer reached, and spent.
+  const heron = sceneOf(JSON.parse(readFileSync(join(import.meta.dirname, "..", "..", "campaigns", "caerwyn", "scenes", "heron-warehouse.kmscene"), "utf8")) as SceneDocument);
+  let gm = took(takeRoute(heron, initialGm(heron), "master-comes", "none", 1));
+  gm = took(takeRoute(heron, gm, "cornered", "none", 2));
+  assert.equal(gm.closing?.exitId, "fight");
+  const after: GmState = { ...gm, reached: gm.reached.filter(id => id !== "fight"), fought: ["fight"] };
+  delete after.closing;
+
+  const open = ids(openRoutes(heron, after));
+  assert.ok(!open.includes("cornered") && !open.includes("attack"), "no way back into the fight");
+  assert.ok(open.includes("overpowered") || open.includes("cast-off"), "the night's other endings are open again");
+  assert.match(refused(takeRoute(heron, after, "attack", "none", 3)), /^\[attack\] isn't open: it goes to Roll for initiative \[fight\], a fight already fought\./);
+});
+
+test("a thorough end's discoveries: each the scene can reach taken through its open route in the scene's order, its facts settled and a carried one landed; the stage stays; a dice route on its success", () => {
+  const before = initialGm(scene);
+  const done = reachDiscoveries(scene, before, 6);
+
+  assert.deepEqual(done.reached, ["murder", "motive", "hobb"]);
+  assert.deepEqual([done.gm.reached, done.gm.landed], [["start", "murder", "motive", "hobb"], ["motive", "hobb"]]);
+  assert.deepEqual(done.gm.established, [facts["killed-not-suicide"], facts["motive-known"], facts["hobb-at-granary"]]);
+  assert.deepEqual(done.gm.path.map(p => [p.turn, p.from, p.to, p.via]), [[6, "start", "murder", "find-murder"], [6, "start", "motive", "find-motive"], [6, "start", "hobb", "find-hobb"]]);
+  assert.deepEqual([done.gm.beat, done.gm.closing, targetsOf(scene, done.gm)], ["start", undefined, []], "no event, no ending");
+  assert.deepEqual([before.reached, before.landed], [["start"], []], "the state it was handed is as it was");
+  assert.deepEqual(reachDiscoveries(scene, done.gm, 7), { gm: done.gm, reached: [] }, "nothing left to reach");
+
+  const cart = reachDiscoveries(scene, took(takeRoute(scene, initialGm(scene), "cart-comes", "none", 1)), 2);
+  assert.deepEqual([cart.reached, cart.gm.beat], [["murder", "motive", "hobb"], "cart-arrives"], "from the stage it's at");
+
+  const doc = structuredClone(DOC);
+  doc.edges = doc.edges.filter(e => e.id !== "find-murder");
+  doc.edges.push({ id: "climb", source: "start", target: "murder", type: "smoothstep", label: "Climb to the body", data: { condition: "The player climbs the hoist to look at the body.", phase: "outcome", skill: "athletics", dc: 13 } });
+  const climbed = reachDiscoveries(sceneOf(doc), initialGm(sceneOf(doc)), 1);
+  assert.deepEqual(climbed.gm.path.find(p => p.to === "murder")?.via, "climb");
+});
+
+test("a thorough end on every scene of the story: every discovery reached but one behind an event (the King's Sallow, once he's sent for), every carried one landed", () => {
+  const dir = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
+  const campaign = loadScenario(readFileSync(join(dir, scenarioPath("caerwyn")), "utf8"), scenarioPath("caerwyn"));
+  for (const key of campaign.scenes) {
+    const each = sceneOf(JSON.parse(readFileSync(join(dir, "scenes", `${key}.kmscene`), "utf8")) as SceneDocument);
+    const done = reachDiscoveries(each, initialGm(each), 1).gm;
+    assert.deepEqual(ids(targetsOf(each, done)), key === "kings-morning" ? ["sallow-slips"] : [], `${key}: what's left to find`);
+    assert.deepEqual((each.essentials ?? []).filter(e => !done.landed.includes(e.id)).map(e => e.id), [], `${key}: nothing carried is owed on`);
+    assert.deepEqual([done.beat, done.closing], [each.start, undefined], `${key}: the stage stays`);
+  }
 });

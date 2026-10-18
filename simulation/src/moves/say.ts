@@ -11,13 +11,14 @@ import { sayCall } from "../gm/requests.ts";
 import { getGm, putGm } from "../gm/rows.ts";
 import { gameRow, playerRow, sceneOfPlayer, sceneRow, updateScene, type SceneRow, type TurnRow } from "../rows.ts";
 import { rulesFirst } from "../rules/play.ts";
-import { sceneGraph } from "../scenes.ts";
+import { playsTwoPart, sceneGraph } from "../scenes.ts";
 import { addEntry, noteHeard } from "../transcript.ts";
 import { newTurn, queuedTurnOf } from "../turns.ts";
 import type { Move } from "./move.ts";
 import { seenOf } from "./open-scene.ts";
 import type { SayPlan } from "./plans.ts";
 import { afterConsider, afterDecide, afterReactions, afterReply, afterSettle } from "./say-commits.ts";
+import { afterTwoPartReply, afterTwoPartSettle, twoPartStart } from "./two-part.ts";
 
 /**
  * say (v0-design §4.2): the controller's line, recorded at once with its turn, and the game played
@@ -43,7 +44,7 @@ export const say: Move<{ text: string }, SayPlan> = {
     const line = text.trim(), n = scene.turns + 1;
     const waits = scene.turnId !== undefined;
 
-    const turn = newTurn(tx, scene, actor.id!, n, waits ? "queued" : "deciding");
+    const turn = newTurn(tx, scene, actor.id!, n, waits ? "queued" : firstPhase(tx, scene));
     addEntry(tx, scene, { turn: n, speaker: playerSpeaker(actor.id!), kind: "player", text: line });
     noteHeard(tx, scene, sceneGraph(tx, scene, getGm(tx, scene.id)));
     updateScene(tx, scene.id, waits ? { turns: n } : { turns: n, turnId: turn.id });
@@ -55,6 +56,8 @@ export const say: Move<{ text: string }, SayPlan> = {
   think: (tx, plan) => sayCall(tx, plan),
 
   commit(tx, plan, answer) {
+    if (plan.twoPart && plan.step === "reply") return afterTwoPartReply(tx, plan, answer as ReplyResponse);
+    if (plan.twoPart && plan.step === "settle") return afterTwoPartSettle(tx, plan, answer as SettleResponse);
     if (plan.step === "decide") return afterDecide(tx, plan, answer as DecideResponse);
     if (plan.step === "reactions") return afterReactions(tx, plan, answer as ReactionsResponse);
     if (plan.step === "consider") return afterConsider(tx, plan, answer as ConsiderResponse);
@@ -80,6 +83,12 @@ export function startPlan(tx: TxCtx, sceneId: bigint, turn: TurnRow, line: strin
   const scene = sceneRow(tx, sceneId);
   const gm = getGm(tx, sceneId);
   const onStage = presentCast(sceneGraph(tx, scene, gm), gm).map(c => c.id);
+  // A scene of the story plays on the two-part GM's steps (docs/two-part-design.md): no decide, no co-GM reviews to merge.
+  if (playsTwoPart(tx, scene)) {
+    const ids = { game: idText(scene.gameId), scene: idText(scene.id), turn: idText(turn.id), n: turn.n, player: idText(turn.playerId) };
+    const plan = twoPartStart(tx, scene, sceneGraph(tx, scene, gm), gm, turn, line, { ...ids, input: line, onStage, settledBefore: settledFacts(gm), windDown: !!gm.closing, seen: seenOf(tx, sceneId) });
+    return { ...plan, seen: seenOf(tx, sceneId) };
+  }
   mergeReviews(tx, scene, gm, turn.n);
   const first = gm.closing ? undefined : rulesFirst(tx, scene, sceneGraph(tx, scene, gm), gm, turn.n, line);
   putGm(tx, sceneId, gm);
@@ -95,6 +104,11 @@ export function startPlan(tx: TxCtx, sceneId: bigint, turn: TurnRow, line: strin
     // The map's act as this turn (town-design §3.4): its mechanic chosen already, decide's `forced`.
     ...(turn.mechanic ? { forced: JSON.parse(turn.mechanic) as Mechanic } : {}),
   };
+}
+
+/** A turn's phase as it starts: a two-part turn goes straight to its reply, any other decides first. */
+export function firstPhase(tx: TxCtx, scene: SceneRow): "replying" | "deciding" {
+  return playsTwoPart(tx, scene) ? "replying" : "deciding";
 }
 
 /** The game played now (v1-design §3.1): its host's lastPlayedAt, which the title's "(just now)" and my_games' order read, as the prototype's save after every turn gave its folder's time. */
@@ -133,7 +147,7 @@ function lineRefusal(text: string): Refusal | undefined {
 
 /**
  * The turn in flight: a failed one waits for /retry; one deciding or replying, or with a line
- * already waiting, can't take another. One settling or noting (its reply in: the box is open) takes
+ * already waiting, can't take another. One settling (its reply in: the box is open) takes
  * one more, which waits.
  */
 function turnRefusal(tx: TxCtx, scene: SceneRow): Refusal | undefined {
@@ -151,7 +165,7 @@ function onMap(tx: TxCtx, actor: Actor): boolean {
 }
 
 /** The phases of a turn in flight whose reply is in: a line said now waits for it (v5-design §3.3). */
-const BOX_OPEN = new Set(["settling", "noting"]);
+const BOX_OPEN = new Set(["settling"]);
 
 /** The turn holding the scene's lease: in flight, or failed and waiting for /retry. */
 function leaseOf(tx: TxCtx, scene: SceneRow): TurnRow | undefined {

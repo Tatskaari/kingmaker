@@ -39,7 +39,7 @@ test("every scene of the campaign keeps the rules, as the campaign check finds",
   }
 });
 
-test("each problem says where it is: the scene and its field, a node, a route, a person", () => {
+test("each problem says where it is: the scene and its field, a node, a route, a person, and the part of it", () => {
   const doc = clerk();
   doc.premise = "";
   doc.cast[1]!.look = " ";
@@ -49,11 +49,11 @@ test("each problem says where it is: the scene and its field, a node, a route, a
 
   assert.deepEqual(sceneRuleProblems("hanged-clerk", doc, contextFor(doc)), [
     { message: "it has no premise", at: { kind: "scene", field: "premise" } },
-    { message: "cob has no look", at: { kind: "cast", id: "cob" } },
-    { message: "lore Places/Atlantis.md isn't in lore/", at: { kind: "node", id: "murder" } },
-    { message: "route cart-comes has no condition, and only a route into a discovery may go without", at: { kind: "route", id: "cart-comes" } },
+    { message: "cob has no look", at: { kind: "cast", id: "cob", field: "look" } },
+    { message: "lore Places/Atlantis.md isn't in lore/", at: { kind: "node", id: "murder", field: "lore" } },
+    { message: "route cart-comes has no condition, and only a route into a discovery may go without", at: { kind: "route", id: "cart-comes", field: "condition" } },
     { message: "its place the-moon isn't one of the campaign's places", at: { kind: "scene", field: "place" } },
-    { message: "afterwards: remove names unknown prout", at: { kind: "scene", field: "afterwards" } },
+    { message: "afterwards: remove names unknown prout", at: { kind: "scene", field: "afterwards.0" } },
   ]);
 });
 
@@ -68,9 +68,22 @@ test("a scene's file name is its id, and what's unreachable is the node's; what 
   assert.deepEqual(sceneStoryProblems(doc, new Set(scenes.map(s => s.id))).map(p => p.at), [{ kind: "scene", field: "overtaken" }, { kind: "scene", field: "assumes" }]);
 });
 
+test("an effect that would do nothing is a problem: a world op that doesn't say what it acts on (a create, what it creates), a flag without a name", () => {
+  const doc = clerk();
+  const failed = doc.nodes.find(n => n.id === "failed")!.data as { effects: Array<Record<string, unknown>> };
+  failed.effects.push({ op: "give", what: "", to: "$player" }, { op: "create", name: " ", kind: "object" }, { op: "flag", name: "", value: "x" }, { op: "ignite", what: "hoist-rope" });
+  const at = (i: number) => ({ kind: "node", id: "failed", field: `effects.${i}` });
+  const n = failed.effects.length;
+  assert.deepEqual(sceneRuleProblems("hanged-clerk", doc, contextFor(doc)), [
+    { message: "ending failed: give doesn't say what it acts on", at: at(n - 4) },
+    { message: "ending failed: create doesn't name what it creates", at: at(n - 3) },
+    { message: "ending failed: flag has no name", at: at(n - 2) },
+  ]);
+});
+
 test("the carried things another scene brings in count: Prout's page comes into the Rat with the granary's motive", () => {
   const rat = scenes.find(s => s.id === "drowned-rat")!;
   const alone: SceneContext = { ...contextFor(rat), others: [] };
   assert.deepEqual(sceneRuleProblems(rat.id, rat, contextFor(rat)), []);
-  assert.deepEqual(sceneRuleProblems(rat.id, rat, alone), [{ message: "beat prouts-page carries ledger-page, which isn't a thing of its place, nor carried from another scene", at: { kind: "node", id: "prouts-page" } }]);
+  assert.deepEqual(sceneRuleProblems(rat.id, rat, alone), [{ message: "beat prouts-page carries ledger-page, which isn't a thing of its place, nor carried from another scene", at: { kind: "node", id: "prouts-page", field: "carry" } }]);
 });

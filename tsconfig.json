@@ -1,7 +1,7 @@
 /*
  * Everything that runs under Node or in the browser: the client, the hosts, the AI service, the
- * shared code, the browser platform (web/) and the simulation's tests (with the memory host they
- * load). Bundler resolution, since the spacetimedb package's types need it (nodenext loses its
+ * shared code, the browser platform (web/), the GM loop's QA tools (qa/) and the simulation's tests
+ * (with the memory host they load). Bundler resolution, since the spacetimedb package's types need it (nodenext loses its
  * re-exports). The module itself is checked again by simulation/tsconfig.json, under the module's
  * own lib (ES2021, no Node).
  */
@@ -22,5 +22,5 @@
     "jsx": "react-jsx",
     "jsxImportSource": "@opentui/react"
   },
-  "include": ["client", "shared", "ai", "hosts", "web", "simulation/**/*.test.ts"]
+  "include": ["client", "shared", "ai", "hosts", "web", "qa", "simulation/**/*.test.ts"]
 }

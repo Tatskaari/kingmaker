@@ -182,14 +182,17 @@ async function played(verb: string, play: (out: verbs.Out) => Promise<number> | 
 
 /**
  * The flow from the yard to The End (flow.ts:40-73): end each scene through its exit, go to the lead,
- * fight the Heron's fight (its stand-in), and observe The End. What each point showed, by check.
+ * fight the Heron's fight (its stand-in), and observe The End. What each point showed, by check. No
+ * line is said, so the two-part GM speaks each scene's opening and nothing else (the Heron's aftermath
+ * is the GM's after a fight, as it was); the co-GM's walk through every scene is the e2e's (step 31).
  */
 async function theWayOn(conn: Connection): Promise<Map<number, string | undefined>> {
   const way = new Map<number, string | undefined>();
   const story = () => conn.view()?.story;
   const at = (title: string) => { const v = conn.view(); return v?.title === title && v.phase !== "failed" && !v.over && !v.fighting; };
 
-  await played("end --exit open-case", out => verbs.end(conn, "open-case", out));
+  // The hanged clerk's good ending (it was open-case in the prototype's flow, whose clerk M2 re-authored as beats).
+  await played("end --exit murder-unknown", out => verbs.end(conn, "murder-unknown", out));
   way.set(6, story()?.lead?.key === "drowned-rat" && story()?.time === "evening" ? `the lead ${story()!.lead!.title}, ${story()!.time}` : undefined);
   way.set(7, story()?.with.some(w => w.key === "kell") ? `with ${story()!.with.map(w => w.name).join(", ")}` : undefined);
   const rat = await played("go", out => verbs.go(conn, out));

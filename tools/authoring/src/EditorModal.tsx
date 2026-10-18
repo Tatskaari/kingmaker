@@ -40,6 +40,8 @@ export function EditorModal({label,title,onClose,children,suspended=false}:Edito
       // Their local editor must not intercept shortcuts from the rest of Obsidian.
       if(!element.getClientRects().length||!element.contains(document.activeElement))return;
       if(event.key==='Escape'){
+        // A list or a rename open inside it closes itself first.
+        if(event.target instanceof Element&&event.target.closest('[data-own-escape]'))return;
         event.preventDefault();event.stopPropagation();close.current();return;
       }
       if(event.key!=='Tab')return;

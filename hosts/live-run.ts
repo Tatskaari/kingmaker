@@ -16,7 +16,7 @@ import { configureTerminal } from "./terminal.ts";
  * world-bridge-design §1.3), against
  * the running dev stack and its models, recorded as Markdown. A script's: a new game and its lines
  * (V0's six, V5's twelve, or the full GM's eight), each turn's timings (from the turn rows, and the
- * notes and lines as they reached this client), who said what, the notes with their cards, the lines
+ * lines as they reached this client), who said what, the lines
  * offered and those screened out, the model calls and their cost (the AI service's call log), the
  * measures against the prototype's, what the scene holds back from the player, and for the full
  * GM's the GM's side (each line's ruling, memory review and co-GM review: npm run status), and for

@@ -10,7 +10,7 @@ import { byOperation, cell, entryText, ledgerFrom, modelsOf, writeRecord, type C
 /**
  * The whole story's live run (story-design §1.4, §5): one game from the yard to The End against the
  * running dev stack and its models, each scene ended through the exit the prototype's flow takes
- * (src/app/smoke/flow.ts: open-case, hobb-talks, fight, caught-in-the-act, justice) as the dev
+ * (src/app/smoke/flow.ts: open-case, now murder-unknown, hobb-talks, fight, caught-in-the-act, justice) as the dev
  * stack's owner, as the QA console's end does, so each boundary and each opening is the models'
  * and no line is. Through the headless client's verbs (end, go, act --id fight, observe), as an
  * agent plays it. Recorded as Markdown: each step's time and cost (the AI service's ledger), each
@@ -22,8 +22,8 @@ import { byOperation, cell, entryText, ledgerFrom, modelsOf, writeRecord, type C
 
 export interface StoryFlags extends RecordAt { budget: number; rehearse: boolean; date: string; who: string; build: string }
 
-/** The flow's endings, scene by scene (flow.ts:41-71), and between them the way on. */
-const ENDINGS = { yard: "open-case", rat: "hobb-talks", heron: "fight", aftermath: "caught-in-the-act", king: "justice" };
+/** The flow's endings, scene by scene (flow.ts:41-71), and between them the way on; the yard's is the re-authored clerk's (M2: it was open-case). */
+const ENDINGS = { yard: "murder-unknown", rat: "hobb-talks", heron: "fight", aftermath: "caught-in-the-act", king: "justice" };
 
 /** A step: what it was, its time and cost, and what it printed. */
 interface StepRecord { what: string; ms: number; cost: number; printed: string }

@@ -1,4 +1,4 @@
-// The prototype's src/app/game.ts at 44c6d4a, its scene section as a model fed by rows: :451-464 (subscribe, emit, emitSoon), :1386-1393 (onStep's CONSIDERING, as the turn's considering phase), :1510-1551 (input), :1596-1622 (command), :1454-1462 and :1490-1505 (setSuggestions and peek's /suggestions, the setting a move), :1897-1935 (speechColor and the marks), :2332-2344 (showSheet, as the sheet row read; closeOverlay); the scene's place (the world bridge): :186-195 (SceneMenu), :1817-1868 (sceneContext, the menu opened and closed), :1937-1962 (lookNote, deed), the world the place's rows' (scene/place.ts); and the way on between scenes, :1696-1720 (continueScene, as goOn) and :1808-1815 (continueFromCard, as toLead), with the scene that's over kept on screen until the player goes on (story-design §4.5); and a talk's (town-design §3.6, §3.9): its choices (src/game/play.ts:351-361), choose and walkOn (game.ts:1554-1578), its way on back to the map, and a word with whoever walks with the player from the card between scenes (new: talkWith).
+// The prototype's src/app/game.ts at 44c6d4a, its scene section as a model fed by rows: :451-464 (subscribe, emit, emitSoon), :1386-1393 (onStep's CONSIDERING, as the turn's considering phase), :1510-1551 (input), :1596-1622 (command), :1454-1462 and :1490-1505 (setSuggestions and peek's /suggestions, the setting a move), :1897-1935 (speechColor; the marks went with the notes in M2), :2332-2344 (showSheet, as the sheet row read; closeOverlay); the scene's place (the world bridge): :186-195 (SceneMenu), :1817-1868 (sceneContext, the menu opened and closed), :1937-1962 (lookNote, deed), the world the place's rows' (scene/place.ts); and the way on between scenes, :1696-1720 (continueScene, as goOn) and :1808-1815 (continueFromCard, as toLead), with the scene that's over kept on screen until the player goes on (story-design §4.5); and a talk's (town-design §3.6, §3.9): its choices (src/game/play.ts:351-361), choose and walkOn (game.ts:1554-1578), its way on back to the map, and a word with whoever walks with the player from the card between scenes (new: talkWith).
 import type { Backend, Rejection } from "../backend.ts";
 import type { Action } from "../../shared/map/town.ts";
 import { FAREWELL, WALK_ON } from "../../shared/scene/talk.ts";
@@ -13,7 +13,7 @@ import { isPlayer, linesOf, liveOf, type Line, type SceneView } from "./view.ts"
 
 /**
  * The scene screen's model: the view the connection keeps up to date from rows, and what's the
- * screen's own (the mark Tab picked out, the popover, the spinner's line, a word of the client's).
+ * screen's own (the overlay, the spinner's line, a word of the client's).
  * It holds no React: the screen subscribes and redraws when it emits (the prototype's Game
  * controller, cut to a scene and fed by rows instead of the live core).
  */
@@ -54,9 +54,7 @@ export type Overlay =
   | { kind: "help" }
   /** The investigator's notebook, and the quests (story-design §4.5). */
   | { kind: "journal" }
-  | { kind: "quests" }
-  /** A marked phrase opened: by its line (an index into lines()) and its place in that line's marks; where it was clicked, when it was. */
-  | { kind: "mark"; line: number; mark: number; x?: number; y?: number };
+  | { kind: "quests" };
 
 /** The character sheet over the scene: the seat's sheet row as the engine made it (none until it's in), and who they are. */
 export interface SheetShown { data?: SheetData | undefined; who: { name: string; concept: string } }
@@ -78,18 +76,6 @@ export const ONLY_LOOKING = "The scene is over: there's only looking now.";
 export class SceneModel {
   view: SceneView;
   overlay?: Overlay;
-  /** A marked phrase of the last reply that Tab picked out: Enter opens it, Esc lets go. */
-  markFocus?: { line: number; mark: number };
-  /** A marked phrase the pointer is on: the bottom line says what it is. */
-  markPointed?: { line: number; mark: number };
-  /** How big the screen draws the conversation's frame (a mark's popover stays inside it). */
-  talkArea?: { w: number; h: number };
-  /**
-   * The screen row the conversation's last row is drawn on, as last laid out (a mark's popover finds
-   * its phrase by it): part way down a frame the conversation doesn't fill, at the foot of one it
-   * does (where it sticks), below the frame once PgUp has scrolled it up.
-   */
-  talkEnd?: () => number | undefined;
   /** A word of the client's own (an unknown command), until the next line. The simulation's refusals are the view's. */
   status?: string;
   /** Why the game this screen shows has gone from the server (its seat has: a stack started again with --fresh), until a view comes again. */
@@ -156,8 +142,7 @@ export class SceneModel {
 
   /**
    * A new view from the rows. A line that starts the GM thinking (queued, or deciding) gets a fresh
-   * line for the spinner; new entries forget the marks picked out of the old ones only when the
-   * scene changes (the indexes stay good as entries are added at the end).
+   * line for the spinner; another scene forgets what was looked at and picked out in the old one.
    */
   update(view: SceneView): void {
     if (view.story) this.story = view.story;
@@ -178,7 +163,7 @@ export class SceneModel {
     const another = view.sceneId !== was.sceneId || view.title !== was.title;
     if (thinking(view) && !thinking(was)) this.busyLine = this.busyLines.next(this.busyLine);
     if (another) {
-      this.forgetMarks();
+      this.forgetScene();
       this.next = undefined;
       this.queued = false;
       if (this.page === "between") this.page = "scene";
@@ -402,16 +387,15 @@ export class SceneModel {
    * the prototype's status line opens on it.
    */
   busy(): string | undefined {
-    // The scene's over (or its fight is next): the prototype's word for the story moving on while it does, and
-    // nothing else (the notes on its last reply may still be written, and a scene the seat has left never says they are).
+    // The scene's over (or its fight is next): the prototype's word for the story moving on while it does, and nothing else.
     const way = this.wayOn();
     if (way) return way.to === "wait" && this.story?.onward === "moving" ? "The story moves on…" : undefined;
     const { phase, draft } = this.view;
     if (phase === "queued" || phase === "deciding") return this.busyLine ?? "The GM is thinking…";
     if (phase === "considering") return CONSIDERING;
     if (phase === "replying") return draft?.kind === "dialogue" ? `${draft.name ?? draft.speaker} is speaking…` : "The GM is speaking…";
-    // The world settling behind the reply, and the notes on its marks being written: the GM's bookkeeping, either way.
-    if (phase === "settling" || phase === "noting") return "The GM makes a note…";
+    // The world settling behind the reply: the GM's bookkeeping.
+    if (phase === "settling") return "The GM makes a note…";
     return undefined;
   }
 
@@ -425,7 +409,6 @@ export class SceneModel {
     this.status = undefined;
     if (text.startsWith("/") || text.startsWith("#")) { this.command(text.slice(1)); return; }
     if (!this.sends()) return;
-    this.markFocus = undefined;
     this.refusedAt = undefined;
     this.actions.say(text);
     this.emit();
@@ -481,34 +464,15 @@ export class SceneModel {
     return this.view.present.find(p => p.key === id)?.color ?? C.speech;
   }
 
-  /** The last reply's marks, in order: what Tab goes through. None when the last reply has none. */
-  lastMarks(): Array<{ line: number; mark: number }> {
-    const lines = this.lines();
-    const i = lines.findLastIndex(l => l.kind === "narration" || l.kind === "dialogue");
-    const marks = i >= 0 ? lines[i]!.marked?.marks ?? [] : [];
-    return marks.map((_, mark) => ({ line: i, mark }));
-  }
-
   /** A refusal new on the view (or the same words again, after a line) is shown from where the scene stands now. */
   private noteRefusal(view: SceneView): void {
     this.refusedAt = view.refusal === undefined ? undefined : this.refusedAt ?? momentOf(view);
   }
 
-  /** The transcript's lines are new (another scene): what was picked out of them goes, and so do the glances and the place's menu. */
-  private forgetMarks(): void {
-    this.markFocus = undefined;
-    this.markPointed = undefined;
-    if (this.overlay?.kind === "mark") this.overlay = undefined;
+  /** The transcript's lines are new (another scene): the glances go, and so does the place's menu. */
+  private forgetScene(): void {
     this.glances = [];
     this.sceneMenu = undefined;
-  }
-
-  /** Open a marked phrase: the note on it (where it was clicked, if it was). */
-  openMark(line: number, mark: number, x?: number, y?: number): void {
-    if (!this.lines()[line]?.marked?.marks[mark]) return;
-    this.sceneMenu = undefined;
-    this.overlay = { kind: "mark", line, mark, ...(x !== undefined ? { x } : {}), ...(y !== undefined ? { y } : {}) };
-    this.emit();
   }
 
   // -------------------------------------------------------------------------------------------
@@ -567,17 +531,6 @@ export class SceneModel {
     if (v.over || v.ending) this.status = ONLY_LOOKING;
     else if (!v.watching && (v.phase === "queued" || v.phase === "deciding" || v.phase === "replying")) this.status = DEED_WAITS;
     else { this.input(line); return; }
-    this.emit();
-  }
-
-  /** Tab with a mark open: the next of the same reply's (or the one before), opened where the last one was. */
-  stepMark(by: number): void {
-    const o = this.overlay;
-    if (o?.kind !== "mark") return;
-    const n = this.lines()[o.line]?.marked?.marks.length ?? 0;
-    if (n < 2) return;
-    this.overlay = { ...o, mark: (o.mark + by + n) % n };
-    this.markFocus = { line: o.line, mark: this.overlay.mark };
     this.emit();
   }
 

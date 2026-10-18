@@ -2,7 +2,7 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {LegacyScenario,LegacyScene,MapApp,MapMigration,PlaceApp,ScenarioApp,SceneApp} from './App';
-import {openSceneFile,serializeScene} from './scene/model.ts';
+import {openSceneFile,serializeScene,skeletonScene,slugOf} from './scene/model.ts';
 import type {SceneDocument} from './scene/model.ts';
 import {campaignRootOf,lorePathOf,readCampaign,scenePathOf} from './scene/campaign.ts';
 import type {SceneHost} from './scene/host.ts';
@@ -61,6 +61,16 @@ function Harness(){
     if(!note)throw Error(`File not found: ${path}`);
     setOpenedNote(note);
   };
+  /** A new scene, as Obsidian's New Kingmaker scene makes one: a title asked for, scenes/<its slug>.kmscene made from the skeleton, and opened. */
+  const newScene=()=>{
+    const title=window.prompt('New Kingmaker scene: its title (its file is named for a slug of it)')?.trim();
+    if(!title)return;
+    const id=slugOf(title),path=`scenes/${id}.kmscene`;
+    if(!id){window.alert('Give the scene a title with letters or digits in it.');return}
+    if(path in files){window.alert(`A file with that name already exists (${path}). Choose another title.`);return}
+    files[path]=serializeScene(skeletonScene(title,id));store();notify();
+    void openFile(path);
+  };
   const sceneHost:SceneHost=useMemo(()=>{const root=campaignRootOf(activePath);return {
     filePath:activePath,
     change:scene=>{files[activePath]=serializeScene(scene);store();notify()},
@@ -85,7 +95,7 @@ function Harness(){
     replace:text=>{files[activePath]=text;revisions[activePath]=(revisions[activePath]??0)+1;store();notify()},
   }),[activePath]);
   return <div className="test-harness">
-    <header className="harness-banner"><span>Browser test harness · not the installed Obsidian plugin</span><label>Test file<select aria-label="Test file" value={activePath} onChange={event=>void openFile(event.target.value)}>{Object.keys(files).filter(editable).sort().map(path=><option key={path}>{path}</option>)}</select></label></header>
+    <header className="harness-banner"><span>Browser test harness · not the installed Obsidian plugin</span><span className="harness-actions"><button type="button" onClick={newScene}>New scene</button><label>Test file<select aria-label="Test file" value={activePath} onChange={event=>void openFile(event.target.value)}>{Object.keys(files).filter(editable).sort().map(path=><option key={path}>{path}</option>)}</select></label></span></header>
     <div className="harness-editor" data-file-revision={revision}><Editor key={`${activePath}:${revisions[activePath]??0}`} path={activePath} sceneHost={sceneHost} fileHost={fileHost}/></div>
     {openedNote&&<div className="harness-note" role="dialog" aria-label="Host opened lore note"><header><h2>{openedNote.path}</h2><button onClick={()=>setOpenedNote(null)}>Close note</button></header><p>The test host received openFile. In Obsidian this opens the original Markdown file in a normal editor tab.</p><pre>{openedNote.text}</pre></div>}
   </div>;

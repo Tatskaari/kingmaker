@@ -42,9 +42,9 @@ export const TURN_MS = 180_000;
 /** How long it waits for the rows a move made (they come with its commit, in milliseconds). */
 const ROWS_MS = 10_000;
 /**
- * How long it waits, once a reply is in, for the notes on its marks and the lines suggested after
- * it: they come a few seconds later (2 to 4 in the prototype's runs). After that it prints what's
- * there; observe shows the rest when it comes.
+ * How long it waits, once a reply is in, for the lines suggested after it: they come a few seconds
+ * later (2 to 4 in the prototype's runs). After that it prints what's there; observe shows the rest
+ * when it comes.
  */
 export const AFTER_MS = 15_000;
 
@@ -58,7 +58,7 @@ export async function newGame(game: Backend, args: NewGame, out: Out, waiting: W
   if (refused) return said(out, refused);
 
   // The new game (a session already in a game moves to the new one): its map, or its scene once its
-  // opening is over, and its notes and the lines suggested after it are in.
+  // opening is over, and the lines suggested after it are in.
   return await setOff(game, id => id !== String(before), out, waiting);
 }
 
@@ -94,7 +94,7 @@ export function observe(game: Backend, out: Out): number {
 
 /**
  * A game set off: on its map, printed as the QA console printed it; or, with no map, its first
- * scene once its opening is over (a failed opening's too), with its notes and the lines suggested after it.
+ * scene once its opening is over (a failed opening's too), with the lines suggested after it.
  */
 async function setOff(game: Backend, isIt: (game: string) => boolean, out: Out, waiting: Waiting): Promise<number> {
   const stream = streamTo(out, waiting);
@@ -297,11 +297,13 @@ export async function retry(game: Backend, out: Out, waiting: Waiting = {}): Pro
  * For testing (the QA console's end): the scene ends through `exit` now, as the dev stack's owner
  * (end_scene), and the story moves on; then where it stands, as observe says it (MODE: between, the
  * fight, The End, or a summons's next scene once its opening is in). With no exit, the endings.
+ * `thorough` (the GM loop's): every discovery the scene can still reach is reached first, so it ends
+ * as a thorough player's game would, owing none of them on.
  */
-export async function end(game: Backend, exit: string | undefined, out: Out, waiting: Waiting = {}): Promise<number> {
+export async function end(game: Backend, exit: string | undefined, out: Out, waiting: Waiting = {}, how: { thorough?: boolean } = {}): Promise<number> {
   const view = game.view();
   if (!view) return notInGame(out);
-  const refused = await game.act("endScene", { game: BigInt(view.game), exit: exit ?? "" });
+  const refused = await game.act("endScene", { game: BigInt(view.game), exit: exit ?? "", ...(how.thorough ? { thorough: true } : {}) });
   // With no exit, the refusal is the list of the endings: the QA console's answer to end alone.
   if (refused) { out.print(refused.text); return exit ? 1 : 0; }
 
@@ -324,7 +326,7 @@ function movedOn(before: string | undefined, view: SceneView): boolean {
 
 /**
  * On from the scene that's over (the QA console's act --id go_to_lead): walk to the lead, whose
- * scene opens, its opening played (its notes and lines in), then the scene; a story that got stuck
+ * scene opens, its opening played (its lines in), then the scene; a story that got stuck
  * is tried again (carry_on), and waited for; the fight's way on is the fight's.
  */
 export async function go(game: Backend, out: Out, waiting: Waiting = {}): Promise<number> {
@@ -357,7 +359,7 @@ export async function go(game: Backend, out: Out, waiting: Waiting = {}): Promis
     if (refused) return said(out, refused);
   }
 
-  // The lead's scene, its opening over, and its notes and the lines suggested after it in, as for a new game.
+  // The lead's scene, its opening over, and the lines suggested after it in, as for a new game.
   const stream = streamTo(out, waiting);
   const opening = await viewWhen(game, v => v.sceneId !== view.sceneId && (v.phase === "failed" || v.mayType || v.over), waiting.ms ?? TURN_MS, stream.see);
   stream.end(opening);
@@ -369,7 +371,7 @@ export async function go(game: Backend, out: Out, waiting: Waiting = {}): Promis
 /**
  * The fight's stand-in (act --id fight): fought out, as won (fight_it_out); then the scene picking
  * up from it (the stand-in's line and how it went, as the simulation writes them in the scene, then
- * the GM's aftermath, its notes and lines in), as for a line said.
+ * the GM's aftermath, its lines in), as for a line said.
  */
 export async function fight(game: Backend, out: Out, waiting: Waiting = {}): Promise<number> {
   const view = game.view();
@@ -401,8 +403,7 @@ export function journal(game: Backend, out: Out): number {
 }
 
 /**
- * Waits for the turn in flight to answer, and for the notes on its reply and the lines suggested
- * after it; then prints what answered it (not the line itself), the lines, and the phase. A line
+ * Waits for the turn in flight to answer, and for the lines suggested after its reply; then prints what answered it (not the line itself), the lines, and the phase. A line
  * that ended the scene in a summons (the next scene came for the player as this one ended, the seat
  * with it) prints what answered it as the scene last stood, then the next scene once it's opened.
  */
@@ -433,7 +434,7 @@ async function answered(game: Backend, out: Out, waiting: Waiting): Promise<numb
   }
 }
 
-/** The next scene, come for the player as the last ended (a summons): its opening over, its notes and lines in, then the scene. */
+/** The next scene, come for the player as the last ended (a summons): its opening over, its lines in, then the scene. */
 async function summoned(game: Backend, out: Out, waiting: Waiting): Promise<number> {
   const opening = await viewWhen(game, v => v.phase === "failed" || v.mayType || v.over || (!!v.watching && v.phase === "done"), waiting.ms ?? TURN_MS);
   const opened = await afterwards(game, opening, waiting);
@@ -442,24 +443,22 @@ async function summoned(game: Backend, out: Out, waiting: Waiting): Promise<numb
 }
 
 /**
- * The turn has answered: the reply is final (or, settled, the world too and the notes), it failed, or
- * the scene ended (a reply that closed it, once the scene has ended).
+ * The turn has answered: the reply is final (or, settled, the world too), it failed, or the scene
+ * ended (a reply that closed it, once the scene has ended).
  */
 function finished(view: SceneView, settled: boolean): boolean {
   if (view.phase === "failed" || view.over) return true;
   if (view.ending) return false;
-  return settled ? view.phase === "done" : view.phase === "settling" || view.phase === "noting" || view.phase === "done";
+  return settled ? view.phase === "done" : view.phase === "settling" || view.phase === "done";
 }
 
 /**
- * Once a reply is in: the notes on its marks and the lines suggested after it, waited for (at most
- * `AFTER_MS`: then the view as it is). Nothing is waited for when the turn failed. A reply that
- * ended the scene has its notes waited for too, which come after the end, as they do after any
- * reply; no lines come after it.
+ * Once a reply is in: the lines suggested after it, waited for (at most `AFTER_MS`: then the view as
+ * it is). Nothing is waited for when the turn failed; no lines come after a reply that ended the scene.
  */
 async function afterwards(game: Backend, view: SceneView, waiting: Waiting): Promise<SceneView> {
   if (view.phase === "failed") return view;
-  return await within(game, v => !v.notesComing && !v.suggestionsComing, waiting, view);
+  return await within(game, v => !v.suggestionsComing, waiting, view);
 }
 
 /** The setting just turned on: the lines for this moment, waited for (at most `AFTER_MS`). */
@@ -577,7 +576,7 @@ export async function begin(game: Backend, out: Out, waiting: Waiting = {}): Pro
   const refused = await game.act("begin", {});
   if (refused) return said(out, refused);
 
-  // Its map; or its opening over, and its notes and the lines suggested after it in, as for a new game.
+  // Its map; or its opening over, and the lines suggested after it in, as for a new game.
   return await setOff(game, id => id === String(seat?.gameId), out, waiting);
 }
 

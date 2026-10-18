@@ -1,9 +1,9 @@
-// Copied from the prototype's src/runtime/markup.test.ts at 44c6d4a, whole: the scenes come from the test story (fixtures.ts: the hanged clerk as campaigns/caerwyn has it, the Heron, the King's morning and the Rat as the prototype's tests had them), and a session is a TurnView.
+// Copied from the prototype's src/runtime/markup.test.ts at 44c6d4a, whole: the scenes come from the test story (fixtures.ts: the hanged clerk as campaigns/caerwyn has it, the Heron, the King's morning and the Rat as the prototype's tests had them), and a session is a TurnView. Since M2 a mark is only taken out of the words (the game keeps no notes), so markupOf writes back the speakers alone and its round trip keeps the words and who says them.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { sceneById, stateIn } from "./fixtures.ts";
 import { speakersOf } from "./knowledge.ts";
-import { markupOf, parseMarkup, speechIn, stripMarkup, withSpeakers, type Marked } from "./markup.ts";
+import { markupOf, parseMarkup, speechIn, stripMarkup, withSpeakers, type Marked, type Parsed } from "./markup.ts";
 import { speaker, type Speaker } from "./speakers.ts";
 import type { TurnView } from "./view.ts";
 
@@ -14,7 +14,7 @@ const PEOPLE: Speaker[] = [
 ];
 
 /** The marked phrases of a parse, as they read. */
-const phrases = (m: Marked) => m.marks.map(x => `${x.kind}:${m.text.slice(x.start, x.end)}`);
+const phrases = (m: Parsed) => m.marks.map(x => `${x.kind}:${m.text.slice(x.start, x.end)}`);
 const lines = (m: Marked) => m.speech.map(s => m.text.slice(s.start, s.end));
 
 test("plain prose is left as it is, its quotes taken as spoken lines", () => {
@@ -273,12 +273,12 @@ test("who says each line: the tag, a speech tag carrying on, or the prose", () =
   assert.deepEqual(o.speech.map(s => s.speaker), ["cob", "cob"]);
 });
 
-test("written back out, the markup reads the same", () => {
+test("written back out, the markup reads the same: the words, and who says each line (a note taken out stays out)", () => {
   for (const raw of SAMPLES.slice(0, 2)) {
     const m = withSpeakers(parseMarkup(raw), PEOPLE);
     const again = parseMarkup(markupOf(m, id => ({ crust: "Madam Crust", kell: "Kell", dab: "Dab" })[id]));
     assert.equal(again.text, m.text);
-    assert.deepEqual(again.marks.map(x => [x.start, x.end, x.kind, x.note]), m.marks.map(x => [x.start, x.end, x.kind, x.note]));
+    assert.deepEqual(again.marks, []);
     assert.deepEqual(again.speech.map(s => [s.start, s.end]), m.speech.map(s => [s.start, s.end]));
   }
 });
