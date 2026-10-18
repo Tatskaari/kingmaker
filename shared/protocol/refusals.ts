@@ -17,7 +17,8 @@ export type RefusalCode =
   | "nothing_to_work_in" | "story_too_long" | "story_too_big" | "already_begun" | "not_yours" | "not_begun"
   | "scene_on" | "no_way" | "unavailable" | "not_in_scene" | "no_lead" | "story_over" | "not_stuck" | "no_scene" | "no_exit" | "no_fight"
   | "no_line" | "out_of_reach" | "too_far" | "no_slot" | "shut"
-  | "not_your_turn" | "no_exhibit" | "no_line_up";
+  | "not_your_turn" | "no_exhibit" | "no_line_up"
+  | "bad_report";
 
 export interface Refusal { code: RefusalCode; text: string }
 
@@ -89,6 +90,8 @@ const WORDS: Record<RefusalCode, (v: Record<string, string>) => string> = {
   // The zoo (M6): its exhibits, and a fight exhibit's line-ups of foes.
   no_exhibit: v => `(There's no exhibit called ${v.exhibit || "that"} ${v.where ?? "in the zoo"}: there's ${v.exhibits || "none"}.)`,
   no_line_up: v => `(${v.exhibit ?? "That exhibit"} has no line-up called ${v.foes || "that"}: there's ${v.lineUps || "none"}.)`,
+  // A report of a problem (V16, M5): its game restored here, by the database's owner (npm run report -- restore).
+  bad_report: v => `(That report's game can't be restored here: ${v.why ?? "its rows don't read"}.)`,
 };
 
 /**
@@ -100,7 +103,7 @@ const WORDS: Record<RefusalCode, (v: Record<string, string>) => string> = {
  * out_of_reach, too_far, no_slot, shut, and not_ready and not_now when a menu act gives them) `text`,
  * the prototype's sentence whole: "(Fire Bolt (cantrip): out of reach: 130 ft (it reaches 120 ft).)";
  * no_exhibit `exhibit`, `exhibits` (andList of their ids) and `where` ("in the zoo" when absent);
- * no_line_up `exhibit` (its title), `foes` and `lineUps` (andList of their ids).
+ * no_line_up `exhibit` (its title), `foes` and `lineUps` (andList of their ids); bad_report `why`.
  */
 export function refusal(code: RefusalCode, vars: Record<string, string> = {}): Refusal {
   return { code, text: WORDS[code](vars) };

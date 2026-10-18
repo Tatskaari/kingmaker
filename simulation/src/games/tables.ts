@@ -28,8 +28,10 @@ export interface GameTable {
   rows(tx: TxCtx, of: GameOf): Row[];
   /** Its own id, where other rows point at it: what it is. (Any other autoInc table's rows take new ids of their own.) */
   own?: IdKind;
-  /** Its columns that point at other rows of the game (options too), and what they point at. */
+  /** Its columns that point at other rows of the game, and what they point at. */
   refs?: Record<string, IdKind>;
+  /** Which of them are options: one pointing at a row the restore leaves out is none, where another's row is left out with it. */
+  options?: string[];
   /** A restore rebuilds these (a job's request from the rows as they are), or leaves them: not written back as they are. */
   rebuilt?: true;
 }
@@ -41,10 +43,10 @@ const one = <R>(row: R | null | undefined) => (row ? [row as Row] : []);
 /** In the order a restore writes them: whatever a row points at by its own id comes before it, but where they point at each other (the game and its host, a place and its root). */
 export const GAME_TABLES: GameTable[] = [
   { table: "game", rows: (_tx, { game }) => [game as Row], own: "game", refs: { hostId: "player" } },
-  { table: "player", rows: (tx, { game }) => [...tx.db.player.gameId.filter(game.id)], own: "player", refs: { gameId: "game", characterId: "entity", placeId: "place", sceneId: "scene" } },
-  { table: "place", rows: (tx, { game }) => [...tx.db.place.gameId.filter(game.id)], own: "place", refs: { gameId: "game", rootId: "entity", sceneId: "scene" } },
-  { table: "scene", rows: (tx, { game }) => [...tx.db.scene.gameId.filter(game.id)], own: "scene", refs: { gameId: "game", placeId: "place", controllerId: "player", turnId: "turn" } },
-  { table: "entity", rows: (tx, { places }) => by(places, id => tx.db.entity.placeId.filter(id)), own: "entity", refs: { gameId: "game", placeId: "place", parentId: "entity" } },
+  { table: "player", rows: (tx, { game }) => [...tx.db.player.gameId.filter(game.id)], own: "player", refs: { gameId: "game", characterId: "entity", placeId: "place", sceneId: "scene" }, options: ["characterId", "placeId", "sceneId"] },
+  { table: "place", rows: (tx, { game }) => [...tx.db.place.gameId.filter(game.id)], own: "place", refs: { gameId: "game", rootId: "entity", sceneId: "scene" }, options: ["sceneId"] },
+  { table: "scene", rows: (tx, { game }) => [...tx.db.scene.gameId.filter(game.id)], own: "scene", refs: { gameId: "game", placeId: "place", controllerId: "player", turnId: "turn" }, options: ["turnId"] },
+  { table: "entity", rows: (tx, { places }) => by(places, id => tx.db.entity.placeId.filter(id)), own: "entity", refs: { gameId: "game", placeId: "place", parentId: "entity" }, options: ["parentId"] },
   { table: "turn", rows: (tx, { scenes }) => by(scenes, id => tx.db.turn.sceneId.filter(id)), own: "turn", refs: { gameId: "game", sceneId: "scene", playerId: "player" } },
   { table: "fight", rows: (tx, { game }) => [...tx.db.fight.gameId.filter(game.id)], own: "fight", refs: { gameId: "game", playerId: "player" } },
 

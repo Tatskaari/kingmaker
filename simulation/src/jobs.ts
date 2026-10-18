@@ -124,6 +124,19 @@ export function retryJob(tx: TxCtx, job: JobRow): void {
   tx.log(`[job ${job.id} ${job.key}] queued again by retry_turn`);
 }
 
+/**
+ * A job of a game restored from a report (games/restore.ts), made again: its plan's ids the restored
+ * game's, its request built afresh from the rows as they are now (the report's was for the game it
+ * came from), and its state as it was: failed (a turn's own step, for retry_turn) or queued with a
+ * dispatch (queued, running or waiting: its step thinks again).
+ */
+export function restoreJob(tx: TxCtx, moveName: string, plan: JobPlan, failed: string | undefined): void {
+  const move = moveNamed(moveName);
+  const think = { ...thinkOf(tx, move, plan), ...freshState(tx) };
+  const job = tx.db.job.insert({ id: 0n, ...think, ...(failed === undefined ? {} : { state: "failed", error: failed }) });
+  if (failed === undefined) dispatch(tx, job.id);
+}
+
 /** The failed job of a turn's own steps, if it has one: a background job is never the turn's to retry. */
 export function failedJobOf(tx: TxCtx, turnId: bigint): JobRow | undefined {
   return [...tx.db.job.state.filter("failed")].find(j => j.turnId === turnId && !moveNamed(j.move).background);

@@ -11,6 +11,7 @@ import { Refused, type Db, type Env, type Schema, type TxCtx } from "../context.
 import * as creation from "../creation/moves.ts";
 import * as games from "../games/moves.ts";
 import { aiAsks, gameReportJson, reportRows, type AiGot } from "../games/report.ts";
+import { restoreGameReducer } from "../games/restore.ts";
 import { installCampaignReducer } from "../install.ts";
 import { claimJob, dispatchWaitingReducer, failJob, finishJob, reapJobs } from "../jobs.ts";
 import { initDatabase } from "../lifecycle.ts";
@@ -140,7 +141,7 @@ type Body<A> = (tx: TxCtx, sender: Identity, args: A) => void;
 /** The move, as a caller makes it (with no arguments, when none are needed): the refusal, or nothing when it was made. */
 type Made<B> = B extends Body<infer A> ? ({} extends A ? (args?: A) => Refusal | undefined : (args: A) => Refusal | undefined) : never;
 
-/** Character creation's moves, the games' (v1-design §3.3), the map's (map-design §3.2) and its action menu's (town-design §3.2), and the story's between scenes (story-design §4.3), by their bodies' names. */
+/** Character creation's moves, the games' (v1-design §3.3), the map's (map-design §3.2) and its action menu's (town-design §3.2), the story's between scenes (story-design §4.3), a fight's and the zoo's (M6), and the owner's restore of a reported game (M5), by their bodies' names. */
 const MOVES = {
   startCreation: creation.startCreationReducer, creationBack: creation.creationBackReducer, chooseBuild: creation.chooseBuildReducer,
   makeOwn: creation.makeOwnReducer, pickOwn: creation.pickOwnReducer, takeOwn: creation.takeOwnReducer, setBackstory: creation.setBackstoryReducer,
@@ -153,6 +154,7 @@ const MOVES = {
   carryOn: story.carryOnReducer, fightItOut: story.fightItOutReducer, endScene: story.endSceneReducer,
   startRing: startRingReducer, fightTurn: fightTurnReducer,
   visitZoo: visitZooReducer, openExhibit: openExhibitReducer,
+  restoreGame: restoreGameReducer,
 };
 
 /** A caller's moves: each returns the refusal, or nothing when it was made. */

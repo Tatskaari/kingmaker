@@ -62,3 +62,49 @@ test("report_game: every table's rows of the owner's game, and the AI service's 
     local.close();
   }
 });
+
+test("restore_game: a reported game made a new game, for the owner alone, every row pointing at the new ones, the player's keys rewritten, played on from where it was reported; the game it came from untouched", async () => {
+  const { local, game } = await played();
+  const target = await localHost({ seed: 9, fake: () => onTop(quietGm(), { replies: ["Cob shrugs. “Ask the river.”"] }), files: FILES });
+  try {
+    const report = JSON.parse(await local.sim.report(WREN, game.id)) as GameReport;
+    const TAM = new Identity(0x3003n);
+    const args = { rows: JSON.stringify(report.rows), identity: TAM.toHexString(), uid: `${game.uid}-r1` };
+
+    assert.equal(target.sim.as(TAM).restoreGame(args)?.code, "not_admin", "only the database's owner restores");
+    assert.match(target.sim.as(target.sim.owner).restoreGame({ ...args, rows: "{" })?.text ?? "", /its rows aren't JSON/);
+    assert.equal(target.sim.as(target.sim.owner).restoreGame(args), undefined);
+    assert.match(target.sim.as(target.sim.owner).restoreGame(args)?.text ?? "", /won't do as its uid/, "a uid a game here has is refused");
+
+    // The new game: its own ids, the restorer seated as its host, its rows pointing at its own.
+    const restored = all(target.sim.db.game).find(g => g.uid === args.uid)!;
+    const host = target.sim.db.player.id.find(restored.hostId)!;
+    assert.ok(host.identity.isEqual(TAM));
+    assert.equal(target.sim.view(TAM).mySeat()?.gameId, restored.id);
+    const pc = all(target.sim.db.entity).find(e => e.key === `pc:${host.id}`);
+    assert.ok(pc && pc.gameId === restored.id, "the player's character's key names the new player");
+    assert.equal(host.characterId, pc.id);
+    const scene = all(target.sim.db.scene).find(s => s.gameId === restored.id)!;
+    const lines = all(target.sim.db.transcript).filter(t => t.sceneId === scene.id);
+    assert.deepEqual(lines.filter(l => l.kind === "player").map(l => [l.speaker, l.text]), [[`player:${host.id}`, "Sergeant, who found him?"], [`player:${host.id}`, "(I look closely at Prout's boots)"]]);
+    assert.equal(target.sim.db.place.id.find(scene.placeId)?.gameId, restored.id);
+    assert.ok(all(target.sim.db.position).every(p => target.sim.db.entity.id.find(p.entityId)?.placeId === p.placeId), "every component points at its entity's place");
+
+    // Played on: one more line, answered.
+    assert.equal(target.sim.as(TAM).say({ text: "And the boy with the stones?" }), undefined);
+    await target.sim.drain();
+    const turns = all(target.sim.db.turn).filter(t => t.sceneId === scene.id).sort((a, b) => a.n - b.n);
+    assert.deepEqual(turns.map(t => [t.n, t.phase]), [[0, "done"], [1, "done"], [2, "done"], [3, "done"]]);
+    assert.ok(all(target.sim.db.transcript).some(t => t.sceneId === scene.id && /Ask the river/.test(t.text)));
+
+    // Restored again where it came from: new ids beside the game it came from, which stays as it was.
+    const before = JSON.stringify(rowsFromParsed(JSON.parse(await local.sim.report(WREN, game.id)).rows, SDK), (_k, v: unknown) => (typeof v === "bigint" ? String(v) : v));
+    assert.equal(local.sim.as(local.sim.owner).restoreGame({ ...args, uid: `${game.uid}-r2` }), undefined);
+    const after = JSON.stringify(rowsFromParsed(JSON.parse(await local.sim.report(WREN, game.id)).rows, SDK), (_k, v: unknown) => (typeof v === "bigint" ? String(v) : v));
+    assert.equal(after, before, "the game it came from is as it was");
+    assert.equal(all(local.sim.db.game).length, 2);
+  } finally {
+    local.close();
+    target.close();
+  }
+});

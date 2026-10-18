@@ -61,6 +61,7 @@ import NewGameReducer from "./new_game_reducer";
 import OpenExhibitReducer from "./open_exhibit_reducer";
 import PickOwnReducer from "./pick_own_reducer";
 import RestReducer from "./rest_reducer";
+import RestoreGameReducer from "./restore_game_reducer";
 import RetryTurnReducer from "./retry_turn_reducer";
 import RewriteIssueReducer from "./rewrite_issue_reducer";
 import SayReducer from "./say_reducer";
@@ -671,6 +672,7 @@ const reducersSchema = __reducers(
   __reducerSchema("open_exhibit", OpenExhibitReducer),
   __reducerSchema("pick_own", PickOwnReducer),
   __reducerSchema("rest", RestReducer),
+  __reducerSchema("restore_game", RestoreGameReducer),
   __reducerSchema("retry_turn", RetryTurnReducer),
   __reducerSchema("rewrite_issue", RewriteIssueReducer),
   __reducerSchema("say", SayReducer),

@@ -13,6 +13,7 @@ import {
 } from "./creation/moves.ts";
 import { beginReducer, continueGameReducer, deleteGameReducer } from "./games/moves.ts";
 import { aiAsks, gameReportJson, reportRows, type AiGot } from "./games/report.ts";
+import { restoreGameReducer } from "./games/restore.ts";
 import { claimJob, dispatchWaitingReducer, failJob, finishJob, reapJobs as reapJobsBody } from "./jobs.ts";
 import { initDatabase, markOnline } from "./lifecycle.ts";
 import { joinGameReducer } from "./moves/join-game.ts";
@@ -118,6 +119,8 @@ export const installCampaign = spacetimedb.reducer(
 );
 export const pingAi = spacetimedb.procedure(t.string(), ctx => pingAiBody(ctx));
 export const dispatchWaiting = spacetimedb.reducer(ctx => asReducer(ctx, tx => dispatchWaitingReducer(tx, ctx.sender)));
+// The owner's: a reported game made a new game here, for a session to carry on (V16, M5: npm run report -- restore).
+export const restoreGame = spacetimedb.reducer({ rows: t.string(), identity: t.string(), uid: t.string() }, (ctx, args) => asReducer(ctx, tx => restoreGameReducer(tx, ctx.sender, args)));
 
 // The job loop (§3.5): one think per dispatch (claim, POST with nothing locked, commit), and the reaper.
 export const runJob = spacetimedb.procedure({ onSchedule: jobDispatch }, { arg: jobDispatch.rowType }, t.unit(), (ctx, { arg }) => {
