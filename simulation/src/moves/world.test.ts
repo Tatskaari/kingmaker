@@ -123,6 +123,22 @@ test("the user's report, turns 9 and 10: a rogue's Fire Bolt at Cob is no spell 
   void scene;
 });
 
+test("a spell said in words with no slot left for it is refused by the rules before the reply, with their reason, and the reply is told the magic doesn't come", async () => {
+  const { script, sheet, line, turnLines } = await wizard();
+  const atTheGate: Mechanic = { kind: "cast", spell: "magic-missile", targets: ["gate"] };
+  script.then("act", ...Array.from({ length: 7 }, () => asked(atTheGate)));
+
+  // Four from 1st-level slots, then two from 2nd-level ones, as the rules take a higher slot when the lower ones are gone.
+  for (let n = 1; n <= 6; n++) await line(`(I cast Magic Missile at the yard gate, ${n})`);
+  assert.match(sheet().statusLine, /1st 0\/4, 2nd 0\/2/, "every slot spent");
+  await line("(I cast Magic Missile at the yard gate, again)");
+
+  assert.deepEqual(turnLines(7).filter(([kind]) => kind === "roll"), [["roll", "(No spell slots left for Magic Missile: a long rest restores them.)"]]);
+  const reply = script.to("reply").at(-1)!.body as ReplyRequest;
+  assert.match(reply.outcome.acts![0]!, /^The player tried to cast Magic Missile, but their character has no spell slots left for it\. The magic doesn't come/);
+  assert.match(sheet().statusLine, /1st 0\/4, 2nd 0\/2/, "nothing more spent");
+});
+
 test("what a spell said in words conjured is the spell's, as the map's act's is: the stage manager's spectral weapon marked conjured, to fade with the scene", async () => {
   const { script, world, line } = await wizard("cleric");
   script.then("act", asked({ kind: "cast", spell: "spiritual-weapon", targets: ["kell"] }));
