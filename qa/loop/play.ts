@@ -9,7 +9,8 @@ import { capped, type Call } from "./calls.ts";
 import { BACKOFF_MS, capture, carryTurnOn, ceiling, patiently, QUIET, SETTLED, type Patience } from "./patience.ts";
 import { BRIEFS, notesPath, recordPath, roundDir, shortPath, type LoopConfig } from "./paths.ts";
 import { reachScene } from "./reach.ts";
-import { entriesOf, entryText, mergeEntries, newRecord, readRecord, turnsOf, turnsTaken, turnText, writeRecord, type GameRecord, type HandedOn, type TurnLog, type Wait } from "./record.ts";
+import { entriesOf, entryText, mergeEntries, newRecord, readRecord, turnsOf, turnsTaken, turnText, writeRecord, type FightLine, type GameRecord, type HandedOn, type TurnLog, type Wait } from "./record.ts";
+import type { FightView } from "../../client/fight/view.ts";
 import { zooOf } from "../../client/zoo/zoo.ts";
 import { gameOf, loadRound, type Persona, type Round } from "./round.ts";
 import type { Loaded } from "./scenes.ts";
@@ -203,6 +204,11 @@ export async function say(config: LoopConfig, roundName: string, id: string, wor
   if (!record) throw new Error(`Game ${id} has no record.`);
 
   const conn = await deps.connect(record.stack, { runs: roundDir(config, roundName), name: id });
+  // A fight on the board (docs/combat-gm.md): the line is the player's turn in it, in their own words.
+  if (conn.fight?.()) {
+    try { return await inTheFight(conn, record, out => verbs.say(conn, words, out, SETTLED), deps); }
+    finally { conn.close(); writeRecord(file, record); }
+  }
   const seen = lastSeen(conn, record.sceneRow!);
   const before = { entries: record.entries.length, here: hereOf(seen.view()), status: seen.view()?.player.status };
   try {
@@ -213,7 +219,7 @@ export async function say(config: LoopConfig, roundName: string, id: string, wor
 
     noteCapped(record, played.turn, deps);
     const failed = failedText(record, seen.view());
-    return { code: failed ? 1 : 0, text: [answerText(record, before, seen.view(), words, round), failed].filter(Boolean).join("\n\n") };
+    return { code: failed ? 1 : 0, text: [answerText(record, before, seen.view(), words, round), played.board, failed].filter(Boolean).join("\n\n") };
   } finally {
     seen.stop();
     conn.close();
@@ -251,7 +257,7 @@ function cantSay(record: GameRecord | undefined, round: Round, config: LoopConfi
  * The line said and its turn seen out. A turn the last command didn't see out (cut off, or failed)
  * is carried on first. Refused (the game's words) when the line wasn't taken; else its log.
  */
-async function playLine(conn: Backend, seen: Seen, words: string, record: GameRecord, deps: PlayDeps): Promise<{ refused?: string; turn: number }> {
+async function playLine(conn: Backend, seen: Seen, words: string, record: GameRecord, deps: PlayDeps): Promise<{ refused?: string; turn: number; board?: string }> {
   const at = deps.now();
   const patience = patienceOf(deps, []);
   const again = failedWith(seen.view(), words);
@@ -268,11 +274,16 @@ async function playLine(conn: Backend, seen: Seen, words: string, record: GameRe
   const turn = newTurn(seen.view(), lines);
   if (turn === undefined) return { refused: out.printed.trim() || `(The line wasn't said: the game answered ${code}.)`, turn: -1 };
 
-  // A fight it brings on is set out on the board and seen through by the dice, then the scene picks up after it (docs/combat-gm.md).
-  if (conn.view()?.fighting && !conn.fight?.()) await patiently(conn, () => verbs.fight(conn, QUIET, SETTLED), carryTurnOn, patience);
-  if (conn.fight?.()) await patiently(conn, () => verbs.foughtOut(conn, QUIET, SETTLED), carryTurnOn, patience);
+  // A fight it brings on is set out on the board for the player to fight (docs/combat-gm.md): the board as they see it.
+  let board: string | undefined;
+  if (conn.view()?.fighting && !conn.fight?.()) {
+    const shown = capture();
+    await patiently(conn, () => verbs.fight(conn, shown, SETTLED), carryTurnOn, patience);
+    noteFight(record, conn.fight?.(), turn);
+    board = `${shown.printed.trim()}\n\n${FIGHT_HOW}`;
+  }
   record.turns[String(turn)] = turnLog(words, at, deps.now(), patience.waits, seen.view());
-  return { turn };
+  return { turn, ...(board ? { board } : {}) };
 }
 
 function turnLog(words: string, at: Date, now: Date, waits: Wait[], view: SceneView | undefined): TurnLog {
@@ -311,6 +322,95 @@ function noteCapped(record: GameRecord, turn: number, deps: PlayDeps): void {
   const n = capped(deps.calls(record.stack, record.uid).filter(c => c.key?.startsWith(key)));
   if (n) log.capped = n;
 }
+
+// ---------------------------------------------------------------------------------------------
+// A fight on the board (docs/combat-gm.md): the player's turns in it, said or acted, and out.
+
+/** How a tester plays a fight, under the board each time it's their move. */
+const FIGHT_HOW = "(A fight, on the board: on your turn, say what you do (`say`: the GM plays it for you), or act one of the ACTIONS by its id (`act`); once it's over, `act out` goes back to the scene. Fight moves don't use your turns.)";
+
+/** The most moves a tester makes in one fight; after them, the dice see it through. */
+const FIGHT_MOVES = 40;
+
+/**
+ * act: one of the fight's ACTIONS by its id (attack@x,y, walk@x,y, feature_second-wind, dash,
+ * end_turn, auto…), or out once it's over, back to the scene, which picks up from how it went (its
+ * new lines, the GM's aftermath among them). Only in a fight.
+ */
+export async function act(config: LoopConfig, roundName: string, id: string, move: string, deps: PlayDeps): Promise<Played> {
+  const round = loadRound(config, roundName);
+  const file = recordPath(config, roundName, id);
+  const record = readRecord(file);
+  if (!record?.sceneRow) return { code: 1, text: `Game ${id} hasn't started: ${config.command} start ${round.name} ${id}` };
+  const conn = await deps.connect(record.stack, { runs: roundDir(config, roundName), name: id });
+  try {
+    if (!conn.fight?.()) return { code: 1, text: "(act is for a fight's moves: there's no fight on. Say what you do with say.)" };
+    if (move === "out") return await outOfIt(conn, record, round, deps);
+    return await inTheFight(conn, record, out => verbs.act(conn, move, out, SETTLED), deps);
+  } finally {
+    conn.close();
+    writeRecord(file, record);
+  }
+}
+
+/**
+ * A move in the fight (a typed turn, or one of its actions): made, then the board as the player sees
+ * it after the other side's turns, the fight's log kept in the record. Past the most moves a fight
+ * takes, the dice see the rest of it through.
+ */
+async function inTheFight(conn: Backend, record: GameRecord, made: (out: ReturnType<typeof capture>) => Promise<number>, deps: PlayDeps): Promise<Played> {
+  const log = currentFight(record, conn.fight?.());
+  if (log && log.moves >= FIGHT_MOVES && conn.fight?.()?.status === "on") {
+    const out = capture();
+    await patiently(conn, () => verbs.foughtOut(conn, out, SETTLED), carryTurnOn, patienceOf(deps, []));
+    return { code: 0, text: `(That's as many moves as a fight takes here: the dice saw the rest of it through.)\n\n${out.printed.trim()}` };
+  }
+  const out = capture();
+  const code = await made(out);
+  const view = conn.fight?.();
+  noteFight(record, view, log?.turn ?? lastTurn(record));
+  const now = currentFight(record, view);
+  if (now) now.moves++;
+  return { code, text: `${out.printed.trim()}\n\n${view?.status === "on" ? FIGHT_HOW : "(The fight's over: `act out` goes back to the scene.)"}` };
+}
+
+/** Out of a fight that's over: back to the scene, its new lines (how it went, the GM's aftermath) as the answer, and the record up to date. */
+async function outOfIt(conn: Backend, record: GameRecord, round: Round, deps: PlayDeps): Promise<Played> {
+  const fight = conn.fight?.();
+  if (fight?.status === "on") return { code: 1, text: "(There's a fight on: see it through first.)" };
+  noteFight(record, fight, currentFight(record, fight)?.turn ?? lastTurn(record));
+  const seen = lastSeen(conn, record.sceneRow!);
+  const before = { entries: record.entries.length, here: hereOf(seen.view()), status: seen.view()?.player.status };
+  const out = capture();
+  const code = await patiently(conn, () => verbs.act(conn, "out", out, SETTLED), carryTurnOn, patienceOf(deps, []));
+  upToDate(record, seen.view());
+  noteTheEnd(record, seen.view());
+  seen.stop();
+  return { code, text: answerText(record, before, seen.view(), "", round) };
+}
+
+/** The record's log of the fight on now (the latest, if it's that one). */
+function currentFight(record: GameRecord, view: FightView | undefined): NonNullable<GameRecord["fights"]>[number] | undefined {
+  const last = record.fights?.at(-1);
+  return !view ? last : last?.id === view.id ? last : undefined;
+}
+
+/** The fight's log kept in the record (a new one for a fight that's just been set out): its moments in the log's order, the GM's words after the turn they tell; how it went, once it's over. */
+function noteFight(record: GameRecord, view: FightView | undefined, turn: number): void {
+  if (!view) return;
+  const at = (e: FightView["events"][number]) => (e.kind === "gm" ? (e.detail.after ?? e.seq) + 0.5 : e.seq);
+  const events: FightLine[] = [...view.events].sort((a, b) => at(a) - at(b) || a.seq - b.seq)
+    .map(e => ({ seq: e.seq, kind: e.kind, ...(e.actor ? { actor: e.actor === view.board.pc ? "player" : e.actor } : {}), caption: e.caption, lines: e.kind === "gm" || e.kind === "say" && e.actor === view.board.pc ? [] : e.detail.lines }));
+  const fights = (record.fights ??= []);
+  let log = currentFight(record, view);
+  if (!log) { log = { id: view.id, turn, title: view.title, events: [], moves: 0 }; fights.push(log); }
+  log.events = events;
+  log.rounds = view.round;
+  if (view.status !== "on") log.over = view.result?.told ?? view.result?.summary ?? view.outcome ?? "over";
+}
+
+/** The latest of the scene's turns the record has. */
+const lastTurn = (record: GameRecord) => record.entries.at(-1)?.turn ?? 0;
 
 // ---------------------------------------------------------------------------------------------
 // The other verbs: the transcript, the sheet, the notebook, the place; the brief

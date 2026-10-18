@@ -118,6 +118,22 @@ A risky or uncertain act with a clear approach, where failure would matter, simp
 A failed roll means nothing happens, takes back what was already offered or established, or shuts the door on something the scene needs with no other way in. Or the same objective re-rolled with nothing changed. [3]
 > Persuasion fails and Cob says nothing at all; the boot's way is now shut for good. (3)
 
+### Fights
+
+A fight breaks out when someone turns to violence or the scene calls for one ("Roll for initiative!"), and is fought on a board, a turn at a time; the GM tells each turn in a line or two from what the board did, and plays the player's turn as they said it. The board's own lines and dice are the rules: judge what the GM's words do with them.
+
+#### `fight-start`: a fight when there shouldn't be one, or none when there should
+A fight broke out over a threat, a raised voice or a hand on a hilt the player never carried through, or the GM started one the scene didn't call for. Or the player's attack, or a moment the scene was building to a fight, was played out as talk, with no fight. Or someone took a side they'd never take (a coward charging in, a friend turning on the player for nothing). [3; 4 if it took the player's choice]
+> The player says "back off or I'll cut you" and the game rolls for initiative. (3)
+
+#### `fight-telling`: the GM's telling isn't what happened
+A turn's telling says what the board didn't do: a hit on a miss, someone down who's still up, a surrender, a death or a move the board never made, another turn's events, or something the player never saw. Or a turn told twice, or not told at all. [3; 4 if it decides something]
+> The board: the bandit's swing misses. The GM: "His blade bites deep into your shoulder." (4)
+
+#### `fight-turn`: the player's turn isn't what they said
+The player said what they do and the GM played something else on the board: another target, an action, spell or feature they didn't ask for, a move they didn't make, words that should have been tried (and rolled) played as a blow, or the turn ended with what they asked for left undone though the board could do it. [3; 4 if it costs them something]
+> "I shout for them to drop their weapons": the GM swings the sword instead. (4)
+
 ### Craft
 
 #### `craft`: hard to play off

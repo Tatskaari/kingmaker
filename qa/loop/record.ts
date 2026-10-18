@@ -39,6 +39,29 @@ export interface GameRecord {
   ended?: { turn: number; title: string; exit?: string; result?: string };
   /** The game is done with: the scene over, out of turns, or stopped (start failed, or the daily ceiling). */
   stopped?: string;
+  /** Each fight on the board (docs/combat-gm.md), as the player saw it: the turn it broke out on, its log, how many moves the tester made in it. */
+  fights?: FightLog[];
+}
+
+/** A fight on the board as the player saw it: its id (the fight row's), the scene's turn it broke out on, its title, its moments in the log's order (the GM's words after the turn they tell), the tester's moves in it, and how it went once it's over. */
+export interface FightLog { id: string; turn: number; title: string; events: FightLine[]; moves: number; rounds?: number; over?: string }
+
+/** A line of a fight's log: a moment's caption (and its dice under it), the GM's telling, or the player's own words. */
+export interface FightLine { seq: number; kind: string; actor?: string; caption: string; lines: string[] }
+
+/** A fight's log as the transcript's kinds have it, for the reviewer and a finding's quote: the player's words as theirs, the GM's as narration, the board's captions as the game's own lines, the dice as dice. */
+export function fightEntries(log: FightLog): Entry[] {
+  return log.events.flatMap((e): Entry[] => [
+    e.kind === "say" && e.actor === "player" ? { turn: log.turn, kind: "player", text: e.caption }
+      : e.kind === "gm" ? { turn: log.turn, kind: "narration", text: e.caption }
+      : { turn: log.turn, kind: "system", text: e.caption },
+    ...e.lines.map(l => ({ turn: log.turn, kind: "roll" as const, text: l })),
+  ]);
+}
+
+/** A fight's log as the player read it, a line a moment. */
+export function fightLogText(log: FightLog): string {
+  return log.events.map(e => [e.kind === "say" && e.actor === "player" ? `> ${e.caption}` : e.kind === "gm" ? `GM: ${e.caption}` : e.kind === "turn" ? `— ${e.caption}` : e.caption, ...e.lines.map(l => `    ${l}`)].join("\n")).join("\n");
 }
 
 export interface Skipped { scene: string; exit: string; title?: string; result?: string }

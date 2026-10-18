@@ -4,9 +4,9 @@ import { join } from "node:path";
 import { CallBook, entryHtml, esc, md, page, sevChip, Speakers } from "./html.ts";
 import { notesPath, recordPath, reviewPath, roundDir, RUBRIC, type LoopConfig } from "./paths.ts";
 import { callsBefore, type Call } from "./calls.ts";
-import { readRecord, turnsOf, type GameRecord } from "./record.ts";
+import { fightEntries, readRecord, turnsOf, type FightLog, type GameRecord } from "./record.ts";
 import { armStats, byCheck, fightsOf, gameStats, mean, OUTCOMES, type ArmStats, type GameStats } from "./report-data.ts";
-import { RATINGS, type Review } from "./review.ts";
+import { locate, RATINGS, type Review } from "./review.ts";
 import { loadRound, personas, type Round } from "./round.ts";
 import type { Ending } from "./scenes.ts";
 import { loadTriage, strays, type Triaged } from "./triage.ts";
@@ -137,10 +137,15 @@ function fightTable(games: GameStats[], titles: Record<string, string>): string 
       ...seen.blows.map(b => `t${b.turn}: ${esc(b.roll.replace(/: \d+.*$/, ""))} <span class="faint">(«${esc(b.line.slice(0, 90))}»)</span>`),
       ...seen.calledOnly.map(t => `t${t}: "Roll for initiative!" with no fight after it`),
     ];
-    const fights = seen.fights.map(f => `<tr>${game}<td class="n">t${f.from}${f.to !== undefined ? `–${f.to}` : ""}</td><td class="w">«${esc(f.line.slice(0, 140))}»</td><td class="w">${esc(f.sides)}</td><td class="n">${f.rounds ?? "–"}</td><td class="w">${esc(f.ended ?? "not over")}</td></tr>`);
-    return [...fights, ...(outside.length ? [`<tr>${game}<td colspan="5" class="w"><span class="faint">Outside a fight:</span> ${outside.join("; ")}</td></tr>`] : [])];
+    const logs = g.record!.fights ?? [];
+    const fights = seen.fights.map(f => {
+      const log = logs.find(l => l.turn === f.from);
+      const board = log ? `${log.events.filter(e => e.kind === "turn").length} turns, ${log.events.filter(e => e.kind === "gm").length} told · ${log.moves} by the player` : "–";
+      return `<tr>${game}<td class="n">t${f.from}${f.to !== undefined ? `–${f.to}` : ""}</td><td class="w">«${esc(f.line.slice(0, 140))}»</td><td class="w">${esc(f.sides)}</td><td class="n">${log?.rounds ?? f.rounds ?? "–"}</td><td class="w">${esc(board)}</td><td class="w">${esc(f.ended ?? log?.over ?? "not over")}</td></tr>`;
+    });
+    return [...fights, ...(outside.length ? [`<tr>${game}<td colspan="6" class="w"><span class="faint">Outside a fight:</span> ${outside.join("; ")}</td></tr>`] : [])];
   });
-  return `<div class="scroll"><table class="data"><thead><tr><th>Game</th><th>Persona</th><th>Scene</th><th class="n">Turns</th><th>What brought it</th><th>The sides</th><th class="n">Rounds</th><th>How it went</th></tr></thead><tbody>${rows.join("\n")}</tbody></table></div>`;
+  return `<div class="scroll"><table class="data"><thead><tr><th>Game</th><th>Persona</th><th>Scene</th><th class="n">Turns</th><th>What brought it</th><th>The sides</th><th class="n">Rounds</th><th>On the board</th><th>How it went</th></tr></thead><tbody>${rows.join("\n")}</tbody></table></div>`;
 }
 
 function gameTable(games: GameStats[], titles: Record<string, string>): string {
@@ -190,11 +195,23 @@ function turnHtml(g: GameStats, n: number, entries: GameRecord["entries"], book:
   return `<div class="turn${shown.length ? " flagged" : ""}" id="t-${n}">
 <div class="tn"><span>Turn ${n}${n === 0 ? " · the opening" : ""}</span>${shown.map(f => sevChip(f.severity)).join(" ")}<span class="faint">${calls.length} calls · $${cost.toFixed(4)}${log?.ms !== undefined ? ` · ${(log.ms / 1000).toFixed(1)} s` : ""}</span></div>
 ${entries.map(e => entryHtml(e, speakers, shown)).join("\n")}
+${(record.fights ?? []).filter(f => f.turn === n).map(f => fightHtml(f, speakers, shown)).join("\n")}
 ${log?.waits.length || log?.capped || log?.failed ? `<div class="waits">${log.waits.map(w => `<span>waited ${Math.round(w.ms / 1000)} s: ${esc(w.why)}</span>`).join("")}${log.capped ? `<span>${log.capped} call${log.capped === 1 ? "" : "s"} turned away with a 402 (the in-flight cap), tried again by the game</span>` : ""}${log.failed ? `<span>failed: ${esc(log.failed)}</span>` : ""}</div>` : ""}
 ${mine.map(findingCard).join("")}
 ${good.map(x => `<div class="finding good"><span class="pill pass">good</span><div class="body"><p>${esc(x.what)}</p></div></div>`).join("")}
 ${calls.length ? `<details class="callsof"><summary>The ${calls.length} model calls of this turn</summary><ol class="callrows">${calls.map((c, i) => book.row(c, { id: `t${n}c${i + 1}`, label: `t${n}#${i + 1}` })).join("")}</ol></details>` : ""}
 </div>`;
+}
+
+/** A fight on the board, under the turn it broke out on: its log as the player read it (the board's lines and dice, the GM's tellings, the player's own words), findings marked on the words they quote. */
+function fightHtml(f: FightLog, speakers: Speakers, shown: Triaged[]): string {
+  const entries = fightEntries(f);
+  const marked = shown.some(s => entries.some(e => locate(e.text, s.quote)));
+  const told = f.events.filter(e => e.kind === "gm").length;
+  const turns = f.events.filter(e => e.kind === "turn").length;
+  return `<details class="fightlog"${marked ? " open" : ""}><summary>The fight on the board: ${esc(f.title)} <span class="faint">${turns} turns, ${told} told by the GM · ${f.moves} move${f.moves === 1 ? "" : "s"} by the player${f.rounds ? ` · ${f.rounds} round${f.rounds === 1 ? "" : "s"}` : ""} · ${esc(f.over ?? "not over")}</span></summary>
+${entries.map(e => entryHtml(e, speakers, shown)).join("\n")}
+</details>`;
 }
 
 function findingCard(f: Triaged): string {
