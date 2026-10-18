@@ -214,6 +214,31 @@ test("walking out after the ending: where the scene left her, Kell beside her, f
   assert.match(explore().said, /The yard's been locked up for the Assembly/);
 });
 
+test("what she carries goes with her into the next scene, though she crossed the map to it: her purse and gear, and the pennies she picked up in the yard after it ended", async () => {
+  const { host, script, wren, game, yard, wrenNow } = onMap();
+  host.as(wren).walk({ toward: "lead" });
+  await host.drain();
+  const pc = wrenNow().characterId!;
+  const hers = (placeId: bigint) => [...host.db.entity.placeId.filter(placeId)].filter(e => e.parentId === pc).map(e => e.key).sort();
+  const before = hers(yard().placeId);
+  assert.ok(before.includes("granary-yard/pennies") && before.includes("granary-yard/wren-longbow"), before.join(", "));
+
+  // She drops her pennies as the scene ends and picks them up on her way out: into her hands in the yard's world, where her character stays while her seat is on the map.
+  await endScene(host, script, wren, [{ op: "drop", what: "granary-yard/pennies", to: "", how: "", name: "", kind: "", text: "", add: [], remove: [] }]);
+  assert.equal(host.as(wren).walk({ toward: "out" }), undefined);
+  assert.equal(host.as(wren).interact({ verb: "take", target: "pennies" }), undefined);
+  assert.deepEqual([host.db.place.id.find(wrenNow().placeId!)!.key, host.db.entity.id.find(pc)!.placeId], ["map:caerwyn", yard().placeId], "her seat on the map, her character in the yard");
+
+  // Down the river stairs and in at the Rat's door.
+  const rat = () => all(host.db.scene).find(s => s.sceneKey === "drowned-rat")!;
+  for (let i = 0; i < 40 && rat().status === "waiting"; i++) assert.equal(host.as(wren).walk({ toward: "lead" }), undefined);
+  await host.drain();
+  assert.deepEqual([rat().status, wrenNow().placeId, host.db.entity.id.find(pc)!.placeId], ["live", rat().placeId, rat().placeId]);
+  assert.deepEqual(hers(rat().placeId), before.map(k => k.replace("granary-yard/", "drowned-rat/")).sort(), "everything she carried, in her keeping in the Rat");
+  assert.deepEqual(hers(yard().placeId), [], "nothing of hers left in the yard");
+  assert.match(host.db.sheet.playerId.find(game.hostId)!.pockets, /pennies/, "the sheet's pockets read the Rat's world");
+});
+
 /** The scene ended through its exit as the player chooses it: closing on one line, its wind-down the next. `ops`: what the first line's settle does to the yard. */
 async function endScene(host: MemoryHost, script: ReturnType<typeof hostWithCampaign>["script"], who: ReturnType<typeof identity>, ops: SettleResponse["ops"] = []) {
   const line = async (text: string, settle?: Scripted) => {
