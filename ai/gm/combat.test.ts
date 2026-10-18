@@ -12,8 +12,9 @@ import { fakeFetch } from "../llm/fake-openrouter.ts";
 import type { CallContext } from "../llm/openrouter.ts";
 import { combatInput, combatMove, fightNote } from "./combat.ts";
 import { CAERWYN, viewAt } from "./fixtures.ts";
-import { fightOf, routeLine, speak, twoPartNow } from "./two-part.ts";
+import { fightOf, mouthpieceInput, routeLine, speak, twoPartNow } from "./two-part.ts";
 import { decideReactions } from "./mechanics.ts";
+import { withoutEchoes } from "./voice.ts";
 import { director } from "../service/endpoints/turn.ts";
 import type { TurnView } from "./view.ts";
 
@@ -90,6 +91,18 @@ test("the input: the scene's history, what's been narrated this turn already, th
   assert.match(input.at(-2)!.content, /Your blade bites/);
   assert.equal(input.at(-1)!.role, "system");
   assert.match(input.at(-1)!.content, /^## The fight: round 1/);
+});
+
+test("the clock is the conversation's, not each fighter's turn's (QA round hobo2-1018: the tenth bell twice in a brawl): where the mouthpiece's note shows its sign, the combat GM's has none", () => {
+  const clocked: number[] = [];
+  for (let turn = 1; turn <= 12; turn++) {
+    const view = { ...yard(), turn, turnsInBeat: turn };
+    const told = (messages: Array<{ content: string }>) => messages.some(m => m.content.includes("## The clock\n"));
+    if (!told(mouthpieceInput(clerk, view, []))) continue;
+    clocked.push(turn);
+    assert.equal(told(combatInput(clerk, view, fight("cob"))), false, `turn ${turn}`);
+  }
+  assert.ok(clocked.length, "the mouthpiece's note shows the clock on some turn");
 });
 
 test("the loop stops on the first call that passes: a wrong one (Cob casting, a blow at nobody) is answered in the loop, and the GM puts it right", async () => {
@@ -239,6 +252,22 @@ test("the reactions to the player's violence: whoever the story needs here isn't
   const anyway = { name: "stub", decide: async () => ({ answers: { react_cob: { choice: "flee" }, react_moll: { choice: "raise_alarm" }, react_kell: { choice: "raise_alarm" } }, latencyMs: 0, costUsd: 0, decider: "stub" }) } as unknown as Parameters<typeof decideReactions>[0];
   const sent = await decideReactions(anyway, clerk, yard(), "I hit Cob.", act, witnesses, id => id, new Set(["cob", "kell"]));
   assert.deepEqual(sent.reactions, { cob: "cower", moll: "raise_alarm", kell: "cower" });
+});
+
+test("the player's own words echoed back in a reply aren't anyone's line (QA rounds hobo1 and hobo2-1018: a battle cry under Kell's name), just the words; anyone else's are as they were", () => {
+  assert.equal(withoutEchoes("Kell grabs his arm. [Sergeant Kell] “DIE, you lavender pig!” Sallow reels.", "(I swing at Sallow) DIE, you lavender pig!"), "Kell grabs his arm. DIE, you lavender pig! Sallow reels.");
+  assert.equal(withoutEchoes("At the word [Sallow] “Drop,” he lets go.", "(I cast Command) “Drop.”"), "At the word Drop, he lets go.", "one of their own quotes, however short");
+  assert.equal(withoutEchoes("[Kell] “Put the axe down.”", "(I swing the axe)"), "[Kell] “Put the axe down.”", "a line of Kell's own");
+  assert.equal(withoutEchoes("[Kell] “Stop.”", "Stop. (I swing)"), "[Kell] “Stop.”", "a word or two in common isn't an echo");
+});
+
+test("a move towards someone the mover is beside already is put right (QA round hobo2-1018: a second move to the man he was beside was a dash, which spent the swing)", async () => {
+  const beside = fight("player");
+  beside.fighters = beside.fighters.map(f => (f.id === "player" ? { ...f, feet: { ...f.feet, cob: 5 } } : f));
+  const calls = scripted([["move_towards", { target: "cob", narration: "You close in." }], ["perform_action", { action: "attack", target: "cob", narration: "You swing." }]]);
+  const out = await combatMove(clerk, yard(), beside, { calls, byKey });
+  assert.deepEqual(out.move, { kind: "act", act: { action: "attack", target: "cob", narration: "You swing." } });
+  assert.match(JSON.stringify(calls.inputs.at(-1)), /is beside Cob already: no need to move/);
 });
 
 test("the fake mouthpiece rolls for initiative on its cue: the reply has the fight, and no check", async () => {

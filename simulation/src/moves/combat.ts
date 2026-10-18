@@ -419,11 +419,20 @@ function leaves(tx: TxCtx, at: At, n: number, f: Fighter, how: "flee" | "surrend
   if (how === "flee" && f.id !== "player") {
     const played = inPlay(tx, at.scene, at.graph, at.gm, n);
     const e = played.place.world.entities[f.id];
-    if (e) e.states = [...e.states.filter(s => s !== "cowering"), "gone"];
-    played.session.absent = [...new Set([...(played.session.absent ?? []), f.id])];
+    // One the story needs keeps clear of it, close by, as one who runs at its start does (keepers).
+    if (keepers(tx, at).has(f.id)) { if (e) e.states = [...e.states.filter(s => s !== "cowering"), "cowering"]; }
+    else {
+      if (e) e.states = [...e.states.filter(s => s !== "cowering"), AWAY];
+      played.session.absent = [...new Set([...(played.session.absent ?? []), f.id])];
+    }
     playedOut(tx, at.scene, at.graph, at.gm, played);
   }
-  return { lines: [], result: `${nameOf(tx, at, n, f.id)} ${how === "flee" ? "flees: out of the fight" : "gives up: out of the fight"}.` };
+  // A group gives up with its leader (QA round hobo2-1018: Sallow yielded and his Crakes, who stop the moment he surrenders, fought on).
+  const card = how === "surrender" ? at.graph.cast.find(c => c.id === f.id && c.members?.length) : undefined;
+  const theirs = card ? at.gm.combat!.order.filter(o => !o.out && o.side === f.side && card.members!.some(m => m.id === o.id)) : [];
+  for (const o of theirs) o.out = "yielded";
+  if (theirs.length) addEntry(tx, at.scene, { turn: n, speaker: "system", kind: "system", text: `Giving up with ${nameOf(tx, at, n, f.id)}: ${theirs.map(o => nameOf(tx, at, n, o.id)).join(", ")}.` });
+  return { lines: [], result: `${nameOf(tx, at, n, f.id)} ${how === "flee" ? "flees: out of the fight" : "gives up: out of the fight"}.${theirs.length ? ` ${theirs.map(o => nameOf(tx, at, n, o.id)).join(" and ")} give up with them.` : ""}` };
 }
 
 /** A stunt the dice decide: the player's check, rolled as every check is (rollerFor), its dice line written. */

@@ -280,3 +280,17 @@ test("a fight breaking out as the scene closes (QA round hobo1-1018: the Rat clo
   assert.deepEqual([now.gm.closing, now.gm.reached.includes("failed"), now.scene.status], [undefined, false, "live"], "the scene plays on, its ending undone");
   assert.equal(script.to("settle").length, 2, "the co-GM settled after the fight, to judge the ending again");
 });
+
+test("a group gives up with its leader (QA round hobo2-1018: Sallow yielded and his Crakes, who stop the moment he surrenders, fought on): his members in the fight are out with him", async () => {
+  const withUrchins: PackOptions = { edit: { "hanged-clerk": (doc: SceneDocument) => ({ ...doc, cast: doc.cast.map(c => (c.id === "cob" ? { ...c, group: "Cob and his urchin", members: [{ id: "urchin", name: "an urchin", statblock: "commoner" }] } : c)) }) } };
+  const { line } = await fight(request => {
+    const c = request.combat;
+    if (c.over) return { kind: "end_combat", outcome: c.over.outcome, narration: "Done." };
+    if (c.whose === "cob") return { kind: "act", act: { action: "surrender", narration: "Cob throws down his stones." } };
+    return { kind: "end_turn", narration: "Circles." };
+  }, { initiative: { foes: ["cob", "urchin"], allies: ["kell"], flee: ["moll"], why: "the urchins" }, pack: withUrchins });
+  let now = await line("I grab Cob by the collar.");
+  for (let i = 0; i < 4 && now.gm.combat; i++) now = await line("I wait.");
+  assert.ok(now.lines.some(l => l.kind === "system" && /^Giving up with .*: an urchin\.$/.test(l.text)), "the urchin gives up with Cob");
+  assert.ok(now.lines.some(l => l.kind === "system" && l.text === "The fight is over (they gave up)."));
+});

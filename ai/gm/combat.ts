@@ -107,7 +107,7 @@ export function combatInstructions(scene: Scene, view: TurnView): string {
  * turn so far (the fight's earlier turns since the player's line), then the fight as it stands.
  */
 export function combatInput(scene: Scene, view: TurnView, combat: CombatView): Message[] {
-  const input = mouthpieceInput(scene, view, []);
+  const input = mouthpieceInput(scene, view, [], { fight: true });
   const now = sceneEntries(view).filter(e => e.turn === view.turn && e.kind !== "player" && e.kind !== "system");
   if (view.turn > 0 && now.length) input.push({ role: "assistant", content: gmText(scene, view, now) });
   input.push({ role: "system", content: fightNote(view, combat) });
@@ -284,6 +284,10 @@ function checkMove(combat: CombatView, args: Record<string, unknown>): void {
   if (combat.done.length >= ACTS_A_TURN) throw new InvalidToolArguments("That's all for this turn: call end_turn.");
   const moves = combat.done.filter(d => !d.refused && d.act.action === "move").length;
   if (moves >= 2 || (moves === 1 && actionUsed(combat))) throw new InvalidToolArguments(`${whose.name} has moved as far as they can this turn: call end_turn.`);
+  // hobo2-1018: a second move to the man he was already beside was a dash, which spent the swing.
+  const to = String(args.target).trim();
+  const feet = combat.fighters.find(f => f.id === combat.whose)?.feet[to];
+  if (!args.away && feet !== undefined && feet <= 7) throw new InvalidToolArguments(`${whose.name} is beside ${combat.fighters.find(f => f.id === to)?.name ?? to} already: no need to move. Go on with what they do.`);
 }
 
 /** A held call as the move it is. */

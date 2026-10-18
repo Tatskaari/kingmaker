@@ -482,20 +482,24 @@ export function mouthpieceInstructions(scene: Scene, view: TurnView): string {
  * right now, the names they haven't heard, what in their turn they did or thought rather than said,
  * and the clock when a sign of it is due; the reply's directives last.
  */
-export function twoPartNow(scene: Scene, view: TurnView, directive: string[]): string {
+/** What the per-turn note leaves out: in a fight (the combat GM's), the clock's sign and the stall's pressure, which are the conversation's replies', not each fighter's turn's. */
+export interface NowOptions { fight?: boolean }
+
+export function twoPartNow(scene: Scene, view: TurnView, directive: string[], options: NowOptions = {}): string {
   const stage = stageOf(scene, view);
   const open = openRoutes(scene, view);
   const parts = [
     `## Where the scene is now: ${stage.title}\n${stage.direction}`,
     // Pressure is for stalls, and is offered once: offered every turn, it gets replayed word for word.
-    ...(pressureOffered(scene, view) ? [`The scene has been sitting here a while. If it's stalling or drifting, the world can push: ${stage.pressure}`] : []),
+    ...(!options.fight && pressureOffered(scene, view) ? [`The scene has been sitting here a while. If it's stalling or drifting, the world can push: ${stage.pressure}`] : []),
     `(The scene has been at this point for ${view.turnsInBeat} exchange${view.turnsInBeat === 1 ? "" : "s"}.)`,
     `## What moves the scene on from here\n${open.length ? open.map(r => routeLine(scene, r)).join("\n") : "- (nothing: the scene is closing)"}${open.some(r => r.skill) ? "\nWhen the player attempts what a route the dice decide describes, call that route's check: its skill and DC." : ""}`,
     ...(view.established.length ? [`## Details established in play (keep them true)\nWhat has happened and been found, in the order it happened.${view.world ? " Where people are and what they're doing now is the world's, below: a detail here about where someone was or what they were doing was true then, and where the world says otherwise, they've moved on (people who have left don't come back unless the story brings them)." : ""}\n${bullets(view.established)}`] : []),
     ...[talkNotes(scene, view)].filter((m): m is string => !!m),
     ...(playerNow(view) ? [playerNow(view)!] : []),
     ...(view.world ? [`## The world right now\nWhere everyone and everything is, and what state it's in (ids in brackets). Keep to it, since it's updated after every reply: people and things are where it says, and what's destroyed, burning or gone stays that way until the story changes it. Details it doesn't list are yours to invent, consistent with it. It's as things stood before the player's turn: what the player does in it (shutting a book and buttoning it into their coat, picking something up, crossing the room) has happened by your reply, and the world catches up after it. It's the truth behind the screen, not what the player has seen: of what people carry, the player sees what's out in the open (worn, in hand, held up), and of the rest (in a pocket, a fist, a lining, a box) they know only what they've seen or been told.\n${PHYSICS}\n\n${worldView(view.world)}`] : []),
-    ...[hiddenNote(scene, view), reachNote(scene, view), holdersNote(scene, view), namesNote(unheardOf(scene, view)), asidesNote(view), clockNote(scene, view)].filter((n): n is string => !!n),
+    // QA round hobo2-1018: in a fight every fighter's turn showed the clock moving (the tenth bell twice, coats shouldered every round).
+    ...[hiddenNote(scene, view), reachNote(scene, view), holdersNote(scene, view), namesNote(unheardOf(scene, view)), asidesNote(view), options.fight ? undefined : clockNote(scene, view)].filter((n): n is string => !!n),
     ...(directive.length ? [`## For this reply\n${directive.join("\n\n")}`] : []),
   ];
   return parts.join("\n\n");
@@ -685,14 +689,14 @@ export function gmText(scene: Scene, view: TurnView, entries: TurnView["transcri
  * was written for), the player's turns and its own replies as the player read them. The latest note
  * goes last with the per-turn note beside it, so the reply has the world as it stands.
  */
-export function mouthpieceInput(scene: Scene, view: TurnView, directive: string[]): Message[] {
+export function mouthpieceInput(scene: Scene, view: TurnView, directive: string[], options: NowOptions = {}): Message[] {
   const notes = view.twoPart.notes;
   const here = sceneEntries(view);
   const input: Message[] = [];
   // Turn t's note was written after the reply to turn t-1 (the opening's, -1, before the scene began).
   for (let t = 0; t <= view.turn; t++) {
     const note = notes.find(n => n.turn === t - 1)?.text;
-    const now = t === view.turn ? twoPartNow(scene, view, directive) : undefined;
+    const now = t === view.turn ? twoPartNow(scene, view, directive, options) : undefined;
     if (note || now) input.push({ role: "system", content: [note, now].filter(Boolean).join("\n\n") });
     input.push({ role: "user", content: t === 0 ? "(The player is ready. Begin.)" : here.find(e => e.turn === t && e.kind === "player")?.text ?? "(The player waits.)" });
     if (t < view.turn) input.push({ role: "assistant", content: gmText(scene, view, here.filter(e => e.turn === t)) });
