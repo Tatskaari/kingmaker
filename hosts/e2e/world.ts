@@ -5,19 +5,22 @@ import type { SceneWorld } from "../../shared/world/scene-world.ts";
 import { onTop } from "../dev/fake.ts";
 import type { Stack } from "../dev/stack.ts";
 import type { Game } from "./creation.ts";
-import { linesOf, RAISED } from "./gm.ts";
-import { bigints, check, doneTurn, mapUntil, moduleLog, nextTurn, note, ok, pause, restartAi, step, turnOf, until, type Player } from "./kit.ts";
+import { gmOf, keyOf, linesOf, phasesOf, RAISED } from "./gm.ts";
+import { bigints, check, doneTurn, mapUntil, modelCalls, moduleLog, nextTurn, note, ok, pause, restartAi, step, turnOf, until, type Player } from "./kit.ts";
 
 /**
  * The e2e's steps for the scene's world (world-bridge-design §3.4), after the GM's: a wizard's spell
  * from the lane at Kell, waiting in the yard (the map's act), resolved by the rules on the scene's
- * world before the GM says a word; a fire the stage manager starts that burns on at the next line's
- * start; and the spectator's world, row for row the lead's. On the fake model with fake.json's quiet
- * answers, each step's recipe on top. (Until M2, the decider read a spell out of the player's words
- * and the reactions step had the people who saw it react (26), a blow the reply left hanging landed
- * first next turn (27), and the AI service kept the reactions as it died (29): the two-part GM has no
- * decide, reactions or read after the reply, so a spell said in words is the mouthpiece's to narrate
- * and the stage manager's to keep in the world, and only the map's act forces a mechanic.)
+ * world before the GM says a word, the people who saw it reacting; a spell said in words in the scene,
+ * read by the act step and resolved the same way; a fire the stage manager starts that burns on at
+ * the next line's start; and the spectator's world, row for row the lead's. On the fake model with
+ * fake.json's quiet answers (Kell intervenes, Cob flees, Moll cowers), each step's recipe on top.
+ * (Until M2, the decider read a spell out of the player's words in the turn's one decision (26), a
+ * blow the reply left hanging landed first next turn (27), and the AI service kept the reactions as
+ * it died (29). M2's two-part GM had no decide, reactions or read after the reply; since "After the
+ * migration: spells and blows said in a scene" a line that might be an act asks the act step, and a
+ * violent act draws the reactions again (27 is the spell said in words), though none starts a fight,
+ * so nothing is left hanging (29 stays empty, its number kept).)
  */
 
 const WREN = { campaign: "caerwyn", name: "Wren Ashdown", concept: "a hedge wizard from the fens", build: "wizard" };
@@ -35,8 +38,9 @@ export interface WorldGame { game: Game; place: bigint; from: { a: number; b: nu
  * 26. Before the GM speaks: from the lane, Magic Missile at Kell, waiting in the yard (the map's act,
  * town-design §3.4), opens the hanged clerk, B's seat with A's; once the opening's in, the act is
  * turn 1, resolved by the rules on the scene's world: its dice rows (the cast, the darts, the slots
- * left) reach both clients before the reply's first draft, the world rows have Kell hurt (her state, as the rules set it), and the
- * sheet's status has a 1st-level slot gone.
+ * left) reach both clients before the reply's first draft, the world rows have Kell hurt (her state,
+ * as the rules set it), and the sheet's status has a 1st-level slot gone; and whoever saw it reacted
+ * before the reply (Cob fled, gone from the place; Moll cowering), with no fight started.
  */
 export async function beforeTheGmSpeaks(stack: Stack, a: Player, b: Player, fake: FakeOptions): Promise<WorldGame> {
   step("26. A spell from the lane resolved by the rules before the GM speaks");
@@ -74,8 +78,63 @@ export async function beforeTheGmSpeaks(stack: Stack, a: Player, b: Player, fake
   check(`the world rows have Kell hurt, as the rules left her: ${hurt.join(", ") || "nothing"}`, hurt.some(st => st === "hurt" || st === "badly hurt" || st === "down"));
   const status = rows.sheets.find(s => s.playerId === rows.scene.controllerId)?.statusLine ?? "";
   check(`the sheet's status: ${status}`, /spell slots 1st 3\/4/.test(status));
+  const gm = await gmOf(stack, game);
+  const reacted = gm.path.find(p => p.turn === 1 && p.via.startsWith("reactions:"))?.via ?? "";
+  check(`the people who saw it reacted before the reply: ${reacted}; Cob ${worldOf(a).entities.cob?.states.join(", ")}, Moll ${worldOf(a).entities.moll?.states.join(", ")}`,
+    /cob=flee/.test(reacted) && /moll=cower/.test(reacted) && !!worldOf(a).entities.cob?.states.includes("gone") && !!worldOf(a).entities.moll?.states.includes("cowering"));
+  check("no fight started, and nothing hangs over the player", gm.brawl === undefined && gm.threat === undefined);
   await pause(500);
   return { game, place: a.conn.rows()!.place!.place.id, from: { a: a.events.length, b: b.events.length } };
+}
+
+/** The act step reads a cast at a thing (the details call's choices), on the quiet answers. */
+const casting = (fake: FakeOptions, spell: string, at: string): FakeOptions => onTop(fake, { choices: { mechanic: "cast", spell, aim_thing: at } });
+
+/**
+ * 27. A spell said in words, in the scene: "(I cast Magic Missile at the hoist rope)" asks the act step
+ * (the line check found casting in it), which reads the cast at the rope; the rules resolve it before
+ * the GM says a word, as the map's act: its dice rows (the cast, the darts, the rope destroyed, the
+ * slots left) reach both clients before the reply's first draft, the world rows have the rope
+ * destroyed and Prout's body fallen, the sheet a second slot gone; whoever saw it reacted (Moll
+ * cowering still, Kell stepping in when she's up), the act and the reactions each asked once, the
+ * turn replying throughout, and no fight started.
+ */
+export async function aSpellInWords(stack: Stack, root: string, a: Player, b: Player, { game }: WorldGame, fake: FakeOptions): Promise<void> {
+  step("27. A spell said in words, resolved by the rules before the GM speaks, and the people who saw it react");
+  await restartAi(stack, casting(fake, "magic-missile", "hoist-rope"), RAISED);
+  check("Prout hangs from the hoist rope in A's world rows", !!worldOf(a).entities.prout?.states.includes("hanging"));
+  const n = nextTurn(a);
+  const from = { a: a.events.length, b: b.events.length };
+  check("A says the line", (await a.conn.say("(I cast Magic Missile at the hoist rope)")) === undefined);
+  const rows = await doneTurn(a, n);
+  await until(b, `B to see turn ${n} done`, 10_000, r => turnOf(r, n)?.phase === "done");
+
+  const lines = linesOf(rows, n);
+  const dice = lines.filter(l => l.kind === "roll").map(l => l.text);
+  check(`the rules' lines: ${dice.join(" | ")}`, dice[0] === "Cast Magic Missile (1st-level slot) on the hoist rope" && /^3 darts at the hoist rope: \d+ force$/.test(dice[1] ?? "")
+    && /^The hoist rope takes \d+ force damage and is destroyed$/.test(dice[2] ?? "") && /spell slots 1st 2\/4/.test(dice.at(-1) ?? ""));
+  check("the dice lines come before the GM's reply in the transcript", lines.map(l => l.kind).join() === `player,${dice.map(() => "roll").join(",")},narration`);
+  const turnId = turnOf(rows, n)!.id;
+  for (const [p, i] of [[a, from.a], [b, from.b]] as const) {
+    const seen = p.events.slice(i);
+    const lastDice = seen.findLastIndex(e => e.table === "transcript" && e.op === "insert" && e.row.turn === n && e.row.kind === "roll");
+    const firstDraft = seen.findIndex(e => e.table === "reply_draft" && e.op !== "delete" && e.row.turnId === turnId);
+    check(`${p.name} saw the dice rows (event ${lastDice}) before the reply's first draft (event ${firstDraft})`, lastDice >= 0 && firstDraft > lastDice);
+  }
+  check(`A saw turn ${n} go ${phasesOf(a, from.a, game, n).join(", ")}: replying through the act and the reactions`, phasesOf(a, from.a, game, n).join() === "replying,settling,done");
+
+  const world = worldOf(a);
+  check(`the world rows: the rope ${world.entities["hoist-rope"]?.states.join(", ")}, Prout's body ${world.entities.prout?.states.join(", ")}`,
+    !!world.entities["hoist-rope"]?.states.includes("destroyed") && !!world.entities.prout?.states.includes("fallen") && !world.entities.prout?.states.includes("hanging"));
+  const status = rows.sheets.find(s => s.playerId === rows.scene.controllerId)?.statusLine ?? "";
+  check(`the sheet's status: ${status}`, /spell slots 1st 2\/4/.test(status));
+  const asked = (op: string, at: "act" | "reactions") => modelCalls(root, game.uid, op, keyOf(game, n, at));
+  check(`the act step asked once (director.rules ${asked("director.rules", "act")}, its details director.mechanic ${asked("director.mechanic", "act")}), the reactions once (${asked("director.reactions", "reactions")})`,
+    asked("director.rules", "act") === 1 && asked("director.mechanic", "act") === 1 && asked("director.reactions", "reactions") === 1);
+  const gm = await gmOf(stack, game);
+  const path = gm.path.filter(p => p.turn === n).map(p => p.via);
+  check(`the path's steps: ${path.join(", ")}; no fight started`, path[0] === "rules:cast:magic-missile" && /^reactions:.*moll=cower/.test(path[1] ?? "") && gm.brawl === undefined && gm.threat === undefined);
+  await pause(500);
 }
 
 /**

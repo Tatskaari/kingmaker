@@ -12,7 +12,7 @@ import { startStack, type Stack } from "./dev/stack.ts";
 import { aConceptToTheOpening, checksBesideAStream, continueAndDelete, creationFake, restartedMidBuilds, theCeiling, type Game } from "./e2e/creation.ts";
 import { aMemory, aRiskyCheck, gmOf, theCoGmSteers } from "./e2e/gm.ts";
 import { theWholeStory } from "./e2e/story.ts";
-import { beforeTheGmSpeaks, fireBurnsOn, rowForRow } from "./e2e/world.ts";
+import { aSpellInWords, beforeTheGmSpeaks, fireBurnsOn, rowForRow } from "./e2e/world.ts";
 import {
   aiLog as aiLogIn, callLog as callLogOf, check, doneTurn, elapsed, escaped, Failed, millis, modelCalls as modelCallsOf, moduleLog, nextTurn, ok, pause,
   player, restartAi, seconds, step, turnOf, until, type Player,
@@ -43,8 +43,9 @@ import { configureTerminal } from "./terminal.ts";
  * then back to the map after the ending, the yard locked once you're out and the Rat shut in the
  * morning (14a), and the map moves' times (35). The GM's (e2e/gm.ts): a memory kept, the co-GM
  * steering (roles and moves), and a risky act the mouthpiece calls a check on. The world's
- * (e2e/world.ts): a spell from the lane resolved before the GM speaks, fire burning on, and the
- * spectator's world row for row the lead's. The whole story's (e2e/story.ts): one game from the yard
+ * (e2e/world.ts): a spell from the lane resolved before the GM speaks, the people who saw it
+ * reacting; a spell said in words in the scene, read by the act step and resolved the same way; fire
+ * burning on; and the spectator's world row for row the lead's. The whole story's (e2e/story.ts): one game from the yard
  * to The End, the co-GM walking each scene to its ending, each scene's end crossing the boundary, the
  * lead walked to on the map, a scene ended by the owner, the fight's stand-in, a summons, a spectator
  * following. The town's (e2e/town.ts, town-design §4), after the times: the action menu's Fire Bolt
@@ -63,10 +64,13 @@ import { configureTerminal } from "./terminal.ts";
  * opening is in; the line and the fault that waited on the notes wait on the settle and the lines),
  * the old pipeline's decide (SpacetimeDB restarts in the settle; the ending is the co-GM's walk), its
  * ruling and the plain check when the ruling is too slow (24 is the mouthpiece's check), walking out
- * of the place on an ending of the player's own (25), the reactions to a spell (26 is the map's act,
- * the only mechanic the scene still forces), a blow left hanging (27: nothing reads one after a
- * reply) and the reactions kept by the AI service as it died (29). Their numbers are kept, so the
- * docs' references to the others still hold.
+ * of the place on an ending of the player's own (25), the reactions to a spell (26 became the map's
+ * act), a blow left hanging (27: nothing reads one after a reply) and the reactions kept by the AI
+ * service as it died (29). Their numbers are kept, so the docs' references to the others still hold.
+ * Since "After the migration: spells and blows said in a scene" (docs/migration-log.md) a line that
+ * might be an act asks the act step and a violent act draws the reactions again: 26 has the people
+ * who saw the map's act react, and 27 is a spell said in words; none starts a fight, so nothing is
+ * left hanging, and 29 stays empty.
  *
  *   npm run e2e [-- --port 3310] [--ai-port 8797] [--root runs/e2e] [--mode host|namespace]
  *
@@ -138,6 +142,7 @@ try {
   await aRiskyCheck(stack, flags.root, a, b, FAKE);
 
   const world = await beforeTheGmSpeaks(stack, a, b, FAKE);
+  await aSpellInWords(stack, flags.root, a, b, world, FAKE);
   await fireBurnsOn(stack, a, world, FAKE);
   await rowForRow(stack, a, b, world);
 
@@ -163,7 +168,7 @@ console.log(passed ? `\nPASS: every step, in ${elapsed()}` : "\nFAIL");
 process.exit(passed ? 0 : 1);
 
 // ---------------------------------------------------------------------------------------------
-// The steps (v0-design §10.4, v5-design §4.4); V1's, 15 to 21, are e2e/creation.ts's, the GM's, 22 to 24, e2e/gm.ts's, the world's, 26, 28 and 30, e2e/world.ts's, the whole story's, 31 to 34, e2e/story.ts's, the town's, 36 to 39, e2e/town.ts's, the fight's, 40, e2e/fight.ts's, and a report's, 41, e2e/report.ts's.
+// The steps (v0-design §10.4, v5-design §4.4); V1's, 15 to 21, are e2e/creation.ts's, the GM's, 22 to 24, e2e/gm.ts's, the world's, 26 to 28 and 30, e2e/world.ts's, the whole story's, 31 to 34, e2e/story.ts's, the town's, 36 to 39, e2e/town.ts's, the fight's, 40, e2e/fight.ts's, and a report's, 41, e2e/report.ts's.
 
 /** 1. The stack is up (--fresh); the campaign goes into both, and the zoo (M6) into the module beside it, as the dev stack installs them; the doctor finds all well. */
 async function installedAndWell(stack: Stack): Promise<void> {
