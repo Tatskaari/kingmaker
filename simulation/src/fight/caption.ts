@@ -21,6 +21,7 @@ export function captionOf(m: Omit<FightEvent, "seq">, G: FightBoard): string {
     case "disengage": return `${c.Who} ${c.s("disengage")}: no swings as ${c.they} ${c.s("move")} away.`;
     case "wrestle": return c.wrestle();
     case "feature": return c.feature();
+    case "arrive": return c.arrive();
     case "use": return `${c.Who} ${/brazier/i.test(m.detail.with ?? "") ? `${c.s("kick")} over` : `${c.s("bring")} down`} the ${m.detail.with ?? "thing"}.${c.lit()}`;
     case "yield": return c.you ? "You put your hands up." : `${c.Who} puts ${c.their} hands up.`;
     case "flee": return `${c.Who} ${c.s("go", "goes")} out through ${m.detail.with ?? "the way out"} and ${c.s("are", "is")} gone.`;
@@ -158,6 +159,12 @@ class Caption {
     const type = hit.damage[0]?.type;
     const saved = hit.saved ? ` (${them} ${this.sFor(hit.unit, "save")}, and ${this.sFor(hit.unit, "take")} half)` : "";
     return `${cast} at ${them}: ${total(hit)}${type ? ` ${type}` : ""} damage${saved}.${this.fall(hit)}${this.woke(hit)}${this.lit()}`;
+  }
+
+  /** Who came in, and where: "The granary porters and Old Wat come in through the yard gate." */
+  arrive(): string {
+    const came = this.m.detail.hits.filter(h => h.was?.state === "coming").map(h => this.name(h.unit));
+    return `${cap(listing(came.length ? came : ["someone"]))} ${came.length === 1 ? "comes" : "come"} in through ${this.m.detail.with ?? "the way in"}.`;
   }
 
   /** A class feature used: who, which, on whom, and what it did (hit points back, a condition taken up, a dash's feet). "You use Second Wind: 11 hit points back." */

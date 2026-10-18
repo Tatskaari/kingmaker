@@ -84,6 +84,27 @@ export function sceneFightSetup(tx: TxCtx, scene: SceneRow, graph: Scene, fight:
       at: tileFor(at, start),
     });
   }
+  // Who'll come in when it's been going a while (the scene's reinforcements, on a side), in at the way in at the top of their round.
+  const ways = waysOut(board);
+  for (const r of graph.reinforcements ?? []) {
+    const side = fight.sides[r.id];
+    if ((side !== "with" && side !== "against") || combatants.some(c => c.id === r.id) || world.entities[r.id]) continue;
+    const card = graph.cast.find(c => c.id === r.id);
+    const due = r.after + 1;
+    const way = ways[0]?.at ?? start;
+    const why = r.why.trim();
+    const who: Array<{ id: string; name: string; statblock?: string; weapon?: string }> = card
+      ? [{ id: card.id, name: nameOf(graph, world, heard, card.id, card), ...(card.statblock ? { statblock: card.statblock } : {}), ...(card.weapon ? { weapon: card.weapon } : {}) },
+        ...(card.members ?? []).map(m => ({ id: m.id, name: m.name, ...(m.statblock ? { statblock: m.statblock } : {}), ...(m.weapon ? { weapon: m.weapon } : {}) }))]
+      : [{ id: r.id, name: r.name ?? r.id, ...(r.statblock ? { statblock: r.statblock } : {}), ...(r.weapon ? { weapon: r.weapon } : {}) }];
+    for (const w of who) {
+      combatants.push({
+        id: w.id, castId: w.id, name: w.name, side: SIDE[side], role: side === "with" ? "ally" : !w.statblock || w.statblock === "commoner" ? "brawler" : "bruiser",
+        ...(w.statblock ? { statblock: w.statblock } : {}), ...(w.weapon ? { weapon: w.weapon } : {}), ...(npcs[w.id] ? { engine: { ...npcs[w.id]! } } : {}),
+        at: { ...way }, due, ...(why ? { why } : {}),
+      });
+    }
+  }
   const beat = fight.beat ? graph.beats.find(b => b.id === fight.beat) : undefined;
   const dust = dustOf(world, board.region);
   return {
@@ -94,7 +115,7 @@ export function sceneFightSetup(tx: TxCtx, scene: SceneRow, graph: Scene, fight:
     ...nonEmpty("props", litThings(world, board.region, board.file.id)),
     ...nonEmpty("dust", dust),
     ...nonEmpty("fuel", [...fuelOf(world, board.region), ...dust]),
-    exits: waysOut(board),
+    exits: ways,
     keep: true,
     scene: idText(scene.id),
     ...(graph.time ? { time: graph.time } : {}),

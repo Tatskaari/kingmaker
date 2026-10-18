@@ -40,7 +40,7 @@ export const FALLS_AT = 0.3;
  * lies down. Surrendered, they're greyed. The fled aren't on the board.
  */
 export function unitActor(u: Unit, stance: Stance, map: string, falling?: number): MapActor | undefined {
-  if (stance.state === "fled") return undefined;
+  if (stance.state === "fled" || stance.state === "coming") return undefined;
   const base = { id: u.id, name: u.name, map, at: { ...stance.at } };
   const fallen = stance.state === "down" || stance.state === "dead";
   const kind = BEAST.test(u.name) ? "creature" as const : "person" as const;

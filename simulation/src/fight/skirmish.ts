@@ -98,7 +98,7 @@ interface Draft {
 export type Moment = Omit<FightEvent, "seq">;
 
 /** Kinds of moment that say something even with no lines in them; the rest, with nothing in them, aren't kept. */
-const ALWAYS: ReadonlySet<FightEventKind> = new Set(["start", "turn", "move", "attack", "cast", "dash", "dodge", "disengage", "wrestle", "use", "yield", "flee", "walk-off", "arrest", "pass", "over"]);
+const ALWAYS: ReadonlySet<FightEventKind> = new Set(["start", "turn", "move", "attack", "cast", "dash", "dodge", "disengage", "wrestle", "use", "yield", "flee", "walk-off", "arrest", "pass", "over", "arrive"]);
 
 export class Skirmish {
   readonly G: Field;
@@ -133,7 +133,7 @@ export class Skirmish {
   friendly(a: Unit, b: Unit): boolean { return this.team(a) !== 0 && this.team(a) === this.team(b); }
   hostile(a: Unit, b: Unit): boolean { return this.team(a) !== 0 && this.team(b) !== 0 && this.team(a) !== this.team(b); }
   /** On the map at all (the fled are gone; the fallen lie where they fell). */
-  onBoard(u: Unit): boolean { return u.state !== "fled"; }
+  onBoard(u: Unit): boolean { return u.state !== "fled" && u.state !== "coming"; }
   /** Standing, in the fight, and able to do something about it. */
   able(u: Unit): boolean { return u.state === "fighting" && !u.conditions.some(c => INCAPACITATING.test(c)); }
   occupant(t: Tile2, except?: string): Unit | undefined { return this.units.find(u => u.id !== except && this.onBoard(u) && same(u.at, t)); }
@@ -495,6 +495,40 @@ export class Skirmish {
     this.moment("hazard");
     this.spreadFire();
     this.closeMoment();
+    this.arrivals();
+  }
+
+  /**
+   * The scene's reinforcements whose round it is (docs/combat-gm.md; the user: "the guards come after a
+   * few turns or a round"): each in at the way in (on its tile, or the nearest free one to it), on
+   * the board and in the fight from now on, their turns their place in the order; one moment for
+   * everyone coming in together, with why they came.
+   */
+  private arrivals(): void {
+    const due = this.units.filter(u => u.state === "coming" && (u.due ?? 0) <= this.G.round);
+    if (!due.length) return;
+    const way = this.G.exits.find(e => same(e.at, due[0]!.at)) ?? this.G.exits[0];
+    this.moment("arrive", undefined, { with: way?.label ?? "the way in" });
+    for (const u of due) {
+      const at = this.freeNear(u.at);
+      u.state = "fighting";
+      u.at = at;
+      try { this.t.plan("placeCombatant", { encounterId: this.G.encounterId, combatantId: u.engineId, position: toFeet(at) }); } catch { /* the board's own place stands */ }
+    }
+    for (const why of [...new Set(due.map(u => u.why).filter((w): w is string => !!w))]) this.log("narration", why);
+    this.closeMoment();
+  }
+
+  /** The nearest tile to `t` someone can stand on and nobody's on (t itself, if it is). */
+  private freeNear(t: Tile2): Tile2 {
+    const queue: Tile2[] = [t];
+    const seen = new Set<string>([key(t)]);
+    for (let i = 0; i < queue.length && i < 400; i++) {
+      const at = queue[i]!;
+      if (!solid(this.G.map, at) && !this.occupant(at)) return at;
+      for (const n of neighbours(this.G.map, at)) if (!seen.has(key(n))) { seen.add(key(n)); queue.push(n); }
+    }
+    return t;
   }
 
   // -------------------------------------------------------------------------------------------

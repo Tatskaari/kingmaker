@@ -6,7 +6,8 @@
 // on a turn of its own, with how the fight went (gm.aftermath, the AI service's), and its commit
 // stages what it did (stageAftermath).
 
-import type { FightResult } from "../../../shared/fight/types.ts";
+import type { FightBoard, FightResult } from "../../../shared/fight/types.ts";
+import { joinWorld, type SceneWorld } from "../../../shared/world/scene-world.ts";
 import type { SceneFight } from "../../../shared/gm/fight.ts";
 import type { GmState } from "../../../shared/gm/state.ts";
 import { idOf, idText } from "../../../shared/protocol/keys.ts";
@@ -77,6 +78,7 @@ export function pickUpAfterFight(tx: TxCtx, fight: FightRow): void {
   if (lease) lease = updateTurn(tx, lease.id, { phase: "done", endedAt: tx.now, note: undefined });
 
   const place = placeWorldOf(tx, scene);
+  const came = cameIn(place.world, graph, board, n);
   const laid = sceneBoard(tx, scene, place.world);
   const { gone } = laid ? fightIntoWorld(place.world, laid.region, board, keepers(tx, { scene, graph, gm })) : { gone: [] };
   savePlaceWorld(tx, scene, place, graph);
@@ -90,6 +92,7 @@ export function pickUpAfterFight(tx: TxCtx, fight: FightRow): void {
   // The scene format's play (shared/scene/beats.ts): the fight's ending is no longer where the scene is, so its routes open again (all but the fight's).
   if (exit) gm.reached = gm.reached.filter(id => id !== exit);
   gm.absent = [...new Set([...gm.absent, ...gone])];
+  if (came.length) gm.entered = [...new Set([...gm.entered, ...came])];
   gm.established.push(`The fight is over: ${result.summary}`);
   putGm(tx, scene.id, gm);
   syncStage(tx, scene, graph, gm);
@@ -100,6 +103,28 @@ export function pickUpAfterFight(tx: TxCtx, fight: FightRow): void {
     step: "open", game: idText(scene.gameId), scene: idText(scene.id), turn: idText(turn.id), seen: seenOf(tx, scene.id), aftermath: { summary: result.summary },
   });
   tx.log(`[story] scene ${scene.id} ${scene.sceneKey}: the fight ${fight.id} over (${result.outcome})${gone.length ? `, gone: ${gone.join(", ")}` : ""}; the aftermath on turn ${n}`);
+}
+
+/**
+ * Who came in while it was fought (the scene's reinforcements, on the board by their round), in the
+ * place's world from now on: one of the cast as themselves, someone new as a person with their own
+ * statblock and look. The cast who came, for the scene's entered list.
+ */
+function cameIn(world: SceneWorld, graph: Scene, board: FightBoard, n: number): string[] {
+  const cast: string[] = [];
+  for (const u of Object.values(board.units)) {
+    if (u.id === board.pc || !u.castId || u.state === "coming" || world.entities[u.castId]) continue;
+    const r = graph.reinforcements?.find(x => x.id === u.castId);
+    if (!r && !graph.cast.some(c => c.id === u.castId || c.members?.some(m => m.id === u.castId))) continue;
+    const card = graph.cast.find(c => c.id === u.castId);
+    joinWorld(world, [{ id: u.castId, name: card?.name ?? r?.name ?? u.name }], n);
+    const e = world.entities[u.castId]!;
+    if (card) { cast.push(card.id); continue; }
+    delete e.cast;
+    e.stats = { statblock: r?.statblock ?? "commoner", ...(r?.weapon ? { weapon: r.weapon } : {}) };
+    if (r?.look) e.description = r.look;
+  }
+  return cast;
 }
 
 /** How it went, as the player was told it (older results have only the story's summary). */

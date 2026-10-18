@@ -16,9 +16,11 @@ export type Side = "player" | "ally" | "enemy" | "neutral";
 export type Role = "player" | "ally" | "bruiser" | "villain" | "coward" | "brawler" | "archer" | "bystander";
 /**
  * fighting: in it. down: at 0 hit points (the player rolls death saves; others are out cold).
- * dead: killed outright. fled: off the map. surrendered: hands up. The arrested flag is separate.
+ * dead: killed outright. fled: off the map. surrendered: hands up. coming: not here yet (one of the
+ * scene's reinforcements, in at the way in when their round comes: docs/combat-gm.md). The arrested
+ * flag is separate.
  */
-export type UnitState = "fighting" | "down" | "dead" | "fled" | "surrendered";
+export type UnitState = "fighting" | "down" | "dead" | "fled" | "surrendered" | "coming";
 
 export interface Unit {
   id: string;
@@ -51,6 +53,9 @@ export interface Unit {
   castId?: string;
   /** Hurt at least once (for the summary). */
   wounded?: boolean;
+  /** One of the scene's reinforcements (coming): the round they come in at the way in, and why they come. */
+  due?: number;
+  why?: string;
 }
 
 export interface Prop {
@@ -194,7 +199,7 @@ export interface FightSetup {
  */
 export type FightEventKind =
   | "start" | "turn" | "move" | "attack" | "cast" | "dash" | "dodge" | "disengage" | "wrestle" | "use" | "feature"
-  | "say" | "nerve" | "yield" | "flee" | "walk-off" | "arrest" | "hazard" | "pass" | "over" | "gm";
+  | "say" | "nerve" | "yield" | "flee" | "walk-off" | "arrest" | "hazard" | "pass" | "over" | "gm" | "arrive";
 
 /** An attack roll, as the engine rolled it: who at whom with what, the d20s, the bonus, the total against the armour class. */
 export interface FightRoll {

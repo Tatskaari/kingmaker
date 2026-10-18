@@ -215,7 +215,8 @@ function aimKey(model: FightModel, key: KeyEvent): void {
  */
 function TurnBar({ model, play, width, rows }: { model: FightModel; play: PlayFrame; width: number; rows: number }) {
   const board = model.view.board;
-  const order = board.order.filter(id => board.units[id]);
+  // Whoever's still coming (the scene's reinforcements) isn't in the bar until they're in the fight.
+  const order = board.order.filter(id => board.units[id] && play.stances[id]?.state !== "coming");
   const n = Math.max(1, order.length);
   const each = Math.floor(width / n);
   const shown = play.revealed ?? n;

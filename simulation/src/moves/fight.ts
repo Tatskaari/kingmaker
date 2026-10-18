@@ -63,6 +63,8 @@ export function breakOut(tx: TxCtx, at: At, plan: SayPlan, initiative: Initiativ
     else if (fleeIds.has(c.id) && able(world, c.id)) sides[c.id] = keep.has(c.id) ? "clear" : "flee";
   }
   const pending = pool.filter(c => !sides[c.id] && able(world, c.id)).map(c => c.id);
+  // Who'll come in when it's been going a while (the scene's reinforcements), not here already and not gone: theirs to take a side as they'd take it then.
+  const coming = (at.graph.reinforcements ?? []).filter(r => !pool.some(c => c.id === r.id) && !world.entities[r.id]?.states.includes("gone") && !at.gm.absent.includes(r.id));
   if (!Object.values(sides).includes("against") && !pending.length) {
     tx.log(`[scene ${at.scene.id} turn ${plan.n}] no fight: nobody here is against the player (${[...foeIds].join(", ") || "none named"})`);
     return undefined;
@@ -74,13 +76,14 @@ export function breakOut(tx: TxCtx, at: At, plan: SayPlan, initiative: Initiativ
   }
   const fight: SceneFight = {
     turn: plan.n, why: initiative.why || beat?.title || "", from, ...(beat ? { beat: beat.id } : {}), sides,
-    ...(pending.length ? { pending } : {}),
+    ...(pending.length || coming.length ? { pending: [...pending, ...coming.map(r => r.id)] } : {}),
   };
   at.gm.fight = fight;
   tx.log(`[scene ${at.scene.id} turn ${plan.n}] a fight breaks out (${fight.why || from}): ${Object.entries(sides).map(([id, s]) => `${id} ${s}`).join(", ")}${pending.length ? `; no side yet: ${pending.join(", ")}` : ""}`);
-  if (!pending.length) return toTheFight(tx, at, plan);
+  if (!fight.pending) return toTheFight(tx, at, plan);
   putGm(tx, at.scene.id, at.gm);
-  return { done: false, plan: { ...plan, step: "sides", sides: { why: fight.why, against: onSideOf(fight, "against"), with: onSideOf(fight, "with"), pending: pending.map(id => newcomer(tx, at, world, id)) } } };
+  const newcomers = [...pending.map(id => newcomer(tx, at, world, id)), ...coming.map(r => comer(at, r))];
+  return { done: false, plan: { ...plan, step: "sides", sides: { why: fight.why, against: onSideOf(fight, "against"), with: onSideOf(fight, "with"), pending: newcomers } } };
 }
 
 /**
@@ -111,7 +114,10 @@ function toTheFight(tx: TxCtx, at: At, plan: SayPlan): Next<SayPlan> {
   const fight = at.gm.fight!;
   const world = placeWorldOf(tx, at.scene).world;
   const name = (id: string) => nameOf(tx, at, world, id);
-  const list = (side: FightSide) => onSideOf(fight, side).map(name);
+  const later = new Set((at.graph.reinforcements ?? []).map(r => r.id).filter(id => !world.entities[id]));
+  const list = (side: FightSide) => onSideOf(fight, side).filter(id => !later.has(id)).map(name);
+  // Who'll come later is the board's surprise, not the line's.
+  const comers = (at.graph.reinforcements ?? []).filter(r => later.has(r.id) && (fight.sides[r.id] === "with" || fight.sides[r.id] === "against")).map(r => `${r.id} ${fight.sides[r.id]} after ${r.after}`);
   if (!list("against").length) {
     delete at.gm.fight;
     addEntry(tx, at.scene, { turn: plan.n, speaker: "system", kind: "system", text: `Nobody stands against you: ${list("flee").length ? `${list("flee").join(", ")} ${list("flee").length === 1 ? "runs" : "run"} for it, and ` : ""}the fight is over before it starts.` });
@@ -131,7 +137,7 @@ function toTheFight(tx: TxCtx, at: At, plan: SayPlan): Next<SayPlan> {
   updateScene(tx, at.scene.id, { status: "fighting" });
   afterTurn(tx, plan);
   finishTurn(tx, at.scene.id, idOf(plan.turn));
-  tx.log(`[scene ${at.scene.id} turn ${plan.n}] at its fight: ${words.join(" ")}`);
+  tx.log(`[scene ${at.scene.id} turn ${plan.n}] at its fight: ${words.join(" ")}${comers.length ? ` Coming: ${comers.join(", ")}.` : ""}`);
   return { done: true };
 }
 
@@ -174,6 +180,12 @@ function newcomer(tx: TxCtx, at: At, world: SceneWorld, id: string): FightNewcom
   const called = calledHere(tx, at, world, id);
   const card = at.graph.cast.some(x => x.id === id);
   return { id, name: c?.name ?? id, ...(called ? { called } : {}), about: [c?.look, ...(card ? [c?.attitude, c?.limits] : [])].filter(Boolean).join(" ").trim() };
+}
+
+/** One of the scene's reinforcements as the GM sees them: who, what they look like, when they come and why. */
+function comer(at: At, r: NonNullable<Scene["reinforcements"]>[number]): FightNewcomer {
+  const card = at.graph.cast.find(c => c.id === r.id);
+  return { id: r.id, name: card?.name ?? r.name ?? r.id, about: [card?.look ?? r.look, ...(card ? [card.attitude, card.limits] : [])].filter(Boolean).join(" ").trim(), coming: { after: r.after, why: r.why } };
 }
 
 /** Someone as the player knows them: by what they call them until they've heard the name. */

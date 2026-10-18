@@ -25,7 +25,7 @@ A first cut fought the story's fights in the conversation instead, the GM narrat
 
 A fight that breaks out on the town's map (hurting a palace guard in the street: town-design §3.3) is set out on the board the same way, on the town's map where everyone stood; out goes back to the map, the town's people as the fight left them until the clock moves on.
 
-**Who comes** (the scene's `reinforcements`, docs/scene-format.md: the granary porters and Old Wat after two rounds in the yard, three dockers off the night shift after two at the Rat, two palace guards at the Marshal's shout after one in the King's dressing room) are authored, and the GM's sides step sees them; on the board they come in at the way in when their round comes (M3, next).
+**Who comes** (the user: "each scene should have a set of characters that appear on scene when you start a fight so if you attack Cob or whatever, the guards come after a few turns or a round"): the scene's `reinforcements` (docs/scene-format.md: the granary porters and Old Wat after two rounds in the yard, three dockers off the night shift after two at the Rat, two palace guards at the Marshal's shout after one in the King's dressing room). The GM places them with everyone in the sides step, told when they'll come and why, as they'd take it then (one who'd run doesn't come); the line under the reply doesn't name them (they're the board's surprise). On the board they're in the initiative order from the start but not on it ("coming": no turns, not drawn, not in the bar), and at the top of the round after their `after` rounds they come in at the way in (the place's ways out: the yard's gate), a moment of their own with why they came ("The granary porters come in through the yard gate."), and fight from their place in the order. A fight that's over before they come is over without them; whoever came is in the scene's world after it (the cast by their cards, entered; someone new with their statblock and look).
 
 ## Where it is
 
@@ -49,7 +49,6 @@ The Crakes' toll (`?zoo=toll`, `npm run play -- new --session <you> --zoo toll`,
 
 ## What's not done yet
 
-- **Who comes, on the board** (M3).
 - **The GM loop's testers playing fights** (M4): the loop sees a fight through by the dice for now (auto), so a round tests what starts fights and what comes after them, not the fight itself.
 
 ## QA of the first cut, in the conversation

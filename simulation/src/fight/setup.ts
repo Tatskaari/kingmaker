@@ -85,7 +85,8 @@ export function boardOf(t: Table, setup: FightSetup, map: TileMap, pc: { engineI
     units[c.id] = {
       id: c.id, name: c.name, called: c.side === "player" ? "you" : calledName(c.name), side: c.side, role: defaultRole(c), engineId, weapons,
       ...(weaponName ? { weaponName } : {}), at: { ...c.at }, hp: Math.max(0, ch.hp.current), maxHp: ch.hp.max, ac: sheet.ac.total, speed: speed ?? sheet.speeds["walk"] ?? 30,
-      initiative: 0, state: ch.hp.current > 0 ? "fighting" : "down", conditions: ch.appliedConditions.map(a => a.conditionId),
+      initiative: 0, state: c.due ? "coming" : ch.hp.current > 0 ? "fighting" : "down", conditions: ch.appliedConditions.map(a => a.conditionId),
+      ...(c.due ? { due: c.due, ...(c.why ? { why: c.why } : {}) } : {}),
       ...(parry ? { parry: { bonus: parry, ready: true } } : {}),
       glyph: c.glyph ?? look?.glyph ?? GLYPHS[c.castId ?? c.id] ?? (c.side === "player" ? "@" : letter(c)),
       color: look?.fg ?? COLOURS[c.castId ?? c.id] ?? COLOURS[c.side]!, ...(c.castId ? { castId: c.castId } : {}),
@@ -93,8 +94,9 @@ export function boardOf(t: Table, setup: FightSetup, map: TileMap, pc: { engineI
   }
   if (!player) throw new Error("A fight needs the player in it.");
   // The encounter: everyone on the grid (5 ft a tile), initiative by the engine.
+  // Who's coming (the scene's reinforcements) is in the encounter from the start, off the board until their round.
   const created = (t.kit.plan["createEncounter"] as unknown as (s: Dnd.CampaignState, i: Record<string, unknown>) => { events: Dnd.EngineEvent[]; encounterId: string })(t.state, {
-    name: setup.title, combatants: Object.values(units).map(u => ({ characterId: u.engineId, position: toFeet(u.at) })),
+    name: setup.title, combatants: Object.values(units).map((u, i) => ({ characterId: u.engineId, position: u.state === "coming" ? { x: -9000 - i * 10, y: -9000 } : toFeet(u.at) })),
   });
   t.apply(created.events);
   const encounterId = created.encounterId;

@@ -50,7 +50,8 @@ const people = (us: Unit[]) => listing(us.map(u => u.called));
 export function summarise(G: FightBoard): FightResult {
   const story = howItWent(G, false);
   const told = howItWent(G, true);
-  const units = Object.values(G.units);
+  // Whoever was still coming when it ended was never in it.
+  const units = Object.values(G.units).filter(u => u.state !== "coming");
   const walked = (u: Unit) => !!G.flags[`walked:${u.id}`];
   const casualties = units.filter(u => u.id !== G.pc).map(u => ({ id: u.castId ?? u.id, name: u.name, state: u.state === "fighting" ? "standing" as const : u.state }));
   const flags: Record<string, string | number | boolean> = {};
@@ -64,7 +65,7 @@ export function summarise(G: FightBoard): FightResult {
 
 /** How it went in sentences: for the story ("The player was knocked out"), or told to the player (`you`: "You were knocked out"). */
 function howItWent(G: FightBoard, you: boolean): string {
-  const units = Object.values(G.units);
+  const units = Object.values(G.units).filter(u => u.state !== "coming");
   const pc = G.units[G.pc]!;
   const sentences: string[] = [];
   const villain = units.find(u => u.role === "villain");

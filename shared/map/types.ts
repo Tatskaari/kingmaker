@@ -96,6 +96,9 @@ export interface CombatantSetup {
   glyph?: string;
   /** The rules' own character for them, and their weapon in hand (a scene's people, made when the rules first needed them): they fight as that, hurt as they are. */
   engine?: { id: string; weapon: string };
+  /** One of the scene's reinforcements (docs/combat-gm.md): not on the board until the top of this round, when they come in at `at` (the way in); and why they come. */
+  due?: number;
+  why?: string;
 }
 
 export interface CombatSetup {
