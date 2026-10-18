@@ -242,6 +242,7 @@ function storyWiringProblems({ doc, context, p }: Scene): void {
   // What an effect may name: the cast, the place's areas and things, and the things the story carries between scenes (Prout's page, owed into the Rat in Cob's boot).
   const keys = new Set([...castIds, ...(place ? [...place.areas.map(a => a.id), ...place.things.map(t => t.id)] : []), ...carried]);
   const effects: Array<[string, ProblemAt, Effect]> = [
+    ...(doc.onStart ?? []).map((e, i) => ["onStart", field(`onStart.${i}`), e] as [string, ProblemAt, Effect]),
     ...(doc.onEnd ?? []).map((e, i) => ["onEnd", field(`onEnd.${i}`), e] as [string, ProblemAt, Effect]),
     ...doc.nodes.filter(isEnding).flatMap(n => (n.data.effects ?? []).map((e, i) => [`ending ${n.id}`, node(n.id, `effects.${i}`), e] as [string, ProblemAt, Effect])),
   ];
@@ -284,7 +285,7 @@ function carriedThings(scenes: SceneDocument[]): Set<string> {
 }
 
 /**
- * An exit's effect (or onEnd's): an op the story knows, its condition on known facts, the cast or
+ * An exit's effect (or onStart's or onEnd's): an op the story knows, its condition on known facts, the cast or
  * things it names, and a quest the scenario titles (story-design §4.6).
  */
 function effectProblems(effect: Effect, keys: Set<string>, cast: Set<string>, facts: Record<string, string>, quests: Record<string, string>): string[] {

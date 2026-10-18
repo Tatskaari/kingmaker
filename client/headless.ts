@@ -12,8 +12,10 @@ import { timeWords } from "./creation/words.ts";
 import type { ExploreView } from "./explore/rows.ts";
 import { exploreText } from "./explore/text.ts";
 import { jsonOf } from "./json.ts";
+import { nameOf } from "./scene/menu.ts";
+import { inSight } from "./scene/sight.ts";
 import { actionLines, phaseLine, render, viewText } from "./scene/text.ts";
-import type { SceneView } from "./scene/view.ts";
+import type { PlaceView, SceneView } from "./scene/view.ts";
 import { sheetOf } from "./sheet/rows.ts";
 import { journalText, storyText } from "./story/text.ts";
 import { wayOnOf } from "./story/view.ts";
@@ -137,17 +139,30 @@ function startWhen(game: Backend, isIt: (game: string) => boolean, ready: (view:
 
 /**
  * The scene's place, its world as the rows have it: as the player sees it (the stage from above, in
- * seven-bit characters, still), then the world from above with what's what (shared/world asciiMap,
- * the prototype's QA map). Refused when there's no scene; says so when its place's rows haven't come.
+ * seven-bit characters, still), then the world from above with what's what of it the player can see,
+ * by the names they know (seenMap); `full`, the prototype's QA map whole instead (shared/world
+ * asciiMap: everything in the world by its own name, hidden things too), for debugging. Refused when
+ * there's no scene; says so when its place's rows haven't come.
  */
-export function map(game: Backend, out: Out, size: { w: number; h: number } = { w: 100, h: 30 }): number {
+export function map(game: Backend, out: Out, size: { w: number; h: number } = { w: 100, h: 30 }, how: { full?: boolean } = {}): number {
   const view = game.view();
   if (!view) return notInGame(out);
   const place = view.place;
   if (!place) { out.print("MODE: map\n\n(The scene's place hasn't come: its rows aren't in yet. Observe again in a moment.)"); return 1; }
   const stage = stageView(place.world, size, { t: 0, time: place.time, glyphs: "plain" });
-  out.print(`MODE: map\n\n${stage?.toPlain() ?? ""}\n\n${asciiMap(place.world)}`);
+  out.print(`MODE: map\n\n${stage?.toPlain() ?? ""}\n\n${how.full ? asciiMap(place.world) : seenMap(view, place)}`);
   return 0;
+}
+
+/**
+ * The world from above as the player sees it (QA round qa3-1018: the QA map's legend named everyone
+ * in full from the first turn, and listed hidden things and what's behind closed doors): only what's
+ * in their sight (client/scene/sight.ts), people by the names they know, as the place panel lists
+ * them (a spectator's own character by its name).
+ */
+function seenMap(view: SceneView, place: PlaceView): string {
+  const said = [view.hook ?? "", ...view.entries.filter(e => e.kind === "narration" || e.kind === "dialogue").map(e => e.text)].join("\n");
+  return asciiMap(place.world, { shown: inSight(place.world, said), name: e => (e.player && view.watching ? e.name : nameOf(place.world, e, { unnamed: place.unnamed })) });
 }
 
 /** Everything said in the scene so far, under its title and hook. */

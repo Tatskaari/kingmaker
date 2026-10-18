@@ -67,7 +67,10 @@ const USAGE = `Kingmaker: headless play
                                                 go_to_lead too), the fight, or a story that got stuck tried again
   play act --session <name> --id fight          the fight's stand-in: fought out, and the scene picks up from it
   play journal --session <name>                 the investigator's notebook, the quests, the flags, the attitudes
-  play map --session <name> [--w 100 --h 30]    the scene's place: as the player sees it, then from above with what's what
+  play map --session <name> [--w 100 --h 30] [--full]
+                                                the scene's place: as the player sees it, then from above with what's
+                                                what of it they can see, by the names they know; --full, the QA map:
+                                                everything in the world by its own name, hidden things too
 
 new, begin, say, act, retry and go wait for the lines suggested after the reply (the opening's, for
 new, begin and go; 15 s at most), and print them. Every verb also takes --demo (canned turns, no server), and --url
@@ -105,7 +108,7 @@ function argsOf(argv: string[]) {
       backstory: { type: "string" }, "backstory-file": { type: "string" }, "accept-fixes": { type: "boolean" },
       game: { type: "string" }, id: { type: "string" }, exit: { type: "string" }, wait: { type: "string" }, stream: { type: "boolean" }, demo: { type: "boolean" },
       url: { type: "string" }, db: { type: "string" }, stack: { type: "string" }, help: { type: "boolean", short: "h" },
-      w: { type: "string" }, h: { type: "string" },
+      w: { type: "string" }, h: { type: "string" }, full: { type: "boolean" },
     },
   });
   const [verb, ...words] = positionals;
@@ -149,7 +152,7 @@ async function run(game: Backend, args: Args): Promise<number> {
     case "end": return await verbs.end(game, args.values.exit, out, waiting);
     case "go": return await verbs.go(game, out, waiting);
     case "journal": return verbs.journal(game, out);
-    case "map": return verbs.map(game, out, { w: cells(args.values.w, 100), h: cells(args.values.h, 30) });
+    case "map": return verbs.map(game, out, { w: cells(args.values.w, 100), h: cells(args.values.h, 30) }, { full: !!args.values.full });
     default: console.log(`There's no "${args.verb}" to play.\n\n${USAGE}`); return 1;
   }
 }

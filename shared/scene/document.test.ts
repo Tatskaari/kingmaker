@@ -28,7 +28,7 @@ function problemsOf(change: (d: SceneDocument & Record<string, unknown>) => void
 test("the hanged clerk parses as it is, unknown keys kept", () => {
   const doc = parseScene(TEXT, "hanged-clerk.kmscene");
   assert.equal(doc.id, "hanged-clerk");
-  assert.deepEqual(doc.nodes.map(n => [n.id, n.data.kind]), [["start", "start"], ["murder", "beat"], ["motive", "beat"], ["hobb", "beat"], ["cart-arrives", "beat"], ["murder-unknown", "exit"], ["suspicious", "exit"], ["failed", "exit"]]);
+  assert.deepEqual(doc.nodes.map(n => [n.id, n.data.kind]), [["start", "start"], ["murder", "beat"], ["motive", "beat"], ["hobb", "beat"], ["cart-arrives", "beat"], ["murder-unknown", "exit"], ["suspicious", "exit"], ["failed", "exit"], ["porters-break", "beat"]]);
   const kept = sceneDocumentOf({ ...clerk(), plugin: { zoom: 1.5 } });
   assert.deepEqual((kept as unknown as { plugin: unknown }).plugin, { zoom: 1.5 });
 });
@@ -40,14 +40,15 @@ test("a file that isn't a scene says why, naming where", () => {
   const noStart = problemsOf(d => { d.nodes = d.nodes.filter(n => n.id !== "start"); });
   assert.ok(noStart.includes("it has 0 start nodes, not one"), noStart.join("\n"));
   assert.ok(noStart.includes('edges[0] (find-murder)\'s source "start" isn\'t a node of the scene'), noStart.join("\n"));
-  assert.deepEqual(problemsOf(d => { d.nodes.push({ ...d.nodes[1]!, position: { x: 0, y: 0 } }); }), ["nodes[8] (murder): the node id murder is there twice"]);
+  assert.deepEqual(problemsOf(d => { d.nodes.push({ ...d.nodes[1]!, position: { x: 0, y: 0 } }); }), ["nodes[9] (murder): the node id murder is there twice"]);
   assert.deepEqual(problemsOf(d => { d.edges[0]!.data.skill = "lockpicking" as "insight"; }), ['edges[0] (find-murder)\'s skill "lockpicking" isn\'t a skill (or "" for no dice)']);
   assert.deepEqual(problemsOf(d => { d.edges[4]!.data.requires = ["murder", "nowhere"]; }), ["edges[4] (signed-murder) requires nowhere, which isn't a node of the scene"]);
   assert.deepEqual(problemsOf(d => { d.edges[0]!.data.establishes = ["no-such-fact"]; }), ["edges[0] (find-murder) establishes no-such-fact, which isn't one of its facts"]);
-  assert.deepEqual(problemsOf(d => { d.edges.push({ ...d.edges[0]! }); }), ["edges[7] (find-murder): the route id find-murder is there twice"]);
+  assert.deepEqual(problemsOf(d => { d.edges.push({ ...d.edges[0]! }); }), ["edges[8] (find-murder): the route id find-murder is there twice"]);
   assert.deepEqual(problemsOf(d => { (d.nodes[1]!.data as { paths: Array<{ strength: string }> }).paths[0]!.strength = "damning"; }), ['nodes[1] (murder): paths[0] has strength "damning", not one of hook, suggestive, strong, proof']);
   assert.deepEqual(problemsOf(d => { (d.nodes[5]!.data as { result: string }).result = "great"; }), ['nodes[5] (murder-unknown): its result "great" isn\'t good, mixed or bad']);
   assert.deepEqual(problemsOf(d => { delete (d.cast[0] as Partial<SceneDocument["cast"][number]>).whyHere; }), ["cast[0] (kell) has no whyHere"]);
+  assert.deepEqual(problemsOf(d => { (d as { onStart: unknown }).onStart = [{ quest: "hanged-clerk" }]; }), ["its onStart isn't a list of { op, … }"]);
 });
 
 test("a cue's outer limit: each count a whole number of exchanges, after and until nodes of the scene; the runtime keeps a cue's, and only a cue's", () => {
@@ -73,7 +74,7 @@ test("the runtime's Scene: the start and the beats with the routes that leave th
   const scene = sceneOf(clerk());
 
   assert.deepEqual([scene.start, scene.beats.map(b => b.id), scene.exits.map(e => [e.id, e.kind, e.result, e.next])], [
-    "start", ["start", "murder", "motive", "hobb", "cart-arrives"],
+    "start", ["start", "murder", "motive", "hobb", "cart-arrives", "porters-break"],
     [["murder-unknown", "progress", "good", "caerwyn-afternoon"], ["suspicious", "progress", "mixed", "caerwyn-afternoon"], ["failed", "other", "bad", undefined]],
   ]);
   assert.equal(scene.opening, clerk().nodes[0]!.data.description);
@@ -81,7 +82,7 @@ test("the runtime's Scene: the start and the beats with the routes that leave th
   assert.deepEqual(scene.beats.map(b => [b.id, b.transitions.map(t => `${t.id}:${t.on}:${t.to}`)]), [
     ["start", ["find-murder:outcome:murder", "find-motive:outcome:motive", "find-hobb:outcome:hobb", "cart-comes:cue:cart-arrives", "case-lost:outcome:failed"]],
     ["murder", []], ["motive", []], ["hobb", []],
-    ["cart-arrives", ["signed-murder:outcome:murder-unknown", "signed-suicide:outcome:suspicious"]],
+    ["cart-arrives", ["signed-murder:outcome:murder-unknown", "signed-suicide:outcome:suspicious", "porters-come:cue:porters-break"]], ["porters-break", []],
   ]);
   const start = scene.beats[0]!.transitions;
   assert.match(start[0]!.when, /^The player has come to understand this: Prout didn't hang himself/, "a route into a discovery with no condition: its revelation landing");
@@ -90,13 +91,14 @@ test("the runtime's Scene: the start and the beats with the routes that leave th
     ["find-murder", "start", "murder", "outcome", undefined], ["find-motive", "start", "motive", "outcome", undefined], ["find-hobb", "start", "hobb", "outcome", undefined],
     ["cart-comes", "start", "cart-arrives", "cue", undefined], ["signed-murder", "cart-arrives", "murder-unknown", "outcome", ["murder", "hobb"]],
     ["signed-suicide", "cart-arrives", "suspicious", "outcome", ["hobb"]], ["case-lost", "start", "failed", "outcome", undefined],
+    ["porters-come", "cart-arrives", "porters-break", "cue", undefined],
   ]);
 
   const hobb = scene.beats.find(b => b.id === "hobb")!;
   assert.deepEqual([hobb.required, hobb.establishes, hobb.paths?.length, hobb.revelation?.slice(0, 26)], [true, ["hobb-at-granary"], 4, "A huge man with a bandaged"]);
   assert.deepEqual(scene.essentials!.map(e => [e.id, e.placedWith, e.carriers, e.later !== undefined, e.things]), [
     ["motive", ["cob", "kell", "the tally loft", "tull"], ["cob", "kell", "tull"], true, ["ledger-page"]],
-    ["hobb", ["cob", "moll", "the porters at the far gate", "kell"], ["cob", "moll", "kell"], true, undefined],
+    ["hobb", ["cob", "moll", "wat", "kell"], ["cob", "moll", "wat", "kell"], true, undefined],
   ]);
   assert.equal(scene.essentials![0]!.what, scene.beats.find(b => b.id === "motive")!.revelation);
 
@@ -105,6 +107,7 @@ test("the runtime's Scene: the start and the beats with the routes that leave th
   assert.ok(scene.cast.every(c => c.roles?.characterise));
   assert.deepEqual([Object.keys(scene.facts!), scene.truth?.slice(0, 11), scene.clock?.slice(0, 14)], [["killed-not-suicide", "motive-known", "hobb-at-granary"], "Prout found", "The dead-cart "]);
   assert.deepEqual([scene.onEnd, scene.afterwards?.length, scene.limits?.length, scene.fronts], [[{ op: "follow", who: "kell" }], 1, 9, "World/Fronts.md"]);
+  assert.deepEqual(scene.onStart?.map(e => [e.op, (e as { quest?: string }).quest, (e as { do?: string }).do]), [["quest", "hanged-clerk", "start"]], "its quest, started as it comes into the story");
   assert.deepEqual(validateScene(scene), []);
 });
 

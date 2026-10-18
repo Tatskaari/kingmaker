@@ -60,6 +60,8 @@ export interface SceneDocument {
   /** What the prep takes for granted, and where the story goes instead if play has overtaken it. */
   assumes?: string[];
   overtaken?: string;
+  /** Effects as the scene comes into the story, before it's played (the hanged clerk's quest, started as the game begins): as the lead the player is heading for, or opened at once with none. */
+  onStart?: Effect[];
   /** Effects on every ending, before the ending's own (Kell walks with the player after the granary). */
   onEnd?: Effect[];
   /** World ops applied to the place as the scene ends, whatever the ending (the body taken away). */
@@ -330,7 +332,7 @@ export function shapeProblems(value: unknown): string[] {
   for (const k of ["place", "clock", "overtaken", "fronts", "companion"]) if (d[k] !== undefined && typeof d[k] !== "string") p.push(`its ${k} isn't text`);
   for (const k of ["limits", "known", "background", "assumes"]) if (d[k] !== undefined) stringList(d, k, p, "its ");
   if (d.facts !== undefined && !(isObject(d.facts) && Object.values(d.facts).every(s => typeof s === "string"))) p.push("its facts aren't { id: sentence }");
-  if (d.onEnd !== undefined && !(Array.isArray(d.onEnd) && d.onEnd.every(e => isObject(e) && typeof e.op === "string"))) p.push("its onEnd isn't a list of { op, … }");
+  for (const k of ["onStart", "onEnd"]) if (d[k] !== undefined && !(Array.isArray(d[k]) && d[k].every(e => isObject(e) && typeof e.op === "string"))) p.push(`its ${k} isn't a list of { op, … }`);
   if (d.afterwards !== undefined && !(Array.isArray(d.afterwards) && d.afterwards.every(e => isObject(e) && typeof e.op === "string" && nonEmpty(e.what)))) p.push("its afterwards isn't a list of { op, what, … }");
 
   const cast = Array.isArray(d.cast) ? d.cast : (p.push("it has no cast list"), []);

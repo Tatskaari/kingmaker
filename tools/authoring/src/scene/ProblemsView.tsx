@@ -8,7 +8,7 @@ import {AlertTriangle,CheckCircle2,Info} from 'lucide-react';
 import {nodeKind,titleOf} from './model.ts';
 import type {Problem,ProblemAt,SceneDocument} from './model.ts';
 
-const SCENE_FIELDS:Record<string,string>={id:'Scene id',title:'Title',description:'Description',hook:'Hook',setting:'Setting',premise:'Premise',truth:'Truth',clock:'Clock',time:'Time',place:'Place',rest:'Rest',interlude:'Interlude',milestone:'Milestone',limits:'Limits',known:'Known',facts:'Facts',background:'Background',assumes:'Assumes',overtaken:'Overtaken',onEnd:'On every ending',afterwards:'Afterwards',fronts:'Fronts',lore:'Lore',companion:'Companion'};
+const SCENE_FIELDS:Record<string,string>={id:'Scene id',title:'Title',description:'Description',hook:'Hook',setting:'Setting',premise:'Premise',truth:'Truth',clock:'Clock',time:'Time',place:'Place',rest:'Rest',interlude:'Interlude',milestone:'Milestone',limits:'Limits',known:'Known',facts:'Facts',background:'Background',assumes:'Assumes',overtaken:'Overtaken',onStart:'As it starts',onEnd:'On every ending',afterwards:'Afterwards',fronts:'Fronts',lore:'Lore',companion:'Companion'};
 const PARTS:Record<string,string>={id:'Id',title:'Title',closing:'Closing',revelation:'Revelation',paths:'Paths',required:'Required',lore:'Lore',next:'Next scene',carry:'The story carries it',cast:'Conversation roles',effects:'Effects',requires:'Requires',condition:'Condition',via:'Via',clue:'Clue',earn:'Earn',name:'Name',look:'Look',voice:'Voice',wants:'Wants',whyHere:'Why here',attitude:'Attitude',enters:'Enters'};
 const DESCRIPTIONS={start:'Opening',discovery:'How to play it',event:'What happens',ending:'What\'s true'};
 
@@ -17,8 +17,8 @@ function partOf(field:string,description:string):string{
   const [head,index,rest]=field.split('.');
   const name=head==='description'?description:PARTS[head]??SCENE_FIELDS[head]??head;
   if(index===undefined)return name;
-  const item=head==='paths'?'Path':head==='effects'||head==='onEnd'?'Effect':head==='afterwards'?'World op':name;
-  return [head==='onEnd'||head==='afterwards'?name:'',`${item} ${Number(index)+1}`,rest?PARTS[rest]??rest:''].filter(Boolean).join(' · ');
+  const item=head==='paths'?'Path':head==='effects'||head==='onStart'||head==='onEnd'?'Effect':head==='afterwards'?'World op':name;
+  return [head==='onStart'||head==='onEnd'||head==='afterwards'?name:'',`${item} ${Number(index)+1}`,rest?PARTS[rest]??rest:''].filter(Boolean).join(' · ');
 }
 
 /** Where a problem is, in a few words: the scene and its field, a node, a route, a person, and the part of it. */

@@ -80,6 +80,10 @@ test('the scenario: its id renamed, a quest renamed in every scene naming it, th
   await page.getByRole('button',{name:'Undo',exact:true}).click();
   await expect.poll(()=>savedText(page,'scenes/drowned-rat.kmscene')).toBe(await text('scenes/drowned-rat.kmscene'));
   expect(await savedText(page,'scenes/heron-warehouse.kmscene')).toBe(await text('scenes/heron-warehouse.kmscene'));
+  // The clerk's quest is named first by what the clerk starts as it comes into the story (its onStart).
+  const clerkQuest=page.locator('.quests-view [data-field="quests.hanged-clerk"] .uses li');
+  await expect(clerkQuest.first()).toContainText('The Hanged Clerk: as it starts');
+  await expect(clerkQuest.first()).toContainText('effect 1, start');
   // The talk template: a new scene made where it's picked, the talk and not one of the story's.
   await tab(page,'Views of the scenario','Files').click();
   const talk=page.locator('.files-view [data-section="talk"]');

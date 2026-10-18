@@ -29,7 +29,8 @@ import type { ToolCall } from "./tools.ts";
  *   structured call, answered by `byName.gm_notes`.)
  * - The two-part GM (docs/two-part-design.md): its mouthpiece (the structured call named `reply`)
  *   answers the next of `replies` as its narration, with no check, or with `mouthpiece.check`'s on
- *   every reply but an opening or a closing (five outcomes the fake writes); a closing closes, unless
+ *   every reply but an opening or a closing (five outcomes the fake writes), and a lead's name owed
+ *   said by whoever its per-turn note says names them now; a closing closes, unless
  *   `mouthpiece.holds` (then it waits, the once it may). Its co-GM (the tool loop with `move_scene`)
  *   walks the scene to its first good ending (or the first of `coGm.endings` the scene has): each turn
  *   the next open route on the shortest way there, the required discoveries first, a dice route taken
@@ -170,21 +171,25 @@ function toolRound(calls: Array<Pick<ToolCall, "name" | "args">>, input: NonNull
 }
 
 /**
- * The two-part GM's mouthpiece: the reply as its narration; a check on a reply that isn't the
+ * The two-part GM's mouthpiece: the reply as its narration, with a lead's name said by whoever its
+ * per-turn note says names them now (ai/gm/two-part.ts owedDirective: "Sergeant Agnes Kell names him
+ * now: Big Hobb Mallory."), as a model following it would; a check on a reply that isn't the
  * opening (whose only player turn is "(The player is ready. Begin.)") or a closing (asked whether it
  * closes), when the recipe has one; a closing closes, unless the recipe holds it.
  */
 function spoken(narration: string, schema: Schema, input: NonNullable<Request["input"]>, recipe: NonNullable<FakeOptions["mouthpiece"]>): unknown {
   const closing = !!schema.properties?.closes;
   const opening = input.filter(m => m.role === "user").at(-1)?.content === "(The player is ready. Begin.)";
-  const check = recipe.check && !closing && !opening ? {
-    skill: recipe.check.skill, dc: recipe.check.dc,
-    outcomes: {
-      major_failure: "It goes badly wrong, and Kell's pencil stops.", minor_failure: "Not this time: something else will have to tell it.",
-      barely_passed: "Just: a part of it, and a catch.", minor_success: "Cleanly: the next of it comes out.", major_success: "Better than hoped: the next of it, and a little more.",
-    },
-  } : null;
-  return { narration, check, ...(closing ? { closes: !recipe.holds } : {}) };
+  const dice = recipe.check && !closing && !opening && !!schema.properties?.outcomes ? recipe.check : undefined;
+  const outcomes = {
+    major_failure: "It goes badly wrong, and Kell's pencil stops.", minor_failure: "Not this time: something else will have to tell it.",
+    barely_passed: "Just: a part of it, and a catch.", minor_success: "Cleanly: the next of it comes out.", major_success: "Better than hoped: the next of it, and a little more.",
+  };
+  const owed = /(?:^|\n)([^\n]+?) names (?:him|her|them) now: ([^\n]+?)\. /.exec(input.filter(m => m.role === "system").at(-1)?.content ?? "");
+  const said = owed ? `${narration} [${owed[1]}] “${owed[2]}.”` : narration;
+  // In the schema's order: the check decided first, then the narration, then its outcomes (a talk's has no check: its narration, then null).
+  if (!schema.properties?.outcomes) return { narration: said, check: null, ...(closing ? { closes: !recipe.holds } : {}) };
+  return { check: dice ? { skill: dice.skill, dc: dice.dc } : null, narration: said, outcomes: dice ? outcomes : null, ...(closing ? { closes: !recipe.holds } : {}) };
 }
 
 /** A route as the co-GM's prep has it (routeLine's): its id, where it goes from and to, what it needs reached first, and whether the dice decide it. */

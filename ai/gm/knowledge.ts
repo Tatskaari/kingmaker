@@ -96,11 +96,15 @@ export function speakersOf(scene: Scene, state: TurnView): Speaker[] {
     ...here.map(c => speaker(c.id, c.name, c.called, c.aka, { look: c.look })),
     ...scene.cast.filter(c => !here.includes(c)).map(c => speaker(c.id, c.name, c.called, c.aka, { look: c.look, away: true })),
   ];
-  // A group's member who goes by a name inside what they are is also what the narration calls them until it's heard ("the talking bruiser").
+  // A group's member who goes by a name inside what they are is also what the narration calls them until it's heard ("the first bruiser").
   const members = namedMembers(scene);
   for (const e of Object.values(state.world?.entities ?? {})) {
     if ((e.kind !== "person" && e.kind !== "creature") || e.player || e.states.includes("gone") || out.some(p => p.id === e.id || p.id === e.cast)) continue;
     out.push(speaker(e.id, e.name, members.get(e.id)?.called, [], { look: e.description }));
+  }
+  // A group here whose members aren't in the world yet speaks by them all the same: they arrive in this reply, and join the world as it's written (QA round qa3-1018).
+  for (const m of here.flatMap(c => c.members ?? [])) {
+    if (!out.some(p => p.id === m.id)) out.push(speaker(m.id, m.name, members.get(m.id)?.called, [], { look: m.look }));
   }
   return distinct(out);
 }

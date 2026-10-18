@@ -1,15 +1,15 @@
-// New (the fixes from QA round qa1-1018): the two-part GM's co-GM replayed on a round's own games, with the code as it is now. QA round qa2-1018's fixes added a turn's reply asked again first (--reply), moves left out of the rebuilt bookkeeping (--drop) and the roles each try set; and its mouthpiece, as the round sent it and as this checkout would (--mouthpiece).
+// New (the fixes from QA round qa1-1018): the two-part GM's co-GM replayed on a round's own games, with the code as it is now. QA round qa2-1018's fixes added a turn's reply asked again first (--reply), moves left out of the rebuilt bookkeeping (--drop) and the roles each try set; and its mouthpiece, as the round sent it and as this checkout would (--mouthpiece). QA round qa3-1018's fixes added a lead's name owed in the rebuilt bookkeeping (--owe), its direction in a reply asked again, and the names each try left owed (the co-GM's); and a round asked in its own schema (roundSchema, replyOf), a move to show made again (movedAgain) and the player put where the round's world had them (the mouthpiece's).
 import { titleCase } from "../../shared/dice.ts";
-import { closingDirective, coGm, mouthpieceRules, replySchema, routeLine, twoPartNow } from "../../ai/gm/two-part.ts";
+import { closingDirective, coGm, mouthpieceRules, movedDirective, owedDirective, replySchema, routeLine, twoPartNow } from "../../ai/gm/two-part.ts";
 import type { Story } from "../../ai/gm/story.ts";
 import type { TurnView } from "../../ai/gm/view.ts";
 import { respond, type CallContext, type Message } from "../../ai/llm/openrouter.ts";
 import { initialGm, type GmState, type TwoPartRole } from "../../shared/gm/state.ts";
 import { BANDS, BAND_NAME, bandOf, type Band } from "../../shared/gm/two-part.ts";
 import type { CoGmAnswer, TurnCheck } from "../../shared/protocol/ai.ts";
-import { openRoutes, reachedOf, takeRoute, type RouteOutcome } from "../../shared/scene/beats.ts";
+import { openRoutes, oweName, reachedOf, stageOf, takeRoute, type RouteOutcome } from "../../shared/scene/beats.ts";
 import { presentCast } from "../../shared/scene/graph.ts";
-import type { Scene, SceneRoute } from "../../shared/scene/types.ts";
+import { SKILLS, type Scene, type SceneRoute } from "../../shared/scene/types.ts";
 import { buildWorld, joinWorld } from "../../shared/world/scene-world.ts";
 
 /**
@@ -28,6 +28,11 @@ import { buildWorld, joinWorld } from "../../shared/world/scene-world.ts";
  * turn before left out with `drop`) and no closing directive, and the co-GM is asked about that
  * reply, with the transcript and roles from the turn before's co-GM, the player's line and the new
  * reply after them, and the roles that co-GM set.
+ *
+ * A lead's name can be owed in the rebuilt bookkeeping (`owe`), as if the co-GM before had been
+ * refused it, for a round whose co-GM never was (its code had no such refusal): the reply asked again
+ * then has the direction that whoever gives the name says it (owedDirective), as the reply endpoint
+ * would, and the co-GM is asked about that reply.
  */
 
 /** A line of a round's call log, as far as the probe reads it. */
@@ -109,11 +114,11 @@ export function withRound(body: { instructions: string; input: Array<{ role?: st
   return { ...body, instructions, input };
 }
 
-/** One try: the moves the co-GM made now, the nodes they reached (taken on a copy), the roles it set, what it cost and took, and the reply it was asked about when that was asked again. */
-export interface ProbeTry { moves: CoGmAnswer["moves"]; reached: string[]; roles: string[]; given: Record<string, TwoPartRole>; costUsd: number; ms: number; replied?: Replied; error?: string }
+/** One try: the moves the co-GM made now, the nodes they reached (taken on a copy), the leads whose names it left owed, the roles it set, what it cost and took, and the reply it was asked about when that was asked again. */
+export interface ProbeTry { moves: CoGmAnswer["moves"]; reached: string[]; owed: string[]; roles: string[]; given: Record<string, TwoPartRole>; costUsd: number; ms: number; replied?: Replied; error?: string }
 
-/** How a turn is probed: moves left out of the rebuilt bookkeeping (`drop`, by route), its reply asked again first (`reply`) or written for it (`replyText`, to try the co-GM on a moment the round never reached), and the outcome a check called there comes out at (`band`; rolled otherwise). */
-export interface ProbeHow { drop?: string[]; reply?: boolean; replyText?: string; band?: Band }
+/** How a turn is probed: moves left out of the rebuilt bookkeeping (`drop`, by route), leads whose names it owes (`owe`, by discovery), its reply asked again first (`reply`) or written for it (`replyText`, to try the co-GM on a moment the round never reached), and the outcome a check called there comes out at (`band`; rolled otherwise). */
+export interface ProbeHow { drop?: string[]; owe?: string[]; reply?: boolean; replyText?: string; band?: Band }
 
 /**
  * The co-GM asked again on a game's turn: the bookkeeping rebuilt, a view of it (the round's
@@ -128,7 +133,7 @@ export async function probeTurn(scene: Scene, calls: LoggedCall[], sceneRow: str
   if (how.reply && !before?.request?.input?.[0]?.content) throw new Error(`no co-GM call that answered on turn ${turn - 1}, for the transcript and roles before the reply asked again`);
   if (!how.reply && (!was || !was.request?.input?.[0]?.content)) throw new Error(`no co-GM call that answered on turn ${turn}`);
   if (!loggedInstructions) throw new Error(`no mouthpiece call on turn ${turn} to take the prep's head from`);
-  const gm = stateBefore(scene, calls, sceneRow, turn, game.absent, how.drop);
+  const gm = (how.owe ?? []).reduce((state, lead) => oweName(scene, state, lead, turn - 1), stateBefore(scene, calls, sceneRow, turn, game.absent, how.drop));
   // The round's transcript as one entry, for what reads what's been said (the co-GM's unsaid names); the input's own is swapped in whole.
   const viewOf = (said: string) => ({ ...gm, id: "probe", sceneId: scene.id, turn, player: { ...game.player, modifiers: {} }, history: [], transcript: [{ turn, speaker: "gm", kind: "narration", text: said }], owed: [], ...(game.story ? { story: game.story } : {}) }) as unknown as TurnView;
   const started = performance.now();
@@ -137,7 +142,8 @@ export async function probeTurn(scene: Scene, calls: LoggedCall[], sceneRow: str
   const base = () => ({ rebuilt: { reached: reachedOf(gm), turnsInBeat: gm.turnsInBeat }, logged: loggedWhere(loggedInput), ...(replied ? { replied } : {}) });
   try {
     if (how.reply) {
-      replied = how.replyText ? { narration: how.replyText.trim(), costUsd: 0 } : await replyAgain(scene, reply!, gm, context, how.band);
+      const owed = owedDirective(scene, viewOf(transcriptOf(String(before!.request!.input![0]!.content))));
+      replied = how.replyText ? { narration: how.replyText.trim(), costUsd: 0 } : await replyAgain(scene, reply!, gm, context, how.band, owed ? [owed] : []);
       loggedInput = afterReply(scene, before!, game.player.name, reply!, replied);
     }
     const send = context.fetch;
@@ -152,9 +158,9 @@ export async function probeTurn(scene: Scene, calls: LoggedCall[], sceneRow: str
       state = taken.gm;
       if (taken.reached) reached.push(taken.reached);
     }
-    return { ...base(), moves: answer.moves, reached, roles: Object.keys(answer.roles), given: answer.roles, costUsd: answer.costUsd + (replied?.costUsd ?? 0), ms: performance.now() - started };
+    return { ...base(), moves: answer.moves, reached, owed: answer.owed ?? [], roles: Object.keys(answer.roles), given: answer.roles, costUsd: answer.costUsd + (replied?.costUsd ?? 0), ms: performance.now() - started };
   } catch (error) {
-    return { ...base(), moves: [], reached: [], roles: [], given: {}, costUsd: replied?.costUsd ?? 0, ms: performance.now() - started, error: (error as Error).message };
+    return { ...base(), moves: [], reached: [], owed: [], roles: [], given: {}, costUsd: replied?.costUsd ?? 0, ms: performance.now() - started, error: (error as Error).message };
   }
 }
 
@@ -170,27 +176,55 @@ export function storyOf(id: string, scenes: Scene[]): Story {
 /** A reply asked again: its narration as the transcript keeps it (no speakers' tags), and a check it called, as rolled, with the outcome that came up. */
 export interface Replied { narration: string; check?: TurnCheck; dice?: string; outcome?: string; costUsd: number }
 
+/**
+ * The reply's schema before QA round qa3-1018's fixes, which a round before them asked in, its
+ * format "with two fields": the narration first, then the check with its outcomes inside it.
+ */
+const TWO_FIELDS = {
+  type: "object", additionalProperties: false, required: ["narration", "check"],
+  properties: {
+    narration: { type: "string" },
+    check: { anyOf: [{ type: "null" }, { type: "object", additionalProperties: false, required: ["skill", "dc", "outcomes"], properties: { skill: { type: "string", enum: [...SKILLS] }, dc: { type: "integer" }, outcomes: { type: "object", additionalProperties: false, required: [...BANDS], properties: Object.fromEntries(BANDS.map(b => [b, { type: "string" }])) } } }] },
+  },
+};
+
+/** The schema a request's instructions ask for: a talk's, with its check always null; the one before QA round qa3-1018's fixes where they say "with two fields" otherwise (a round's own); this checkout's otherwise. */
+export function roundSchema(instructions: string, mayHold: boolean): Record<string, unknown> {
+  if (/\n- `check`: always null\./.test(instructions)) return replySchema(mayHold, false);
+  if (!/\n## How to reply\nReply as JSON with two fields\./.test(instructions)) return replySchema(mayHold);
+  return mayHold ? { ...TWO_FIELDS, required: [...TWO_FIELDS.required, "closes"], properties: { ...TWO_FIELDS.properties, closes: { type: "boolean" } } } : TWO_FIELDS;
+}
+
+/** A reply in either schema, as one shape: its narration, and a check with its five outcomes. */
+export function replyOf(text: string): { narration: string; check?: { skill: string; dc: number; outcomes: Record<string, string> }; closes?: boolean } {
+  const out = JSON.parse(text) as { narration: string; check: { skill: string; dc: number; outcomes?: Record<string, string> } | null; outcomes?: Record<string, string> | null; closes?: boolean };
+  const outcomes = out.check?.outcomes ?? out.outcomes ?? undefined;
+  return { narration: out.narration, ...(out.check && outcomes ? { check: { skill: out.check.skill, dc: out.check.dc, outcomes } } : {}), ...(out.closes !== undefined ? { closes: out.closes } : {}) };
+}
+
 /** The per-turn note's routes, as twoPartNow words them: the routes open now, and a dice route's check to call as it says. */
 const routesPart = (scene: Scene, open: SceneRoute[]) => `## What moves the scene on from here\n${open.length ? open.map(r => routeLine(scene, r)).join("\n") : "- (nothing: the scene is closing)"}${open.some(r => r.skill) ? "\nWhen the player attempts what a route the dice decide describes, call that route's check: its skill and DC." : ""}`;
 
-/** The per-turn note of a logged reply with the routes `gm` has open, and with a closing's directive left out: the scene, as the probe has it, isn't closing. */
-export function asOpen(scene: Scene, note: string, gm: GmState, closing: boolean): string {
+/** The per-turn note of a logged reply with the routes `gm` has open, with a closing's directive left out (the scene, as the probe has it, isn't closing), and with `directives` of this checkout's after the round's. */
+export function asOpen(scene: Scene, note: string, gm: GmState, closing: boolean, directives: string[] = []): string {
   const routes = note.replace(/## What moves the scene on from here\n[\s\S]*?(?=\n\n## |$)/, routesPart(scene, openRoutes(scene, gm)));
-  return closing ? routes.replace(/\n\n## For this reply\n[\s\S]*$/, "") : routes;
+  const open = closing ? routes.replace(/\n\n## For this reply\n[\s\S]*$/, "") : routes;
+  if (!directives.length) return open;
+  return /\n\n## For this reply\n/.test(open) ? `${open}\n\n${directives.join("\n\n")}` : `${open}\n\n## For this reply\n${directives.join("\n\n")}`;
 }
 
 /**
  * The mouthpiece asked again for a turn's reply (the round's request, its latest per-turn note
- * asOpen's), as speak asks it: its narration, the speakers' tags taken out as the transcript keeps
- * it; a check it called rolled with a d20 (the player's modifiers aren't in the log) or set at
- * `band`, and the outcome that came up.
+ * asOpen's, with `directives` of this checkout's), as speak asks it: its narration, the speakers'
+ * tags taken out as the transcript keeps it; a check it called rolled with a d20 (the player's
+ * modifiers aren't in the log) or set at `band`, and the outcome that came up.
  */
-export async function replyAgain(scene: Scene, logged: LoggedCall, gm: GmState, context: CallContext, band?: Band): Promise<Replied> {
+export async function replyAgain(scene: Scene, logged: LoggedCall, gm: GmState, context: CallContext, band?: Band, directives: string[] = []): Promise<Replied> {
   const input = (logged.request?.input ?? []).map(m => ({ ...m })) as Message[];
   const at = input.findLastIndex(m => m.role === "system");
-  if (at >= 0) input[at] = { ...input[at]!, content: asOpen(scene, String(input[at]!.content), gm, logged.operation === "two-part.closing") };
-  const result = await respond({ operation: "probe.reply", instructions: logged.request?.instructions ?? "", input, effort: "none", maxOutputTokens: 2500, json: { name: "reply", schema: replySchema(false) }, calls: context });
-  const out = JSON.parse(result.text) as { narration: string; check: { skill: string; dc: number; outcomes: Record<Band, string> } | null };
+  if (at >= 0) input[at] = { ...input[at]!, content: asOpen(scene, String(input[at]!.content), gm, logged.operation === "two-part.closing", directives) };
+  const result = await respond({ operation: "probe.reply", instructions: logged.request?.instructions ?? "", input, effort: "none", maxOutputTokens: 2500, json: { name: "reply", schema: roundSchema(logged.request?.instructions ?? "", false) }, calls: context });
+  const out = replyOf(result.text);
   const untagged = (s: string) => s.replace(/\[[^\]\n]+\]\s*(?=[“"])/g, "").trim();
   if (!out.check) return { narration: untagged(out.narration), costUsd: result.costUsd };
   const d20 = 1 + Math.floor(Math.random() * 20);
@@ -322,8 +356,18 @@ export function mouthpieceView(scene: Scene, story: (id: string) => Scene | unde
     const cast = presentCast(scene, view).map(c => ({ id: c.id, name: c.name, ...(c.members ? { members: c.members } : {}) }));
     view.world = buildWorld(scene.id, scene.world, cast, view.player);
     joinWorld(view.world, cast, 0);
+    // The player in the area the round's world had them in ("…: the player is in the tally loft (…)."), for what's in their reach there.
+    const where = /: the player is in (.+)\.$/m.exec(note)?.[1];
+    const area = Object.values(view.world.entities).find(e => e.kind === "area" && e.name === where);
+    const me = view.world.entities.player;
+    if (area && me) { me.parent = area.id; delete me.at; }
   }
   return view;
+}
+
+/** A move to show as this checkout writes it, in place of the round's ("The scene has just moved on to …"), for the stage the rebuilt view is at (QA round qa3-1018's fixes rewrote it). */
+export function movedAgain(scene: Scene, view: TurnView): (directives: string) => string {
+  return directives => directives.replace(/The scene has just moved on to "[^"\n]*":[\s\S]*?don't play it again\./, round => movedDirective(scene, { ...view, twoPart: { ...view.twoPart, moved: stageOf(scene, view).id } }) ?? round);
 }
 
 /** A closing's directive as this checkout writes it, from the round's: its ending (by what's true there), whether it may wait, and the lines its last reply said. */
@@ -351,7 +395,8 @@ export function mouthpieceRequest(scene: Scene, story: (id: string) => Scene | u
   const view = mouthpieceView(scene, story, calls, sceneRow, turn, game, note);
   const cut = logged.instructions.indexOf("\n\n## How to reply");
   const instructions = `${cut < 0 ? logged.instructions : logged.instructions.slice(0, cut)}\n\n${mouthpieceRules(scene, view)}`;
-  if (last >= 0) input[last] = { role: "system", content: splicedNote(note, twoPartNow(scene, view, []), closingAgain(scene)) };
+  const closing = closingAgain(scene), moved = movedAgain(scene, view);
+  if (last >= 0) input[last] = { role: "system", content: splicedNote(note, twoPartNow(scene, view, []), d => moved(closing(d))) };
   return { instructions, input, mayHold };
 }
 
@@ -360,9 +405,8 @@ export async function probeMouthpiece(scene: Scene, story: (id: string) => Scene
   const started = performance.now();
   try {
     const request = mouthpieceRequest(scene, story, calls, sceneRow, turn, game, arm);
-    const result = await respond({ operation: `probe.mouthpiece.${arm}`, instructions: request.instructions, input: request.input, effort: "none", maxOutputTokens: 2500, json: { name: "reply", schema: replySchema(request.mayHold) }, calls: context });
-    const out = JSON.parse(result.text) as { narration: string; check: MouthpieceTry["check"] | null; closes?: boolean };
-    return { arm, narration: out.narration, ...(out.check ? { check: out.check } : {}), ...(out.closes !== undefined ? { closes: out.closes } : {}), costUsd: result.costUsd, ms: performance.now() - started, firstTextMs: result.firstTextMs };
+    const result = await respond({ operation: `probe.mouthpiece.${arm}`, instructions: request.instructions, input: request.input, effort: "none", maxOutputTokens: 2500, json: { name: "reply", schema: roundSchema(request.instructions, request.mayHold) }, calls: context });
+    return { arm, ...replyOf(result.text), costUsd: result.costUsd, ms: performance.now() - started, firstTextMs: result.firstTextMs };
   } catch (error) {
     return { arm, narration: "", costUsd: 0, ms: performance.now() - started, firstTextMs: null, error: (error as Error).message };
   }

@@ -260,7 +260,7 @@ function QuestCard({id,title,index,count,doc,campaign,actions}:Props&{id:string;
     <TextField label="Quest title" field="title" hint="What the journal calls it." value={title} onChange={setTitle}/>
     <IdField id={id} label="Quest key" problem={next=>questKeyProblem(doc,next,id)} onRename={next=>actions.renameQuest(id,next)}
       warning={`Every effect naming it (${plural(uses.length,'effect')}) follows, in its scene's file. Game state keys on it: a game already played loses track of it under the old key.`}/>
-    <Uses title="Named by" uses={uses.map(use=>({key:`${use.scene}:${use.at.kind==='ending'?use.at.id:'onEnd'}:${use.index}`,label:`${use.sceneTitle}: ${use.at.kind==='ending'?use.at.title:'on every ending'}`,detail:`effect ${use.index+1}${use.step?`, ${use.step}`:''}`,onOpen:()=>actions.open(pathOf(campaign,'scenes',use.scene))}))} none="No scene's effect names it yet."/>
+    <Uses title="Named by" uses={uses.map(use=>({key:`${use.scene}:${use.at.kind==='ending'?use.at.id:use.at.kind}:${use.index}`,label:`${use.sceneTitle}: ${use.at.kind==='ending'?use.at.title:use.at.kind==='onStart'?'as it starts':'on every ending'}`,detail:`effect ${use.index+1}${use.step?`, ${use.step}`:''}`,onOpen:()=>actions.open(pathOf(campaign,'scenes',use.scene))}))} none="No scene's effect names it yet."/>
   </ItemCard>;
 }
 

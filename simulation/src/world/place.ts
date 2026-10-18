@@ -13,6 +13,7 @@ import type { GameRow, PlayerRow, SceneRow } from "../rows.ts";
 import { placeFileOf } from "../scenes.ts";
 import { carriedFrom, dropEntity, owedInto } from "./cross.ts";
 import { placeRows, writePlace } from "./rows-io.ts";
+import { presentShown } from "./stage.ts";
 
 /**
  * A scene's place as the prototype's SceneWorld: built when the scene opens, rebuilt from its rows
@@ -110,9 +111,13 @@ export function savePlaceWorld(tx: TxCtx, scene: SceneRow, place: PlaceWorld, gr
   writePlace(tx, worldToRows(place.world, place.keys, place.rows), { gameId: scene.gameId, called: calledIn(graph) });
 }
 
-/** Whoever is on stage now and not yet in the world (a cue's entrance) joins it at the way in. The names of those who did. */
+/**
+ * Whoever is on stage now, as the player has seen it, and not yet in the world (a cue's entrance,
+ * once the reply that shows it is written: stage.ts presentShown) joins it at the way in. The names
+ * of those who did.
+ */
 export function joinArrivals(world: SceneWorld, graph: Scene, gm: GmState, turn: number): string[] {
-  return joinWorld(world, presentCast(graph, gm).map(personOf), turn);
+  return joinWorld(world, presentShown(graph, gm).map(personOf), turn);
 }
 
 /**

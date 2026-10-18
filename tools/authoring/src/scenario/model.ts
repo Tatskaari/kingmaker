@@ -268,8 +268,8 @@ export function placeUsesOf(key:string,doc:ScenarioDocument|undefined,campaign:C
   };
 }
 
-/** An effect of a scene that names a quest: which scene, where (an ending's effects or every ending's, onEnd), its place in that list, and what it does to the quest. */
-export type QuestUse={scene:string;sceneTitle:string;at:{kind:'ending';id:string;title:string}|{kind:'onEnd'};index:number;step?:string};
+/** An effect of a scene that names a quest: which scene, where (an ending's effects, the scene's as it starts, onStart, or every ending's, onEnd), its place in that list, and what it does to the quest. */
+export type QuestUse={scene:string;sceneTitle:string;at:{kind:'ending';id:string;title:string}|{kind:'onStart'}|{kind:'onEnd'};index:number;step?:string};
 
 /** Every effect of the campaign's scenes naming the quest `key`. */
 export function questUsesOf(key:string,campaign:CampaignFiles):QuestUse[]{
@@ -278,6 +278,7 @@ export function questUsesOf(key:string,campaign:CampaignFiles):QuestUse[]{
     const title=titleOf(scene,scene.key);
     const named=(effects:readonly unknown[]|undefined)=>(effects??[]).map((effect,index)=>({effect:effect as {op?:unknown;quest?:unknown;do?:unknown},index})).filter(({effect})=>effect.op==='quest'&&effect.quest===key);
     return [
+      ...named(doc.onStart).map(({effect,index})=>({scene:scene.key,sceneTitle:title,at:{kind:'onStart' as const},index,...(typeof effect.do==='string'?{step:effect.do}:{})})),
       ...named(doc.onEnd).map(({effect,index})=>({scene:scene.key,sceneTitle:title,at:{kind:'onEnd' as const},index,...(typeof effect.do==='string'?{step:effect.do}:{})})),
       ...doc.nodes.filter(node=>node.data.kind==='exit').flatMap(node=>named((node.data as {effects?:unknown[]}).effects).map(({effect,index})=>({scene:scene.key,sceneTitle:title,at:{kind:'ending' as const,id:node.id,title:node.data.title||node.id},index,...(typeof effect.do==='string'?{step:effect.do}:{})}))),
     ];
@@ -300,6 +301,8 @@ export function renameQuestIn(scene:SceneDocument,from:string,to:string):SceneDo
     return changed?next:effects;
   };
   let next=scene;
+  const onStart=renamed(scene.onStart as unknown[]|undefined);
+  if(onStart!==scene.onStart)next={...next,onStart:onStart as SceneDocument['onStart']};
   const onEnd=renamed(scene.onEnd as unknown[]|undefined);
   if(onEnd!==scene.onEnd)next={...next,onEnd:onEnd as SceneDocument['onEnd']};
   const nodes=scene.nodes.map(node=>{
