@@ -14,9 +14,9 @@ Open a `.kmtune` in Obsidian with Kingmaker Tunes enabled to edit its sections, 
 | `fight.kmtune` | Combat | E Phrygian | 138 |
 | `end.kmtune` | Ending | F Lydian | 72 |
 
-Each score contains four sections captured from the original composer: **Intro**, **Theme**, **Bridge**, and **Return**. The intro plays once; the other three sections loop. The original music generated fresh variations indefinitely. A file is a finite, editable arrangement, so this export captures one deterministic passage from each mood rather than every possible variation. The original instrument layers, dynamics, pan, envelopes, swing and humanised timings are retained.
+Each score contains four sections captured from the original composer: **Intro**, **Theme**, **Bridge**, and **Return**. The intro plays once; the other three sections loop. The original music generated fresh variations indefinitely. A file is a finite, editable arrangement, so this export captures one deterministic passage from each mood rather than every possible variation. Instrument sounds live in the engine. Scores store their names, note pitches, durations, velocities and pan, plus swing and humanised timing. The title and between-scene scores include subsequent composition edits.
 
-Instrument tracks include harp, lute, flute, chip, bell, warm bass, pulse bass, pad, drone and a drum kit. Where a section uses drums, they share one sequencer with separate kick, snare and hi-hat lanes. The original kick's thump and click are grouped in one note. Exported notes carry their exact synthesiser recipes; the track instrument supplies the sound for newly added notes. To change the timbre of existing exported notes, use the editor's recipe controls or replace their preserved recipes with the selected preset.
+Instrument tracks include harp, lute, flute, chip, bell, warm bass, pulse bass, pad, drone and a drum kit. Where a section uses drums, they share one sequencer with separate kick, snare and hi-hat lanes. The original kick's thump and click are grouped in one note. Tracks reference the same named instrument presets used by the game and the editor. Changing an engine preset changes its sound in every score; selecting another instrument changes the track's sound without rewriting its notes. No synth definitions are embedded in these scores.
 
 ## Sound effects
 
@@ -33,4 +33,4 @@ node --import tsx --test tools/kmtune/export.test.ts
 
 The exporter refuses to overwrite any existing score or catalog. An explicit `--force` discards edits and regenerates the original captures; use a new directory to compare them safely. It does not run during a normal game or plugin build.
 
-The capture seed is `hashOf("kingmaker:tunes:v1:" + id)`, where `id` is the music mood. These files began as captures from `client/sound/music.ts` and can include later composition edits. Tests compare freshly generated exports, including the combined drum kit, against the source recipes and timings; they do not require authored scores to match the originals. Exporting creates seven music scores and their catalog.
+The capture seed is `hashOf("kingmaker:tunes:v1:" + id)`, where `id` is the music mood. These files began as musical events from `client/sound/music.ts` and can include later composition edits. Tests compare freshly generated exports, including the combined drum kit, against the source recipes and timings; they do not require authored scores to match the originals. Exporting creates seven music scores and their catalog.

@@ -1,4 +1,4 @@
-import { INSTRUMENTS, INSTRUMENT_LABELS, SCALES, DRUM_LANES, drumKind, snapDrumPitch, mergeDrumTracks, inScale, snapPitch, isPercussion, noteParts, validateTune, canUpdateTune, type Tune, type TuneNote, type TuneSection, type TuneTrack, type TuneInstrument, type TunePatch } from '../../client/sound/tune.ts';
+import { INSTRUMENTS, INSTRUMENT_LABELS, SCALES, DRUM_LANES, drumKind, snapDrumPitch, mergeDrumTracks, inScale, snapPitch, isPercussion, validateTune, canUpdateTune, type Tune, type TuneNote, type TuneSection, type TuneTrack, type TuneInstrument, type TunePatch } from '../../client/sound/tune.ts';
 
 const clone = <T>(v: T): T => structuredClone(v);
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -110,10 +110,8 @@ export class TuneEditor {
   }
   private setInstrument(track: TuneTrack, instrument: TuneInstrument): void {
     if (instrument === track.instrument) return;
-    if (instrument === 'custom') {
-      const reference = track.notes[0] ?? { midi: 60, duration: 1, at: 0, velocity: 1 };
-      track.patch ??= clone(reference.patch ?? { midi: reference.midi, duration: reference.duration, beatMs: 60000 / this.tune.bpm, parts: noteParts({ ...track, gain: 1, pan: 0 }, { ...reference, velocity: 1 }, 60000 / this.tune.bpm) });
-    } else { delete track.patch; track.notes.forEach(note => { delete note.patch; }); }
+    if (instrument === 'custom') return; // Existing custom files can be read; new tracks use engine presets.
+    delete track.patch; track.notes.forEach(note => { delete note.patch; });
     track.instrument = instrument; this.fitTrack();
   }
   private change(edit: () => void, keepPlayback = false): void {
@@ -275,7 +273,7 @@ export class TuneEditor {
       const row = this.el(tracks, 'div', '', 'km-track-row');
       const b = this.button(row, t.name, () => { this.track = i; this.selected = -1; this.fitTrack(); this.draw(); }); b.classList.add('km-track-select');
       b.classList.toggle('km-active', this.track === i); b.setAttribute('aria-label', t.name); b.setAttribute('aria-pressed', String(this.track === i)); this.el(b, 'small', `${INSTRUMENT_LABELS[t.instrument]} · ${t.notes.length} ${isPercussion(t.instrument) ? 'hits' : 'notes'}`);
-      this.select(row, `Instrument for ${t.name}`, INSTRUMENTS.map(kind => ({ value: kind, label: INSTRUMENT_LABELS[kind] })), t.instrument, value => this.change(() => {
+      this.select(row, `Instrument for ${t.name}`, INSTRUMENTS.filter(kind => kind !== 'custom' || t.instrument === 'custom').map(kind => ({ value: kind, label: INSTRUMENT_LABELS[kind] })), t.instrument, value => this.change(() => {
         this.track = i; this.setInstrument(t, value as TuneInstrument); this.selected = -1;
       }));
       row.lastElementChild!.classList.add('km-track-instrument'); row.lastElementChild!.firstChild!.textContent = 'Instrument';
@@ -285,12 +283,11 @@ export class TuneEditor {
     if (this.addingTrack) {
       const picker = this.el(tracks, 'div', '', 'km-instrument-picker'); picker.setAttribute('role', 'group'); picker.ariaLabel = 'Choose an instrument';
       this.el(picker, 'p', 'CHOOSE AN INSTRUMENT', 'km-eyebrow');
-      for (const kind of INSTRUMENTS.filter(kind => !['kick', 'snare', 'hat'].includes(kind))) {
+      for (const kind of INSTRUMENTS.filter(kind => !['kick', 'snare', 'hat', 'custom'].includes(kind))) {
         const name = INSTRUMENT_LABELS[kind];
         const b = this.button(picker, name, () => this.change(() => {
           let title = name, suffix = 2; while (this.current.tracks.some(t => t.name === title)) title = `${name} ${suffix++}`;
-          const created: TuneTrack = { name: title, instrument: kind, gain: kind === 'drums' || kind === 'custom' ? 1 : 0.08, pan: 0, notes: [] };
-          if (kind === 'custom') created.patch = { midi: 60, duration: 1, beatMs: 60000 / this.tune.bpm, parts: [{ kind: 'tone', wave: 'triangle', freq: 261.625565, gain: 0.1, bus: 'music', env: { a: 5, d: 200, s: 0.6, hold: 400, r: 100 } }] };
+          const created: TuneTrack = { name: title, instrument: kind, gain: kind === 'drums' ? 1 : 0.08, pan: 0, notes: [] };
           this.current.tracks.push(created);
           this.track = this.current.tracks.length - 1; this.selected = -1; this.addingTrack = false; this.fitTrack();
         }, true));
@@ -301,7 +298,7 @@ export class TuneEditor {
     if (track) {
       const settings = this.el(inspector, 'div', '', 'km-settings'); this.el(settings, 'p', 'INSTRUMENT', 'km-eyebrow');
       this.input(settings, 'Track name', track.name, v => this.change(() => { track.name = v; }));
-      this.select(settings, 'Instrument', INSTRUMENTS.map(i => ({ value: i, label: INSTRUMENT_LABELS[i] })), track.instrument, v => this.change(() => { this.setInstrument(track, v as TuneInstrument); }));
+      this.select(settings, 'Instrument', INSTRUMENTS.filter(kind => kind !== 'custom' || track.instrument === 'custom').map(i => ({ value: i, label: INSTRUMENT_LABELS[i] })), track.instrument, v => this.change(() => { this.setInstrument(track, v as TuneInstrument); }));
       this.input(settings, 'Volume', track.gain, v => this.change(() => { track.gain = +v; }), 0, 1, 0.01);
       this.input(settings, 'Pan', track.pan, v => this.change(() => { track.pan = +v; }), -1, 1, 0.1);
       if (track.patch) this.patchEditor(settings, track.patch, 'Track sound', patch => { track.patch = patch; });
@@ -345,12 +342,11 @@ export class TuneEditor {
         this.input(notePanel, 'Start beat', n.at, v => this.change(() => { n.at = +v; }, true), 0, this.current.bars * this.tune.beats, this.snap);
         this.input(notePanel, 'Duration', n.duration, v => this.change(() => { n.duration = +v; }, true), 0.001, 64, this.snap);
         this.input(notePanel, 'Velocity', n.velocity, v => this.change(() => { n.velocity = +v; }, true), 0, 1, 0.05);
+        this.input(notePanel, 'Note pan', n.pan ?? 0, v => this.change(() => { if (+v) n.pan = +v; else delete n.pan; }, true), -1, 1, 0.1);
         if (n.patch) {
           this.patchEditor(notePanel, n.patch, 'Note sound', patch => { n.patch = patch; });
           this.button(notePanel, 'Use track sound', () => this.change(() => { delete n.patch; }), track.instrument === 'custom' && !track.patch);
-        } else this.button(notePanel, 'Customize note sound', () => this.change(() => {
-          n.patch = { midi: n.midi, duration: n.duration, beatMs: 60000 / this.tune.bpm, parts: noteParts({ ...track, gain: 1, pan: 0 }, { ...n, velocity: 1 }, 60000 / this.tune.bpm) };
-        }));
+        }
       }
     }
     const footer = this.el(this.root, 'div', '', 'km-statusbar');
@@ -488,8 +484,8 @@ export class TuneEditor {
       let next = originals;
       const update = (q: {x: number; y: number}) => {
         const raw = Math.round((q.x - p.x) / this.pixelsPerBeat / this.snap) * this.snap;
-        const delta = resize ? clamp(raw, this.snap - Math.min(...notes.map(n => n.duration)), Math.min(...notes.map(n => Math.min(64 - n.duration, length - n.at - n.duration))))
-          : clamp(raw, -Math.min(...notes.map(n => n.at)), length - Math.max(...notes.map(n => n.at + n.duration)));
+        const delta = resize ? clamp(raw, Math.min(0, this.snap - Math.min(...notes.map(n => n.duration))), Math.min(...notes.map(n => Math.min(64 - n.duration, Math.max(0, length - n.at - n.duration)))))
+          : clamp(raw, -Math.min(...notes.map(n => n.at)), Math.max(0, length - Math.max(...notes.map(n => n.at + n.duration))));
         const semitones = clamp(Math.round((p.y - q.y) / 20), 21 - Math.min(...notes.map(n => n.midi)), 108 - Math.max(...notes.map(n => n.midi)));
         const lanes = notes.map(n => DRUM_LANES.findIndex(lane => lane.instrument === drumKind(n.midi)));
         const laneDelta = clamp(Math.round((q.y - p.y) / 60), -Math.min(...lanes), 2 - Math.max(...lanes));

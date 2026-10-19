@@ -27,7 +27,7 @@ test('intro once then loop range, with repeats inside each pass', () => {
   assert.notDeepEqual(notes[0]!.spec, notes[2]!.spec); assert.deepEqual(notes[2]!.spec, notes[7]!.spec);
 });
 test('invalid files fail before playback', () => {
-  const changes: ((t: any) => void)[] = [t => t.version = 2, t => t.bpm = 0, t => t.sections = [], t => t.sections.push(t.sections[0]), t => t.arrangement[0].repeats = 0, t => t.arrangement[0].repeats = 1.5, t => t.arrangement[0].section = 'missing', t => t.loop = { from: 2, to: 0 }, t => t.sections[0].tracks[0].notes[0].duration = 50, t => t.sections[0].tracks[0].notes[0].midi = 999, t => t.sections[0].tracks[0].gain = 10, t => t.sections[0].tracks[0].instrument = 'unknown'];
+  const changes: ((t: any) => void)[] = [t => t.version = 2, t => t.bpm = 0, t => t.sections = [], t => t.sections.push(t.sections[0]), t => t.arrangement[0].repeats = 0, t => t.arrangement[0].repeats = 1.5, t => t.arrangement[0].section = 'missing', t => t.loop = { from: 2, to: 0 }, t => t.sections[0].tracks[0].notes[0].duration = 65, t => t.sections[0].tracks[0].notes[0].midi = 999, t => t.sections[0].tracks[0].gain = 10, t => t.sections[0].tracks[0].instrument = 'unknown'];
   for (const change of changes) { const t = score(); change(t); assert.throws(() => parseTune(JSON.stringify(t)), /Invalid/); }
   assert.throws(() => parseTune('{broken'));
 });
@@ -114,7 +114,7 @@ function eventRecipes(tune: Tune): string[] {
   return new TuneSong('title', finite, 0, 1000, 'test').bars(30000).map(event => JSON.stringify(canonical(event))).sort();
 }
 
-test('merging legacy drums retains every voice, onset, velocity, custom recipe and mixer setting', () => {
+test('merging legacy drums retains every voice, onset, dynamics, custom recipe and mixer setting', () => {
   const tune = newTune(), section = tune.sections[0]!;
   const note = { at: 0.25, midi: 60, duration: 0.5, velocity: 0.35 };
   const kick: TuneTrack = { name: 'Low drum', instrument: 'kick', gain: 0.2, pan: -0.6, notes: [{ ...note }, { ...note, at: 1.5, velocity: 0 }] };
@@ -126,7 +126,7 @@ test('merging legacy drums retains every voice, onset, velocity, custom recipe a
   assert.deepEqual(tune, original); assert.deepEqual(eventRecipes(merged), eventRecipes(tune));
   assert.deepEqual(tracks.map(track => track.instrument), ['drums', 'harp']);
   assert.equal(tracks[0]!.name, 'My drums'); assert.equal(tracks[0]!.gain, 1); assert.equal(tracks[0]!.pan, 0);
-  assert.deepEqual(tracks[0]!.notes.map(n => [n.midi, n.velocity]), [[36, 0.35], [38, 0.9], [36, 0], [42, 0.35], [42, 0.35]]);
+  assert.deepEqual(tracks[0]!.notes.map(n => [n.midi, n.velocity]), [[36, 0.35 * (0.2 / 0.26)], [38, 0.9], [36, 0], [42, 0], [42, 0.35 * 0.15]]);
   assert.deepEqual(parseTune(writeTune(merged)), merged);
   assert.deepEqual(mergeDrumTracks(merged), merged);
   tracks[1]!.name = 'Changed'; assert.equal(tune.sections[0]!.tracks[2]!.name, 'Harp');
@@ -150,4 +150,18 @@ test('drum consolidation refuses density and size overflow without dropping note
   dense.beats = 12; section.bars = 64;
   for (const track of section.tracks) track.notes = Array.from({ length: 2100 }, (_, i) => ({ at: i / 4, duration: 0.1, velocity: 1, midi: 60 }));
   validateTune(dense); assert.throws(() => mergeDrumTracks(dense), /4096 notes/);
+});
+
+test('preset notes retain panning and sounding tails across a section boundary', () => {
+  const tune = score(), track = tune.sections[0]!.tracks[0]!;
+  track.instrument = 'flute'; track.pan = 0.2;
+  track.notes = [{ at: 3.9, midi: 67, duration: 2, velocity: 0.6, pan: -0.5 }];
+  validateTune(tune);
+  const events = new TuneSong('title', tune, 0, 1000, 'test').bars(4000);
+  assert.equal(events[0]!.at, 3900);
+  assert.deepEqual(events[0]!.spec, { ...instrumentParts('flute', 67, 2, track.gain * 0.6, -0.3, 1000)[0]!, at: 0 });
+  track.notes[0]!.at = 4;
+  assert.throws(() => validateTune(tune), /start inside section/);
+  track.notes[0]!.at = 1; track.notes[0]!.pan = NaN;
+  assert.throws(() => validateTune(tune), /note pan/);
 });

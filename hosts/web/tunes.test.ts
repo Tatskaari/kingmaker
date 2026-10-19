@@ -25,6 +25,11 @@ test('build loads authored default music and leaves effects procedural', () => {
   assert.deepEqual(library.cues, {});
   // Authors may add more scores for scene/map assignments alongside these defaults.
   for (const mood of MOODS) assert.ok(library.tunes[library.music[mood]!], mood);
+  for (const tune of Object.values(library.tunes)) for (const section of tune.sections) for (const track of section.tracks) {
+    assert.notEqual(track.instrument, 'custom', 'add shared instruments to the engine');
+    assert.equal(track.patch, undefined, 'scores reference engine presets');
+    assert.ok(track.notes.every(note => !note.patch), 'notes must not duplicate synth definitions');
+  }
 });
 
 test('build extracts scene and map time-of-day assignments and ignores vault metadata', () => fixture((root, tunes, save) => {

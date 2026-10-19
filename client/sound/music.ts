@@ -26,6 +26,10 @@ export function instrumentParts(kind: MusicInstrument, midi: number, beats: numb
   return parts.map(part => ({ ...part, pan }));
 }
 
+/** A score references this engine-owned instrument; synthesis stays out of music files. */
+export interface MusicNote { instrument: MusicInstrument; midi: number; duration: number; gain: number; pan: number }
+type EmitNote = (at: number, instrument: MusicInstrument, midi: number, duration: number, gain: number, pan?: number) => void;
+
 /** How a mood's music goes. */
 interface Style {
   bpm: number;
@@ -152,11 +156,16 @@ export class Song {
   private get beat(): number { return (60 / this.style.bpm) * this.rate; }
   private get sectionBars(): number { return 4 * this.style.hold; }
 
-  /** The bars that start before `until` (samples), as parts with their times. */
+  /** Render the same instrument references consumed by the score exporter. */
   bars(until: number): Array<{ at: number; spec: PartSpec }> {
-    const out: Array<{ at: number; spec: PartSpec }> = [];
+    return this.notes(until).flatMap(({ at, ...note }) => instrumentParts(note.instrument, note.midi, note.duration, note.gain, note.pan, this.beatMs).map(spec => ({ at, spec })));
+  }
+
+  /** Musical events, before synthesis: timings are samples on this song's clock. */
+  notes(until: number): Array<MusicNote & { at: number }> {
+    const out: Array<MusicNote & { at: number }> = [];
     while (this.next < until) {
-      for (const n of this.makeBar()) out.push({ at: this.next + n.t * this.beat, spec: n.spec });
+      for (const { t, ...note } of this.makeBar()) out.push({ at: this.next + t * this.beat, ...note });
       this.next += this.style.beats * this.beat;
       this.bar++;
     }
@@ -164,16 +173,16 @@ export class Song {
   }
 
   /** One bar's parts, at beats into it. */
-  private makeBar(): Array<{ t: number; spec: PartSpec }> {
+  private makeBar(): Array<MusicNote & { t: number }> {
     const s = this.style, r = this.r;
     const within = this.bar % this.sectionBars;
     const section = Math.floor(this.bar / this.sectionBars);
     if (within === 0) this.newSection(section);
     const degree = this.progression[Math.floor(within / s.hold)] ?? 0;
     const chord = this.chord(degree);
-    const out: Array<{ t: number; spec: PartSpec }> = [];
+    const out: Array<MusicNote & { t: number }> = [];
     const level = s.level ?? 1;
-    const at = (t: number, spec: PartSpec) => out.push({ t: this.lilt(t), spec: level === 1 ? spec : { ...spec, gain: spec.gain * level } });
+    const at: EmitNote = (t, instrument, midi, duration, gain, pan = 0) => out.push({ t: this.lilt(t), instrument, midi, duration, gain: gain * level, pan });
 
     if (s.bass) this.bassOf(s.bass, chord, at);
     if (s.strum) this.strumOf(s.strum.gain, chord, at);
@@ -182,18 +191,18 @@ export class Song {
       const count = s.beats * s.arp.per;
       for (let i = 0; i < count; i++) {
         const n = notes[s.arp.pattern[i % s.arp.pattern.length]! % notes.length]!;
-        at(i / s.arp.per + (r() - 0.5) * 0.02, instrument(s.arp.instrument, n, 1 / s.arp.per, s.arp.gain * (i % s.arp.per === 0 ? 1 : 0.8) * (0.9 + r() * 0.2), (r() - 0.5) * 0.5, this.beatMs));
+        at(i / s.arp.per + (r() - 0.5) * 0.02, s.arp.instrument, n, 1 / s.arp.per, s.arp.gain * (i % s.arp.per === 0 ? 1 : 0.8) * (0.9 + r() * 0.2), (r() - 0.5) * 0.5);
       }
     }
-    if (s.pad && within % s.hold === 0) for (const n of chord) at(0, pad(n + s.pad.octave, s.hold * s.beats * this.beatMs, s.pad.gain));
-    if (s.drone && within === 0) for (const n of [this.low(chord[0]!), this.low(chord[0]!) + 7]) at(0, drone(n, this.sectionBars * s.beats * this.beatMs, s.drone.gain));
-    if (s.bells) for (let b = 0; b < s.beats; b++) if (r() < s.bells.chance) at(b + (r() < 0.5 ? 0.5 : 0), instrument("bell", chord[Math.floor(r() * 3)]! + 36, 2, s.bells.gain, (r() - 0.5) * 0.8, this.beatMs));
+    if (s.pad && within % s.hold === 0) for (const n of chord) at(0, "pad", n + s.pad.octave, s.hold * s.beats, s.pad.gain);
+    if (s.drone && within === 0) for (const n of [this.low(chord[0]!), this.low(chord[0]!) + 7]) at(0, "drone", n, this.sectionBars * s.beats, s.drone.gain);
+    if (s.bells) for (let b = 0; b < s.beats; b++) if (r() < s.bells.chance) at(b + (r() < 0.5 ? 0.5 : 0), "bell", chord[Math.floor(r() * 3)]! + 36, 2, s.bells.gain, (r() - 0.5) * 0.8);
     if (s.drums) this.drumsOf(s.drums.gain, within, at);
     if (s.melody) {
       for (const n of this.tune) {
         const bar = Math.floor(n.t / s.beats);
         if (bar !== within) continue;
-        at(n.t - bar * s.beats, instrument(s.melody.instrument, n.midi, n.len, s.melody.gain, 0.1, this.beatMs));
+        at(n.t - bar * s.beats, s.melody.instrument, n.midi, n.len, s.melody.gain, 0.1);
       }
     }
     return out;
@@ -284,35 +293,35 @@ export class Song {
     return [degree, degree + 2, degree + 4].map(step => this.stepMidi(step));
   }
 
-  private bassOf(bass: NonNullable<Style["bass"]>, chord: number[], at: (t: number, spec: PartSpec) => void): void {
-    const s = this.style, beat = this.beatMs;
+  private bassOf(bass: NonNullable<Style["bass"]>, chord: number[], at: EmitNote): void {
+    const s = this.style;
     const root = this.low(chord[0]!), fifth = this.low(chord[2]!);
-    const play = (t: number, midi: number, beats: number, gain: number) => at(t, bassNote(midi, beats * beat * 0.9, gain, bass.wave ?? "triangle"));
+    const play = (t: number, midi: number, beats: number, gain: number) => at(t, bass.wave === "pulse" ? "pulse-bass" : "bass", midi, beats, gain);
     if (bass.kind === "root") play(0, root, s.beats, bass.gain);
     else if (bass.kind === "fifths") { play(0, root, 2, bass.gain); play(2, fifth, 2, bass.gain * 0.85); }
     else for (let i = 0; i < s.beats * 2; i++) play(i / 2, i % 4 === 3 ? root + 12 : root, 0.45, bass.gain * (i % 2 ? 0.75 : 1));
   }
 
-  private strumOf(gain: number, chord: number[], at: (t: number, spec: PartSpec) => void): void {
+  private strumOf(gain: number, chord: number[], at: EmitNote): void {
     const r = this.r;
-    at(0, instrument("lute", this.low(chord[0]!), 1, gain * 1.3, -0.2, this.beatMs));
-    at(2, instrument("lute", this.low(chord[2]!), 1, gain * 1.2, -0.2, this.beatMs));
+    at(0, "lute", this.low(chord[0]!), 1, gain * 1.3, -0.2);
+    at(2, "lute", this.low(chord[2]!), 1, gain * 1.2, -0.2);
     for (const beat of [1, 3, 3.5]) {
       if (beat === 3.5 && r() < 0.5) continue;
-      chord.forEach((n, i) => at(beat + i * 0.03, instrument("lute", n + 12, 0.5, gain * (beat === 3.5 ? 0.6 : 0.8), 0.25, this.beatMs)));
+      chord.forEach((n, i) => at(beat + i * 0.03, "lute", n + 12, 0.5, gain * (beat === 3.5 ? 0.6 : 0.8), 0.25));
     }
   }
 
-  private drumsOf(gain: number, within: number, at: (t: number, spec: PartSpec) => void): void {
+  private drumsOf(gain: number, within: number, at: EmitNote): void {
     const s = this.style, r = this.r;
     const fill = within % 4 === 3;
     for (let i = 0; i < s.beats * 2; i++) {
       const t = i / 2;
-      if (t === 0 || t === 2 || (t === 2.5 && r() < 0.4)) for (const part of kick(0.26 * gain)) at(t, part);
-      if (t === 1 || t === 3) at(t, snare(0.1 * gain));
-      if (!(fill && t >= 3)) at(t, hat(0.025 * gain * (i % 2 ? 0.7 : 1)));
+      if (t === 0 || t === 2 || (t === 2.5 && r() < 0.4)) at(t, "kick", 36, 0.25, 0.26 * gain);
+      if (t === 1 || t === 3) at(t, "snare", 38, 0.25, 0.1 * gain);
+      if (!(fill && t >= 3)) at(t, "hat", 42, 0.25, 0.025 * gain * (i % 2 ? 0.7 : 1));
     }
-    if (fill) for (const t of [3, 3.25, 3.5, 3.75]) at(t, snare(0.06 * gain * (0.7 + (t - 3))));
+    if (fill) for (const t of [3, 3.25, 3.5, 3.75]) at(t, "snare", 38, 0.25, 0.06 * gain * (0.7 + (t - 3)));
   }
 }
 

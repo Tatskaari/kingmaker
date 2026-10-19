@@ -396,7 +396,7 @@ test('the Scene view: the scene\'s own fields, grouped, each edited where it is'
   expect(after.known).toEqual(['The noon bell is the Assembly bell.']);
   expect(after.milestone).toBe(true);
   // Keys new to the file go where the format puts them.
-  expect(Object.keys(after)).toEqual(['format','version','kind','id','title','description','lore','time','place','milestone','hook','setting','premise','truth','clock','limits','known','cast','facts','onStart','onEnd','afterwards','fronts','nodes','edges']);
+  expect(Object.keys(after)).toEqual(['format','version','kind','id','title','description','lore','time','music','place','milestone','hook','setting','premise','truth','clock','limits','known','cast','facts','onStart','onEnd','afterwards','fronts','nodes','edges']);
   await page.screenshot({path:'dist/screenshots/scene-view.png'});
   // The effects as it starts are forms, as the endings' are: the clerk starts its quest with the King's request.
   const story=scene.getByRole('region',{name:'The story'});

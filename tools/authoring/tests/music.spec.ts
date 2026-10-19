@@ -14,7 +14,7 @@ test('scene and map music choices save all hours and combat, and undo restores a
   await night.selectOption('town/night');
   await page.getByRole('combobox',{name:'Combat music',exact:true}).selectOption('battle');
   const saved=(path:string)=>page.evaluate(path=>JSON.parse((window as any).__kingmakerHarness.files[path]),path);
-  expect((await saved('scenes/hanged-clerk.kmscene')).music).toEqual({night:'town/night',combat:'battle'});
+  expect((await saved('scenes/hanged-clerk.kmscene')).music).toEqual({morning:'scene',afternoon:'scene',evening:'night',night:'town/night','next-morning':'scene',combat:'battle'});
   await page.getByRole('combobox',{name:'Test file',exact:true}).selectOption('maps/caerwyn.kmmap');
   await page.getByRole('tablist',{name:'Views of the map'}).getByRole('tab',{name:'Map',exact:true}).click();
   for(const label of ['Morning','Afternoon','Evening','Night','Next morning'])await page.getByRole('combobox',{name:`${label} music`,exact:true}).selectOption('town/night');

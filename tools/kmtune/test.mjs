@@ -247,7 +247,7 @@ try {
   await page.screenshot({ path: root + 'dist/kmtune-check/editor-scale.png', fullPage: true });
   // Full instrument palette, with a labelled percussion lane and no misleading pitch controls.
   const palette = await page.getByLabel('Instrument', { exact: true }).locator('option').evaluateAll(options => options.map(option => option.value));
-  for (const kind of ['bass', 'pulse-bass', 'pad', 'drone', 'kick', 'snare', 'hat', 'custom']) assert.ok(palette.includes(kind));
+  for (const kind of ['bass', 'pulse-bass', 'pad', 'drone', 'kick', 'snare', 'hat']) assert.ok(palette.includes(kind));
   await page.getByRole('button', { name: '+ Track', exact: true }).click();
   await page.getByRole('button', { name: 'Add Drum kit track', exact: true }).click();
   assert.equal(await page.getByLabel('Lowest MIDI pitch', { exact: true }).count(), 0);
@@ -259,9 +259,17 @@ try {
   await page.getByRole('button', { name: 'Stop', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Stop', exact: true }).click();
   await page.screenshot({ path: root + 'dist/kmtune-check/editor-drums.png', fullPage: true });
-  // Custom sounds expose every synth parameter and support new notes and worklet playback.
+  // Composition offers engine presets. Legacy custom files still load without losing their sound.
+  assert.ok(!palette.includes('custom'));
   await page.getByRole('button', { name: '+ Track', exact: true }).click();
-  await page.getByRole('button', { name: 'Add Custom synth track', exact: true }).click();
+  assert.equal(await page.getByRole('button', { name: 'Add Custom synth track', exact: true }).count(), 0);
+  await page.evaluate(() => {
+    const tune = structuredClone(window.saved);
+    tune.sections[0].tracks.push({ name: 'Legacy synth', instrument: 'custom', gain: 1, pan: 0, notes: [],
+      patch: { midi: 60, duration: 1, beatMs: 625, parts: [{ kind: 'tone', wave: 'triangle', freq: 261.625565, gain: 0.1, bus: 'music', env: { a: 5, d: 200, s: 0.6, hold: 400, r: 100 } }] } });
+    window.loadTune(JSON.stringify(tune));
+  });
+  await page.getByRole('button', { name: 'Legacy synth', exact: true }).click();
   await page.locator('.km-roll-scroll').evaluate(el => { el.scrollTop = 0; });
   await page.getByLabel('Piano roll', { exact: true }).click({ position: { x: 90, y: 354 } });
   await page.locator('details[data-sound="Track sound"] > summary').click();

@@ -66,3 +66,44 @@ test('regeneration refuses to overwrite composer edits before writing any files'
     await assert.rejects(writeLibrary(directory), /Refusing to replace/);
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
+
+test('scores store engine references without per-note or per-track synth definitions', () => {
+  for (const tune of Object.values(library.tunes)) for (const section of tune.sections) for (const track of section.tracks) {
+    assert.notEqual(track.instrument, 'custom');
+    assert.equal(track.patch, undefined);
+    for (const note of track.notes) assert.equal(note.patch, undefined);
+    const text = writeTune(tune);
+    assert.ok(text.split('\n').filter(line => line.includes('"velocity"')).every(line => line.trim().startsWith('{') && line.includes('"midi"')), 'each note is a reviewable single line');
+    assert.deepEqual(parseTune(text), tune);
+  }
+});
+
+test('legacy conversion preserves authored notes and musical expression without regenerating them', async () => {
+  const { useEngineInstruments } = await import('./migrate.ts');
+  const { newTune, noteParts } = await import('../../client/sound/tune.ts');
+  const source = newTune(); source.title = 'My edited score';
+  const track = source.sections[0]!.tracks[0]!;
+  track.notes[0]!.pan = -0.2;
+  for (const note of track.notes) {
+    note.patch = { midi: note.midi, duration: note.duration, beatMs: 60000 / source.bpm,
+      parts: noteParts({ ...track, gain: 1, pan: 0 }, { ...note, velocity: 1, pan: undefined }, 60000 / source.bpm) };
+  }
+  assert.deepEqual(fingerprints(scheduled(useEngineInstruments(source))), fingerprints(scheduled(source)), 'unchanged presets sound the same');
+  // Simulate the composer's edits after export, including a copied extra note and a repeat change.
+  track.notes[0]!.midi += 7; track.notes[1]!.duration = 0.5;
+  track.notes.push({ ...structuredClone(track.notes[1]!), at: 7, velocity: 0.45 });
+  source.arrangement[0]!.repeats = 3;
+  const before = structuredClone(source), migrated = useEngineInstruments(source);
+  assert.deepEqual(source, before, 'migration does not mutate the original');
+  assert.deepEqual(migrated.arrangement, source.arrangement);
+  assert.equal(migrated.title, source.title);
+  const fields = (tune: Tune) => tune.sections.flatMap(s => s.tracks.flatMap(t => t.notes.map(n => ({ at: n.at, midi: n.midi, duration: n.duration }))));
+  assert.deepEqual(fields(migrated), fields(source));
+  const performance = (tune: Tune) => scheduled(tune).map(({ at, spec }) => JSON.stringify(canonical({ at, freq: spec.freq, gain: spec.gain, pan: spec.pan ?? 0 }))).sort();
+  assert.deepEqual(performance(migrated), performance(source), 'pitches, onsets, dynamics and pan survive edits');
+  assert.equal((noteParts(migrated.sections[0]!.tracks[0]!, migrated.sections[0]!.tracks[0]!.notes[1]!, 60000 / source.bpm)[0] as {decay: number}).decay, 2.2, 'edited lengths use the engine harp’s natural decay');
+  assert.deepEqual(useEngineInstruments(migrated), migrated);
+  assert.ok(migrated.sections[0]!.tracks[0]!.notes.every(n => !n.patch));
+  track.notes[0]!.patch!.parts[0]!.room = 0.99;
+  assert.throws(() => useEngineInstruments(source), /custom harp recipe/);
+});

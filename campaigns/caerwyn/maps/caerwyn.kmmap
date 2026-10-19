@@ -5,6 +5,14 @@
   "id": "caerwyn",
   "title": "Caerwyn",
   "description": "The town on the eve of the Assembly: the palace and its gate, the watch house, the granary lane and the King's Granary, the market square and the Corn Exchange, Bank Street, the river stairs down to the Drowned Rat's door, and the wharves to the Heron.",
+  "music": {
+    "morning": "town",
+    "afternoon": "town",
+    "evening": "night",
+    "night": "night",
+    "next-morning": "town",
+    "combat": "fight"
+  },
   "grid": [
     ",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,",
     ",,PPPPPPPPPPPPPPPPPPP,,,,,,,,,HHHHHHHHHH,,,,,,,,HHHHHHHHHHH:::::",

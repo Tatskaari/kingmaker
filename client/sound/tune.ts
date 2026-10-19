@@ -25,7 +25,7 @@ export function snapPitch(midi: number, key?: TuneKey): number {
 }
 /** Exact synth recipe at a reference pitch/duration. Optional beatMs keeps it in time with tempo edits. */
 export interface TunePatch { midi: number; duration: number; beatMs?: number; parts: PartSpec[] }
-export interface TuneNote { at: number; midi: number; duration: number; velocity: number; patch?: TunePatch }
+export interface TuneNote { at: number; midi: number; duration: number; velocity: number; pan?: number; patch?: TunePatch }
 export interface TuneTrack { name: string; instrument: TuneInstrument; gain: number; pan: number; notes: TuneNote[]; patch?: TunePatch }
 export interface TuneSection { id: string; name: string; bars: number; tracks: TuneTrack[] }
 export interface Tune {
@@ -69,8 +69,8 @@ export function validateTune(value: unknown): Tune {
       const density = new Map<number, number>();
       for (const n of tr.notes) {
         obj(n, 'note'); num(n.at, 0, s.bars * t.beats, 'note start'); num(n.midi, 21, 108, 'MIDI pitch', true);
-        num(n.duration, 0.001, 64, 'note duration'); num(n.velocity, 0, 1, 'velocity'); if (n.patch !== undefined) patch(n.patch);
-        if (n.at + n.duration > s.bars * t.beats + 1e-8) fail('note extends beyond section');
+        num(n.duration, 0.001, 64, 'note duration'); num(n.velocity, 0, 1, 'velocity'); if (n.pan !== undefined) num(n.pan, -1, 1, 'note pan'); if (n.patch !== undefined) patch(n.patch);
+        if (n.at >= s.bars * t.beats) fail('note must start inside section');
         const bucket = Math.floor(n.at); const count = (density.get(bucket) ?? 0) + 1;
         if (count > 32) fail('too many notes in one beat'); density.set(bucket, count);
       }
@@ -80,11 +80,27 @@ export function validateTune(value: unknown): Tune {
   if (t.loop !== undefined) { obj(t.loop, 'loop'); num(t.loop.from, 0, t.arrangement.length - 1, 'loop start', true); num(t.loop.to, t.loop.from, t.arrangement.length - 1, 'loop end', true); }
   return t;
 }
-export const writeTune = (t: Tune) => JSON.stringify(validateTune(t), null, 2) + '\n';
+/** One ordinary note per line keeps musical edits readable in version control. */
+export function writeTune(t: Tune): string {
+  const format = (value: any, depth: number, key = ''): string => {
+    const pad = '  '.repeat(depth), child = pad + '  ';
+    if (Array.isArray(value)) {
+      if (!value.length) return '[]';
+      return '[\n' + value.map(item => child + (key === 'notes' && !item.patch ? JSON.stringify(item) : format(item, depth + 1))).join(',\n') + '\n' + pad + ']';
+    }
+    if (value && typeof value === 'object') {
+      const fields = Object.entries(value).filter(([, item]) => item !== undefined);
+      if (!fields.length) return '{}';
+      return '{\n' + fields.map(([name, item]) => child + JSON.stringify(name) + ': ' + format(item, depth + 1, name)).join(',\n') + '\n' + pad + '}';
+    }
+    return JSON.stringify(value);
+  };
+  return format(validateTune(t), 0) + '\n';
+}
 export function newTune(): Tune {
   return { version: 1, title: 'New tune', bpm: 96, beats: 4, sections: [{ id: 'intro', name: 'Intro', bars: 2, tracks: [{ name: 'Harp', instrument: 'harp', gain: 0.1, pan: 0, notes: [62, 65, 69, 67].map((midi, i) => ({ midi, at: i * 2, duration: 2, velocity: 0.8 })) }] }], arrangement: [{ section: 'intro', repeats: 2 }] };
 }
-/** Consolidate old percussion tracks without changing any sounding voice, mixer level or velocity. */
+/** Consolidate old percussion tracks, folding their mixer levels into the kit’s note dynamics. */
 export function mergeDrumTracks(tune: Tune): Tune {
   validateTune(tune);
   const result = structuredClone(tune), beatMs = 60000 / tune.bpm;
@@ -95,9 +111,15 @@ export function mergeDrumTracks(tune: Tune): Tune {
     for (const track of sources) for (const note of track.notes) {
       const midi = track.instrument === 'drums' ? snapDrumPitch(note.midi) : DRUM_LANES.find(lane => lane.instrument === track.instrument)!.midi;
       // Resolve both note and track patches before replacing the pitched value with a lane.
-      // Velocity remains an independent editable value; track gain/pan become part of the recipe.
-      const parts = noteParts(track, { ...note, velocity: 1 }, beatMs);
-      kit.notes.push({ ...note, midi, patch: { midi, duration: note.duration, beatMs, parts } });
+      // Ordinary drum voices remain preset references; custom legacy voices retain their recipes.
+      const gain = track.gain / (track.instrument === 'drums' ? 1 : DRUM_LANES.find(lane => lane.midi === midi)!.gain);
+      if (!note.patch && !track.patch && gain <= 1) {
+        kit.notes.push({ ...note, midi, velocity: note.velocity * gain, pan: Math.max(-1, Math.min(1, track.pan + (note.pan ?? 0))) });
+      } else {
+        // Preserve explicitly custom legacy sounds; ordinary kit notes reference engine presets.
+        const parts = noteParts(track, { ...note, velocity: 1, pan: undefined }, beatMs);
+        kit.notes.push({ ...note, midi, patch: { midi, duration: note.duration, beatMs, parts } });
+      }
     }
     kit.notes.sort((a, b) => a.at - b.at || a.midi - b.midi);
     const first = section.tracks.findIndex(track => isPercussion(track.instrument));
@@ -248,14 +270,14 @@ export function noteParts(track: TuneTrack, note: TuneNote, beatMs: number): Par
     if (track.instrument === 'custom') return [];
     const lane = track.instrument === 'drums' ? DRUM_LANES.find(lane => lane.midi === snapDrumPitch(note.midi)) : undefined;
     const kind = track.instrument === 'drums' ? drumKind(note.midi) : track.instrument;
-    return instrumentParts(kind, note.midi, note.duration, track.gain * note.velocity * (lane?.gain ?? 1), track.pan, beatMs);
+    return instrumentParts(kind, note.midi, note.duration, track.gain * note.velocity * (lane?.gain ?? 1), Math.max(-1, Math.min(1, track.pan + (note.pan ?? 0))), beatMs);
   }
   const ratio = track.instrument === 'drums' ? 1 : 2 ** ((note.midi - patch.midi) / 12);
   const stretch = note.duration / patch.duration * beatMs / (patch.beatMs ?? beatMs);
   return patch.parts.map(part => {
     const result = { ...part, env: { ...part.env }, ...(part.kind === 'tone' && part.vib ? { vib: { ...part.vib } } : {}), ...(part.kind === 'tone' && part.fm ? { fm: { ...part.fm } } : {}) } as PartSpec;
     result.gain *= track.gain * note.velocity;
-    result.pan = Math.max(-1, Math.min(1, (part.pan ?? 0) + track.pan));
+    result.pan = Math.max(-1, Math.min(1, (part.pan ?? 0) + track.pan + (note.pan ?? 0)));
     if (result.at !== undefined) result.at *= stretch;
     for (const key of ['a', 'd', 'hold', 'r'] as const) if (result.env[key] !== undefined) result.env[key]! *= stretch;
     if (result.kind !== 'noise') result.freq *= ratio;
