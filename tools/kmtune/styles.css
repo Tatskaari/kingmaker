@@ -1,0 +1,131 @@
+/* Match the Kingmaker authoring workshop, with colours inherited from the vault's theme. */
+.kmtune {
+  --km-bg: var(--background-primary, #201e26);
+  --km-panel: var(--background-secondary, #28242f);
+  --km-line: var(--background-modifier-border, #443c50);
+  --km-text: var(--text-normal, #e9e3ef);
+  --km-muted: var(--text-muted, #a89bb5);
+  --km-accent: var(--interactive-accent, #9878bb);
+  --km-key-dark: #302b38; --km-key-light: #d3ccd9;
+  --km-key-dark-text: #bbb1c5; --km-key-light-text: #504658;
+  --km-note: #9878bb; --km-selected-note: #d9ba84; --km-note-text: #201725;
+  container: kmtune / inline-size;
+  display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 500px;
+  padding: 0 !important; overflow: hidden; color: var(--km-text); background: var(--km-bg);
+  font: 13px/1.5 var(--font-interface, system-ui, sans-serif);
+}
+.kmtune * { box-sizing: border-box; }
+.kmtune h1, .kmtune h2, .kmtune p { margin: 0; }
+.kmtune h1 { font: 25px/1.2 Georgia, serif; overflow-wrap: anywhere; }
+.kmtune h2 { font: 20px/1.3 Georgia, serif; }
+.kmtune button, .kmtune input, .kmtune select { font: inherit; box-shadow: none; height: auto; }
+.kmtune button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: transparent; color: inherit; border: 0; border-radius: 5px; padding: 7px 9px; cursor: pointer; line-height: 1.3; }
+.kmtune button:hover { background: var(--background-modifier-hover, #ffffff0c); }
+.kmtune button:disabled { opacity: .35; cursor: default; }
+.kmtune button:focus-visible { outline: 2px solid var(--km-accent); outline-offset: 2px; }
+.kmtune input, .kmtune select { width: 100%; min-width: 0; border: 1px solid var(--km-line); background: var(--km-bg); color: var(--km-text); border-radius: 5px; padding: 6px 8px; }
+.kmtune input:focus, .kmtune select:focus { outline: 1px solid var(--km-accent); }
+.kmtune label { display: flex; flex-direction: column; gap: 5px; min-width: 0; color: var(--km-muted); font-size: 11px; }
+.kmtune .km-topbar { min-height: 35px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 8px 18px; border-bottom: 1px solid var(--km-line); color: var(--km-muted); font-size: 9px; letter-spacing: 1px; }
+.kmtune .km-save { letter-spacing: 0; }
+.kmtune .km-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px; flex-shrink: 0; }
+.kmtune .km-eyebrow { color: var(--km-muted); font-size: 9px; font-weight: 600; letter-spacing: 1.5px; margin-bottom: 7px; }
+.kmtune .km-summary { color: var(--km-muted); font-size: 11px; white-space: nowrap; }
+.kmtune .km-transport { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 7px 18px; background: var(--km-panel); border-block: 1px solid var(--km-line); flex-shrink: 0; }
+.kmtune .km-transport label { flex-direction: row; align-items: center; gap: 7px; margin-right: 12px; }
+.kmtune .km-transport input { width: 60px; padding: 5px 6px; font-variant-numeric: tabular-nums; }
+.kmtune .km-transport button { font-size: 11px; padding: 8px 11px; }
+.kmtune button.km-primary { background: var(--km-accent); color: var(--text-on-accent, white); font-weight: 600; }
+.kmtune button.km-primary:hover { filter: brightness(1.12); }
+.kmtune .km-body { display: grid; grid-template-columns: 175px minmax(0, 1fr) 235px; flex: 1; min-height: 0; overflow: hidden; }
+.kmtune .km-library { background: var(--km-panel); border-right: 1px solid var(--km-line); overflow-y: auto; min-width: 0; }
+.kmtune .km-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 36px; padding: 10px 14px; border-bottom: 1px solid var(--km-line); color: var(--km-muted); font-size: 9px; letter-spacing: 1.5px; }
+.kmtune .km-panel-head small { letter-spacing: 0; font-size: 10px; }
+.kmtune .km-section-list, .kmtune .km-track-list { display: flex; flex-direction: column; gap: 5px; padding: 9px; }
+.kmtune .km-section-list button, .kmtune .km-track-list button { flex-direction: column; align-items: flex-start; text-align: left; padding: 10px 12px; gap: 4px; border: 1px solid transparent; overflow-wrap: anywhere; }
+.kmtune .km-section-list button small, .kmtune .km-track-list button small { color: var(--km-muted); font-size: 10px; font-weight: 400; }
+.kmtune .km-section-list button.km-active, .kmtune .km-track-list button.km-active { background: var(--km-bg); border-color: var(--km-line); border-left: 2px solid var(--km-accent); color: var(--km-text); }
+.kmtune .km-section-list button:last-child, .kmtune .km-track-list > button:last-child { color: var(--km-muted); font-size: 11px; padding-block: 9px; }
+.kmtune .km-workspace { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+.kmtune .km-arrangement-panel { flex-shrink: 0; border-bottom: 1px solid var(--km-line); }
+.kmtune .km-arrangement { display: flex; align-items: stretch; gap: 8px; overflow-x: auto; padding: 12px 14px; }
+.kmtune .km-arrangement-row { display: grid; grid-template-columns: 22px 1fr 1fr 1fr; gap: 5px; flex: 0 0 175px; background: var(--km-panel); border: 1px solid var(--km-line); border-top: 2px solid var(--section-colour); border-radius: 6px; padding: 8px; }
+.kmtune .km-arrangement-row.km-looped { box-shadow: inset 0 -2px var(--section-colour); }
+.kmtune .km-index { grid-row: 1; align-self: center; color: var(--section-colour); font: 10px ui-monospace, monospace; }
+.kmtune .km-arrangement-row .km-arrangement-name { grid-column: 2 / -1; font-size: 9px; gap: 3px; }
+.kmtune .km-arrangement-row select { font-size: 12px; border: 0; padding: 3px 0; background: transparent; }
+.kmtune .km-arrangement-row .km-repeat-count { grid-column: 1 / -1; flex-direction: row; align-items: center; justify-content: space-between; font-size: 10px; }
+.kmtune .km-arrangement-row input { width: 48px; padding: 2px 4px; font-size: 11px; }
+.kmtune .km-arrangement-row button { font-size: 10px; padding: 3px; }
+.kmtune .km-arrangement-row button:last-child { grid-column: 3 / 5; }
+.kmtune .km-arrangement > button { flex: 0 0 130px; font-size: 11px; color: var(--km-muted); border: 1px dashed var(--km-line); padding: 12px; }
+.kmtune .km-loop-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 0 14px 10px; color: var(--km-muted); }
+.kmtune .km-loop-controls button { font-size: 10px; padding: 5px 7px; background: var(--km-panel); }
+.kmtune .km-loop-controls label { flex-direction: row; align-items: center; font-size: 10px; }
+.kmtune .km-loop-controls input { width: 40px; padding: 3px; font-size: 10px; }
+.kmtune .km-loop-controls small { font-size: 10px; }
+.kmtune .km-roll-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px 10px; flex-shrink: 0; }
+.kmtune .km-editbar { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; padding: 6px 12px; background: var(--km-panel); border-block: 1px solid var(--km-line); flex-shrink: 0; }
+.kmtune .km-editbar label { flex-direction: row; align-items: center; font-size: 10px; margin-right: 6px; }
+.kmtune .km-editbar select { width: auto; padding: 4px; font-size: 10px; }
+.kmtune .km-editbar button { font-size: 10px; color: var(--km-muted); padding: 5px; }
+.kmtune .km-roll-tools { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--km-line); border-radius: 5px; margin-right: 6px; }
+.kmtune .km-roll-tools button[aria-pressed="true"] { background: var(--km-accent); color: var(--text-on-accent, white); }
+.kmtune .km-selection-count { color: var(--km-muted); font-size: 10px; margin-left: auto; white-space: nowrap; }
+.kmtune .km-roll-scroll { overflow: auto; flex: 1; min-height: 200px; background: var(--km-bg); }
+.kmtune .km-roll { position: relative; width: max-content; }
+.kmtune canvas { display: block; touch-action: none; max-width: none; }
+.kmtune .km-playhead { position: absolute; top: 24px; bottom: 0; width: 2px; background: var(--km-text); pointer-events: none; }
+.kmtune .km-inspector { background: var(--km-panel); border-left: 1px solid var(--km-line); overflow-y: auto; }
+.kmtune .km-settings { padding: 16px; border-bottom: 1px solid var(--km-line); }
+.kmtune .km-settings label { margin: 11px 0; }
+.kmtune .km-settings button { font-size: 10px; color: var(--km-muted); padding: 5px 7px; }
+.kmtune .km-settings small { display: block; color: var(--km-muted); font-size: 10px; line-height: 1.6; margin-top: 7px; }
+.kmtune .km-note-settings { border-left: 2px solid var(--km-selected-note); }
+.kmtune .km-statusbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 14px; border-top: 1px solid var(--km-line); color: var(--km-muted); font-size: 10px; flex-shrink: 0; }
+.kmtune .km-error { color: var(--text-error, #df9396); }
+@container kmtune (max-width: 1050px) {
+  .kmtune .km-body { grid-template-columns: 135px minmax(0, 1fr) 195px; }
+  .kmtune .km-settings { padding: 12px; }
+  .kmtune .km-panel-head small, .kmtune .km-loop-controls small, .kmtune .km-statusbar > span:last-child { display: none; }
+}
+@container kmtune (max-width: 760px) {
+  .kmtune .km-body { grid-template-columns: 120px minmax(0, 1fr); overflow-y: auto; }
+  .kmtune .km-workspace { min-height: 650px; }
+  .kmtune .km-inspector { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--km-line); overflow: visible; }
+  .kmtune .km-inspector > .km-panel-head { grid-column: 1 / -1; }
+  .kmtune .km-heading { padding: 14px; }
+  .kmtune .km-heading .km-summary { display: none; }
+  .kmtune .km-roll-heading { flex-wrap: wrap; }
+  .kmtune .km-transport { padding: 7px 12px; gap: 3px; }
+  .kmtune .km-transport label { margin-right: 5px; }
+}
+.kmtune .km-ruler { position: sticky; top: 0; height: 24px; margin-bottom: -24px; z-index: 2; pointer-events: none; background: var(--km-panel); border-bottom: 1px solid var(--km-line); color: var(--km-muted); font: 10px/24px ui-monospace, monospace; }
+.kmtune .km-ruler span { position: absolute; }
+.kmtune .km-track-row { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.kmtune .km-track-row .km-track-select { flex: 1; min-width: 0; padding: 9px 7px; color: var(--km-text); font-size: 12px; }
+.kmtune .km-track-row .km-track-delete { flex-shrink: 0; padding: 5px 3px; font-size: 9px; color: var(--text-error, #df9396); }
+.kmtune .km-instrument-picker { padding: 9px; border: 1px solid var(--km-line); background: var(--km-bg); border-radius: 5px; }
+.kmtune .km-instrument-picker .km-eyebrow { font-size: 8px; letter-spacing: .8px; }
+.kmtune .km-instrument-picker button { width: 100%; padding: 8px; color: var(--km-text); font-size: 11px; }
+.kmtune:focus { outline: none; }
+
+.kmtune .km-arrangement-row { flex-basis: 205px; cursor: pointer; }
+.kmtune .km-arrangement-row.km-editing { outline: 2px solid var(--section-colour); outline-offset: 1px; }
+.kmtune .km-arrangement-row .km-arrangement-name input { width: 100%; font-size: 12px; padding: 4px 6px; }
+.kmtune .km-arrangement-row .km-edit-section { grid-column: 1 / -1; justify-content: flex-start; padding: 5px; color: var(--km-muted); }
+.kmtune .km-arrangement-row .km-edit-section[aria-pressed=true] { color: var(--section-colour); font-weight: 600; }
+.kmtune .km-arrangement-row .km-section-reference { grid-column: 1 / -1; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; font-size: 9px; gap: 7px; }
+.kmtune .km-arrangement-row .km-section-reference select { width: 100%; border: 1px solid var(--km-line); font-size: 10px; padding: 3px; background: var(--km-bg); }
+
+.kmtune .km-track-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 3px; row-gap: 2px; padding-bottom: 7px; border-bottom: 1px solid var(--km-line); }
+.kmtune .km-track-row .km-track-select { grid-column: 1 / -1; }
+.kmtune .km-track-row .km-track-instrument { min-width: 0; font-size: 9px; padding-left: 7px; gap: 3px; }
+.kmtune .km-track-row .km-track-instrument select { width: 100%; font-size: 10px; padding: 4px 2px; }
+.kmtune .km-track-row .km-track-delete { align-self: end; margin-bottom: 2px; }
+
+.kmtune .km-patch { margin-top: 12px; padding: 9px; border: 1px solid var(--km-line); border-radius: 5px; background: var(--km-bg); }
+.kmtune .km-patch summary { cursor: pointer; color: var(--km-muted); font-size: 11px; line-height: 1.6; }
+.kmtune .km-patch-voice { padding-block: 8px; border-bottom: 1px solid var(--km-line); }
+.kmtune .km-patch label { font-size: 10px; }
+.kmtune .km-patch textarea { display: block; resize: vertical; width: 100%; min-height: 240px; margin-block: 10px; padding: 8px; font: 10px/1.5 ui-monospace, monospace; color: var(--km-text); background: var(--km-panel); border: 1px solid var(--km-line); border-radius: 4px; }

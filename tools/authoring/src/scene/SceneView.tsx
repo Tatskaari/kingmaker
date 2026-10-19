@@ -6,9 +6,10 @@ import {Checkbox,Group,IdField,ListField,LoreLinks,SelectField,TextArea,TextFiel
 import {EffectsEditor} from './effects.tsx';
 import {storyScenes} from './inspectors.tsx';
 import {SLUG,optionalList,optionalText,setSceneField} from './model.ts';
+import {MusicFields} from '../campaign/MusicFields.tsx';
 
 const TIMES=['morning','afternoon','evening','night','next-morning'];
-const GROUPS:Array<[string,string]>=[['scene-identity','The scene'],['scene-player','What the player knows'],['scene-prep','The prep'],['scene-when','When and where'],['scene-world','The world'],['scene-story','The story'],['scene-lore','Lore']];
+const GROUPS:Array<[string,string]>=[['scene-identity','The scene'],['scene-player','What the player knows'],['scene-prep','The prep'],['scene-when','When and where'],['scene-music','Music'],['scene-world','The world'],['scene-story','The story'],['scene-lore','Lore']];
 
 export function SceneView(){
   const {doc,edit,campaign,loreNames,openLore,pickLore,place,openPlace}=useScene();
@@ -50,6 +51,9 @@ export function SceneView(){
       </details>}
       <Checkbox label="Interlude" field="interlude" hint="Downtime between scenes, standing in for the map: the story skips it, going on from one of its endings." checked={!!doc.interlude} onChange={checked=>set('interlude',checked?true:undefined)}/>
       <Checkbox label="Milestone" field="milestone" hint="Reaching it is a milestone: the player's character goes up a level as it opens." checked={!!doc.milestone} onChange={checked=>set('milestone',checked?true:undefined)}/>
+    </Group>
+    <Group title="Music" anchor="scene-music" field="music">
+      <MusicFields scene music={doc.music} tunes={campaign?.tunes??[]} onChange={value=>set('music',value)}/>
     </Group>
     <Group title="The world" anchor="scene-world" field="world">
       <ListField label="Limits" field="limits" addLabel="Add a limit" rows={2} hint="Tempting things that don't exist or can't work here, so the GM can say “no, but” honestly." items={list('limits')} onChange={items=>set('limits',optionalList(items))}/>

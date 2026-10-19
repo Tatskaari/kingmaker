@@ -1,0 +1,384 @@
+{
+  "version": 1,
+  "title": "Market Morning",
+  "bpm": 100,
+  "beats": 4,
+  "key": {
+    "root": 7,
+    "scale": "mixolydian"
+  },
+  "sections": [
+    {
+      "id": "section-1",
+      "name": "Intro",
+      "bars": 4,
+      "tracks": [
+        {
+          "name": "Lute",
+          "instrument": "lute",
+          "gain": 0.156,
+          "pan": 0,
+          "notes": [
+            {"at":0,"midi":43,"duration":0.5,"velocity":1,"pan":-0.2},
+            {"at":1,"midi":55,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":1.03,"midi":59,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":1.06,"midi":62,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":2,"midi":38,"duration":0.5,"velocity":0.923076923076923,"pan":-0.2},
+            {"at":3,"midi":55,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":3.03,"midi":59,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":3.06,"midi":62,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":3.53,"midi":59,"duration":0.5,"velocity":0.4615384615384615,"pan":0.25},
+            {"at":3.56,"midi":62,"duration":0.5,"velocity":0.4615384615384615,"pan":0.25},
+            {"at":3.58,"midi":55,"duration":0.5,"velocity":0.4615384615384615,"pan":0.25},
+            {"at":4,"midi":41,"duration":0.5,"velocity":1,"pan":-0.2},
+            {"at":5,"midi":65,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":5.03,"midi":69,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":5.06,"midi":72,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":6,"midi":48,"duration":0.5,"velocity":0.923076923076923,"pan":-0.2},
+            {"at":7,"midi":65,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":7.03,"midi":69,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":7.06,"midi":72,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":7.53,"midi":69,"duration":0.5,"velocity":0.4615384615384615,"pan":0.25},
+            {"at":7.56,"midi":72,"duration":0.5,"velocity":0.4615384615384615,"pan":0.25},
+            {"at":7.58,"midi":65,"duration":0.5,"velocity":0.4615384615384615,"pan":0.25},
+            {"at":8,"midi":48,"duration":0.5,"velocity":1,"pan":-0.2},
+            {"at":9,"midi":60,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":9.03,"midi":64,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":9.06,"midi":67,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":10,"midi":43,"duration":0.5,"velocity":0.923076923076923,"pan":-0.2},
+            {"at":11,"midi":60,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":11.03,"midi":64,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":11.06,"midi":67,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":11.53,"midi":64,"duration":0.5,"velocity":0.4615384615384615,"pan":0.25},
+            {"at":11.56,"midi":67,"duration":0.5,"velocity":0.4615384615384615,"pan":0.25},
+            {"at":11.58,"midi":60,"duration":0.5,"velocity":0.4615384615384615,"pan":0.25},
+            {"at":12,"midi":43,"duration":0.5,"velocity":1,"pan":-0.2},
+            {"at":13,"midi":55,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":13.03,"midi":59,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":13.06,"midi":62,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":14,"midi":38,"duration":0.5,"velocity":0.923076923076923,"pan":-0.2},
+            {"at":15,"midi":55,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":15.03,"midi":59,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":15.06,"midi":62,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25}
+          ]
+        },
+        {
+          "name": "Pad",
+          "instrument": "pad",
+          "gain": 0.016,
+          "pan": 0,
+          "notes": [
+            {"at":0,"midi":55,"duration":4,"velocity":1},
+            {"at":0,"midi":59,"duration":4,"velocity":1},
+            {"at":0,"midi":62,"duration":4,"velocity":1},
+            {"at":4,"midi":65,"duration":4,"velocity":1},
+            {"at":4,"midi":69,"duration":4,"velocity":1},
+            {"at":4,"midi":72,"duration":4,"velocity":1},
+            {"at":8,"midi":60,"duration":4,"velocity":1},
+            {"at":8,"midi":64,"duration":4,"velocity":1},
+            {"at":8,"midi":67,"duration":4,"velocity":1},
+            {"at":12,"midi":55,"duration":4,"velocity":1},
+            {"at":12,"midi":59,"duration":4,"velocity":1},
+            {"at":12,"midi":62,"duration":4,"velocity":1}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "section-2",
+      "name": "Theme",
+      "bars": 4,
+      "tracks": [
+        {
+          "name": "Lute",
+          "instrument": "lute",
+          "gain": 0.156,
+          "pan": 0,
+          "notes": [
+            {"at":0,"midi":43,"duration":0.5,"velocity":1,"pan":-0.2},
+            {"at":1,"midi":55,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":1.0300000000000011,"midi":59,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":1.0599999999999987,"midi":62,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":2,"midi":38,"duration":0.5,"velocity":0.923076923076923,"pan":-0.2},
+            {"at":3,"midi":55,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":3.030000000000001,"midi":59,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":3.0599999999999987,"midi":62,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":4,"midi":41,"duration":0.5,"velocity":1,"pan":-0.2},
+            {"at":5,"midi":65,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":5.030000000000001,"midi":69,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":5.059999999999999,"midi":72,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":6,"midi":48,"duration":0.5,"velocity":0.923076923076923,"pan":-0.2},
+            {"at":7,"midi":65,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":7.030000000000001,"midi":69,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":7.059999999999999,"midi":72,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":8,"midi":48,"duration":0.5,"velocity":1,"pan":-0.2},
+            {"at":9,"midi":60,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":9.030000000000001,"midi":64,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":9.059999999999999,"midi":67,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":10,"midi":43,"duration":0.5,"velocity":0.923076923076923,"pan":-0.2},
+            {"at":11,"midi":60,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":11.030000000000001,"midi":64,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":11.059999999999999,"midi":67,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":12,"midi":43,"duration":0.5,"velocity":1,"pan":-0.2},
+            {"at":13,"midi":55,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":13.030000000000001,"midi":59,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":13.059999999999999,"midi":62,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":14,"midi":38,"duration":0.5,"velocity":0.923076923076923,"pan":-0.2},
+            {"at":15,"midi":55,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":15.030000000000001,"midi":59,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":15.059999999999999,"midi":62,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25}
+          ]
+        },
+        {
+          "name": "Pad",
+          "instrument": "pad",
+          "gain": 0.016,
+          "pan": 0,
+          "notes": [
+            {"at":0,"midi":55,"duration":4,"velocity":1},
+            {"at":0,"midi":59,"duration":4,"velocity":1},
+            {"at":0,"midi":62,"duration":4,"velocity":1},
+            {"at":4,"midi":65,"duration":4,"velocity":1},
+            {"at":4,"midi":69,"duration":4,"velocity":1},
+            {"at":4,"midi":72,"duration":4,"velocity":1},
+            {"at":8,"midi":60,"duration":4,"velocity":1},
+            {"at":8,"midi":64,"duration":4,"velocity":1},
+            {"at":8,"midi":67,"duration":4,"velocity":1},
+            {"at":12,"midi":55,"duration":4,"velocity":1},
+            {"at":12,"midi":59,"duration":4,"velocity":1},
+            {"at":12,"midi":62,"duration":4,"velocity":1}
+          ]
+        },
+        {
+          "name": "Flute",
+          "instrument": "flute",
+          "gain": 0.08,
+          "pan": 0,
+          "notes": [
+            {"at":0,"midi":86,"duration":2.8499999999999996,"velocity":1,"pan":0.1},
+            {"at":4,"midi":84,"duration":0.95,"velocity":1,"pan":0.1},
+            {"at":5,"midi":84,"duration":0.95,"velocity":1,"pan":0.1},
+            {"at":6,"midi":88,"duration":0.95,"velocity":1,"pan":0.1},
+            {"at":7,"midi":86,"duration":0.95,"velocity":1,"pan":0.1},
+            {"at":8,"midi":88,"duration":0.95,"velocity":1,"pan":0.1},
+            {"at":9,"midi":89,"duration":0.95,"velocity":1,"pan":0.1},
+            {"at":10,"midi":91,"duration":0.95,"velocity":1,"pan":0.1},
+            {"at":11,"midi":89,"duration":0.95,"velocity":1,"pan":0.1},
+            {"at":12,"midi":89,"duration":1.9,"velocity":1,"pan":0.1},
+            {"at":14,"midi":89,"duration":1.9,"velocity":1,"pan":0.1}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "section-3",
+      "name": "Bridge",
+      "bars": 4,
+      "tracks": [
+        {
+          "name": "Lute",
+          "instrument": "lute",
+          "gain": 0.156,
+          "pan": 0,
+          "notes": [
+            {"at":0,"midi":43,"duration":0.5,"velocity":1,"pan":-0.2},
+            {"at":1,"midi":55,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":1.0300000000000011,"midi":59,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":1.0600000000000023,"midi":62,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":2,"midi":38,"duration":0.5,"velocity":0.923076923076923,"pan":-0.2},
+            {"at":3,"midi":55,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":3.030000000000001,"midi":59,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":3.0600000000000023,"midi":62,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":4,"midi":48,"duration":0.5,"velocity":1,"pan":-0.2},
+            {"at":5,"midi":60,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":5.030000000000001,"midi":64,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":5.060000000000002,"midi":67,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":6,"midi":43,"duration":0.5,"velocity":0.923076923076923,"pan":-0.2},
+            {"at":7,"midi":60,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":7.030000000000001,"midi":64,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":7.060000000000002,"midi":67,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":8,"midi":41,"duration":0.5,"velocity":1,"pan":-0.2},
+            {"at":9,"midi":65,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":9.030000000000001,"midi":69,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":9.060000000000002,"midi":72,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":10,"midi":48,"duration":0.5,"velocity":0.923076923076923,"pan":-0.2},
+            {"at":11,"midi":65,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":11.030000000000001,"midi":69,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":11.060000000000002,"midi":72,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":12,"midi":43,"duration":0.5,"velocity":1,"pan":-0.2},
+            {"at":13,"midi":55,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":13.030000000000001,"midi":59,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":13.060000000000002,"midi":62,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":14,"midi":38,"duration":0.5,"velocity":0.923076923076923,"pan":-0.2},
+            {"at":15,"midi":55,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":15.030000000000001,"midi":59,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":15.060000000000002,"midi":62,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":15.530000000000001,"midi":59,"duration":0.46999999999999886,"velocity":0.4615384615384615,"pan":0.25},
+            {"at":15.560000000000002,"midi":62,"duration":0.4399999999999977,"velocity":0.4615384615384615,"pan":0.25},
+            {"at":15.579999999999998,"midi":55,"duration":0.4200000000000017,"velocity":0.4615384615384615,"pan":0.25}
+          ]
+        },
+        {
+          "name": "Pad",
+          "instrument": "pad",
+          "gain": 0.016,
+          "pan": 0,
+          "notes": [
+            {"at":0,"midi":55,"duration":4,"velocity":1},
+            {"at":0,"midi":59,"duration":4,"velocity":1},
+            {"at":0,"midi":62,"duration":4,"velocity":1},
+            {"at":4,"midi":60,"duration":4,"velocity":1},
+            {"at":4,"midi":64,"duration":4,"velocity":1},
+            {"at":4,"midi":67,"duration":4,"velocity":1},
+            {"at":8,"midi":65,"duration":4,"velocity":1},
+            {"at":8,"midi":69,"duration":4,"velocity":1},
+            {"at":8,"midi":72,"duration":4,"velocity":1},
+            {"at":12,"midi":55,"duration":4,"velocity":1},
+            {"at":12,"midi":59,"duration":4,"velocity":1},
+            {"at":12,"midi":62,"duration":4,"velocity":1}
+          ]
+        },
+        {
+          "name": "Flute",
+          "instrument": "flute",
+          "gain": 0.08,
+          "pan": 0,
+          "notes": [
+            {"at":0,"midi":83,"duration":0.95,"velocity":1,"pan":0.1},
+            {"at":1,"midi":84,"duration":0.475,"velocity":1,"pan":0.1},
+            {"at":1.5799999999999983,"midi":84,"duration":0.475,"velocity":1,"pan":0.1},
+            {"at":2,"midi":81,"duration":1.9,"velocity":1,"pan":0.1},
+            {"at":4,"midi":79,"duration":0.475,"velocity":1,"pan":0.1},
+            {"at":4.579999999999998,"midi":79,"duration":0.475,"velocity":1,"pan":0.1},
+            {"at":5,"midi":77,"duration":0.95,"velocity":1,"pan":0.1},
+            {"at":6,"midi":76,"duration":1.9,"velocity":1,"pan":0.1},
+            {"at":8,"midi":77,"duration":1.4249999999999998,"velocity":1,"pan":0.1},
+            {"at":10,"midi":77,"duration":1.9,"velocity":1,"pan":0.1},
+            {"at":12,"midi":79,"duration":1.9,"velocity":1,"pan":0.1},
+            {"at":14,"midi":79,"duration":1.9,"velocity":1,"pan":0.1}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "section-4",
+      "name": "Return",
+      "bars": 4,
+      "tracks": [
+        {
+          "name": "Lute",
+          "instrument": "lute",
+          "gain": 0.156,
+          "pan": 0,
+          "notes": [
+            {"at":0,"midi":43,"duration":0.5,"velocity":1,"pan":-0.2},
+            {"at":1,"midi":55,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":1.0300000000000011,"midi":59,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":1.0600000000000023,"midi":62,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":2,"midi":38,"duration":0.5,"velocity":0.923076923076923,"pan":-0.2},
+            {"at":3,"midi":55,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":3.030000000000001,"midi":59,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":3.0600000000000023,"midi":62,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":3.530000000000001,"midi":59,"duration":0.5,"velocity":0.4615384615384615,"pan":0.25},
+            {"at":3.5600000000000023,"midi":62,"duration":0.5,"velocity":0.4615384615384615,"pan":0.25},
+            {"at":3.5799999999999983,"midi":55,"duration":0.5,"velocity":0.4615384615384615,"pan":0.25},
+            {"at":4,"midi":41,"duration":0.5,"velocity":1,"pan":-0.2},
+            {"at":5,"midi":65,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":5.030000000000001,"midi":69,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":5.060000000000002,"midi":72,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":6,"midi":48,"duration":0.5,"velocity":0.923076923076923,"pan":-0.2},
+            {"at":7,"midi":65,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":7.030000000000001,"midi":69,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":7.060000000000002,"midi":72,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":7.530000000000001,"midi":69,"duration":0.5,"velocity":0.4615384615384615,"pan":0.25},
+            {"at":7.560000000000002,"midi":72,"duration":0.5,"velocity":0.4615384615384615,"pan":0.25},
+            {"at":7.579999999999998,"midi":65,"duration":0.5,"velocity":0.4615384615384615,"pan":0.25},
+            {"at":8,"midi":48,"duration":0.5,"velocity":1,"pan":-0.2},
+            {"at":9,"midi":60,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":9.030000000000001,"midi":64,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":9.060000000000002,"midi":67,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":10,"midi":43,"duration":0.5,"velocity":0.923076923076923,"pan":-0.2},
+            {"at":11,"midi":60,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":11.030000000000001,"midi":64,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":11.060000000000002,"midi":67,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":11.530000000000001,"midi":64,"duration":0.5,"velocity":0.4615384615384615,"pan":0.25},
+            {"at":11.560000000000002,"midi":67,"duration":0.5,"velocity":0.4615384615384615,"pan":0.25},
+            {"at":11.579999999999998,"midi":60,"duration":0.5,"velocity":0.4615384615384615,"pan":0.25},
+            {"at":12,"midi":43,"duration":0.5,"velocity":1,"pan":-0.2},
+            {"at":13,"midi":55,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":13.030000000000001,"midi":59,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":13.060000000000002,"midi":62,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":14,"midi":38,"duration":0.5,"velocity":0.923076923076923,"pan":-0.2},
+            {"at":15,"midi":55,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":15.030000000000001,"midi":59,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":15.060000000000002,"midi":62,"duration":0.5,"velocity":0.6153846153846154,"pan":0.25},
+            {"at":15.530000000000001,"midi":59,"duration":0.46999999999999886,"velocity":0.4615384615384615,"pan":0.25},
+            {"at":15.560000000000002,"midi":62,"duration":0.4399999999999977,"velocity":0.4615384615384615,"pan":0.25},
+            {"at":15.579999999999998,"midi":55,"duration":0.4200000000000017,"velocity":0.4615384615384615,"pan":0.25}
+          ]
+        },
+        {
+          "name": "Pad",
+          "instrument": "pad",
+          "gain": 0.016,
+          "pan": 0,
+          "notes": [
+            {"at":0,"midi":55,"duration":4,"velocity":1},
+            {"at":0,"midi":59,"duration":4,"velocity":1},
+            {"at":0,"midi":62,"duration":4,"velocity":1},
+            {"at":4,"midi":65,"duration":4,"velocity":1},
+            {"at":4,"midi":69,"duration":4,"velocity":1},
+            {"at":4,"midi":72,"duration":4,"velocity":1},
+            {"at":8,"midi":60,"duration":4,"velocity":1},
+            {"at":8,"midi":64,"duration":4,"velocity":1},
+            {"at":8,"midi":67,"duration":4,"velocity":1},
+            {"at":12,"midi":55,"duration":4,"velocity":1},
+            {"at":12,"midi":59,"duration":4,"velocity":1},
+            {"at":12,"midi":62,"duration":4,"velocity":1}
+          ]
+        },
+        {
+          "name": "Flute",
+          "instrument": "flute",
+          "gain": 0.08,
+          "pan": 0,
+          "notes": [
+            {"at":0,"midi":86,"duration":2.8499999999999996,"velocity":1,"pan":0.1},
+            {"at":4,"midi":84,"duration":0.95,"velocity":1,"pan":0.1},
+            {"at":5,"midi":84,"duration":0.95,"velocity":1,"pan":0.1},
+            {"at":6,"midi":88,"duration":0.95,"velocity":1,"pan":0.1},
+            {"at":7,"midi":86,"duration":0.95,"velocity":1,"pan":0.1},
+            {"at":8,"midi":84,"duration":0.95,"velocity":1,"pan":0.1},
+            {"at":9,"midi":86,"duration":0.95,"velocity":1,"pan":0.1},
+            {"at":10,"midi":88,"duration":0.95,"velocity":1,"pan":0.1},
+            {"at":11,"midi":86,"duration":0.95,"velocity":1,"pan":0.1},
+            {"at":12,"midi":86,"duration":1.9,"velocity":1,"pan":0.1},
+            {"at":14,"midi":86,"duration":1.9,"velocity":1,"pan":0.1}
+          ]
+        }
+      ]
+    }
+  ],
+  "arrangement": [
+    {
+      "section": "section-1",
+      "repeats": 1
+    },
+    {
+      "section": "section-2",
+      "repeats": 1
+    },
+    {
+      "section": "section-3",
+      "repeats": 1
+    },
+    {
+      "section": "section-4",
+      "repeats": 1
+    }
+  ],
+  "loop": {
+    "from": 1,
+    "to": 3
+  }
+}

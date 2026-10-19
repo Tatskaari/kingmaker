@@ -1,0 +1,5 @@
+{
+  "name": "kingmaker-tunes", "version": "0.1.0", "private": true, "type": "module",
+  "scripts": { "build": "node build.mjs", "typecheck": "tsc -p tsconfig.json", "test": "node --import tsx --test export.test.ts && node --test host.test.mjs && node test.mjs" },
+  "devDependencies": { "obsidian": "1.8.7" }
+}

@@ -57,7 +57,7 @@ type Laid={region:PlaceRegion;error:string}|{region:PlaceRegion;origin:Tile2;pat
 const editable=(target:EventTarget|null)=>target instanceof HTMLElement&&!!target.closest('input,textarea,select,[contenteditable="true"]');
 const THING_GLYPHS:Record<string,string>={feature:'◆',object:'■',item:'•',creature:'¥',person:'☺'};
 /** Where each of a map's problems is: the view that has its field. */
-const FIELD_VIEWS:Record<string,View>={id:'map',title:'map',description:'map',grid:'map'};
+const FIELD_VIEWS:Record<string,View>={id:'map',title:'map',description:'map',grid:'map',music:'map'};
 
 /** The editor for a map file. The host saves what it's handed; the editor's undo lasts while the file is open. */
 export function MapApp({document:initial,host}:{document:MapDocument;host:FileHost<MapDocument>}){
@@ -721,7 +721,7 @@ export function MapApp({document:initial,host}:{document:MapDocument;host:FileHo
             {stageElement}
           </div>
         </div>}
-        {view==='map'&&listView(<MapView doc={doc} actions={viewActions} size={{width:cells.width,height:cells.height}} around={around}/>)}
+        {view==='map'&&listView(<MapView doc={doc} actions={viewActions} size={{width:cells.width,height:cells.height}} around={around} tunes={campaign?.tunes??[]}/>)}
         {view==='legend'&&listView(<LegendView doc={doc} actions={viewActions} counts={counts} chosen={chosen.legend} onChoose={ch=>setChosen(old=>({...old,legend:ch}))}/>)}
         {view==='regions'&&listView(<RegionsView doc={doc} actions={viewActions} context={regionContext} chosen={chosen.regions} onChoose={index=>setChosen(old=>({...old,regions:index}))} placeNote={regionPlaceNote}/>)}
         {view==='exits'&&listView(<ExitsView doc={doc} actions={viewActions} maps={choices.maps} taken={campaign?.present.maps??[]} chosen={chosen.exits} onChoose={index=>setChosen(old=>({...old,exits:index}))}/>)}

@@ -14,6 +14,8 @@ import type {RegionContext} from './inspectors.tsx';
 import type {Option} from '../scene/fields.tsx';
 import {withKey} from '../campaign/json.ts';
 import {swatchOf} from './look.ts';
+import {MusicFields} from '../campaign/MusicFields.tsx';
+import type {TuneChoice} from '../campaign/tunes.ts';
 
 export type MapSelection={kind:'region'|'exit'|'person';index:number}|{kind:'legend';ch:string};
 
@@ -58,10 +60,10 @@ export type MapAround={
   middle:Tile2;
 };
 
-export function MapView({doc,actions,size,around}:Common&{size:{width:number;height:number};around:MapAround}){
+export function MapView({doc,actions,size,around,tunes=[]}:Common&{size:{width:number;height:number};around:MapAround;tunes?:TuneChoice[]}){
   const set=(key:string,value:unknown)=>actions.edit(withKey(doc,key,value,ORDER.map));
   return <div className="view-content map-view">
-    <ViewIndex label="The map's groups" groups={[['map-own','The map'],['map-size','Its size'],['map-start','The story\'s start'],['map-ways','Ways in'],['map-places','Places laid on it']]}/>
+    <ViewIndex label="The map's groups" groups={[['map-own','The map'],['map-music','Music'],['map-size','Its size'],['map-start','The story\'s start'],['map-ways','Ways in'],['map-places','Places laid on it']]}/>
     <Group title="The map" anchor="map-own" field="map">
       <TextField label="Title" field="title" hint="Its name as the game shows it." value={doc.title} onChange={value=>set('title',value)}/>
       <IdField id={doc.id} label="Map id" problem={next=>/^[a-z0-9][a-z0-9-]*$/.test(next)?undefined:'An id is a slug: lower-case letters, digits and dashes.'} onRename={next=>set('id',next)}
@@ -69,6 +71,9 @@ export function MapView({doc,actions,size,around}:Common&{size:{width:number;hei
       <TextArea label="Description" field="description" rows={3} value={doc.description} onChange={value=>set('description',value)}/>
       <OtherKeys value={doc} known={ORDER.map} onChange={set}/>
       {around.notes.map(note=><p className="problems-note" key={note}>{note}</p>)}
+    </Group>
+    <Group title="Music" anchor="map-music" field="music">
+      <MusicFields music={doc.music} tunes={tunes} onChange={value=>set('music',value)}/>
     </Group>
     <SizeGroup size={size} actions={actions}/>
     <StartGroup around={around} actions={actions}/>

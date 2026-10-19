@@ -76,6 +76,8 @@ interface MapDocument {
   /** The map's name as the game shows it. */
   title: string;
   description: string;
+  /** Tune ids below lore/Tunes/, without .kmtune. Missing slots use the game default. */
+  music?: Partial<Record<"morning" | "afternoon" | "evening" | "night" | "next-morning" | "combat", string>>;
   grid: string[];
   /** Legend character → the tile: terrain, its overrides (style, height, roof, roofHeight, blocks, opaque) and the decor that stands on it. */
   legend: Record<string, LegendEntry>;
@@ -94,6 +96,8 @@ interface MapDocument {
 - The author can add entries: a terrain with a style, a height or a roof, and optional decor (name, glyph, colour, states, text, blocks).
 - Unknown characters are refused.
 - Sizes go up to 160 by 120 (the town is 64 by 46). The game's renderer draws the preview, as it already does since M1.
+
+**Music** is edited in the Map view's Music group (and in a scene's Scene view). The dropdowns list `.kmtune` files from the campaign's `lore/Tunes/`, or the vault's `Tunes/` when the vault is the repository's lore folder. For example, `"night": "town/lanterns"` plays `Tunes/town/lanterns.kmtune`. A scene's assignment takes priority over its map; combat has its own choice. Clearing a choice restores inheritance. Nested tune folders are allowed; absolute paths and parent-directory traversal are refused.
 
 **The plugin's map features map onto the game's fields:**
 - **The spawn point** is the scenario's `start` (map and tile), set from the start map.

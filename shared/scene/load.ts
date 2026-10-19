@@ -24,6 +24,7 @@ export function sceneOf(doc: SceneDocument): Scene {
 
   return {
     id: doc.id, title: doc.title, ...(doc.time ? { time: doc.time } : {}), summary: doc.description,
+    ...(doc.music ? { music: { ...doc.music } } : {}),
     setting: doc.setting, premise: doc.premise, hook: doc.hook, opening: start.data.description,
     cast: doc.cast.map(characterOfMember),
     start: start.id,

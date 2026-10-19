@@ -1,0 +1,5 @@
+{
+  "id": "kingmaker-tunes", "name": "Kingmaker Tunes", "version": "0.1.0",
+  "minAppVersion": "1.8.7", "description": "Compose .kmtune music with a piano roll, reusable sections and arrangement repeats.",
+  "author": "Kingmaker", "isDesktopOnly": true
+}

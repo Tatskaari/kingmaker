@@ -5,6 +5,14 @@
   "id": "palace",
   "title": "The Palace",
   "description": "The palace's long gallery, the old kings' portraits propped along it for the Assembly, the back stairs down to the gate, and the King's dressing room.",
+  "music": {
+    "morning": "town",
+    "afternoon": "town",
+    "evening": "night",
+    "night": "night",
+    "next-morning": "town",
+    "combat": "fight"
+  },
   "grid": [
     "PPPPP",
     "PaaaPPpPpPpPpP",

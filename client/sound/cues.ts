@@ -11,7 +11,9 @@ export interface SoundOut {
 let out: SoundOut | undefined;
 let queue: SoundMessage[] = [];
 let queued = false;
-let mood: Mood | null | undefined;
+/** The screen's music request, including context that may change without a change of mood. */
+export type MusicContext = Pick<Extract<SoundMessage, { type: "music" }>, "track" | "scene" | "map" | "slot">;
+let screenMusic: ({ mood: Mood | null } & MusicContext) | undefined;
 /** A mood the sound board is playing, over whatever the screen would have (undefined: none). */
 let held: Mood | null | undefined;
 /** When the menus last moved and chose (performance.now()'s ms): a move a few ms after another is one tick, and a menu closing as it chooses is the choice's. */
@@ -21,7 +23,7 @@ let chose = -Infinity;
 /** Where the client's sounds go from now on (none: they go nowhere). */
 export function setSoundOut(next: SoundOut | undefined): void {
   out = next;
-  mood = undefined;
+  screenMusic = undefined;
   held = undefined;
 }
 
@@ -71,18 +73,21 @@ export function blip(voice: Voice, letter: string, delay: number, group?: string
   send({ type: "blip", voice, letter, ...(delay > 0 ? { delay } : {}), ...(group ? { group } : {}) });
 }
 
-/** The music's mood (none: quiet). Said only when it changes, and not while the sound board holds one. */
-export function music(next: Mood | null): void {
-  if (!out || next === mood) return;
-  mood = next;
-  if (held === undefined) send({ type: "music", mood: next });
+/** The screen's music (none: quiet). Context changes can choose another tune with the same mood. */
+export function music(next: Mood | null, context: MusicContext = {}): void {
+  if (!out) return;
+  const request = { mood: next, ...context };
+  if (screenMusic && screenMusic.mood === request.mood && screenMusic.track === request.track
+    && screenMusic.scene === request.scene && screenMusic.map === request.map && screenMusic.slot === request.slot) return;
+  screenMusic = request;
+  if (held === undefined) send({ type: "music", ...request });
 }
 
 /** The sound board plays a mood (none: quiet) whatever the screen's; undefined lets go, back to the screen's. */
 export function audition(next: Mood | null | undefined): void {
   if (!out || next === held) return;
   held = next;
-  send({ type: "music", mood: next === undefined ? mood ?? null : next });
+  send({ type: "music", ...(next === undefined ? screenMusic ?? { mood: null } : { mood: next }) });
 }
 
 /** A group's sounds stopped: what's playing fades, what's still to come doesn't. */

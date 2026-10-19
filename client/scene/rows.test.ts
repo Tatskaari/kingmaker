@@ -44,6 +44,22 @@ test("the transcript in order, with names and markup; who's here, by the names t
   assert.equal(view.watching, undefined);
 });
 
+test("music gets the authored scene key and raw hour, even without a rendered place", () => {
+  const rows = base();
+  rows.scene.sceneKey = "hanged-clerk";
+  rows.scene.time = "next-morning";
+  const view = sceneViewOf(rows);
+  assert.equal(view.sceneKey, "hanged-clerk");
+  assert.equal(view.musicTime, "next-morning");
+  assert.notEqual(view.musicTime, view.time);
+  delete rows.scene.time;
+  assert.equal(sceneViewOf(rows).musicTime, "morning", "the game clock supplies an unset scene hour");
+  rows.scene.kind = "talk";
+  rows.scene.sceneKey = "talk-kell-2";
+  rows.talkTemplate = "companion-conversation";
+  assert.equal(sceneViewOf(rows).sceneKey, "companion-conversation", "generated talks use the authored template's music");
+});
+
 test("a turn in flight: the phase, the draft with its attempt and seq, and no typing until it's settling", () => {
   const rows = base();
   rows.scene.turnId = 5n;
@@ -277,4 +293,3 @@ test("settling: the reply's in, the world settling behind it; the box is open, a
   rows.turns[1] = turn(5n, 1, "settling", { note: "The GM has lost the thread for a moment: trying again." });
   assert.equal(sceneViewOf(rows).note, "The GM has lost the thread for a moment: trying again.");
 });
-

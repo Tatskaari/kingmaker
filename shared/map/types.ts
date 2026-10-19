@@ -5,6 +5,8 @@
  * scene world (src/world) keep their own types; these are the seams between them.
  */
 
+import type { MusicAssignments } from "../music/assignments.ts";
+
 export interface Tile2 { x: number; y: number }
 
 export type Terrain =
@@ -35,6 +37,7 @@ export interface Region {
 export interface TileMap {
   id: string;
   name: string;
+  music?: MusicAssignments;
   width: number;
   height: number;
   /** tiles[y][x] */

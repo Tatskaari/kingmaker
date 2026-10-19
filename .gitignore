@@ -11,3 +11,6 @@ dist/
 # Run output: the dev stack's data, keys and logs, the e2e's, the headless client's sessions, the
 # browser check's screens.
 runs/
+
+# Optional local Obsidian campaign copy; canonical content lives in campaigns/.
+/lore/Game/

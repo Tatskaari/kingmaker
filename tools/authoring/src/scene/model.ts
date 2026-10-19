@@ -51,7 +51,7 @@ export const shapeOf=(doc:SceneDocument):string[]=>shapeProblems(doc);
 
 /** Each object's keys in the order the format and the campaign's files have them. A key added goes where this puts it. */
 export const ORDER={
-  scene:['format','version','kind','id','title','description','lore','time','place','interlude','rest','milestone','hook','setting','premise','truth','clock','limits','known','cast','facts','background','assumes','overtaken','onStart','onEnd','afterwards','fronts','companion','nodes','edges'],
+  scene:['format','version','kind','id','title','description','lore','time','music','place','interlude','rest','milestone','hook','setting','premise','truth','clock','limits','known','cast','facts','background','assumes','overtaken','onStart','onEnd','afterwards','fronts','companion','nodes','edges'],
   cast:['id','name','called','aka','lore','look','voice','wants','fears','whyHere','knows','secrets','attitude','limits','roles','enters','group','statblock','weapon','members'],
   start:['kind','title','description','cast','lore'],
   beat:['kind','title','description','revelation','paths','required','cast','pressure','establishes','carry','lore'],

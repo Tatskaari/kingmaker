@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "title": "Lanterns",
+  "bpm": 96,
+  "beats": 4,
+  "sections": [
+    {
+      "id": "intro",
+      "name": "Intro",
+      "bars": 2,
+      "tracks": [
+        {
+          "name": "Harp",
+          "instrument": "harp",
+          "gain": 0.1,
+          "pan": 0,
+          "notes": [
+            {
+              "midi": 62,
+              "at": 0,
+              "duration": 2,
+              "velocity": 0.8
+            },
+            {
+              "midi": 65,
+              "at": 2,
+              "duration": 2,
+              "velocity": 0.8
+            },
+            {
+              "midi": 69,
+              "at": 4,
+              "duration": 2,
+              "velocity": 0.8
+            },
+            {
+              "midi": 67,
+              "at": 6,
+              "duration": 2,
+              "velocity": 0.8
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "chorus",
+      "name": "Chorus",
+      "bars": 2,
+      "tracks": [
+        {
+          "name": "Harp",
+          "instrument": "harp",
+          "gain": 0.1,
+          "pan": 0,
+          "notes": [
+            {
+              "midi": 67,
+              "at": 0,
+              "duration": 2,
+              "velocity": 0.8
+            },
+            {
+              "midi": 70,
+              "at": 2,
+              "duration": 2,
+              "velocity": 0.8
+            },
+            {
+              "midi": 74,
+              "at": 4,
+              "duration": 2,
+              "velocity": 0.8
+            },
+            {
+              "midi": 72,
+              "at": 6,
+              "duration": 2,
+              "velocity": 0.8
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "arrangement": [
+    {
+      "section": "intro",
+      "repeats": 1
+    },
+    {
+      "section": "chorus",
+      "repeats": 2
+    }
+  ],
+  "loop": {
+    "from": 1,
+    "to": 1
+  }
+}

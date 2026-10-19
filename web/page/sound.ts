@@ -40,7 +40,8 @@ interface Port { postMessage(message: unknown): void }
 
 export function pageSound(options: { version: string; controls?: HTMLElement | null; turned?: () => void }): PageSound {
   const settings = loadSettings();
-  const heard: Heard = { messages: 0, dropped: 0, mood: null, kinds: { sfx: 0, blip: 0, music: 0, hush: 0, volume: 0 } };
+  const heard: Heard = { messages: 0, dropped: 0, mood: null, kinds: { sfx: 0, blip: 0, music: 0, 'tune-update': 0, hush: 0, volume: 0 } };
+  let music: Extract<SoundMessage, { type: "music" }> = { type: "music", mood: null };
   let context: AudioContext | undefined;
   let port: Port | undefined;
   let starting: Promise<void> | undefined;
@@ -53,7 +54,7 @@ export function pageSound(options: { version: string; controls?: HTMLElement | n
         const ctx = new AudioContext({ latencyHint: "interactive" });
         await ctx.audioWorklet.addModule(new URL(`./sound-worklet.js${options.version}`, import.meta.url));
         // The volumes and the mood so far are the engine's from its first block.
-        const messages: SoundMessage[] = [volumeMessage(settings), ...(settings.music && heard.mood ? [{ type: "music" as const, mood: heard.mood }] : [])];
+        const messages: SoundMessage[] = [volumeMessage(settings), ...(settings.music && heard.mood ? [music] : [])];
         const node = new AudioWorkletNode(ctx, "kingmaker-sound", { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2], processorOptions: { messages } });
         node.connect(ctx.destination);
         context = ctx;
@@ -86,7 +87,7 @@ export function pageSound(options: { version: string; controls?: HTMLElement | n
   };
   const turn = (which: Switch) => {
     settings[which] = !settings[which];
-    changed(which === "music" ? [{ type: "music", mood: settings.music ? heard.mood : null }] : []);
+    changed(which === "music" ? [settings.music ? music : { type: "music", mood: null }] : []);
   };
   const setVolume = (volume: number) => {
     settings.volume = Math.max(0, Math.min(MOST_MASTER, volume));
@@ -121,7 +122,7 @@ export function pageSound(options: { version: string; controls?: HTMLElement | n
       heard.messages += messages.length;
       for (const m of messages) heard.kinds[m.type]++;
       const kept = messages.filter(m => {
-        if (m.type === "music") { heard.mood = m.mood; return settings.music; }
+        if (m.type === "music") { heard.mood = m.mood; music = m; return settings.music; }
         if (m.type === "sfx") return settings.sfx;
         if (m.type === "blip") return settings.voice;
         return true;

@@ -32,6 +32,8 @@ interface SceneDocument {
 
   // ---- When and where (the story and the map) ----
   time?: "morning" | "afternoon" | "evening" | "night" | "next-morning";
+  /** Tune ids below lore/Tunes/, without .kmtune. Missing slots inherit the map or game default. */
+  music?: Partial<Record<"morning" | "afternoon" | "evening" | "night" | "next-morning" | "combat", string>>;
   /** The place's key: places/<key>.kmplace (docs/scenario-format.md), the world the stage manager keeps (areas, things, who stands where). */
   place?: string;
   /** Downtime between scenes, standing in for the map (the story skips it). */

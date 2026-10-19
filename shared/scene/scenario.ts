@@ -4,6 +4,7 @@ import type { LegendEntry, MapFile, MapPerson, PlaceRegion } from "../map/tiles.
 import type { TileMap } from "../map/types.ts";
 import type { Material, Size, ThingSpec, WorldSpec } from "../world/scene-world.ts";
 import type { CampaignFile, PlaceFile, TimeOfDay } from "./files.ts";
+import { musicAssignmentProblems, type MusicAssignments } from "../music/assignments.ts";
 
 /**
  * The scenario, its maps and its places are files the game loads as they are and the Obsidian plugin
@@ -71,6 +72,8 @@ export interface ScenarioDocument extends Envelope<"scenario"> {
 
 /** A map (maps/<id>.kmmap): tiles.ts's MapFile under the envelope, its title the map's name. */
 export interface MapDocument extends Envelope<"map"> {
+  /** Tunes for each time of day and for combat, relative to lore/Tunes/ without .kmtune. */
+  music?: MusicAssignments;
   /** Rows of legend characters, north at the top. */
   grid: string[];
   /** Legend character → the tile: terrain, its overrides (style, height, roof, roofHeight, blocks, opaque) and the decor that stands on it. */
@@ -210,6 +213,7 @@ export function mapShapeProblems(value: unknown): string[] {
   if (!isObject(value)) return ["it isn't a JSON object"];
   const d = value, p: string[] = [];
   envelopeProblems(d, "map", p);
+  p.push(...musicAssignmentProblems(d.music));
   if (!(Array.isArray(d.grid) && d.grid.length > 0 && d.grid.every(row => typeof row === "string"))) p.push("its grid isn't a list of rows (text, one character a tile)");
   if (!isObject(d.legend)) p.push("it has no legend { character: tile }");
   else for (const [ch, entry] of Object.entries(d.legend)) {

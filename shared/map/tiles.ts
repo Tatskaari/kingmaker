@@ -1,5 +1,6 @@
 // Copied from the prototype's src/game/map/tiles.ts at 44c6d4a, whole; its types from ./types.ts. Added at the end: MapFile and LegendEntry (a map as campaign data: maps/<key>.json, now maps/<key>.kmmap) and mapOf, which builds one with buildMap; and MapPerson, who's about on a map by the hour (presence.ts's town, as data).
 import type { Interaction, MapActor, Region, StoryState, Terrain, Tile, Tile2, TileMap } from "./types.ts";
+import type { MusicAssignments } from "../music/assignments.ts";
 
 /**
  * Maps are authored as ASCII grids with a legend (one character per tile), so a person can read and
@@ -89,6 +90,7 @@ export const T = (terrain: Terrain, extra: Omit<MapTile, "terrain"> = {}, decor?
 export interface MapSpec {
   id: string;
   name: string;
+  music?: MusicAssignments;
   /** Rows of characters, north at the top; short rows are padded with void. */
   grid: string;
   legend: Record<string, TileDef>;
@@ -118,7 +120,7 @@ export function buildMap(spec: MapSpec): MapDef {
       return { ...def.tile };
     }));
   });
-  const map: TileMap = { id: spec.id, name: spec.name, width, height: rows.length, tiles, regions: spec.regions, exits: spec.exits ?? [] };
+  const map: TileMap = { id: spec.id, name: spec.name, ...(spec.music ? { music: { ...spec.music } } : {}), width, height: rows.length, tiles, regions: spec.regions, exits: spec.exits ?? [] };
   return { map, decor };
 }
 
@@ -182,6 +184,7 @@ export type LegendEntry = { terrain: Terrain; decor?: DecorDef } & Omit<MapTile,
 export interface MapFile {
   id: string;
   name: string;
+  music?: MusicAssignments;
   grid: string[];
   legend: Record<string, LegendEntry>;
   regions: PlaceRegion[];
@@ -213,5 +216,5 @@ export interface MapPerson {
 export function mapOf(file: MapFile): MapDef {
   const legend: Record<string, TileDef> = {};
   for (const [ch, { terrain, decor, ...extra }] of Object.entries(file.legend)) legend[ch] = T(terrain, extra, decor);
-  return buildMap({ id: file.id, name: file.name, grid: file.grid.join("\n"), legend, regions: file.regions, exits: file.exits });
+  return buildMap({ id: file.id, name: file.name, ...(file.music ? { music: file.music } : {}), grid: file.grid.join("\n"), legend, regions: file.regions, exits: file.exits });
 }

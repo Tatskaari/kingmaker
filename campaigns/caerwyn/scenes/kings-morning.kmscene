@@ -11,6 +11,14 @@
     "World/Caerwyn now.md"
   ],
   "time": "next-morning",
+  "music": {
+    "morning": "scene",
+    "afternoon": "scene",
+    "evening": "night",
+    "night": "night",
+    "next-morning": "scene",
+    "combat": "fight"
+  },
   "place": "dressing-room",
   "rest": "long",
   "milestone": true,

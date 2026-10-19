@@ -123,6 +123,11 @@ jobs:
       - run: npx --no-install playwright install --with-deps chromium-headless-shell
       - run: npm run build:web
       - run: npm run web:check
+      - name: Tune editor and music export
+        run: |
+          npm ci --prefix tools/kmtune
+          npm run check:kmtune
+          npm run build:kmtune
       - name: The check's screens, when it failed
         if: failure()
         uses: actions/upload-artifact@v4

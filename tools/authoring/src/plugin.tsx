@@ -1,8 +1,8 @@
 import React from 'react';
 import {createRoot} from 'react-dom/client';
 import type {Root} from 'react-dom/client';
-import {FuzzySuggestModal,Modal,normalizePath,Notice,Plugin,Setting,TextFileView,TFile,TFolder} from 'obsidian';
-import type {App as ObsidianApp,WorkspaceLeaf} from 'obsidian';
+import {FuzzySuggestModal,Menu,Modal,normalizePath,Notice,Plugin,Setting,TextFileView,TFile,TFolder} from 'obsidian';
+import type {App as ObsidianApp,WorkspaceLeaf,MenuItem} from 'obsidian';
 import {LegacyScenario,LegacyScene,MapApp,MapMigration,PlaceApp,ScenarioApp,SceneApp} from './App';
 import {openSceneFile,serializeScene,skeletonScene} from './scene/model.ts';
 import type {SceneDocument} from './scene/model.ts';
@@ -19,6 +19,8 @@ import type {MapDocument} from './map/model.ts';
 import {readV1Map} from './map/migrate.ts';
 import {newPlace,openPlaceFile} from './place/model.ts';
 import type {PlaceDocument} from './place/model.ts';
+
+import {newTune,writeTune} from '../../../client/sound/tune.ts';
 
 const VIEW='kingmaker-authoring-file';
 const KINDS:FileKind[]=['scene','scenario','map','place'];
@@ -316,20 +318,20 @@ function version1(raw: string, kind: string): Record<string, unknown>|undefined 
 class NameDocumentModal extends Modal {
   private resolve: (name: string|null) => void;
   private submitted = false;
-  constructor(app: ObsidianApp, private kind: FileKind, private folder: TFolder, resolve: (name: string|null) => void) {
+  constructor(app: ObsidianApp, private kind: FileKind|'tune', private folder: TFolder, resolve: (name: string|null) => void) {
     super(app);
     this.resolve = resolve;
   }
 
   onOpen() {
-    const extension = BY_KIND[this.kind];
+    const extension = this.kind === 'tune' ? 'kmtune' : BY_KIND[this.kind];
     this.setTitle(`New Kingmaker ${this.kind}`);
     this.contentEl.createEl('p', {text: `Create a ${this.kind} in ${this.folder.path || 'the vault root'}. Its title can be anything; its file is named for its id, a slug of the title (The Hanged Clerk is hanged-clerk.${extension}), which game state keys on.`});
     let name = '';
     let input: HTMLInputElement;
     const error = this.contentEl.createEl('p', {cls:'mod-warning'});
     const submit = () => {
-      const cleaned = name.trim().replace(/\.(kmscene|kmscenario|kmmap|kmplace)$/i, '').trim();
+      const cleaned = name.trim().replace(/\.(kmscene|kmscenario|kmmap|kmplace|kmtune)$/i, '').trim();
       const file = slugOf(cleaned);
       if (!file) {
         error.setText(`Give the ${this.kind} a title with letters or digits in it.`);
@@ -350,7 +352,7 @@ class NameDocumentModal extends Modal {
     };
     new Setting(this.contentEl).setName('Title').addText(text => {
       input = text.inputEl;
-      text.setPlaceholder(this.kind === 'scene' ? 'The Hanged Clerk' : this.kind === 'map' ? 'The Cooperage' : this.kind === 'place' ? 'The Granary Yard' : 'Caerwyn');
+      text.setPlaceholder(this.kind === 'scene' ? 'The Hanged Clerk' : this.kind === 'map' ? 'The Cooperage' : this.kind === 'place' ? 'The Granary Yard' : this.kind === 'tune' ? 'Lanterns' : 'Caerwyn');
       text.onChange(value => { name = value; error.empty(); });
       text.inputEl.addEventListener('keydown', event => {
         if (event.key === 'Enter') { event.preventDefault(); submit(); }
@@ -409,10 +411,21 @@ export default class WorkshopPlugin extends Plugin {
     this.registerEvent(this.app.workspace.on('file-menu', (menu, file) => {
       const parent = file instanceof TFolder ? file : file.parent;
       if (!parent) return;
-      for (const kind of KINDS) {
-        menu.addItem(item => item.setTitle(`New Kingmaker ${kind}`).setIcon(kind === 'scene' ? 'git-branch' : 'map')
-          .onClick(() => { void this.createDocument(kind, parent); }));
-      }
+      const populate = (target: Menu) => {
+        for (const kind of KINDS) {
+          target.addItem(item => item.setTitle(`New ${kind}`).setIcon({scene:'git-branch',scenario:'book-open',map:'map',place:'map-pin'}[kind])
+            .onClick(() => { void this.createDocument(kind, parent); }));
+        }
+        target.addItem(item => item.setTitle('New tune').setIcon('music').onClick(() => { void this.createTune(parent); }));
+      };
+      menu.addItem(item => {
+        item.setTitle('Kingmaker').setIcon('crown');
+        // Obsidian's native submenu method isn't in the public typings. Keep a
+        // click-open menu fallback so this entry still works if it is absent.
+        const native = item as MenuItem & {setSubmenu?: () => Menu};
+        if (native.setSubmenu) populate(native.setSubmenu());
+        else item.onClick(event => { const child = new Menu(); populate(child); child.showAtPosition({x:'clientX' in event ? event.clientX : window.innerWidth / 2, y:'clientY' in event ? event.clientY : window.innerHeight / 2}); });
+      });
     }));
     for (const kind of KINDS) {
       this.addCommand({
@@ -427,6 +440,20 @@ export default class WorkshopPlugin extends Plugin {
     };
     this.addRibbonIcon('git-branch', 'Open Kingmaker scene, scenario, map or place', open);
     this.addCommand({id:'open-file', name:'Open scene, scenario, map or place', callback:open});
+  }
+
+  /** New music uses the shared score format and opens in Kingmaker Tunes. */
+  async createTune(parent: TFolder): Promise<TFile|null> {
+    const name = await new Promise<string|null>(resolve => new NameDocumentModal(this.app, 'tune', parent, resolve).open());
+    if (!name) return null;
+    let file: TFile;
+    try {
+      const tune = newTune(); tune.title = name;
+      file = await this.app.vault.create(normalizePath(`${parent.path}/${slugOf(name)}.kmtune`), writeTune(tune));
+    } catch (error) { new Notice(`Could not create tune: ${message(error)}`); return null; }
+    try { await this.app.workspace.getLeaf('tab').openFile(file); }
+    catch (error) { new Notice(`Created ${file.path}, but could not open it: ${message(error)}`); }
+    return file;
   }
 
   /** The folder new files of a kind go in: the vault's folder for them when it has one (a campaign's scenes/), else `fallback`. */
