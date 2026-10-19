@@ -132,6 +132,16 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
 /** Long enough on a busy machine; a wait that never ends fails rather than hangs. */
 const PATIENCE = { timeout: 20_000 };
 
+test("a generated companion talk resolves music through its campaign's authored template", PATIENCE, async t => {
+  const tables = yardTables();
+  tables.scene![0] = { ...tables.scene![0]!, kind: "talk", sceneKey: "talk-kell-2", time: "evening" };
+  tables.campaign![0] = { ...tables.campaign![0]!, json: JSON.stringify({ talk: "companion-conversation" }) };
+  const { replica } = await replicaOver(t, tables);
+  assert.equal(replica.view()?.sceneKey, "companion-conversation");
+  assert.equal(replica.view()?.musicTime, "evening");
+  assert.equal(replica.view()?.talk, true);
+});
+
 test("the Replica over a port draws the yard as the Connection over the SDK does: the scene and its place, the home rows (the saved game's time revived, so the title says it), the map", PATIENCE, async t => {
   const tables = yardTables();
   const connection = await connectionOver(t, tables);

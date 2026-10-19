@@ -1,6 +1,9 @@
 // New: the sound engine on the browser's audio thread (docs/sound-design.md): an AudioWorklet processor that hands each of the page's messages to the engine (client/sound/engine.ts) and fills each block the browser asks for with its samples. The build bundles this as sound-worklet.js, which sound.ts loads once the player has pressed a key or clicked.
 import { Engine, type SoundMessage } from "../../client/sound/engine.ts";
 
+import type { SoundLibrary } from "../../client/sound/library.ts";
+declare const __KM_SOUND_LIBRARY__: SoundLibrary;
+
 // The AudioWorklet's own scope (no TypeScript library has it): its rate, its processors, and a processor's port.
 declare const sampleRate: number;
 declare function registerProcessor(name: string, processor: new (options?: { processorOptions?: Start }) => object): void;
@@ -17,7 +20,7 @@ class KingmakerSound extends AudioWorkletProcessor {
   constructor(options?: { processorOptions?: Start }) {
     super();
     const start = options?.processorOptions ?? {};
-    this.engine = new Engine(sampleRate, start.seed ?? Math.floor(Math.random() * 2 ** 31));
+    this.engine = new Engine(sampleRate, start.seed ?? Math.floor(Math.random() * 2 ** 31), {}, typeof __KM_SOUND_LIBRARY__ === "undefined" ? undefined : __KM_SOUND_LIBRARY__);
     for (const message of start.messages ?? []) this.engine.receive(message);
     this.port.onmessage = (event: MessageEvent) => {
       for (const message of event.data as SoundMessage[]) this.engine.receive(message);

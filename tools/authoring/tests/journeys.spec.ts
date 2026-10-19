@@ -380,7 +380,7 @@ test('a fact renamed follows everywhere it\'s named; removed, after asking, it l
 test('the Scene view: the scene\'s own fields, grouped, each edited where it is',async({page})=>{
   await view(page,'Scene').click();
   const scene=page.locator('.scene-view');
-  await expect(scene.getByRole('region')).toHaveText([/^The scene/,/^What the player knows/,/^The prep/,/^When and where/,/^The world/,/^The story/,/^Lore/]);
+  await expect(scene.getByRole('region')).toHaveText([/^The scene/,/^What the player knows/,/^The prep/,/^When and where/,/^Music/,/^The world/,/^The story/,/^Lore/]);
   await expect(scene.getByRole('region',{name:'What the player knows'}).getByLabel('Hook',{exact:true})).toHaveValue(clerk().hook);
   await scene.getByRole('region',{name:'The prep'}).getByLabel('Premise',{exact:true}).fill('Murder or suicide, before the noon cart?');
   await scene.getByRole('region',{name:'When and where'}).getByLabel('Time',{exact:true}).selectOption('afternoon');

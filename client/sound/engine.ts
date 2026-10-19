@@ -5,6 +5,11 @@ import { play, type Bus, type PartSpec, type Playing } from "./parts.ts";
 import { blipOf, patchOf, type Cue, type Voice } from "./patches.ts";
 import { MOST_MASTER, VOLUMES, type Volumes } from "./volumes.ts";
 
+import { TuneSong, validateTune, noteParts, type Tune } from "./tune.ts";
+
+import { EMPTY_LIBRARY, cueReference, type SoundLibrary } from "./library.ts";
+import type { MusicAssignments, MusicSlot } from "../../shared/music/assignments.ts";
+
 export type { Volumes };
 
 /**
@@ -15,7 +20,8 @@ export type { Volumes };
 export type SoundMessage =
   | { type: "sfx"; cue: Cue; delay?: number; group?: string }
   | { type: "blip"; voice: Voice; letter: string; delay?: number; group?: string }
-  | { type: "music"; mood: Mood | null }
+  | { type: "music"; mood: Mood | null; tune?: Tune; track?: string; scene?: string; map?: string; slot?: string }
+  | { type: "tune-update"; tune: Tune }
   | { type: "hush"; group: string }
   | { type: "volume"; volumes: Partial<Volumes> };
 
@@ -36,7 +42,7 @@ const MOST_WAITING = 4000;
 const CHANGE_MS = 1400;
 const GAP_S = 0.5;
 
-interface Waiting { at: number; spec: PartSpec; group: string | undefined }
+interface Waiting { at: number; spec: PartSpec; group: string | undefined; songBeat?: number }
 
 export class Engine {
   readonly rate: number;
@@ -49,7 +55,7 @@ export class Engine {
   private readonly limited = { l: 0, r: 0 };
   private readonly seed: number;
   private seq = 0;
-  private song: Song | undefined;
+  private song: Song | TuneSong | undefined;
   private songs = 0;
   private targets: Volumes = { ...VOLUMES };
   private readonly gains: Volumes = { ...VOLUMES };
@@ -59,7 +65,13 @@ export class Engine {
   private sends: Record<Bus, Float32Array> = { sfx: new Float32Array(0), voice: new Float32Array(0), music: new Float32Array(0) };
   private readonly wet = { l: 0, r: 0 };
 
-  constructor(rate: number, seed = 1) {
+  private readonly tunes: Partial<Record<Mood, Tune>>;
+  private readonly library: SoundLibrary;
+  private track: string | undefined;
+
+  constructor(rate: number, seed = 1, tunes: Partial<Record<Mood, Tune>> = {}, library: SoundLibrary = EMPTY_LIBRARY) {
+    this.library = library;
+    this.tunes = tunes;
     this.rate = rate;
     this.seed = seed;
     this.room = new Room(rate);
@@ -76,9 +88,10 @@ export class Engine {
 
   receive(m: SoundMessage): void {
     switch (m.type) {
-      case "sfx": this.schedule(patchOf(m.cue, this.nextSeed()), this.when(m.delay), m.group); return;
+      case "sfx": this.schedule(this.cueParts(m.cue), this.when(m.delay), m.group); return;
       case "blip": this.schedule(blipOf(m.voice, m.letter, this.nextSeed()), this.when(m.delay), m.group); return;
-      case "music": this.setMood(m.mood); return;
+      case "music": this.setMood(m); return;
+      case "tune-update": this.updateTune(m.tune); return;
       case "hush": this.hush(m.group, 25); return;
       case "volume":
         this.targets = { ...this.targets, ...clean(m.volumes) };
@@ -92,7 +105,9 @@ export class Engine {
   render(left: Float32Array, right: Float32Array): void {
     const n = left.length;
     this.ready(n);
-    if (this.song) for (const note of this.song.bars(this.time + n + AHEAD * this.rate)) this.wait(note.at, note.spec, this.song.group);
+    if (this.song instanceof TuneSong) {
+      for (const note of this.song.bars(this.time + n + AHEAD * this.rate)) this.wait(note.at, note.spec, this.song.group, note.beat);
+    } else if (this.song) for (const note of this.song.bars(this.time + n + AHEAD * this.rate)) this.wait(note.at, note.spec, this.song.group);
     this.startDue(n);
     this.play(n);
     this.master(left, right, n);
@@ -114,7 +129,7 @@ export class Engine {
   }
 
   /** A part waiting to start, in order of when. */
-  private wait(at: number, spec: PartSpec, group: string | undefined): void {
+  private wait(at: number, spec: PartSpec, group: string | undefined, songBeat?: number): void {
     if (this.waiting.length >= MOST_WAITING) return;
     const list = this.waiting;
     let lo = 0, hi = list.length;
@@ -123,7 +138,7 @@ export class Engine {
       if (list[mid]!.at <= at) lo = mid + 1;
       else hi = mid;
     }
-    list.splice(lo, 0, { at, spec, group });
+    list.splice(lo, 0, { at, spec, group, songBeat });
   }
 
   /** What's due in this block starts, on its sample; a voice's blip cuts the one before it, as speech does. */
@@ -200,11 +215,57 @@ export class Engine {
   }
 
   /** The music changes mood: the song playing fades, and the new one starts after a breath; the same mood plays on. */
-  private setMood(mood: Mood | null): void {
-    if ((mood ?? undefined) === this.song?.mood) return;
+  private setMood(message: Extract<SoundMessage, {type: "music"}>): void {
+    const { mood, tune } = message;
+    if (tune) validateTune(tune);
+    const slot = message.slot as MusicSlot | undefined;
+    const choose = (assignments?: MusicAssignments) => slot ? assignments?.[slot] ?? (slot === 'next-morning' ? assignments?.morning : undefined) : undefined;
+    const assigned = choose(message.scene ? this.library.scenes?.[message.scene] : undefined)
+      ?? choose(message.map ? this.library.maps?.[message.map] : undefined);
+    // A compiled map entry, including an empty one, supersedes stale campaign row assignments.
+    const direct = message.map && Object.hasOwn(this.library.maps ?? {}, message.map) ? undefined : message.track;
+    const track = assigned ?? direct ?? (mood ? this.library.music[mood] : undefined);
+    if (!tune && (mood ?? undefined) === this.song?.mood && track === this.track) return;
     if (this.song) this.hush(this.song.group, CHANGE_MS);
+    this.track = track;
+    const score = tune ?? (track ? this.library.tunes[track] : undefined) ?? (mood ? this.tunes[mood] : undefined);
+    if (mood && score) {
+      this.song = new TuneSong(mood, score, this.time + GAP_S * this.rate, this.rate, `music:${++this.songs}`);
+      return;
+    }
     this.song = mood ? new Song(mood, this.nextSeed(), this.time + GAP_S * this.rate, this.rate, `music:${++this.songs}`) : undefined;
   }
+
+  /** Live score edits replace lookahead; sounding voices and the song's clock continue. */
+  private updateTune(tune: Tune): void {
+    if (!(this.song instanceof TuneSong)) return;
+    const group = this.song.group;
+    const pending = this.waiting.flatMap(note => note.group === group && note.at >= this.time && note.songBeat !== undefined ? [note.songBeat] : []);
+    const delayed = this.song.update(tune, this.time, pending);
+    if (!delayed) return;
+    this.waiting = this.waiting.filter(note => note.group !== group || note.at < this.time);
+    for (const note of delayed) this.wait(note.at, note.spec, group, note.beat);
+  }
+
+  /** Cue sections use the effects bus, so menu sounds still respect the SFX switch. */
+  private cueParts(cue: Cue): PartSpec[] {
+    const ref = cueReference(this.library, cue), tune = ref && this.library.tunes[ref.tune];
+    const section = tune?.sections.find(s => s.id === ref!.section);
+    if (!ref || !tune || !section) return patchOf(cue, this.nextSeed());
+    const beatMs = 60000 / tune.bpm;
+    const durationScale = cue.ms && ref.source?.ms ? Math.max(0.1, Math.min(10, cue.ms / ref.source.ms)) : 1;
+    const gainScale = cue.size && ref.source?.size ? Math.max(0.4, Math.min(2, Math.sqrt(cue.size / ref.source.size))) : 1;
+    const parts = section.tracks.flatMap(track => track.notes.flatMap(note => noteParts(track, { ...note, duration: note.duration * durationScale }, beatMs).map(part => ({
+      ...part, bus: "sfx" as const, at: note.at * beatMs * durationScale + (part.at ?? 0),
+      gain: part.gain * gainScale,
+    }))));
+    // The exported reference contains one die/dart; the game supplies how many are in flight.
+    const maximum = cue.sfx === 'dice.roll' ? 3 : cue.sfx === 'spell.bolt' && cue.element === 'force' ? 64 : 1;
+    const count = Math.max(1, Math.min(maximum, Math.round((cue.count ?? ref.source?.count ?? 1) / (ref.source?.count ?? 1))));
+    if (count === 1) return parts;
+    return Array.from({ length: count }, (_, index) => parts.map(part => ({ ...part, at: (part.at ?? 0) + index * (cue.sfx === 'dice.roll' ? 30 : 90) }))).flat();
+  }
+
 }
 
 const pair = (n: number) => ({ l: new Float32Array(n), r: new Float32Array(n) });
@@ -218,4 +279,3 @@ function clean(v: Partial<Volumes>): Partial<Volumes> {
   }
   return out;
 }
-

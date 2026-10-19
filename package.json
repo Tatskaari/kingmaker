@@ -37,7 +37,10 @@
     "glyphs:build": "python3 tools/glyphs/build.py",
     "glyphs:uninstall": "python3 tools/glyphs/build.py --uninstall",
     "glyphs:sheet": "python3 tools/glyphs/sheet.py",
-    "glyphs:vte": "python3 tools/glyphs/vte.py"
+    "glyphs:vte": "python3 tools/glyphs/vte.py",
+    "export:tunes": "node --no-warnings --import tsx tools/kmtune/export.ts",
+    "build:kmtune": "npm run build --prefix tools/kmtune",
+    "check:kmtune": "npm run typecheck --prefix tools/kmtune && npm run test --prefix tools/kmtune"
   },
   "dependencies": {
     "@opentui/core": "0.6.5",

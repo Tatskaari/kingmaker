@@ -146,8 +146,14 @@ function harness() {
     },
     metadataCache:{getFileCache:() => null, getFirstLinkpathDest:path => entries.get(path)},
   };
+  const shownMenus = [];
+  class Menu {
+    items = [];
+    addItem(callback) { const item = {setTitle(title){this.title=title;return this;},setIcon(){return this;},onClick(fn){this.click=fn;return this;}}; callback(item); this.items.push(item); return this; }
+    showAtPosition() { shownMenus.push(this); }
+  }
   const obsidian = {
-    Plugin, TextFileView, TFile:File, TFolder:Folder, Modal, FuzzySuggestModal:Modal, Setting, normalizePath,
+    Menu, Plugin, TextFileView, TFile:File, TFolder:Folder, Modal, FuzzySuggestModal:Modal, Setting, normalizePath,
     Notice:class {constructor(message){notices.push(message);}},
   };
   const editor = name => ({[name]:function() { return null; }})[name];
@@ -176,7 +182,7 @@ function harness() {
   /** A small map of the format (the default legend on grass, as the plugin makes one), and its file's text. */
   const newMap = (title = 'Market') => maps.newMap(title, undefined, 6, 4);
   const mapText = doc => maps.serializeMap(doc);
-  return {app,plugin,view,scene,maps,editors,roots,modals,notices,opened,writes,contents,entries,addFile,addFolder,addCampaign,currentElement,renderOf,submitName,createView,vaultEvents,hostFor,newScene,sceneText,newMap,mapText};
+  return {shownMenus,app,plugin,view,scene,maps,editors,roots,modals,notices,opened,writes,contents,entries,addFile,addFolder,addCampaign,currentElement,renderOf,submitName,createView,vaultEvents,hostFor,newScene,sceneText,newMap,mapText};
 }
 
 test('registers custom extensions and native folder create actions', async () => {
@@ -186,10 +192,22 @@ test('registers custom extensions and native folder create actions', async () =>
   assert.equal(h.plugin.views[0][0], 'kingmaker-authoring-file');
   assert.deepEqual(h.plugin.commands.map(command => command.id), ['new-scene','new-scenario','new-map','new-place','open-file']);
   const folder = h.addFolder('scenes');
-  const titles = [];
-  const menu = {addItem(callback){callback({setTitle(title){titles.push(title);return this;},setIcon(){return this;},onClick(){return this;}});}};
+  const actions = [];
+  h.plugin.createDocument = (kind,parent) => actions.push([kind,parent.path]);
+  h.plugin.createTune = parent => actions.push(['tune',parent.path]);
+  const makeMenu = () => ({items:[],addItem(callback){const item={setTitle(title){this.title=title;return this;},setIcon(){return this;},onClick(fn){this.click=fn;return this;},setSubmenu(){this.submenu=makeMenu();return this.submenu;}};callback(item);this.items.push(item);}});
+  const menu = makeMenu();
   h.plugin.events.find(event => event.name === 'file-menu').callback(menu,folder);
-  assert.deepEqual(titles,['New Kingmaker scene','New Kingmaker scenario','New Kingmaker map','New Kingmaker place']);
+  assert.deepEqual(menu.items.map(item => item.title),['Kingmaker']);
+  const children = menu.items[0].submenu.items;
+  assert.deepEqual(children.map(item => item.title),['New scene','New scenario','New map','New place','New tune']);
+  children.forEach(item => item.click());
+  assert.deepEqual(actions,[['scene','scenes'],['scenario','scenes'],['map','scenes'],['place','scenes'],['tune','scenes']]);
+  // A file's context menu creates beside it, not in the active tab's folder.
+  const file = h.addFile('scenes/existing.md'); const fileMenu = makeMenu();
+  h.plugin.events.find(event => event.name === 'file-menu').callback(fileMenu,file);
+  fileMenu.items[0].submenu.items[4].click();
+  assert.deepEqual(actions.at(-1),['tune','scenes']);
 });
 
 test('every real scene opens in the scene editor with its exact bytes, and an unchanged scene is never written', async () => {
@@ -829,4 +847,24 @@ test('a late echo of the saved baseline preserves a newer draft but genuine exte
   assert.notEqual(h.currentElement().key,original.key);
   host.change({...scene,title:'Stale callback'});
   assert.equal(h.view.getViewData(),external);
+});
+
+
+test('Kingmaker menu retains grouped creation if native submenus are unavailable', async () => {
+  const h = harness(); await h.plugin.onload(); const folder=h.addFolder('Music');
+  let parent;
+  const menu={addItem(callback){parent={setTitle(){return this;},setIcon(){return this;},onClick(fn){this.click=fn;return this;}};callback(parent);}};
+  h.plugin.events.find(event=>event.name==='file-menu').callback(menu,folder);
+  parent.click({clientX:100,clientY:100});
+  assert.deepEqual(h.shownMenus[0].items.map(item=>item.title),['New scene','New scenario','New map','New place','New tune']);
+});
+
+test('new tune is named, created in the chosen folder, and opened without replacing a file', async () => {
+  const h=harness(); const folder=h.addFolder('Music');
+  const pending=h.plugin.createTune(folder); h.submitName('Lanterns');
+  const file=await pending; assert.equal(file.path,'Music/lanterns.kmtune');
+  const score=JSON.parse(h.contents.get(file.path)); assert.equal(score.version,1); assert.equal(score.title,'Lanterns'); assert.equal(score.arrangement[0].repeats,2);
+  assert.deepEqual(h.opened,['Music/lanterns.kmtune']);
+  const duplicate=h.plugin.createTune(folder); const modal=h.submitName('Lanterns');
+  assert.equal(h.writes.length,1); modal.close(); assert.equal(await duplicate,null);
 });

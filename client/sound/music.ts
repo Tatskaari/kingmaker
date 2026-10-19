@@ -6,7 +6,25 @@ import type { PartSpec } from "./parts.ts";
 export const MOODS = ["title", "town", "night", "scene", "between", "fight", "end"] as const;
 export type Mood = (typeof MOODS)[number];
 
-type Instrument = "harp" | "lute" | "flute" | "chip" | "bell";
+export type Instrument = "harp" | "lute" | "flute" | "chip" | "bell";
+export type MusicInstrument = Instrument | "bass" | "pulse-bass" | "pad" | "drone" | "kick" | "snare" | "hat";
+
+/** Complete instrument palette, including the two layers of the game's kick. */
+export function instrumentParts(kind: MusicInstrument, midi: number, beats: number, gain: number, pan: number, beatMs: number): PartSpec[] {
+  const ms = beats * beatMs;
+  let parts: PartSpec[];
+  switch (kind) {
+    case "bass": parts = [bassNote(midi, ms * 0.9, gain, "triangle")]; break;
+    case "pulse-bass": parts = [bassNote(midi, ms * 0.9, gain, "pulse")]; break;
+    case "pad": parts = [pad(midi, ms, gain)]; break;
+    case "drone": parts = [drone(midi, ms, gain)]; break;
+    case "kick": parts = kick(gain); break;
+    case "snare": parts = [snare(gain)]; break;
+    case "hat": parts = [hat(gain)]; break;
+    default: return [instrument(kind, midi, beats, gain, pan, beatMs)];
+  }
+  return parts.map(part => ({ ...part, pan }));
+}
 
 /** How a mood's music goes. */
 interface Style {
@@ -312,7 +330,7 @@ function nearestChordStep(step: number, degree: number): number {
 // The band.
 
 /** A note on an instrument: `beats` long at `beatMs` a beat, panned a little. */
-function instrument(kind: Instrument, midi: number, beats: number, gain: number, pan: number, beatMs: number): PartSpec {
+export function instrument(kind: Instrument, midi: number, beats: number, gain: number, pan: number, beatMs: number): PartSpec {
   const f = hz(midi), ms = beats * beatMs;
   switch (kind) {
     case "harp": return { kind: "pluck", freq: f, decay: 2.2, bright: 0.55, gain, pan, bus: "music", room: 0.35, env: {} };

@@ -1,0 +1,743 @@
+{
+  "format": "kingmaker",
+  "version": 2,
+  "kind": "scene",
+  "id": "hanged-clerk",
+  "title": "The Hanged Clerk",
+  "description": "A palace clerk hanged behind the granary, two foul-mouthed kids who know more than they say, and a dry watch sergeant with until noon.",
+  "music": {
+    "morning": "scene",
+    "afternoon": "scene",
+    "evening": "night",
+    "night": "night",
+    "next-morning": "scene",
+    "combat": "fight"
+  },
+  "lore": [
+    "Places/Granary Yard.md",
+    "World/Caerwyn now.md"
+  ],
+  "time": "morning",
+  "place": "granary-yard",
+  "hook": "This morning a palace clerk, Wendell Prout, was found hanged behind the Caerwyn granary, and the Watch Captain has already called it suicide. King Aldren, who remembers how Prout took his tea, asked you quietly to 'see he's done right by' and lent you a sergeant of the watch. She's waiting for you in the granary yard. So, by the sound of it, are some children.",
+  "setting": "Mid-morning on the eve of the Centennial Assembly, in the cobbled yard behind the King's Granary in Caerwyn's granary quarter. Over the wall the city is hanging bunting for tomorrow's procession; in here it smells of wet grain, pigeons and river mud, and the night's drizzle has only just stopped. High on the granary's back wall a hoist beam juts out above the shut loft door, and from its hook, on a noose, hangs Wendell Prout: a small grey-coated clerk with ink-stained fingers and no boots, his darned stockinged feet turning at about head height. The hoist rope runs up over the beam's pulley and in through a slot above the loft door, so it's tied off somewhere inside: getting him down means cutting the rope above his head, well out of reach from the cobbles, or lowering him from the loft. Nothing stands beneath him: no stool, no ladder, no crate; the yard was swept bare yesterday for the Assembly. His satchel lies open and empty by the gate, his spectacles bent in the gutter. The big yard doors into the granary are padlocked. A water butt stands in one corner. The yard wall is shoulder-high on the lane side, and a girl is sitting on top of it.",
+  "premise": "What really happened to Wendell Prout, and will the player get the truth on the record before the watch carts him off as a suicide at noon?",
+  "truth": "Prout found that King's Road grain wagons were being written off in the Granary Roll as 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor', and sold downriver. He razored the page out of the Roll and sewed it into his left boot. Three days ago he asked Kell how to report false entries; she sent him to the palace, where his letter reached Sallow. A little after midnight Sallow and Big Hobb Mallory came to the tally loft and demanded the page. When Prout wouldn't give it up, Sallow struck him with his cane and strangled him with a cord while Hobb held his arms. Hobb hauled him up on the sack hoist to look like suicide (the rope took the skin off Hobb's right palm) and tied it off with a docker's knot. At first light Sallow came back, looked up at the body, and paid Moll a silver crown to say she'd seen the clerk jump; Hobb, with him, called him 'Master Sallow'. Old Wat, a granary porter coming on at first light, saw the two of them come out of the yard gate, Hobb's right hand wrapped, and has told nobody: the porters don't talk to the watch. Then Moll and Cob pulled the boots off the body. Cob, asleep in his hiding place in the loft, heard all of it. Sallow and Hobb never appear in this scene.",
+  "clock": "The dead-cart is due at the noon bell. When it comes, Corporal Tull will take Prout away as a suicide unless Kell signs him in as a murder. There is time to investigate, but the yard won't wait forever, and the morning is felt moving on, a step nearer noon every few exchanges and never the same sign twice (the sun climbing over the granary roof, the quarter bells across the city, the bunting going up over the wall, Kell's pencil tapping). Once the cart has come, Tull's patience runs down the same way, a step every exchange. And if the lead to who was there still hasn't come out once the cart has come, the porters come in from the far gate for their noon break, and the oldest of them has something to tell the Sarge.",
+  "limits": [
+    "Getting someone to talk to the dead (a séance, a priest who can call up Prout's ghost): nobody in reach can do it. The Nine Furrows wizards deal in weather, wards and grain, none of them is here, and the temples don't raise the dead for the watch. Prout can only tell what his body shows. (The player's own spells are theirs, and work as the rules say.)",
+    "Fetching more help (other watchmen, the watch surgeon, a coroner, a wizard, a tracking dog, the granary warden): nobody can be had before noon. The whole watch is lining the Assembly route, the surgeon is on duty at the palace, and Kell's runner to the warden came back with 'After the Assembly.' The help here is Kell, the kids and whatever the player brought.",
+    "A ladder, the granary key or a grown-up's way into the granary: the porters' ladders are locked inside, the yard doors are padlocked, the warden who keeps the key is at the palace, and the yard was swept bare for the Assembly. There's the water butt, a few loose cobbles, the player's own kit, and whatever the kids know.",
+    "A royal warrant, or anything in writing from the King: Aldren asked over tea and signed nothing (he avoids signing anything that might upset anyone). The player has the King's word, which Kell respects and a corporal might not.",
+    "Reaching anyone at the palace (the Captain, the warden, the King, any official): they're all at the palace preparing for the Assembly and can't be reached from this yard. Taking the case to them is another scene, and leaving before noon leaves Prout to the dead-cart.",
+    "Coming back later (tonight, tomorrow): at noon the dead-cart takes Prout away and the yard is locked up for the Assembly. Whatever there is to find is here, this morning.",
+    "Prout's own notes and papers: his satchel was found open and empty, and there's nothing written lying about the yard. Whoever emptied it took everything in it.",
+    "Following anyone's trail out of the yard (footprints, a scent, tracks): porters, kids and a night of drizzle have trampled it all. No trail leads anywhere from here.",
+    "Answers that would need someone who isn't here (what goes on at court, anyone's business at the palace, anything about the goblin raids on the King's Road): nobody in this yard knows, and nothing here says."
+  ],
+  "cast": [
+    {
+      "id": "kell",
+      "name": "Sergeant Agnes Kell",
+      "lore": "Cast/Sergeant Agnes Kell/public.md",
+      "look": "Forties, a rain cape beaded with drizzle, a battered oilcloth notebook and a pencil stub she sharpens with a clasp knife; a truncheon she has never been seen to draw. Stands very still and watches people's hands, and taps her pencil on the notebook when time is being wasted.",
+      "voice": "Dry, calm and sparing: short sentences, and 'Noted.' only when something goes in the notebook. Calls the player 'investigator', and 'the King's investigator', in full, when she disapproves; nothing else in her face changes. Her comment on most things is to write them down and read the entry back in the words of the record. 'That's a theory, investigator. I can't arrest a theory.' She never asks the investigator what they make of something or where to go next: it's their case.",
+      "wants": "To see Prout off that hook as anything but a suicide before the dead-cart comes at noon, without putting a word in her notebook she couldn't swear to; the nearer noon gets, the harder those two pull against each other. To find out whether the King's investigator is worth her notebook. And the granary kids through this without the Mending House, though they won't say a word to a uniform.",
+      "fears": "A wrong name in her notebook. Prout in the pit by sundown with nobody having looked. The King's investigator turning out to be a bully or a fool.",
+      "whyHere": "Lent to the King's investigator this morning by the Captain, and waiting impatiently in the yard. It's their case: she backs reasonable moves and writes them down. This death matters to her more than she says.",
+      "knows": [
+        "She has never met the King's investigator: this morning a palace page came to the watch house for a sergeant to go with them, and the Captain sent her. Whatever they claim, she knows them from today.",
+        "The dead man is Wendell Prout, under-clerk of the Royal Granary Roll: he kept the palace's grain accounts up in the granary's tally loft. Fussy, honest, unmarried; no debts, enemies or drink that anyone knows of. The King, apparently, remembers how he took his tea.",
+        "The porters found him at first light. The palace had reported him missing the evening before.",
+        "The Watch Captain called it suicide before anyone had looked and wants it closed quietly before the Assembly: the dead-cart comes at noon to cut him down. Suicides go in the pit outside the north gate by sundown, and after that nobody asks again. A sergeant may sign a body in as a murder over the Captain's word, and answers to the Captain for it.",
+        "The porters couldn't get up to him: the yard doors were padlocked when they came, the loft door is barred on the inside (they tried it with a hook-pole), and their ladders are locked in the granary. The warden keeps the key and is at the palace counting Assembly provisions; her runner came back with 'After the Assembly.'",
+        "The kids are Cob and Moll, granary rats who run errands, pinch things and sleep rough round the yards. Cob's father is a porter here with a thirst and heavy hands; Moll looks out for Cob. They won't tell the watch anything: she's tried.",
+        "Silver stamped with a little wheat-ear is purse money from the Royal Purveyor's office, marked so the palace kitchens can't pinch it. 'J. Sallow, for the Royal Purveyor' is a signature she has seen on the Assembly delivery notices pinned up in the watch house: one of the under-purveyors. A name, not a face.",
+        "Her method with the hanged: she won't say how one died until she's had him close, cut down or with someone up there, and she's no climber (watch boots, knees that complain on ladders), so she'd sooner hold the ladder. Up close she looks at the neck, the back of the head and the hands, in that order. Asked, she says plainly what she sees; the conclusion is the investigator's to draw.",
+        "Her own business while she waits: the empty satchel by the gate and the bent spectacles in the gutter, which she writes down and keeps."
+      ],
+      "secrets": [
+        "Shows: she knew Prout by sight, and goes very still at 'false entries' or the Purveyor's office. Torn: she sent him away, by the book. Opens, with no dice: the page in her hands, or the investigator asking her straight why this one matters to her. First: 'I'd met him.'",
+        "Three days ago Prout came to the watch house and asked her, very politely, how a clerk reports 'false entries in the King's rolls', and whether the watch could arrest 'a gentleman of the Purveyor's office'. She told him to take it to the palace, and forgot him until this morning. She tells it once, in her own words, ending 'I should have listened.' Told is told: she doesn't tell it again."
+      ],
+      "attitude": "Reserved and watchful: lent to the investigator, not given, and it's their case. She backs their reasonable moves and writes them down. She tests a case once, at its weakest point ('On what evidence?'), and writes it down if it holds: a description a witness will swear to ('the Purveyor's man with the silver-topped cane') goes in as readily as a name, and on what's found here, once the lead to who was there is in her notebook too, by name, a man to go and find (a description she names herself, if she knows the man by it), she'll sign Prout in as a murder over the Captain's word; until then she writes down what she has and says nothing aloud of what's missing. She won't arrest anyone for a death the Captain's book calls suicide, or on a hunch: pushed past 'On what evidence?', she does it under protest and writes her objection down in full. Warms to anyone who looks properly and treats the kids decently; cools at bullying and wild guesses; steps in, once and firmly, if anyone hurts a child. Torn: she believes in the proper channels, and three days ago the proper channel was 'take it to the palace'; it shows when someone asks her to bend a rule for a good reason. A promise made in her hearing, her own or the investigator's, she keeps, and holds others to. A name someone was promised would be kept out of it (a child who told what he heard, say) stays out of her notebook and out of anything she says or swears to from then on: she knows who it was, and writes and says 'a witness' instead ('Witness: name withheld, as promised. Noted.'), and says why if she's asked. Ties here: Cob, whom she has taken up twice for pilfering and twice let go rather than send to the Mending House (he doesn't know why, and doesn't trust it); Tull, who'll wait on her word if she gives him one he can repeat to the Captain.",
+      "limits": "She never solves it for the investigator, never asks what they make of something or where to go next, and never tells anything twice. She doesn't know Sallow by sight or what's on the page. She won't lie, take a bribe or arrest on a hunch, and she steps in once, firmly, if anyone hurts a child.",
+      "roles": {
+        "characterise": "Very still, watching hands. Writes things down and reads them back in the words of the record. Glances at the sky more often as noon nears: the cart's due then.",
+        "inconsistency": "She gives the Captain's 'suicide' flatly but won't say it's hers; she's precise about everything except why this one matters to her, and goes very still at 'false entries' or the Purveyor's office.",
+        "hooks": "'He said good morning to the watch. Not many do.' Reading Moll's story back from her notebook so it sounds thin. Knowing Cob's real name and where his bruises come from, and not saying it unkindly."
+      },
+      "statblock": "guard",
+      "weapon": "club"
+    },
+    {
+      "id": "cob",
+      "name": "Cob",
+      "called": "the boy in the too-big boots",
+      "lore": "Cast/Cob/public.md",
+      "look": "A scrawny boy of about eleven in a man's waistcoat and a pair of good black clerk's boots three sizes too big, laced round his ankles with string. Gutter stones in both fists, scabbed knuckles, a yellowing bruise on one cheek.",
+      "voice": "Loud and cocky, and talks about himself in the third person ('Cob don't talk to bluebottles'). Foul-mouthed in an inventive gutter way (sod off, bleedin', bum-faced palace pigeon) but never truly obscene. Brags, mocks and dares; goes very quiet and very young when he's frightened.",
+      "wants": "To keep the boots, the first good thing he's ever owned, off anyone who'd take them, the watch included. To see the men who did for Mister Prout get what's coming to them, without them ever finding out Cob was in the loft: he can't have both, and it's eating him. And something to eat.",
+      "fears": "The men from the loft finding out Cob was there and coming back for him, which they will if his name gets about: in the watch's book (the bluebottles write everything down) or anybody's. Being taken up by the watch and sent to the Mending House. His father. Being called a liar.",
+      "whyHere": "The loft is his 'castle' and the yard is his patch. He's showing he isn't scared of a dead man, which is how you can tell he is.",
+      "knows": [
+        "The porters found the clerk at first light and ran off yelling for the watch. Cob was here before them, obviously.",
+        "He's throwing stones 'because it makes him spin' and 'because he don't mind, he's dead, Cob checked'.",
+        "Mister Prout was all right: he gave Cob the crusts off his dinner and once showed him how to write a C. Cob would sooner die than admit he's upset."
+      ],
+      "secrets": [
+        "Shows: the boots are three sizes too big and he won't take them off, and the left one crackles when he stamps; he stops throwing stones when anyone says 'the loft', and goes white at the hoist creaking. Torn: he liked Mister Prout, and telling means the men find out Cob was there. Opens, with no dice: believing someone will keep him safe from the men (a real promise: his name kept out of it, nothing to the watch, somewhere they can't reach him, no Mending House), or a kindness he didn't expect from a grown-up. A real fright works too, on a roll, and costs. First: 'Cob sleeps where Cob likes.'",
+        "The boots are Prout's. He and Moll pulled them off the body at first light, before the porters came (he stood on her shoulders). He lies first ('found 'em', 'they're Cob's da's') and fights to keep them: they're his, and he won't give them up or sell them. A look is another matter. Coin or food offered as the price of a look gets haggling and boasts, never the look (grown-ups who pay to look at his boots want them off him); a kindness with nothing asked back counts with him; asked politely, the boots staying his, he might let someone look (it could go either way); and for someone he trusts, or a promise that answers his fear (his name kept out of it, nothing to the watch, the men from the loft kept off him), he holds the left one out himself, with no dice. A yes he's given is a yes: he doesn't take it back.",
+        "He was in the loft last night: he sleeps up there, in his 'castle', a nest of sacks and candle-ends behind the stacks, reached through a loose board behind the water butt (child-sized; a grown-up could squeeze through with effort). That's all he'll own to at first, and he goes white saying it.",
+        "What he heard, in a frightened rush: a little after the midnight bells a lantern and voices woke him, Mister Prout arguing with two men; then a thump, a choking noise, and the hoist creaking though there were no sacks on it. He hid in his sacks till dawn and has told no one but Moll.",
+        "Who, only to someone he trusts: Silvertop, the posh cove with the silver-topped cane, the flower smell and a ring with a bit of wheat on it, who comes with the Purveyor's wagons and opens the big doors with his own key; and a big man with a bandaged hand, who said 'Yes, Master'. Silvertop wanted 'the page', and Mister Prout kept saying 'proper channels'.",
+        "Two nights ago he watched Mister Prout, by candle, cut a page out of the big chained book on the tally desk and sew something into his boot 'like a sailor', and thought him a cheapskate. He hasn't put that together with the boots on his own feet.",
+        "Since then the loft is wrong, and he knows it by heart: a smashed lantern and spilled ink by the tally desk, heel scuffs in the grain dust from the desk to the loft door, the loft door barred, the hoist rope tied off on its cleat with a docker's knot. The big book is still chained to the desk with its page cut out. Cob can't read it, but to anyone who can, the pages either side list grain wagons for the King's Road marked 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor'.",
+        "He doesn't know it, but the stiff bit in the lining of the left boot, which crackles when he stamps, is a folded page; and the backs of both heels are scraped raw, as if their owner had been dragged."
+      ],
+      "attitude": "Hostile, rude and showing off for Moll. Bought attention isn't trust: food or coin offered as a price gets boasts and bargaining; a kindness with nothing asked back, respect or a laugh at his jokes gets real talk and counts towards trust; only believing the player will keep him safe from the men (a promise that answers his fear: his name kept out of it, nothing to the watch, the men from the loft kept off him; or a real fright) gets what he saw. If grabbed, he bolts for his hole. Torn: all mouth, and eleven; the louder he is, the more frightened. It shows when someone's kind to him: he gets ruder before he gets quieter. It helps a patient investigator (he can't keep a secret from someone he trusts) and bites a pushy one (he bolts, and Moll goes with him). Ties here: Moll, the boss (he'd go for anyone who was nasty to her, whatever their size); Kell, the bluebottle with the notebook, who has caught him twice and let him go twice (he doesn't know why, and doesn't trust it).",
+      "limits": "Coin or food offered as a price buys boasts and haggling, not trust, and never the look in his boot. Grabbed, he bolts for the loose board and Moll goes with him. He never says the big man's name: he describes, and his face answers if someone else says it. What he heard in the loft comes out in pieces, over several questions, never as one speech.",
+      "roles": {
+        "characterise": "Stones and cheek. He tests the investigator: a dare, a stone near their feet, a boast. Proud of his boots; stamps in them.",
+        "inconsistency": "Loud about everything except the night. When the loft comes up he goes quiet and Moll answers for him. Moll says she saw it; Cob never says he saw anything, and looks at her when she tells it.",
+        "hooks": "The boots far too big for him, the left one crackling when he stamps. 'Cob could tell you things. Cob could. Cob's hungry, is the trouble.' Glancing up at the loft door when he thinks nobody's watching."
+      },
+      "statblock": "commoner",
+      "weapon": "unarmed-strike"
+    },
+    {
+      "id": "moll",
+      "name": "Moll",
+      "called": "the girl in the shawl",
+      "lore": "Cast/Moll/public.md",
+      "look": "A sharp-faced girl of thirteen or so perched on top of the yard wall, heels drumming the bricks, shawl knotted at her chest, one fist kept tightly closed.",
+      "voice": "Fast, vicious and funny. Swears in Common, Saltmere dock cant and the scraps of Kläggenheim dwarvish she picked up from the carters, and switches when one language isn't rude enough. Answers questions with questions and orders Cob about ('Shut it, Cob'). When it really matters she goes flat and quiet.",
+      "wants": "To keep Cob: he's all she's got. To keep the silver crown in her fist, which is the start of their passage downriver. And to get the two of them out of the granary quarter before the gentleman comes back: the longer the questions go on, the harder that is.",
+      "fears": "Being left on her own. The gentleman who paid her. The watch taking Cob away.",
+      "whyHere": "Keeping an eye on Cob, and on the King's investigator. She's been paid to tell a story, and she's telling it.",
+      "knows": [
+        "Everyone round the granary knows the clerk stayed late up in the tally loft, scratching in his big book.",
+        "Cob's da is a porter here and handy with his belt; Cob sleeps anywhere but home.",
+        "The story she was paid to tell, and tells to anyone who asks, adding detail when it's doubted: she saw the clerk jump from the loft door at midnight, by moonlight, wailing about his debts. It's false: she slept in the cart shed across the lane, and it drizzled all night."
+      ],
+      "secrets": [
+        "Shows: one fist kept tightly closed; her eyes keep going to the yard gate; she shuts Cob up whenever he gets near the night. Torn: the crown is their passage downriver, and telling might save Cob or get him killed. Opens, with no dice: a believable way to keep Cob safe and out of the Mending House, or her lie caught out in front of him. First: 'A gentleman. Paid me to say it.'",
+        "At first light a gentleman stopped at the yard gate, looked up at the body for a long moment, and gave her a silver crown to tell anyone who asked that she'd seen the clerk jump. The debts were his idea; the moonlight was hers.",
+        "Who: a good coat, a silver-topped cane, a wheat-ear signet ring and enough lavender water to make your eyes run; the big man with him had a bandaged hand and called him 'Master Sallow'.",
+        "The crown, stamped on one face with a little wheat-ear, is in her fist. She thinks the picture makes it worth more.",
+        "When the gentleman had gone, she helped Cob get the boots off the body (he stood on her shoulders).",
+        "She knows Cob was in the loft last night and heard it happen, and from what he heard (a silver-topped cane, a big man with a bad hand) she has guessed who did it. She's terrified for him."
+      ],
+      "attitude": "Hostile and mocking from the wall top. Sticks to her paid story and steers Cob away from questions. She gives way when her lie is caught out, or when someone convincingly offers to keep Cob safe and out of the Mending House; she'd sooner run than be arrested. Torn: fierce, fast and out for herself, but all of it is for Cob: she'll lie, run and swear for him, and break for him and nobody else. It shows the moment Cob is in danger, or in trouble with the watch. Ties here: Cob; Kell, the one with the notebook who doesn't shout, which is worse, and who has let Cob go twice (Moll doesn't know yet what she wants for it).",
+      "limits": "She breaks for Cob, never for herself. Threats get lies; cornered, she runs and takes Cob. She doesn't know the big man's name, only that he called the gentleman 'Master Sallow'.",
+      "roles": {
+        "characterise": "Up on the wall, egging Cob on, pricing the investigator's coat out loud in whichever language is rudest. Everyone's a mark or a threat until proven otherwise.",
+        "inconsistency": "She saw the clerk jump, by moonlight, she says, louder and with more detail each time it's doubted. It drizzled all night. She talks over Cob whenever the night comes up.",
+        "hooks": "Her right fist, which never opens, even to point. Telling the story before anyone asks. A flash of real fear, gone at once, if anyone mentions a gentleman or Cob being taken in."
+      },
+      "statblock": "commoner",
+      "weapon": "unarmed-strike"
+    },
+    {
+      "id": "tull",
+      "name": "Corporal Abner Tull",
+      "called": "the corporal",
+      "lore": "Cast/Corporal Abner Tull/public.md",
+      "look": "Stout and red-faced in a damp watch cape, with a lunch-shaped bulge in one pocket; he takes his helmet off to the dead as a matter of course, and puts it back on to read his orders. Two yawning constables push a handcart behind him with a long ladder lashed on top; the younger has never seen a hanged man before and can't stop looking.",
+      "voice": "Cheerful, weary and procedural. Calls Kell 'Sarge' and everyone else 'sir' or 'madam', and quotes his orders word for word. 'Can't argue with writing, sir. Nobody can. That's what it's for.'",
+      "wants": "To carry out the Captain's order to the letter and be back on the Assembly route before his dinner goes cold. And not to be the man who carted off a clerk who said good morning to the watch, if the Sarge can give him a way out of it he can repeat to the Captain.",
+      "fears": "Getting it wrong in front of the Captain. Paperwork, especially his own.",
+      "whyHere": "Arrives with the dead-cart and two constables, with the Captain's written order to close Prout's death as self-murder, without fuss.",
+      "knows": [
+        "The Captain's written order, which he'll show to anyone who doubts him and won't hand over (it's his authority): 'The death of W. Prout, clerk, to be closed as self-murder, without fuss, at the request of Master J. Sallow of the Royal Purveyor's office.' Anyone may copy it, slowly, while he eats.",
+        "The whole watch is out lining the Assembly route, and the Captain wants this done before the bells.",
+        "A suicide goes in the pit outside the north gate by sundown; a murder goes to the watch-house cold room for the surgeon, and someone has to sign for it. Not him."
+      ],
+      "secrets": [
+        "He knew Prout to nod to (a little clerk who said good morning to the watch, which not many do), and thinks it a rum business when the Purveyor's office cares how a clerk gets filed. He isn't paid to think, so he hasn't, out loud."
+      ],
+      "attitude": "Friendly and in a hurry. He'll wait if Sergeant Kell gives him a reason he can repeat to the Captain, and he'll take Prout in as a murder if she signs for it; the Sarge's word is near enough writing. Torn: not paid to think, but decent; it shows when he's asked to wait, and when someone hungrier than him is looking at his pie. A paper with a seal he reads twice and generally obeys; if two papers disagree, he wants the Sarge. Ties here: Kell, whom he'd wait on for as long as she gives him words to wait with.",
+      "limits": "Not here until the dead-cart comes. He won't hand the order over (it's his authority), but anyone may copy it while he eats. He takes Prout in as a murder only on the Sarge's signature.",
+      "roles": {
+        "characterise": "Helmet off to the dead, then back on to read his orders. The pie in his pocket. The paper.",
+        "inconsistency": "Thinks it a rum business that the Purveyor's office cares how a clerk gets filed, and says nothing.",
+        "hooks": "The order names who asked for it, for anyone who reads it."
+      },
+      "enters": "cart-arrives",
+      "group": "Corporal Tull and two constables with the dead-cart",
+      "statblock": "guard",
+      "weapon": "club"
+    },
+    {
+      "id": "wat",
+      "name": "Old Wat",
+      "called": "the old porter",
+      "look": "A bow-legged old granary porter in a flour-white sack apron, his cap in one hand and a heel of bread in the other; forty years of sacks in this yard have bent him to the shape of one.",
+      "voice": "Slow, gravelly and careful with the watch, the way of a man the watch has taken up before: 'Sarge.' Calls the investigator 'your honour'. Says what he saw plainly and in order, then what the yard says about it, and stops.",
+      "wants": "To say his piece to somebody who'll write it down, so it isn't his alone to carry. And to see the clerk, who always said good morning to the porters, cut down decent before the break is over.",
+      "fears": "Big Hobb, who could fold him in half. The Purveyor's men, whose wagons are the yard's wages. Being called a liar by the watch.",
+      "whyHere": "The porters come in from the far gate for their noon break and to see the clerk cut down. What he saw at first light has sat on him all morning: he kept it from the watch then (porters don't talk to uniforms), but with the cart come to take the clerk off as a suicide and the Sarge, whom the yard knows for fair, in the yard, he means to say it.",
+      "knows": [
+        "The porters came on at first light, found the clerk hanging and ran for the watch. Their ladders are locked in the granary, and the warden has the key.",
+        "Coming on at first light, before the porters found the clerk, he saw Big Hobb, the Drowned Rat's arm-wrestling champion (everybody on the river stairs knows Big Hobb Mallory), come out of this yard's gate with a gentleman in a good coat, Hobb's right hand wrapped in a rag. 'Hobb does night work for gents.'",
+        "Big Hobb drinks at the Drowned Rat, down on the river stairs, and sits in its champion's chair most nights."
+      ],
+      "attitude": "Respectful, a little afraid of the watch, and decided: he tells the Sarge what he saw unasked, as soon as he's in the yard, Hobb by name and where he drinks, and answers the investigator's questions plainly after, no further than he saw. Coin or a pie is welcome and changes nothing: he's telling it anyway. Ties here: the porters behind him, who back him with a nod and say nothing in front of the watch; Kell, whom the yard knows for fair.",
+      "limits": "He saw Big Hobb and a gentleman at the gate at first light, and nothing more: not the killing, not the loft, not the gentleman's face, and not his name. He won't go up the hoist or into the loft.",
+      "roles": {
+        "characterise": "Cap off to the dead clerk, bread in his fist, the porters muttering behind him at the gate.",
+        "inconsistency": "He keeps looking from the gate to the Sarge, working himself up to it.",
+        "hooks": "'Sarge. A word. About first light.'"
+      },
+      "enters": "porters-break",
+      "group": "Old Wat and the granary porters, in for their noon break",
+      "statblock": "commoner",
+      "weapon": "unarmed-strike"
+    }
+  ],
+  "facts": {
+    "killed-not-suicide": "Prout didn't hang himself: what has been found shows he was killed and then hoisted up to look like a suicide.",
+    "motive-known": "Grain wagons for the King's Road have been written off as 'lost to goblins' and sold off, countersigned 'J. Sallow, for the Royal Purveyor', and Prout had found out.",
+    "hobb-at-granary": "Big Hobb Mallory, the Drowned Rat's arm-wrestling champion, was at the granary with the gentleman when Prout died."
+  },
+  "onStart": [
+    {
+      "op": "quest",
+      "quest": "hanged-clerk",
+      "do": "start",
+      "text": "King Aldren asked you quietly to see Wendell Prout done right by: the palace clerk found hanged behind the granary this morning, whom the Watch Captain has already called a suicide."
+    }
+  ],
+  "onEnd": [
+    {
+      "op": "follow",
+      "who": "kell"
+    }
+  ],
+  "afterwards": [
+    {
+      "op": "remove",
+      "what": "prout",
+      "text": "taken away: to the watch house under a sheet, or on the dead-cart"
+    }
+  ],
+  "fronts": "World/Fronts.md",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "story",
+      "position": {
+        "x": 0,
+        "y": 220
+      },
+      "data": {
+        "kind": "start",
+        "title": "Stones at a hanged man",
+        "description": "This scene introduces the story. The player has been enlisted as the court's investigator into what should be a clear-cut case of suicide.\n\nIntroduce the granary yard, the dead clerk and the two children. Establish the apparent suicide and give the player things to become curious about, then let them choose where to begin. The murder, the missing grain and Hobb's part in it are discoveries for play, not opening exposition.\n\nOpening situation:\n- Wendell Prout, a clerk of the Granary Roll, hangs from the granary hoist in his stockinged feet. Cob is throwing stones at the body, enjoying the way it turns. Moll sits on the wall, watching and egging him on.\n- Sergeant Agnes Kell is waiting impatiently for the King's investigator. She introduces herself briefly and gives the public facts: who Prout was, where he was found, and that the Captain is treating the death as suicide. She keeps her own judgement to herself.\n- The dead-cart is due at noon. Kell glances at the sky or mentions it as practical business: there is time to investigate, but the yard will not wait forever. After that the morning is felt moving on, a step nearer noon every few exchanges (the clock says how).\n\nSuggested ways into the investigation:\n- Approach the children. Cob meets the investigator with cheek, stones and boasts; Moll claims she saw Prout jump. Their confidence, and the way Moll cuts Cob off, invite questions about what they actually saw.\n- Look at the body, or ask to examine it. Give freely what is visible from the yard, and let the player work out how to get closer. The hoist, the loft above and the hanging itself are there to investigate.\n- Speak to Kell about Prout or the official account. Her precise answers and her guarded reaction to the dead clerk invite further questions about why this case matters to her.\n- Take stock of the yard. Cob's oversized boots, Moll's tightly closed fist, the shut loft door and the children's attention to each other are possible hooks. Bring a detail in when the player's attention reaches it, rather than listing every clue at once.\n\nPlay the children as rude, funny and frightened underneath. They are a door, not a wall: answer what the player tries with a real reaction and a way to make progress, without giving their secrets away for nothing. Kell has her own opinions and business: she answers, observes and records, and never chooses the investigator's next move.\n\nAn opening image to use or adapt: a stone clangs off the hoist hook, and Prout turns slowly round to face the newcomer. Kell looks from the boy to the investigator. Then let the player decide what to do.\n\nThese are example openings, not a required sequence. Follow whichever person, detail or approach the player engages with, and let the three discoveries come out in any order.",
+        "cast": {
+          "cob": "Characterise: stones and cheek. He tests the investigator with a dare, a stone near their feet, a boast; he's proud of his boots and stamps in them. Nothing about the night.",
+          "moll": "Characterise: sizes the newcomer up as a mark and prices their coat out loud, in whichever language is rudest. She doesn't bring up the death unless someone asks.",
+          "kell": "Characterise: brief and dry. Introduces herself, gives Prout's name and post, that the Captain's book has it as suicide, and that the dead-cart comes at noon. Then she stops: it's the investigator's case."
+        },
+        "lore": [
+          "Places/Granary Yard.md"
+        ]
+      }
+    },
+    {
+      "id": "murder",
+      "type": "story",
+      "position": {
+        "x": 400,
+        "y": 0
+      },
+      "data": {
+        "kind": "beat",
+        "title": "The victim was murdered",
+        "description": "The player discovers that Prout was murdered and the hanging was staged to look like suicide. Exposing a lie about the suicide raises suspicion; the injuries or an eyewitness give the player a strong basis for murder. These are example paths, not a sequence: other plausible approaches to the same revelation count.",
+        "revelation": "Prout didn't hang himself: he was struck and strangled, then hoisted up on the sack hoist to look like a suicide.",
+        "paths": [
+          {
+            "via": "the body",
+            "clue": "Prout hangs in his stockings: someone had his boots off him after he was hanging. The heels of both stockings are torn and grey with grain dust, as if he'd been dragged across a floor.",
+            "earn": "No dice: the stockings are free to anyone who looks up. The torn heels need a careful look from the yard.",
+            "strength": "suggestive",
+            "check": {
+              "skill": "perception",
+              "dc": 12
+            }
+          },
+          {
+            "via": "the body",
+            "clue": "Up close: a thin cord mark straight across the front of his throat, under and apart from the hoist rope's slanting burn (a rope you hang from rides up under the jaw; a cord someone pulls doesn't), blood matted at the back of his skull from a hard, narrow blow, and clean palms with no rope burn.",
+            "earn": "No dice: once they've got to him, Kell, at their shoulder, looks at the neck, the back of the head and the hands, in that order, and says plainly what she sees if asked. Getting to him: climbing the hoist or the outside stair, lowering him from the loft (Kell allows it if asked; it means getting to the cleat inside), or examining him when the dead-cart crew bring him down. Reading the marks for themselves is the check.",
+            "strength": "strong",
+            "check": {
+              "skill": "medicine",
+              "dc": 12
+            }
+          },
+          {
+            "via": "the tally loft",
+            "clue": "A smashed lantern and spilled ink by the tally desk, heel scuffs in the grain dust from the desk to the hoist door, and the hoist rope tied off on its cleat with a docker's knot, not a knot a clerk would know.",
+            "earn": "No dice: getting into the loft is all it takes. Its stair door is locked (the warden has the key) and the hoist door is barred on the inside, but Cob's way in is a loose board behind the water butt, child-sized, which he shows only to someone he's warmed to.",
+            "strength": "strong"
+          },
+          {
+            "via": "cob",
+            "clue": "Cob sleeps in the loft. A little after the midnight bells he woke to a lantern and voices: a posh man ('Silvertop': silver-topped cane, smelled like a flower stall) wanting 'the page', nicely and then not nicely, and Mister Prout saying 'proper channels'; then a thump, a choking noise, and the hoist creaking with no sacks on it. He hid in his sacks till light.",
+            "earn": "No dice: only for someone Cob believes will keep him safe from those men (a real promise: his name kept out of it, nothing to the watch, the men from the loft kept off him), or kindness that has lasted. A real fright works too, on a roll (Intimidation DC 12), and costs the player Moll's and Kell's good opinion. It comes out in pieces over several questions.",
+            "strength": "strong"
+          },
+          {
+            "via": "moll",
+            "clue": "Moll's story, that she saw the clerk jump from the loft door at midnight by moonlight, wailing about his debts, doesn't hold: it drizzled all night (Kell's watch walked it), the hoist door is barred on the inside, and Prout had no debts. Caught out and pressed, she admits a gentleman paid her a silver crown at first light to tell it.",
+            "earn": "No dice: setting her story against the weather, the barred door or what Kell says of Prout catches it out (she adds detail when doubted, and gets angry, not sorry), and the payment comes only when her lie is caught AND the player shows they mean to keep Cob safe, or Cob is in real danger. Reading the lie in her face, without those to set it against, is the check.",
+            "strength": "suggestive",
+            "check": {
+              "skill": "insight",
+              "dc": 13
+            }
+          }
+        ],
+        "establishes": [
+          "killed-not-suicide"
+        ],
+        "lore": []
+      }
+    },
+    {
+      "id": "motive",
+      "type": "story",
+      "position": {
+        "x": 400,
+        "y": 205
+      },
+      "data": {
+        "kind": "beat",
+        "title": "Motive: supplies are being embezzled",
+        "description": "The player discovers that shipments from the King's stores are being written off and diverted, and that Prout had found out: a motive for his murder. The route affects what the player can substantiate: the ledger page is documentary evidence; Cob offers a frightened child's account; Kell can confirm what Prout reported to her but hasn't verified the theft herself. Example paths, not a sequence.",
+        "revelation": "King's Road grain wagons are being written off in the Granary Roll as 'lost to goblins' and sold off, each countersigned 'J. Sallow, for the Royal Purveyor', and Prout had found out.",
+        "paths": [
+          {
+            "via": "cob",
+            "clue": "Sewn into the lining of the left boot Cob is wearing is the page razored from the Granary Roll: a dozen King's Road grain wagons this past month written off as 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor', with Prout's pencilled note of what each wagon weighed at the river warehouses two days later, and at the foot: 'Not goblins. Who pays the hedge-folk?' Cob doesn't know it's there: he thinks the crackle is what good boots do.",
+            "earn": "No dice: he holds the left one out himself for someone he trusts, or who promises what answers his fear (his name kept out of it, nothing to the watch, the men from the loft kept off him). The left boot crackles when he stamps. The boots are Prout's (Cob and Moll had them off the body at first light); Cob lies about them and fights to keep them. A polite ask where the boots stay his could go either way (the check); coin or food offered as the price of a look gets haggling, never the look. Taking them by force is possible and costs Cob, Moll and Kell.",
+            "strength": "proof",
+            "check": {
+              "skill": "persuasion",
+              "dc": 13
+            }
+          },
+          {
+            "via": "kell",
+            "clue": "Three days ago Prout came to her desk and asked, very politely, how a clerk reports 'false entries in the King's rolls', and whether the watch could arrest 'a gentleman of the Purveyor's office'. She sent him to the palace: the proper channel. 'I should have listened.'",
+            "earn": "No dice: it's staged. She goes very still at 'false entries' or the Purveyor's office; first she says only 'I'd met him.' The visit comes once, in her own words, when the player asks her straight why this one matters to her, or when the page is in her hands.",
+            "strength": "strong"
+          },
+          {
+            "via": "cob",
+            "clue": "The night before he died, Cob watched Prout, by candle, cut a page out of the big chained book with a razor and sew something into his boot 'like a sailor'; Cob thought him a cheapskate. And Silvertop wanted 'the page'.",
+            "earn": "No dice: talking to Cob about Prout, who showed him how to write a C, once he's warming to the player. He hasn't put it together with the boots on his feet.",
+            "strength": "suggestive"
+          },
+          {
+            "via": "the tally loft",
+            "clue": "The Royal Granary Roll, chained to the tally desk, has a page razored out of this month; the pages either side list King's Road wagons marked 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor'.",
+            "earn": "Getting into the loft and looking at the desk or the book.",
+            "strength": "strong",
+            "check": {
+              "skill": "investigation",
+              "dc": 12
+            }
+          },
+          {
+            "via": "tull",
+            "clue": "The Captain's written order: 'The death of W. Prout, clerk, to be closed as self-murder, without fuss, at the request of Master J. Sallow of the Royal Purveyor's office.'",
+            "earn": "No dice: once the dead-cart has come, Tull shows it to anyone who doubts him, and anyone may copy it while he eats.",
+            "strength": "suggestive"
+          }
+        ],
+        "establishes": [
+          "motive-known"
+        ],
+        "carry": {
+          "unlocks": "the motive, and the name Sallow",
+          "later": "the King's morning needs proof he can hold, and the page is Sallow's countersignature in writing on every 'lost' wagon",
+          "things": [
+            "ledger-page"
+          ]
+        },
+        "lore": []
+      }
+    },
+    {
+      "id": "hobb",
+      "type": "story",
+      "position": {
+        "x": 401,
+        "y": 479
+      },
+      "data": {
+        "kind": "beat",
+        "title": "Hobb was spotted at the scene",
+        "description": "The player learns that Big Hobb Mallory was at the granary around the time Prout died: a concrete lead to pursue. Hobb is a massive porter and the arm-wrestling champion of the Drowned Rat: conspicuous, locally famous, and hard to mistake. This is the lead to the next scene, so the player MUST have it before the scene can end well. A sighting gives the player someone to find and question; testimony describing his part in the attack is stronger than his presence alone. Example paths, not a sequence.",
+        "revelation": "A huge man with a bandaged right hand, Big Hobb Mallory, champion of the arm-wrestling at the Drowned Rat on the river stairs, was at the granary with the gentleman when Prout died.",
+        "paths": [
+          {
+            "via": "cob",
+            "clue": "A big man was in the loft too, saying 'Yes, Master': a porter the size of a door, champion at the arm-wrestling at the Drowned Rat, where Cob does pots. After the hoist stopped he was shaking his right hand and wrapping it in a rag.",
+            "earn": "No dice: it comes after what Cob heard, when the player asks who else was there or what he looked like. Cob describes, never names; if the player offers the name Hobb, Cob's face answers. Kell names him from the description.",
+            "strength": "strong"
+          },
+          {
+            "via": "moll",
+            "clue": "A big man with a bandaged hand was with the gentleman at first light, and called him 'Master Sallow'. Huge: 'like a door with a hood on'.",
+            "earn": "No dice: once she's admitted the payment (and only then), asking who else was there, or what the gentleman's company looked like. Kell connects the description to Hobb; it places him nearby, not at the killing.",
+            "strength": "suggestive"
+          },
+          {
+            "via": "wat",
+            "clue": "Old Wat, a granary porter, coming on at first light, saw Big Hobb, the Rat's champion, come out of the yard gate with a gentleman in a good coat; Hobb's right hand was wrapped. 'Hobb does night work for gents.'",
+            "earn": "No dice: when the porters come in for their noon break, after the cart, he comes to the Sarge and tells it unasked. Before then the porters are at the far gate, out of the yard, and don't talk to the watch: anyone asking after them hears they'll be in at the noon break.",
+            "strength": "suggestive"
+          },
+          {
+            "via": "kell",
+            "clue": "A porter the size of a door who's champion of the arm-wrestling at the Drowned Rat is Big Hobb Mallory: everyone on the river stairs knows the name. Kell knows it from the stairs' talk, not the man.",
+            "earn": "No dice: as soon as any description of him reaches her (his size, his bandaged hand, the Rat's arm-wrestling), or at once if one already has, she names him unasked and writes it down, and concludes nothing else.",
+            "strength": "hook"
+          }
+        ],
+        "required": true,
+        "establishes": [
+          "hobb-at-granary"
+        ],
+        "carry": {
+          "unlocks": "the Drowned Rat: someone to find and question",
+          "later": "the Drowned Rat needs the player looking for the big man with the bandaged hand"
+        },
+        "lore": [
+          "Cast/Big Hobb Mallory/public.md"
+        ]
+      }
+    },
+    {
+      "id": "cart-arrives",
+      "type": "story",
+      "position": {
+        "x": 754,
+        "y": 184
+      },
+      "data": {
+        "kind": "beat",
+        "title": "The dead-cart arrives",
+        "description": "Corporal Tull arrives with the dead-cart, two constables and the Captain's written order to close the death as self-murder, without fuss. He presses to cart Prout off as a suicide. Kell will sign Prout in as a murder over the Captain's order once the player's case holds and the lead to who was there is in her notebook by name, a man to go and find (if a description of the big man has reached her, she names him first, unasked: Big Hobb Mallory, of the Drowned Rat). She tests the case once, at its weakest point ('On what evidence?'), and until then writes down what she has, without saying aloud what's missing. For a murder the player should have: evidence that it wasn't suicide, and the lead that places Hobb at the granary (the motive strengthens the case). Whatever they haven't found can still be found while Tull waits: his men can get the body down, and if the lead to who was there hasn't come out, the porters come in for their noon break.",
+        "cast": {
+          "tull": "Helmet off to the dead, then reads the order aloud and gets his men to the hoist. He'll wait on the Sarge's word if she gives him words he can repeat to the Captain, but each exchange he waits he does one more thing towards going (the ladder up, Prout lowered, his pie, a look at the sun), never the same thing twice.",
+          "kell": "Asks the investigator, in front of Tull, what she's to write. Tests the case once at its weakest point ('On what evidence?'), and writes down what she has as it's given. Signs Prout in as a murder once the case holds and the lead to who was there is in her notebook by name, a man to go and find; until then she writes what she has, and says nothing aloud of what's missing. If any description of the big man has reached her already, or the moment one does (his size, his bandaged hand, the Rat's arm-wrestling), she names him unasked, Big Hobb Mallory of the Drowned Rat, and writes it down.",
+          "cob": "Edges towards the loose board behind the water butt; stops if the investigator has made him a promise.",
+          "moll": "Watches the gate for the gentleman. Fierce if anyone says 'the Mending House'."
+        },
+        "pressure": "Tull's constables start getting Prout down and onto the cart; Tull wants to be back on the Assembly route before his dinner goes cold. His patience runs down a step every exchange, never the same step twice: the order read aloud, the ladder up against the wall, Prout lowered and laid on the cart under a sheet, his pie eaten on the cart's tail, then the Sarge asked, for the last time, what he's to write.",
+        "lore": []
+      }
+    },
+    {
+      "id": "murder-unknown",
+      "type": "story",
+      "position": {
+        "x": 1200,
+        "y": 60
+      },
+      "data": {
+        "kind": "exit",
+        "title": "Murder by persons unknown",
+        "description": "Kell signs Prout in as a murder over the Captain's order: the player has shown it wasn't suicide, and has a lead: Big Hobb Mallory was at the granary. Prout goes to the watch-house cold room, not the suicides' pit, and the next step is to find Hobb at the Drowned Rat.",
+        "closing": "Kell writes one line and underlines it twice, says something dry that is very nearly thanks, and tells Tull what to put in his book. She'll come with the investigator to the river stairs. Let the kids react to how the player treated them.",
+        "result": "good",
+        "exitKind": "progress",
+        "next": "caerwyn-afternoon",
+        "effects": [
+          {
+            "op": "quest",
+            "quest": "hanged-clerk",
+            "do": "complete",
+            "text": "Proved Wendell Prout was murdered, and found who was there: Big Hobb Mallory of the Drowned Rat."
+          },
+          {
+            "op": "quest",
+            "quest": "purveyors-man",
+            "do": "start",
+            "title": "The Purveyor's Man",
+            "text": "A man calling himself Master Sallow, of the Royal Purveyor's office, is behind the grain written off as 'lost to goblins', and Prout found out.",
+            "if": {
+              "established": "motive-known"
+            }
+          },
+          {
+            "op": "attitude",
+            "who": "kell",
+            "to": "friendly",
+            "text": "The King's investigator made Prout's case properly."
+          },
+          {
+            "op": "remember",
+            "who": "kell",
+            "text": "The King's investigator proved Prout was murdered, and that Big Hobb Mallory was at the granary."
+          },
+          {
+            "op": "flag",
+            "name": "prout_death",
+            "value": "murder"
+          },
+          {
+            "op": "journal",
+            "text": "Wendell Prout didn't hang himself. Big Hobb Mallory, the Drowned Rat's champion, was there: find him at the Rat."
+          }
+        ],
+        "lore": []
+      }
+    },
+    {
+      "id": "suspicious",
+      "type": "story",
+      "position": {
+        "x": 1200,
+        "y": 260
+      },
+      "data": {
+        "kind": "exit",
+        "title": "Suicide, under suspicious circumstances",
+        "description": "The player has the Hobb lead but couldn't show murder: Prout goes into the Captain's book as a suicide and onto the dead-cart, with Kell's objection written beside it. The lead still stands: find Hobb at the Drowned Rat.",
+        "closing": "Kell writes her objection in full and signs it. Prout goes out of the yard on the cart under a sheet, past the Assembly bunting. She says, drily, that a suspicious death is still a question, and asks where the Drowned Rat is from here.",
+        "result": "mixed",
+        "exitKind": "progress",
+        "next": "caerwyn-afternoon",
+        "effects": [
+          {
+            "op": "quest",
+            "quest": "hanged-clerk",
+            "do": "advance",
+            "stage": "suspicious",
+            "text": "Prout went in the book as a suicide, with Kell's objection beside it; Big Hobb Mallory was at the granary."
+          },
+          {
+            "op": "quest",
+            "quest": "purveyors-man",
+            "do": "start",
+            "title": "The Purveyor's Man",
+            "text": "A man calling himself Master Sallow, of the Royal Purveyor's office, is behind the grain written off as 'lost to goblins', and Prout found out.",
+            "if": {
+              "established": "motive-known"
+            }
+          },
+          {
+            "op": "remember",
+            "who": "kell",
+            "text": "Prout went down as a suicide, with her objection written beside it; the big man from the Rat was there."
+          },
+          {
+            "op": "flag",
+            "name": "prout_death",
+            "value": "suicide, contested"
+          },
+          {
+            "op": "journal",
+            "text": "Prout went in the book as a suicide, but Kell objected in writing. Big Hobb Mallory was there: find him at the Rat."
+          }
+        ],
+        "lore": []
+      }
+    },
+    {
+      "id": "failed",
+      "type": "story",
+      "position": {
+        "x": 1207,
+        "y": 534
+      },
+      "data": {
+        "kind": "exit",
+        "title": "Failed",
+        "description": "The player failed to establish anything suspicious about the death, or abandoned the case, or went so far off the rails (crimes, an innocent child arrested) that it's over. Prout goes in the pit as a suicide, there are no leads, and the investigation is doomed. This is the end of the story.",
+        "closing": "Kell watches the dead-cart go and closes her notebook on one word. Land on the player, alone with what they did or didn't do; don't narrate beyond it.",
+        "result": "bad",
+        "exitKind": "other",
+        "effects": [
+          {
+            "op": "quest",
+            "quest": "hanged-clerk",
+            "do": "fail",
+            "text": "Prout went in the pit as a suicide, and nobody will look for whoever killed him."
+          },
+          {
+            "op": "attitude",
+            "who": "kell",
+            "to": "wary",
+            "text": "The King's investigator let Prout go down as a suicide."
+          },
+          {
+            "op": "flag",
+            "name": "prout_death",
+            "value": "suicide"
+          },
+          {
+            "op": "journal",
+            "text": "The clerk behind the granary went in the pit as a suicide. Nobody will ask again."
+          }
+        ],
+        "lore": []
+      }
+    },
+    {
+      "id": "porters-break",
+      "type": "story",
+      "position": {
+        "x": 800,
+        "y": 460
+      },
+      "data": {
+        "kind": "beat",
+        "title": "The porters' noon break",
+        "description": "With the cart in the yard, the granary porters come in from the far gate for their noon break, bread and cheese in their fists, to see the clerk cut down decent. Old Wat, the oldest of them, comes straight to the Sarge, cap in hand, and tells her unasked what he saw at first light: Big Hobb, the Drowned Rat's arm-wrestling champion, coming out of this yard's gate with a gentleman in a good coat, his right hand wrapped in a rag. 'Hobb does night work for gents.' It's the lead to the Drowned Rat, given whole: who, by name, and where to find him. The other porters stay by the gate with their bread, watching, and say nothing in front of the watch. Tull waits on, a step nearer going every exchange.",
+        "cast": {
+          "wat": "Cap off to the dead clerk, then straight to the Sarge, unasked: 'Sarge. A word. About first light.' Tells her plainly what he saw (Big Hobb, the Rat's champion, out of this gate with a gentleman in a good coat, his right hand wrapped), Hobb by name and where he drinks; then answers the investigator's questions, no further than he saw.",
+          "kell": "Hears Wat out and writes it down, reading it back in the words of the record: 'Big Hobb Mallory, the Drowned Rat. Noted.' Says nothing of what it means: it's the investigator's case. With the lead in her notebook now, she signs Prout in as a murder once the case holds.",
+          "tull": "Waits on the Sarge's word, and nods to the porters, whom he knows; each exchange he waits he does one more thing towards going, never the same thing twice.",
+          "cob": "Goes very still at the name Hobb; his face answers if anyone looks at him.",
+          "moll": "Watches the gate and the porters, some of whom know her. Fierce if anyone says 'the Mending House'."
+        },
+        "pressure": "The porters' break doesn't last: they eat, take a last look at the clerk and drift back to the far gate. Tull's patience goes on running down from where it stood, a step every exchange and never the same step twice, to the Sarge asked, for the last time, what he's to write.",
+        "lore": []
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "find-murder",
+      "source": "start",
+      "target": "murder",
+      "type": "smoothstep",
+      "label": "It was murder",
+      "data": {
+        "condition": "",
+        "phase": "outcome",
+        "skill": "",
+        "dc": 12
+      }
+    },
+    {
+      "id": "find-motive",
+      "source": "start",
+      "target": "motive",
+      "type": "smoothstep",
+      "label": "The motive",
+      "data": {
+        "condition": "",
+        "phase": "outcome",
+        "skill": "",
+        "dc": 12
+      }
+    },
+    {
+      "id": "find-hobb",
+      "source": "start",
+      "target": "hobb",
+      "type": "smoothstep",
+      "label": "Hobb was there",
+      "data": {
+        "condition": "",
+        "phase": "outcome",
+        "skill": "",
+        "dc": 12
+      }
+    },
+    {
+      "id": "cart-comes",
+      "source": "start",
+      "target": "cart-arrives",
+      "type": "smoothstep",
+      "label": "The noon bell",
+      "data": {
+        "condition": "Once the player has the Hobb lead and has had their chances at the rest (talking Cob and Moll round, the body, Kell, the loft), or the investigation has stalled with nothing the player is pursuing. The noon bell is the outer limit, about twelve exchanges into the scene: the cart comes then, whatever has happened.",
+        "phase": "cue",
+        "skill": "",
+        "dc": 12,
+        "limit": [
+          {
+            "exchanges": 12
+          }
+        ]
+      }
+    },
+    {
+      "id": "signed-murder",
+      "source": "cart-arrives",
+      "target": "murder-unknown",
+      "type": "smoothstep",
+      "label": "Signed in as murder",
+      "data": {
+        "condition": "Kell signs Prout in as a murder: the player has made the case to her that it wasn't suicide, backed by something found here she can swear to, and she has the lead to Big Hobb.",
+        "phase": "outcome",
+        "requires": [
+          "murder",
+          "hobb"
+        ],
+        "skill": "",
+        "dc": 12
+      }
+    },
+    {
+      "id": "signed-suicide",
+      "source": "cart-arrives",
+      "target": "suspicious",
+      "type": "smoothstep",
+      "label": "Suicide, under protest",
+      "data": {
+        "condition": "The player has the Hobb lead but hasn't shown Kell it was murder, and the cart can't wait any longer: Prout goes on the cart as a suicide and Kell writes her objection. Not while the player is still making the case, or finding what would make it (while Tull waits, the body is there to look at); and once they've made Kell the case that it wasn't suicide, backed by something found here she can swear to, it's [signed-murder].",
+        "phase": "outcome",
+        "requires": [
+          "hobb"
+        ],
+        "skill": "",
+        "dc": 12
+      }
+    },
+    {
+      "id": "case-lost",
+      "source": "start",
+      "target": "failed",
+      "type": "smoothstep",
+      "label": "Last resort",
+      "data": {
+        "condition": "Last resort only: the player has walked away from the case, committed a crime that ends it (an innocent child arrested for the murder, a body cut down and carried off), or the cart has come and gone with nothing suspicious found and no lead at all. (Going after the Hobb lead isn't walking away from the case: bring on the cart, and Kell signs Prout in on what they have, [signed-murder] or [signed-suicide].)",
+        "phase": "outcome",
+        "skill": "",
+        "dc": 12
+      }
+    },
+    {
+      "id": "porters-come",
+      "source": "cart-arrives",
+      "target": "porters-break",
+      "type": "smoothstep",
+      "label": "The porters' break",
+      "data": {
+        "condition": "Once the cart has come and the player still hasn't the Hobb lead (who was there, by name, and where to find him), and the case is being made to Kell or has stalled: the porters come in for their noon break, and Old Wat tells the Sarge what he saw at first light. The outer limit is about four exchanges after the cart. Not needed while Cob or Moll is in the middle of telling who else was there, or a description has just reached Kell for her to name him from (let that lead land first), or once the player has the lead [hobb].",
+        "phase": "cue",
+        "skill": "",
+        "dc": 12,
+        "limit": [
+          {
+            "exchanges": 4,
+            "after": "cart-arrives",
+            "until": [
+              "hobb"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

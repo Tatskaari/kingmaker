@@ -5,6 +5,8 @@ import type {SceneContext,SceneDocument} from './model.ts';
 import type {PlaceFile} from '../../../../shared/scene/files.ts';
 import {loadPlace,loadScenario,placePath,scenarioPathIn} from '../../../../shared/scene/scenario.ts';
 import {campaignRootOf} from '../campaign/files.ts';
+import {readTuneChoices} from '../campaign/tunes.ts';
+import type {TuneChoice} from '../campaign/tunes.ts';
 
 export {campaignRootOf};
 
@@ -43,6 +45,8 @@ export type Campaign={
   lore:LoreNote[];
   /** Every file under lore/, by its path there: what the rules check a lore path against. */
   loreFiles:Set<string>;
+  /** Music from Tunes/, keyed by its relative filename without .kmtune. */
+  tunes?:TuneChoice[];
 };
 
 export type {VaultFiles} from '../campaign/files.ts';
@@ -65,7 +69,8 @@ export const lorePathOf=(root:string,path:string):string=>`${root}lore/${path}`;
 export async function readCampaign(path:string,files:VaultFiles,drafts:(path:string)=>SceneDocument|undefined=()=>undefined):Promise<Campaign>{
   const root=campaignRootOf(path);
   const lore=readLore(root,files);
-  const empty:Campaign={root,scenes:[],unlisted:[],places:[],quests:{},...lore};
+  const tunes=await readTuneChoices(root,files);
+  const empty:Campaign={root,scenes:[],unlisted:[],places:[],quests:{},...lore,tunes};
 
   const found=scenarioPathIn(files.list(root).filter(path=>path.startsWith(root)).map(path=>path.slice(root.length)));
   if(!found)return {...empty,error:`the campaign has no scenario beside scenes/ (${root}<id>.kmscenario)`};
@@ -147,4 +152,3 @@ function kindOf(path:string):LoreKind{
   const top=path.split('/')[0];
   return top==='Cast'?'character':top==='Places'?'place':top==='World'?'world':'note';
 }
-

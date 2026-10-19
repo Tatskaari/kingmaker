@@ -1,6 +1,7 @@
 // New (M2): docs/scene-format.md's contract as TypeScript (the .kmscene file, version 2), and its parse.
 import type { Effect, TimeOfDay, WorldOpData } from "./files.ts";
 import { SKILLS, type ExitKind, type Skill } from "./types.ts";
+import { musicAssignmentProblems, type MusicAssignments } from "../music/assignments.ts";
 
 /**
  * A scene is one file, campaigns/<campaign>/scenes/<id>.kmscene: JSON that the game loads as it is
@@ -27,6 +28,8 @@ export interface SceneDocument {
 
   // ---- When and where (the story and the map) ----
   time?: TimeOfDay;
+  /** Tunes for each time of day and for combat, relative to lore/Tunes/ without .kmtune. */
+  music?: MusicAssignments;
   /** The place's key: places/<key>.kmplace, the world the stage manager keeps (areas, things, who stands where). */
   place?: string;
   /** Downtime between scenes, standing in for the map (the story skips it). */
@@ -327,6 +330,7 @@ export function shapeProblems(value: unknown): string[] {
   for (const k of ["title", "description", "hook", "setting", "premise", "truth"]) if (typeof d[k] !== "string") p.push(`it has no ${k}`);
   stringList(d, "lore", p, "its ");
   if (d.time !== undefined && !TIMES.includes(d.time as TimeOfDay)) p.push(`its time ${JSON.stringify(d.time)} isn't one of ${TIMES.join(", ")}`);
+  p.push(...musicAssignmentProblems(d.music));
   if (d.rest !== undefined && d.rest !== "short" && d.rest !== "long") p.push(`its rest ${JSON.stringify(d.rest)} isn't short or long`);
   for (const k of ["interlude", "milestone"]) if (d[k] !== undefined && typeof d[k] !== "boolean") p.push(`its ${k} isn't true or false`);
   for (const k of ["place", "clock", "overtaken", "fronts", "companion"]) if (d[k] !== undefined && typeof d[k] !== "string") p.push(`its ${k} isn't text`);

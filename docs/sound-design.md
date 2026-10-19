@@ -41,7 +41,7 @@ A person's lines are said a blip a syllable, as Undertale says them: one on each
 
 ## 4. The music
 
-[client/sound/music.ts](../client/sound/music.ts) composes as it plays. A mood names a style (a mode, a tempo and a band: a harp, a lute, a recorder, a pad, a drone, bells, a pulse bass, a chip lead, drums), and a song in it is made a bar at a time from a seed: sections of four chords from the style's progressions, AABA (the A sections' progression kept, the B's another), a tune made from a motif that comes back changed, the tune resting in the first section so the band comes in first and now and then after. It never loops the same way twice. A change of mood fades the last song over a second and a half and starts the next after a breath.
+The shipped web game plays the editable scores in [lore/Tunes](../lore/Tunes/README.md). These capture the instruments and timing of the original composer in [client/sound/music.ts](../client/sound/music.ts), which remains the fallback when no score is assigned. A mood names a style (a mode, a tempo and a band: a harp, a lute, a recorder, a pad, a drone, bells, a pulse bass, a chip lead, drums). The original composer generates endless seeded variations; the exported scores contain a finite intro, theme, bridge and return, with an editable loop. A change of score fades the last song over a second and a half and starts the next after a breath.
 
 | Mood | When | How it goes |
 |---|---|---|
@@ -83,3 +83,13 @@ A new mood is a style in `STYLES` ([music.ts](../client/sound/music.ts)), a line
 - **No sound in a terminal** (the user's call: it's the page's).
 - **No footsteps on the map,** no doors creaking, no weather or crowd ambience; a fight's steps are its only footsteps.
 - **The story's fights** (V12) will be heard as the zoo's are, since they'll play on the same screen.
+
+## 10. Authored music and the Obsidian sequencer
+
+A `.kmtune` score is versioned JSON scheduled one beat at a time by [tune.ts](../client/sound/tune.ts), with section repeats and optional arrangement loops. The game loads its music from `lore/Tunes` at build time. `catalog.json` maps the seven default moods to score IDs; its `cues` object is empty. Menu clicks, dice, spells, weapons and other sound effects keep their procedural recipes in [patches.ts](../client/sound/patches.ts), including their random variation and game-driven duration, count and size. Speech remains driven by the character and text. The sequencer and exported library are for music.
+
+`npm run build:web` and `npm run build:site` use the repository's library by default. Pass `-- --tunes ~/git/kingmaker/lore/Tunes` to build directly from the Obsidian vault. Rebuild after editing; scores are validated and embedded in the audio worklet, not fetched from a user's filesystem by the browser. Missing optional mood mappings use the original composer; broken score references fail the build.
+
+Scenes and maps have music slots for morning, afternoon, evening, night, next morning and combat. The Kingmaker Authoring plugin supplies tune dropdowns. The build reads the sibling `lore/Game` documents' assignments by scene/map ID; a scene's assignment takes priority over the map, then the usual mood applies. Next morning inherits morning if unset. A change of time or location can change scores even when the mood stays the same. The editable current-game copies under `lore/Game` keep the same IDs as the campaign; older vault documents are untouched.
+
+[Kingmaker Tunes](../tools/kmtune/README.md) is a local Obsidian plugin for composing these scores: piano-roll notes, reusable sections, arrangement order and repeat counts, loop ranges, a drum-kit track with kick/snare/hi-hat lanes, custom layered instrument recipes, and preview through the same AudioWorklet. Root/scale selectors constrain new notes and pitch edits while preserving existing notes. Its README covers installation, controls, limits and the file format. `npm run export:tunes -- /path/to/new/Tunes` recreates the seven original music captures and refuses to overwrite existing work. [Lanterns](../assets/music/lanterns.example.kmtune) is a small example with an intro played once and a repeated chorus loop.

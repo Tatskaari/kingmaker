@@ -60,6 +60,10 @@ export interface Person { key: string; name: string; color?: string }
 export interface SceneView {
   /** The scene's id (its row's): a summons, or a spectator following the lead, moves the seat on to another while this one is on screen. */
   sceneId?: string;
+  /** The authored scene id, for its music assignments (sceneId above identifies this play's row). */
+  sceneKey?: string;
+  /** Raw time-of-day slot, kept apart from the heading's display word. */
+  musicTime?: string;
   /** The scene's title, the time of day in a word, and the line under the title (the hook, or the lead that brought them). */
   title: string;
   time?: string;

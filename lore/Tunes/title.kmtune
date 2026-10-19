@@ -1,0 +1,6512 @@
+{
+  "version": 1,
+  "title": "The Kingmaker",
+  "bpm": 76,
+  "beats": 4,
+  "key": {
+    "root": 2,
+    "scale": "dorian"
+  },
+  "sections": [
+    {
+      "id": "section-1",
+      "name": "Intro",
+      "bars": 4,
+      "tracks": [
+        {
+          "name": "Warm bass",
+          "instrument": "bass",
+          "gain": 0.077,
+          "pan": 0,
+          "notes": [
+            {
+              "at": 0,
+              "midi": 38,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 38,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 73.41619197935188,
+                    "gain": 1,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 2,
+              "midi": 33,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 33,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 55,
+                    "gain": 0.85,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4,
+              "midi": 36,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 36,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 65.40639132514966,
+                    "gain": 1,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 6,
+              "midi": 43,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 43,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 97.99885899543733,
+                    "gain": 0.85,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8,
+              "midi": 43,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 43,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 97.99885899543733,
+                    "gain": 1,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 10,
+              "midi": 38,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 38,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 73.41619197935188,
+                    "gain": 0.85,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12,
+              "midi": 38,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 38,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 73.41619197935188,
+                    "gain": 1,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 14.000000000000002,
+              "midi": 33,
+              "duration": 1.9999999999999982,
+              "velocity": 1,
+              "patch": {
+                "midi": 33,
+                "duration": 1.9999999999999982,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 55,
+                    "gain": 0.85,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Harp",
+          "instrument": "harp",
+          "gain": 0.07356413483060897,
+          "pan": 0,
+          "notes": [
+            {
+              "at": 0.003100755214691162,
+              "midi": 62,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 62,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 293.6647679174076,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.867696169764327,
+                    "pan": 0.017473804182372987,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 0.5,
+              "midi": 65,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 65,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 349.2282314330039,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8099215317031003,
+                    "pan": -0.018420424894429743,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 0.9962345968186856,
+              "midi": 69,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 69,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 440,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9861276659364533,
+                    "pan": -0.16876381123438478,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 1.5,
+              "midi": 74,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 74,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 587.3295358348151,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8125484605791613,
+                    "pan": -0.22717267682310194,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 1.998395809456706,
+              "midi": 69,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 69,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 440,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8869592239986314,
+                    "pan": 0.09977027459535748,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 2.5,
+              "midi": 65,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 65,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 349.2282314330039,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7255211955963521,
+                    "pan": 0.22110155981499702,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 2.9917484600422903,
+              "midi": 69,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 69,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 440,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.984164099708208,
+                    "pan": 0.09247216966468841,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 3.5,
+              "midi": 65,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 65,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 349.2282314330039,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8019165476060153,
+                    "pan": -0.03464730689302087,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4.005884291543626,
+              "midi": 72,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 72,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 523.2511306011972,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9175568026592191,
+                    "pan": -0.22446657321415842,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4.5,
+              "midi": 76,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 76,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 659.2551138257398,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.6963625270651002,
+                    "pan": 0.07352009939495474,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 5.000225106901489,
+              "midi": 79,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 79,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 783.9908719634985,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9027761021718435,
+                    "pan": 0.01612526609096676,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 5.5,
+              "midi": 84,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 84,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 1046.5022612023945,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7484936377401971,
+                    "pan": -0.15226278745103627,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 6.000511129735969,
+              "midi": 79,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 79,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 783.9908719634985,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9398373088679396,
+                    "pan": 0.23139981541316956,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 6.500000000000001,
+              "midi": 76,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 76,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 659.2551138257398,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8028256998061896,
+                    "pan": 0.24042738985735923,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 6.9958074007183315,
+              "midi": 79,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 79,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 783.9908719634985,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9141238886786848,
+                    "pan": 0.09523998701479286,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 7.5,
+              "midi": 76,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 76,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 659.2551138257398,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8337568694599212,
+                    "pan": 0.12461056862957776,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 7.998375787944533,
+              "midi": 67,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 67,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 391.99543598174927,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9861054544705439,
+                    "pan": 0.20778433163650334,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8.5,
+              "midi": 71,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 71,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 493.8833012561241,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7552455361424115,
+                    "pan": -0.1715751513838768,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8.99618531379383,
+              "midi": 74,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 74,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 587.3295358348151,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8631188369809775,
+                    "pan": 0.027636820799671113,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 9.5,
+              "midi": 79,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 79,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 783.9908719634985,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7406762565315219,
+                    "pan": 0.09995575156062841,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 10.008297863756306,
+              "midi": 74,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 74,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 587.3295358348151,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8954122328426823,
+                    "pan": 0.1158895343542099,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 10.5,
+              "midi": 71,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 71,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 493.8833012561241,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.6990483796670085,
+                    "pan": -0.021360939485020936,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 11.008575939908624,
+              "midi": 74,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 74,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 587.3295358348151,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9082166828240443,
+                    "pan": 0.12429053068626672,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 11.5,
+              "midi": 71,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 71,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 493.8833012561241,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7445744783773082,
+                    "pan": 0.01104433077853173,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12.005251954719425,
+              "midi": 62,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 62,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 293.6647679174076,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9352373681768437,
+                    "pan": 0.02456368727143854,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12.5,
+              "midi": 65,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 65,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 349.2282314330039,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.745032066035161,
+                    "pan": 0.025539124850183725,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 13.004068267457187,
+              "midi": 69,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 69,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 440,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 1,
+                    "pan": 0.07306360395159572,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 13.500000000000002,
+              "midi": 74,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 74,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 587.3295358348151,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7216554322299131,
+                    "pan": 0.12984356994275004,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 13.994384077847936,
+              "midi": 69,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 69,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 440,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8665895372699878,
+                    "pan": -0.22925728501286358,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 14.500000000000002,
+              "midi": 65,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 65,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 349.2282314330039,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7907772429268272,
+                    "pan": -0.2305467053083703,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 14.99838610299863,
+              "midi": 69,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 69,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 440,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9078472174204549,
+                    "pan": -0.24663606868125498,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 15.5,
+              "midi": 65,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 65,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 349.2282314330039,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.824252103470362,
+                    "pan": -0.07364398811478168,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pad",
+          "instrument": "pad",
+          "gain": 0.016,
+          "pan": 0,
+          "notes": [
+            {
+              "at": 0,
+              "midi": 50,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 50,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 146.8323839587038,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 0,
+              "midi": 53,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 53,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 174.61411571650194,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 0,
+              "midi": 57,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 57,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 220,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4,
+              "midi": 60,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 60,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 261.6255653005986,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4,
+              "midi": 64,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 64,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 329.6275569128699,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4,
+              "midi": 67,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 67,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 391.99543598174927,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8,
+              "midi": 55,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 55,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 195.99771799087463,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8,
+              "midi": 59,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 59,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 246.94165062806206,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8,
+              "midi": 62,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 62,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 293.6647679174076,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12,
+              "midi": 50,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 50,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 146.8323839587038,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12,
+              "midi": 53,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 53,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 174.61411571650194,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12,
+              "midi": 57,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 57,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 220,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "section-2",
+      "name": "Theme",
+      "bars": 4,
+      "tracks": [
+        {
+          "name": "Warm bass",
+          "instrument": "bass",
+          "gain": 0.077,
+          "pan": 0,
+          "notes": [
+            {
+              "at": 0,
+              "midi": 38,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 38,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 73.41619197935188,
+                    "gain": 1,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 2,
+              "midi": 33,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 33,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 55,
+                    "gain": 0.85,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4,
+              "midi": 36,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 36,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 65.40639132514966,
+                    "gain": 1,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 6,
+              "midi": 43,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 43,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 97.99885899543733,
+                    "gain": 0.85,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8,
+              "midi": 43,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 43,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 97.99885899543733,
+                    "gain": 1,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 10.000000000000004,
+              "midi": 38,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 38,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 73.41619197935188,
+                    "gain": 0.85,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12.000000000000004,
+              "midi": 38,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 38,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 73.41619197935188,
+                    "gain": 1,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 14.000000000000004,
+              "midi": 33,
+              "duration": 1.9999999999999964,
+              "velocity": 1,
+              "patch": {
+                "midi": 33,
+                "duration": 1.9999999999999964,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 55,
+                    "gain": 0.85,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Harp",
+          "instrument": "harp",
+          "gain": 0.0749995628106408,
+          "pan": 0,
+          "notes": [
+            {
+              "at": 0.001030718972906186,
+              "midi": 62,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 62,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 293.6647679174076,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9317318378386278,
+                    "pan": -0.028724237461574376,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 0.5,
+              "midi": 65,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 65,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 349.2282314330039,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7882508008205773,
+                    "pan": 0.04996550700161606,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 0.9931845840578895,
+              "midi": 69,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 69,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 440,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.960674285570642,
+                    "pan": 0.2227332330076024,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 1.5,
+              "midi": 74,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 74,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 587.3295358348151,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7144000424760126,
+                    "pan": -0.14028666634112597,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 1.9964825334865601,
+              "midi": 69,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 69,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 440,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8596605216916552,
+                    "pan": -0.14895285957027227,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 2.5,
+              "midi": 65,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 65,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 349.2282314330039,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8050822880388653,
+                    "pan": -0.020259318524040282,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 3.006236120783722,
+              "midi": 69,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 69,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 440,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.994546184425845,
+                    "pan": -0.06347154197283089,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 3.5,
+              "midi": 65,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 65,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 349.2282314330039,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7875434406863655,
+                    "pan": 0.05250872427131981,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 3.9901709282072275,
+              "midi": 72,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 72,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 523.2511306011972,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9962017875973239,
+                    "pan": 0.17558475758414716,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4.5,
+              "midi": 76,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 76,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 659.2551138257398,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7237746665186688,
+                    "pan": -0.24889521324075758,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 5.0090644296119,
+              "midi": 79,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 79,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 783.9908719634985,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9968428438397858,
+                    "pan": -0.2271143050165847,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 5.5,
+              "midi": 84,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 84,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 1046.5022612023945,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7287638285869225,
+                    "pan": -0.10799296223558486,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 5.993321539517492,
+              "midi": 79,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 79,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 783.9908719634985,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9656518724810335,
+                    "pan": -0.07394448935519904,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 6.5,
+              "midi": 76,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 76,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 659.2551138257398,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7837816492349396,
+                    "pan": -0.002188446349464357,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 7.003578578233718,
+              "midi": 79,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 79,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 783.9908719634985,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.850572519724345,
+                    "pan": 0.1429900755174458,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 7.5,
+              "midi": 76,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 76,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 659.2551138257398,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8156381706570957,
+                    "pan": 0.1050614109262824,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8.002683887723837,
+              "midi": 67,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 67,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 391.99543598174927,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9909337069842177,
+                    "pan": 0.19060855347197503,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8.5,
+              "midi": 71,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 71,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 493.8833012561241,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.739642373035472,
+                    "pan": 0.1139802667312324,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8.993022559368985,
+              "midi": 74,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 74,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 587.3295358348151,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.842961777414912,
+                    "pan": -0.17214209085796028,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 9.500000000000004,
+              "midi": 79,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 79,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 783.9908719634985,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7133123006115767,
+                    "pan": 0.007650143234059215,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 9.998702246588657,
+              "midi": 74,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 74,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 587.3295358348151,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9429347451582927,
+                    "pan": 0.1286571603268385,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 10.500000000000004,
+              "midi": 71,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 71,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 493.8833012561241,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7346108126299065,
+                    "pan": -0.1791698996676132,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 11.009058355097661,
+              "midi": 74,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 74,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 587.3295358348151,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 1,
+                    "pan": 0.006560666370205581,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 11.500000000000004,
+              "midi": 71,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 71,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 493.8833012561241,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.6959283609813277,
+                    "pan": 0.23774747177958488,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 11.99784611077514,
+              "midi": 62,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 62,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 293.6647679174076,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9069779160219262,
+                    "pan": -0.07889683963730931,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12.500000000000004,
+              "midi": 65,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 65,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 349.2282314330039,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7463003810776825,
+                    "pan": -0.035783479805104434,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 13.008442198741253,
+              "midi": 69,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 69,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 440,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8969374323883836,
+                    "pan": -0.028249436640180647,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 13.500000000000004,
+              "midi": 74,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 74,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 587.3295358348151,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8172780083366923,
+                    "pan": 0.2087884113425389,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 13.991793967070993,
+              "midi": 69,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 69,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 440,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8989863833701791,
+                    "pan": 0.11498643888626248,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 14.500000000000004,
+              "midi": 65,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 65,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 349.2282314330039,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8183773784347523,
+                    "pan": 0.2446955949999392,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 14.99972061546054,
+              "midi": 69,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 69,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 440,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.997984850698852,
+                    "pan": -0.15387317584827542,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 15.500000000000004,
+              "midi": 65,
+              "duration": 0.49999999999999645,
+              "velocity": 1,
+              "patch": {
+                "midi": 65,
+                "duration": 0.49999999999999645,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 349.2282314330039,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.6875075052879371,
+                    "pan": 0.11125408625230193,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 15.9989674129244,
+              "midi": 62,
+              "duration": 0.0010325870755991673,
+              "velocity": 1,
+              "patch": {
+                "midi": 62,
+                "duration": 0.0010325870755991673,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 293.6647679174076,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9106590337406125,
+                    "pan": 0.09921813348773867,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pad",
+          "instrument": "pad",
+          "gain": 0.016,
+          "pan": 0,
+          "notes": [
+            {
+              "at": 0,
+              "midi": 50,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 50,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 146.8323839587038,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 0,
+              "midi": 53,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 53,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 174.61411571650194,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 0,
+              "midi": 57,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 57,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 220,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4,
+              "midi": 60,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 60,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 261.6255653005986,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4,
+              "midi": 64,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 64,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 329.6275569128699,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4,
+              "midi": 67,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 67,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 391.99543598174927,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8,
+              "midi": 55,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 55,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 195.99771799087463,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8,
+              "midi": 59,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 59,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 246.94165062806206,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8,
+              "midi": 62,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 62,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 293.6647679174076,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12.000000000000004,
+              "midi": 50,
+              "duration": 3.9999999999999964,
+              "velocity": 1,
+              "patch": {
+                "midi": 50,
+                "duration": 3.9999999999999964,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 146.8323839587038,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12.000000000000004,
+              "midi": 53,
+              "duration": 3.9999999999999964,
+              "velocity": 1,
+              "patch": {
+                "midi": 53,
+                "duration": 3.9999999999999964,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 174.61411571650194,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12.000000000000004,
+              "midi": 57,
+              "duration": 3.9999999999999964,
+              "velocity": 1,
+              "patch": {
+                "midi": 57,
+                "duration": 3.9999999999999964,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 220,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Flute",
+          "instrument": "flute",
+          "gain": 0.07,
+          "pan": 0,
+          "notes": [
+            {
+              "at": 0,
+              "midi": 74,
+              "duration": 0.95,
+              "velocity": 1,
+              "patch": {
+                "midi": 74,
+                "duration": 0.95,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 587.3295358348151,
+                    "gain": 1,
+                    "pan": 0.1,
+                    "bus": "music",
+                    "room": 0.4,
+                    "lp": 1761.9886075044456,
+                    "env": {
+                      "a": 45,
+                      "s": 0.85,
+                      "hold": 690,
+                      "r": 120
+                    },
+                    "vib": {
+                      "rate": 5,
+                      "depth": 0.18,
+                      "after": 180
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 1,
+              "midi": 76,
+              "duration": 0.95,
+              "velocity": 1,
+              "patch": {
+                "midi": 76,
+                "duration": 0.95,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 659.2551138257398,
+                    "gain": 1,
+                    "pan": 0.1,
+                    "bus": "music",
+                    "room": 0.4,
+                    "lp": 1977.7653414772194,
+                    "env": {
+                      "a": 45,
+                      "s": 0.85,
+                      "hold": 690,
+                      "r": 120
+                    },
+                    "vib": {
+                      "rate": 5,
+                      "depth": 0.18,
+                      "after": 180
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 2,
+              "midi": 77,
+              "duration": 1.9,
+              "velocity": 1,
+              "patch": {
+                "midi": 79,
+                "duration": 1.9,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 783.9908719634985,
+                    "gain": 1,
+                    "pan": 0.1,
+                    "bus": "music",
+                    "room": 0.4,
+                    "lp": 2351.9726158904955,
+                    "env": {
+                      "a": 45,
+                      "s": 0.85,
+                      "hold": 1380,
+                      "r": 120
+                    },
+                    "vib": {
+                      "rate": 5,
+                      "depth": 0.18,
+                      "after": 180
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4,
+              "midi": 79,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 79,
+                "duration": 0.95,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 783.9908719634985,
+                    "gain": 1,
+                    "pan": 0.1,
+                    "bus": "music",
+                    "room": 0.4,
+                    "lp": 2351.9726158904955,
+                    "env": {
+                      "a": 45,
+                      "s": 0.85,
+                      "hold": 690,
+                      "r": 120
+                    },
+                    "vib": {
+                      "rate": 5,
+                      "depth": 0.18,
+                      "after": 180
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4.5,
+              "midi": 77,
+              "duration": 0.475,
+              "velocity": 1,
+              "patch": {
+                "midi": 76,
+                "duration": 0.475,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 659.2551138257398,
+                    "gain": 1,
+                    "pan": 0.1,
+                    "bus": "music",
+                    "room": 0.4,
+                    "lp": 1977.7653414772194,
+                    "env": {
+                      "a": 45,
+                      "s": 0.85,
+                      "hold": 345,
+                      "r": 120
+                    },
+                    "vib": {
+                      "rate": 5,
+                      "depth": 0.18,
+                      "after": 180
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8,
+              "midi": 77,
+              "duration": 0.8999999999999999,
+              "velocity": 1,
+              "patch": {
+                "midi": 81,
+                "duration": 1.9,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 880,
+                    "gain": 1,
+                    "pan": 0.1,
+                    "bus": "music",
+                    "room": 0.4,
+                    "lp": 2640,
+                    "env": {
+                      "a": 45,
+                      "s": 0.85,
+                      "hold": 1380,
+                      "r": 120
+                    },
+                    "vib": {
+                      "rate": 5,
+                      "depth": 0.18,
+                      "after": 180
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 10.000000000000004,
+              "midi": 81,
+              "duration": 1.9,
+              "velocity": 1,
+              "patch": {
+                "midi": 84,
+                "duration": 1.9,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 1046.5022612023945,
+                    "gain": 1,
+                    "pan": 0.1,
+                    "bus": "music",
+                    "room": 0.4,
+                    "lp": 3139.5067836071835,
+                    "env": {
+                      "a": 45,
+                      "s": 0.85,
+                      "hold": 1380,
+                      "r": 120
+                    },
+                    "vib": {
+                      "rate": 5,
+                      "depth": 0.18,
+                      "after": 180
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12.000000000000004,
+              "midi": 81,
+              "duration": 1,
+              "velocity": 1,
+              "patch": {
+                "midi": 83,
+                "duration": 1.9,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 987.7666025122483,
+                    "gain": 1,
+                    "pan": 0.1,
+                    "bus": "music",
+                    "room": 0.4,
+                    "lp": 2963.299807536745,
+                    "env": {
+                      "a": 45,
+                      "s": 0.85,
+                      "hold": 1380,
+                      "r": 120
+                    },
+                    "vib": {
+                      "rate": 5,
+                      "depth": 0.18,
+                      "after": 180
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 5,
+              "midi": 76,
+              "duration": 0.5,
+              "velocity": 0.8
+            },
+            {
+              "at": 5.5,
+              "midi": 77,
+              "duration": 0.5,
+              "velocity": 0.8
+            },
+            {
+              "at": 6,
+              "midi": 76,
+              "duration": 0.5,
+              "velocity": 0.8
+            },
+            {
+              "at": 6.5,
+              "midi": 74,
+              "duration": 1,
+              "velocity": 0.8
+            },
+            {
+              "at": 9,
+              "midi": 79,
+              "duration": 1,
+              "velocity": 0.8
+            },
+            {
+              "at": 13.5,
+              "midi": 79,
+              "duration": 0.5,
+              "velocity": 0.8
+            },
+            {
+              "at": 14.5,
+              "midi": 79,
+              "duration": 1,
+              "velocity": 0.8
+            },
+            {
+              "at": 14,
+              "midi": 77,
+              "duration": 0.5,
+              "velocity": 0.8
+            },
+            {
+              "at": 15.5,
+              "midi": 77,
+              "duration": 0.5,
+              "velocity": 0.8
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "section-3",
+      "name": "Bridge",
+      "bars": 4,
+      "tracks": [
+        {
+          "name": "Warm bass",
+          "instrument": "bass",
+          "gain": 0.077,
+          "pan": 0,
+          "notes": [
+            {
+              "at": 7.105427357601002e-15,
+              "midi": 38,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 38,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 73.41619197935188,
+                    "gain": 1,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 2.000000000000007,
+              "midi": 33,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 33,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 55,
+                    "gain": 0.85,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4.000000000000007,
+              "midi": 33,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 33,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 55,
+                    "gain": 1,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 6.000000000000007,
+              "midi": 40,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 40,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 82.4068892282175,
+                    "gain": 0.85,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8.000000000000007,
+              "midi": 36,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 36,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 65.40639132514966,
+                    "gain": 1,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 10.000000000000007,
+              "midi": 43,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 43,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 97.99885899543733,
+                    "gain": 0.85,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12.000000000000007,
+              "midi": 43,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 43,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 97.99885899543733,
+                    "gain": 1,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 14.000000000000007,
+              "midi": 38,
+              "duration": 1.999999999999993,
+              "velocity": 1,
+              "patch": {
+                "midi": 38,
+                "duration": 1.999999999999993,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 73.41619197935188,
+                    "gain": 0.85,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Harp",
+          "instrument": "harp",
+          "gain": 0.07511629009293393,
+          "pan": 0,
+          "notes": [
+            {
+              "at": 0.5000000000000071,
+              "midi": 65,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 65,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 349.2282314330039,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7462261036041276,
+                    "pan": -0.09458932385314256,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 0.9906166595546537,
+              "midi": 69,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 69,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 440,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8829436821791706,
+                    "pan": -0.1205150248715654,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 1.500000000000007,
+              "midi": 74,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 74,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 587.3295358348151,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.6714223608808036,
+                    "pan": -0.05542333482299,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 1.9995765966270156,
+              "midi": 69,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 69,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 440,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9973778939641629,
+                    "pan": -0.21397180063650012,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 2.500000000000007,
+              "midi": 65,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 65,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 349.2282314330039,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7284808555288168,
+                    "pan": 0.1564041858073324,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 3.0068495406908937,
+              "midi": 69,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 69,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 440,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9982046498279081,
+                    "pan": 0.12020135507918894,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 3.500000000000007,
+              "midi": 65,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 65,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 349.2282314330039,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.6989657237915157,
+                    "pan": -0.07556288677733392,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4.000146241695624,
+              "midi": 69,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 69,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 440,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9245838349053677,
+                    "pan": 0.1761620445176959,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4.500000000000007,
+              "midi": 72,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 72,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 523.2511306011972,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8010058242779463,
+                    "pan": -0.23139063536655158,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 5.003688560407618,
+              "midi": 76,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 76,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 659.2551138257398,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8557733283159316,
+                    "pan": -0.2342288171639666,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 5.500000000000007,
+              "midi": 81,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 81,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 880,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7320092316737289,
+                    "pan": -0.23508427594788373,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 6.006270419154326,
+              "midi": 76,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 76,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 659.2551138257398,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9019424063158938,
+                    "pan": 0.07044321729335934,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 6.500000000000007,
+              "midi": 72,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 72,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 523.2511306011972,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7118956004271988,
+                    "pan": -0.1629008548334241,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 6.99503922151402,
+              "midi": 76,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 76,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 659.2551138257398,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9467219211087183,
+                    "pan": -0.0991312755504623,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 7.500000000000007,
+              "midi": 72,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 72,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 523.2511306011972,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7514243735181972,
+                    "pan": -0.24348716670647264,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 7.991361732580707,
+              "midi": 72,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 72,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 523.2511306011972,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9623291653702216,
+                    "pan": -0.059114699135534465,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8.500000000000007,
+              "midi": 76,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 76,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 659.2551138257398,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7704709985679157,
+                    "pan": -0.06839566002599895,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8.99578968339135,
+              "midi": 79,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 79,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 783.9908719634985,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8690320931927334,
+                    "pan": -0.24607476696837693,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 9.500000000000007,
+              "midi": 84,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 84,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 1046.5022612023945,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.6933241904798562,
+                    "pan": 0.1406076798448339,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 10.00863740109839,
+              "midi": 79,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 79,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 783.9908719634985,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9174260136250364,
+                    "pan": 0.014636537875048816,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 10.500000000000007,
+              "midi": 76,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 76,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 659.2551138257398,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7570492896077061,
+                    "pan": -0.10337252099998295,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 11.00176669273526,
+              "midi": 79,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 79,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 783.9908719634985,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 1,
+                    "pan": 0.18252382660284638,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 11.500000000000007,
+              "midi": 76,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 76,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 659.2551138257398,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7398966628144573,
+                    "pan": 0.1486506472574547,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 11.991568293361937,
+              "midi": 67,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 67,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 391.99543598174927,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9221906638084387,
+                    "pan": -0.23869350482709706,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12.500000000000007,
+              "midi": 71,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 71,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 493.8833012561241,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.6870822296090456,
+                    "pan": 0.006919694016687572,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12.997242631400013,
+              "midi": 74,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 74,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 587.3295358348151,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8482088886332605,
+                    "pan": 0.09196850936859846,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 13.500000000000007,
+              "midi": 79,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 79,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 783.9908719634985,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7752809307406948,
+                    "pan": 0.072822236106731,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 14.005491431988787,
+              "midi": 74,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 74,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 587.3295358348151,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9624207713708782,
+                    "pan": 0.0036562534514814615,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 14.500000000000007,
+              "midi": 71,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 71,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 493.8833012561241,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8189956105859708,
+                    "pan": 0.12054515758063644,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 14.992532752794226,
+              "midi": 74,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 74,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 587.3295358348151,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8404862138317161,
+                    "pan": 0.11614040611311793,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 15.500000000000007,
+              "midi": 71,
+              "duration": 0.4999999999999929,
+              "velocity": 1,
+              "patch": {
+                "midi": 71,
+                "duration": 0.4999999999999929,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 493.8833012561241,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8150271384553949,
+                    "pan": 0.1693953676149249,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pad",
+          "instrument": "pad",
+          "gain": 0.016,
+          "pan": 0,
+          "notes": [
+            {
+              "at": 7.105427357601002e-15,
+              "midi": 50,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 50,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 146.8323839587038,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 7.105427357601002e-15,
+              "midi": 53,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 53,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 174.61411571650194,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 7.105427357601002e-15,
+              "midi": 57,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 57,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 220,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4.000000000000007,
+              "midi": 57,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 57,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 220,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4.000000000000007,
+              "midi": 60,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 60,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 261.6255653005986,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4.000000000000007,
+              "midi": 64,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 64,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 329.6275569128699,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8.000000000000007,
+              "midi": 60,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 60,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 261.6255653005986,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8.000000000000007,
+              "midi": 64,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 64,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 329.6275569128699,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8.000000000000007,
+              "midi": 67,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 67,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 391.99543598174927,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12.000000000000007,
+              "midi": 55,
+              "duration": 3.999999999999993,
+              "velocity": 1,
+              "patch": {
+                "midi": 55,
+                "duration": 3.999999999999993,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 195.99771799087463,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12.000000000000007,
+              "midi": 59,
+              "duration": 3.999999999999993,
+              "velocity": 1,
+              "patch": {
+                "midi": 59,
+                "duration": 3.999999999999993,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 246.94165062806206,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12.000000000000007,
+              "midi": 62,
+              "duration": 3.999999999999993,
+              "velocity": 1,
+              "patch": {
+                "midi": 62,
+                "duration": 3.999999999999993,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 293.6647679174076,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Flute",
+          "instrument": "flute",
+          "gain": 0.07,
+          "pan": 0,
+          "notes": [
+            {
+              "at": 4.000000000000007,
+              "midi": 81,
+              "duration": 0.95,
+              "velocity": 1,
+              "patch": {
+                "midi": 81,
+                "duration": 0.95,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 880,
+                    "gain": 1,
+                    "pan": 0.1,
+                    "bus": "music",
+                    "room": 0.4,
+                    "lp": 2640,
+                    "env": {
+                      "a": 45,
+                      "s": 0.85,
+                      "hold": 690,
+                      "r": 120
+                    },
+                    "vib": {
+                      "rate": 5,
+                      "depth": 0.18,
+                      "after": 180
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 5.000000000000007,
+              "midi": 79,
+              "duration": 0.475,
+              "velocity": 1,
+              "patch": {
+                "midi": 81,
+                "duration": 0.475,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 880,
+                    "gain": 1,
+                    "pan": 0.1,
+                    "bus": "music",
+                    "room": 0.4,
+                    "lp": 2640,
+                    "env": {
+                      "a": 45,
+                      "s": 0.85,
+                      "hold": 345,
+                      "r": 120
+                    },
+                    "vib": {
+                      "rate": 5,
+                      "depth": 0.18,
+                      "after": 180
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 5.500000000000007,
+              "midi": 77,
+              "duration": 0.475,
+              "velocity": 1,
+              "patch": {
+                "midi": 77,
+                "duration": 0.475,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 698.4564628660078,
+                    "gain": 1,
+                    "pan": 0.1,
+                    "bus": "music",
+                    "room": 0.4,
+                    "lp": 2095.3693885980233,
+                    "env": {
+                      "a": 45,
+                      "s": 0.85,
+                      "hold": 345,
+                      "r": 120
+                    },
+                    "vib": {
+                      "rate": 5,
+                      "depth": 0.18,
+                      "after": 180
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 6.000000000000007,
+              "midi": 79,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 79,
+                "duration": 1.9,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 783.9908719634985,
+                    "gain": 1,
+                    "pan": 0.1,
+                    "bus": "music",
+                    "room": 0.4,
+                    "lp": 2351.9726158904955,
+                    "env": {
+                      "a": 45,
+                      "s": 0.85,
+                      "hold": 1380,
+                      "r": 120
+                    },
+                    "vib": {
+                      "rate": 5,
+                      "depth": 0.18,
+                      "after": 180
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8.000000000000007,
+              "midi": 79,
+              "duration": 1.3499999999999996,
+              "velocity": 1,
+              "patch": {
+                "midi": 79,
+                "duration": 2.8499999999999996,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 783.9908719634985,
+                    "gain": 1,
+                    "pan": 0.1,
+                    "bus": "music",
+                    "room": 0.4,
+                    "lp": 2351.9726158904955,
+                    "env": {
+                      "a": 45,
+                      "s": 0.85,
+                      "hold": 2070,
+                      "r": 120
+                    },
+                    "vib": {
+                      "rate": 5,
+                      "depth": 0.18,
+                      "after": 180
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12.000000000000007,
+              "midi": 79,
+              "duration": 1.9,
+              "velocity": 1,
+              "patch": {
+                "midi": 79,
+                "duration": 1.9,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 783.9908719634985,
+                    "gain": 1,
+                    "pan": 0.1,
+                    "bus": "music",
+                    "room": 0.4,
+                    "lp": 2351.9726158904955,
+                    "env": {
+                      "a": 45,
+                      "s": 0.85,
+                      "hold": 1380,
+                      "r": 120
+                    },
+                    "vib": {
+                      "rate": 5,
+                      "depth": 0.18,
+                      "after": 180
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 14.000000000000007,
+              "midi": 77,
+              "duration": 1.9,
+              "velocity": 1,
+              "patch": {
+                "midi": 77,
+                "duration": 1.9,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 698.4564628660078,
+                    "gain": 1,
+                    "pan": 0.1,
+                    "bus": "music",
+                    "room": 0.4,
+                    "lp": 2095.3693885980233,
+                    "env": {
+                      "a": 45,
+                      "s": 0.85,
+                      "hold": 1380,
+                      "r": 120
+                    },
+                    "vib": {
+                      "rate": 5,
+                      "depth": 0.18,
+                      "after": 180
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 0,
+              "midi": 74,
+              "duration": 1,
+              "velocity": 0.8
+            },
+            {
+              "at": 1,
+              "midi": 76,
+              "duration": 1,
+              "velocity": 0.8
+            },
+            {
+              "at": 2,
+              "midi": 77,
+              "duration": 1,
+              "velocity": 0.8
+            },
+            {
+              "at": 6.5,
+              "midi": 77,
+              "duration": 1,
+              "velocity": 0.8
+            },
+            {
+              "at": 9.5,
+              "midi": 77,
+              "duration": 1,
+              "velocity": 0.8
+            },
+            {
+              "at": 10.5,
+              "midi": 76,
+              "duration": 1,
+              "velocity": 0.8
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "section-4",
+      "name": "Return",
+      "bars": 4,
+      "tracks": [
+        {
+          "name": "Warm bass",
+          "instrument": "bass",
+          "gain": 0.077,
+          "pan": 0,
+          "notes": [
+            {
+              "at": 1.4210854715202004e-14,
+              "midi": 38,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 38,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 73.41619197935188,
+                    "gain": 1,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 2.000000000000014,
+              "midi": 33,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 33,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 55,
+                    "gain": 0.85,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4.000000000000014,
+              "midi": 36,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 36,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 65.40639132514966,
+                    "gain": 1,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 6.000000000000014,
+              "midi": 43,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 43,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 97.99885899543733,
+                    "gain": 0.85,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8.000000000000014,
+              "midi": 43,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 43,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 97.99885899543733,
+                    "gain": 1,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 10.000000000000014,
+              "midi": 38,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 38,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 73.41619197935188,
+                    "gain": 0.85,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12.000000000000014,
+              "midi": 38,
+              "duration": 2,
+              "velocity": 1,
+              "patch": {
+                "midi": 38,
+                "duration": 2,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 73.41619197935188,
+                    "gain": 1,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 14.000000000000014,
+              "midi": 33,
+              "duration": 1.9999999999999858,
+              "velocity": 1,
+              "patch": {
+                "midi": 33,
+                "duration": 1.9999999999999858,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "saw",
+                    "duty": 0.25,
+                    "freq": 55,
+                    "gain": 0.85,
+                    "bus": "music",
+                    "lp": 800,
+                    "env": {
+                      "a": 6,
+                      "s": 0.8,
+                      "d": 200,
+                      "hold": 1421.0526315789475,
+                      "r": 90
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Harp",
+          "instrument": "harp",
+          "gain": 0.07599046194832773,
+          "pan": 0,
+          "notes": [
+            {
+              "at": 0.0034551621833927015,
+              "midi": 62,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 62,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 293.6647679174076,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8534985007634045,
+                    "pan": 0.2369415930006653,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 0.5000000000000071,
+              "midi": 65,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 65,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 349.2282314330039,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.6910805687503423,
+                    "pan": -0.02425803930964321,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 1.0033100328873985,
+              "midi": 69,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 69,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 440,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9512574323039241,
+                    "pan": 0.01751555548980832,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 1.500000000000007,
+              "midi": 74,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 74,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 587.3295358348151,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7344148186230974,
+                    "pan": 0.12422788643743843,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 1.9917646779446017,
+              "midi": 69,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 69,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 440,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8635159344891412,
+                    "pan": -0.09733698528725654,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 2.500000000000007,
+              "midi": 65,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 65,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 349.2282314330039,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7196992381595491,
+                    "pan": 0.02720133273396641,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 3.006831430541361,
+              "midi": 69,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 69,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 440,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8726586673793455,
+                    "pan": -0.17073779564816505,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 3.500000000000007,
+              "midi": 65,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 65,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 349.2282314330039,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7052666478468497,
+                    "pan": -0.1320579684106633,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4.007929728757603,
+              "midi": 72,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 72,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 523.2511306011972,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 1,
+                    "pan": -0.13630409713368863,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4.500000000000007,
+              "midi": 76,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 76,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 659.2551138257398,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7138674116801191,
+                    "pan": 0.03714010678231716,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 5.008028385932569,
+              "midi": 79,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 79,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 783.9908719634985,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8614776609235586,
+                    "pan": 0.2318225846393034,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 5.500000000000007,
+              "midi": 84,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 84,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 1046.5022612023945,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7418819565911685,
+                    "pan": 0.0077092573046684265,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 5.999961038026974,
+              "midi": 79,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 79,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 783.9908719634985,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8768493952018878,
+                    "pan": -0.08388989826198667,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 6.500000000000007,
+              "midi": 76,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 76,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 659.2551138257398,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.6736648323502387,
+                    "pan": -0.07591865723952651,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 7.000394167811621,
+              "midi": 79,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 79,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 783.9908719634985,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.951106925179043,
+                    "pan": 0.019366131629794836,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 7.500000000000007,
+              "midi": 76,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 76,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 659.2551138257398,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7301677313468402,
+                    "pan": 0.037233756738714874,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8.009586452967504,
+              "midi": 67,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 67,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 391.99543598174927,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9999610261581481,
+                    "pan": -0.07714929291978478,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8.500000000000007,
+              "midi": 71,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 71,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 493.8833012561241,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.776439491028133,
+                    "pan": 0.1059983487939462,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8.991550446827908,
+              "midi": 74,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 74,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 587.3295358348151,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9887188615582829,
+                    "pan": 0.2056329851038754,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 9.500000000000014,
+              "midi": 79,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 79,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 783.9908719634985,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7346864503549276,
+                    "pan": 0.12769397092051804,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 9.991359185208587,
+              "midi": 74,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 74,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 587.3295358348151,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9511097841038132,
+                    "pan": -0.15878775238525122,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 10.500000000000014,
+              "midi": 71,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 71,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 493.8833012561241,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7330992513328656,
+                    "pan": -0.03617165330797434,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 10.990034202695838,
+              "midi": 74,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 74,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 587.3295358348151,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9408008231824869,
+                    "pan": -0.10917380091268569,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 11.500000000000014,
+              "midi": 71,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 71,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 493.8833012561241,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.6710658433587768,
+                    "pan": 0.2012483226135373,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 11.998236565245328,
+              "midi": 62,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 62,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 293.6647679174076,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9926427664111606,
+                    "pan": -0.21035862911958247,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12.500000000000014,
+              "midi": 65,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 65,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 349.2282314330039,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7944025584929691,
+                    "pan": 0.1503680533496663,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12.995314621650635,
+              "midi": 69,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 69,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 440,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9229685585542732,
+                    "pan": 0.2230810117907822,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 13.500000000000014,
+              "midi": 74,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 74,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 587.3295358348151,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.8091773157523582,
+                    "pan": -0.11007712373975664,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 13.999748529111983,
+              "midi": 69,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 69,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 440,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9586114697685213,
+                    "pan": -0.24284878373146057,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 14.500000000000014,
+              "midi": 65,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 65,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 349.2282314330039,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.7882421872563584,
+                    "pan": 0.08065270900260657,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 15.008963790051652,
+              "midi": 69,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 69,
+                "duration": 0.5,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 440,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.9234938560935431,
+                    "pan": 0.06913453573361039,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            },
+            {
+              "at": 15.500000000000014,
+              "midi": 65,
+              "duration": 0.4999999999999858,
+              "velocity": 1,
+              "patch": {
+                "midi": 65,
+                "duration": 0.4999999999999858,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "pluck",
+                    "freq": 349.2282314330039,
+                    "decay": 2.2,
+                    "bright": 0.55,
+                    "gain": 0.6765244639310438,
+                    "pan": 0.19139901851303875,
+                    "bus": "music",
+                    "room": 0.35,
+                    "env": {}
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pad",
+          "instrument": "pad",
+          "gain": 0.016,
+          "pan": 0,
+          "notes": [
+            {
+              "at": 1.4210854715202004e-14,
+              "midi": 50,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 50,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 146.8323839587038,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 1.4210854715202004e-14,
+              "midi": 53,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 53,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 174.61411571650194,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 1.4210854715202004e-14,
+              "midi": 57,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 57,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 220,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4.000000000000014,
+              "midi": 60,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 60,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 261.6255653005986,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4.000000000000014,
+              "midi": 64,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 64,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 329.6275569128699,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4.000000000000014,
+              "midi": 67,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 67,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 391.99543598174927,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8.000000000000014,
+              "midi": 55,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 55,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 195.99771799087463,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8.000000000000014,
+              "midi": 59,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 59,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 246.94165062806206,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 8.000000000000014,
+              "midi": 62,
+              "duration": 4,
+              "velocity": 1,
+              "patch": {
+                "midi": 62,
+                "duration": 4,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 293.6647679174076,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12.000000000000014,
+              "midi": 50,
+              "duration": 3.999999999999986,
+              "velocity": 1,
+              "patch": {
+                "midi": 50,
+                "duration": 3.999999999999986,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 146.8323839587038,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12.000000000000014,
+              "midi": 53,
+              "duration": 3.999999999999986,
+              "velocity": 1,
+              "patch": {
+                "midi": 53,
+                "duration": 3.999999999999986,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 174.61411571650194,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12.000000000000014,
+              "midi": 57,
+              "duration": 3.999999999999986,
+              "velocity": 1,
+              "patch": {
+                "midi": 57,
+                "duration": 3.999999999999986,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 220,
+                    "gain": 1,
+                    "bus": "music",
+                    "room": 0.5,
+                    "detune": 7,
+                    "lp": 1400,
+                    "env": {
+                      "a": 500,
+                      "s": 1,
+                      "hold": 2957.8947368421054,
+                      "r": 700
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Flute",
+          "instrument": "flute",
+          "gain": 0.07,
+          "pan": 0,
+          "notes": [
+            {
+              "at": 1.4210854715202004e-14,
+              "midi": 74,
+              "duration": 0.95,
+              "velocity": 1,
+              "patch": {
+                "midi": 74,
+                "duration": 0.95,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 587.3295358348151,
+                    "gain": 1,
+                    "pan": 0.1,
+                    "bus": "music",
+                    "room": 0.4,
+                    "lp": 1761.9886075044456,
+                    "env": {
+                      "a": 45,
+                      "s": 0.85,
+                      "hold": 690,
+                      "r": 120
+                    },
+                    "vib": {
+                      "rate": 5,
+                      "depth": 0.18,
+                      "after": 180
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 1.0000000000000142,
+              "midi": 76,
+              "duration": 0.95,
+              "velocity": 1,
+              "patch": {
+                "midi": 76,
+                "duration": 0.95,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 659.2551138257398,
+                    "gain": 1,
+                    "pan": 0.1,
+                    "bus": "music",
+                    "room": 0.4,
+                    "lp": 1977.7653414772194,
+                    "env": {
+                      "a": 45,
+                      "s": 0.85,
+                      "hold": 690,
+                      "r": 120
+                    },
+                    "vib": {
+                      "rate": 5,
+                      "depth": 0.18,
+                      "after": 180
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 2.000000000000014,
+              "midi": 77,
+              "duration": 1.9,
+              "velocity": 1,
+              "patch": {
+                "midi": 79,
+                "duration": 1.9,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 783.9908719634985,
+                    "gain": 1,
+                    "pan": 0.1,
+                    "bus": "music",
+                    "room": 0.4,
+                    "lp": 2351.9726158904955,
+                    "env": {
+                      "a": 45,
+                      "s": 0.85,
+                      "hold": 1380,
+                      "r": 120
+                    },
+                    "vib": {
+                      "rate": 5,
+                      "depth": 0.18,
+                      "after": 180
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 5.500000000000007,
+              "midi": 76,
+              "duration": 0.475,
+              "velocity": 1,
+              "patch": {
+                "midi": 76,
+                "duration": 0.475,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 659.2551138257398,
+                    "gain": 1,
+                    "pan": 0.1,
+                    "bus": "music",
+                    "room": 0.4,
+                    "lp": 1977.7653414772194,
+                    "env": {
+                      "a": 45,
+                      "s": 0.85,
+                      "hold": 345,
+                      "r": 120
+                    },
+                    "vib": {
+                      "rate": 5,
+                      "depth": 0.18,
+                      "after": 180
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 6.000000000000014,
+              "midi": 79,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 79,
+                "duration": 1.9,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 783.9908719634985,
+                    "gain": 1,
+                    "pan": 0.1,
+                    "bus": "music",
+                    "room": 0.4,
+                    "lp": 2351.9726158904955,
+                    "env": {
+                      "a": 45,
+                      "s": 0.85,
+                      "hold": 1380,
+                      "r": 120
+                    },
+                    "vib": {
+                      "rate": 5,
+                      "depth": 0.18,
+                      "after": 180
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 10.000000000000014,
+              "midi": 79,
+              "duration": 1.9,
+              "velocity": 1,
+              "patch": {
+                "midi": 83,
+                "duration": 1.9,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 987.7666025122483,
+                    "gain": 1,
+                    "pan": 0.1,
+                    "bus": "music",
+                    "room": 0.4,
+                    "lp": 2963.299807536745,
+                    "env": {
+                      "a": 45,
+                      "s": 0.85,
+                      "hold": 1380,
+                      "r": 120
+                    },
+                    "vib": {
+                      "rate": 5,
+                      "depth": 0.18,
+                      "after": 180
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 12.000000000000014,
+              "midi": 81,
+              "duration": 0.8999999999999999,
+              "velocity": 1,
+              "patch": {
+                "midi": 81,
+                "duration": 1.9,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 880,
+                    "gain": 1,
+                    "pan": 0.1,
+                    "bus": "music",
+                    "room": 0.4,
+                    "lp": 2640,
+                    "env": {
+                      "a": 45,
+                      "s": 0.85,
+                      "hold": 1380,
+                      "r": 120
+                    },
+                    "vib": {
+                      "rate": 5,
+                      "depth": 0.18,
+                      "after": 180
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 14.000000000000014,
+              "midi": 81,
+              "duration": 0.5,
+              "velocity": 1,
+              "patch": {
+                "midi": 81,
+                "duration": 1.9,
+                "beatMs": 789.4736842105264,
+                "parts": [
+                  {
+                    "kind": "tone",
+                    "wave": "triangle",
+                    "freq": 880,
+                    "gain": 1,
+                    "pan": 0.1,
+                    "bus": "music",
+                    "room": 0.4,
+                    "lp": 2640,
+                    "env": {
+                      "a": 45,
+                      "s": 0.85,
+                      "hold": 1380,
+                      "r": 120
+                    },
+                    "vib": {
+                      "rate": 5,
+                      "depth": 0.18,
+                      "after": 180
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "at": 4,
+              "midi": 76,
+              "duration": 1,
+              "velocity": 0.8
+            },
+            {
+              "at": 13,
+              "midi": 79,
+              "duration": 1,
+              "velocity": 0.8
+            },
+            {
+              "at": 7,
+              "midi": 76,
+              "duration": 0.5,
+              "velocity": 0.8
+            },
+            {
+              "at": 14.5,
+              "midi": 79,
+              "duration": 0.5,
+              "velocity": 0.8
+            },
+            {
+              "at": 15,
+              "midi": 77,
+              "duration": 0.5,
+              "velocity": 0.8
+            },
+            {
+              "at": 15.5,
+              "midi": 79,
+              "duration": 0.5,
+              "velocity": 0.8
+            },
+            {
+              "at": 5,
+              "midi": 77,
+              "duration": 0.5,
+              "velocity": 0.8
+            },
+            {
+              "at": 7.5,
+              "midi": 74,
+              "duration": 0.5,
+              "velocity": 0.8
+            },
+            {
+              "at": 6.5,
+              "midi": 77,
+              "duration": 0.5,
+              "velocity": 0.8
+            },
+            {
+              "at": 8,
+              "midi": 74,
+              "duration": 1,
+              "velocity": 0.8
+            },
+            {
+              "at": 9,
+              "midi": 76,
+              "duration": 1,
+              "velocity": 0.8
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "arrangement": [
+    {
+      "section": "section-1",
+      "repeats": 1
+    },
+    {
+      "section": "section-2",
+      "repeats": 2
+    },
+    {
+      "section": "section-3",
+      "repeats": 1
+    },
+    {
+      "section": "section-4",
+      "repeats": 1
+    }
+  ],
+  "loop": {
+    "from": 1,
+    "to": 3
+  }
+}

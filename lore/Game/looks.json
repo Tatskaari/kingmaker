@@ -1,0 +1,77 @@
+{
+  "kell": {
+    "role": "person",
+    "glyph": "K",
+    "fg": "#6d9eeb"
+  },
+  "cob": {
+    "role": "person",
+    "glyph": "c",
+    "fg": "#e8b15a"
+  },
+  "moll": {
+    "role": "person",
+    "glyph": "m",
+    "fg": "#e07ab0"
+  },
+  "tull": {
+    "role": "person",
+    "glyph": "T",
+    "fg": "#6d9eeb"
+  },
+  "wat": {
+    "role": "person",
+    "glyph": "W",
+    "fg": "#d6ccae"
+  },
+  "hobb": {
+    "role": "person",
+    "glyph": "H",
+    "fg": "#f08a5d"
+  },
+  "nan-quill": {
+    "role": "person",
+    "glyph": "N",
+    "fg": "#f2d16b"
+  },
+  "arlo": {
+    "role": "person",
+    "glyph": "A",
+    "fg": "#9be36b"
+  },
+  "dilly": {
+    "role": "person",
+    "glyph": "D",
+    "fg": "#c79bf2"
+  },
+  "saul": {
+    "role": "person",
+    "glyph": "S",
+    "fg": "#d9c27e"
+  },
+  "hep": {
+    "role": "person",
+    "glyph": "G",
+    "fg": "#f4f1e4"
+  },
+  "scrope": {
+    "role": "person",
+    "glyph": "s",
+    "fg": "#a9c29a"
+  },
+  "sallow": {
+    "role": "person",
+    "glyph": "$",
+    "fg": "#c9a3ff"
+  },
+  "king": {
+    "role": "person",
+    "glyph": "♔",
+    "fg": "#ffd75f"
+  },
+  "holt": {
+    "role": "person",
+    "glyph": "M",
+    "fg": "#c8ccd4"
+  }
+}

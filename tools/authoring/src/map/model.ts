@@ -25,7 +25,7 @@ export const MAP_MIN=2;
 
 /** Each object's keys in the order the format and the campaign's files have them. A key added goes where this puts it. */
 export const ORDER={
-  map:['format','version','kind','id','title','description','grid','legend','regions','exits','people'],
+  map:['format','version','kind','id','title','description','music','grid','legend','regions','exits','people'],
   legend:['terrain','style','height','roof','roofHeight','blocks','opaque','decor'],
   decor:['id','name','glyph','color','kind','blocks','states','text'],
   region:['id','name','rect','sceneId','worldOrigin','trigger','label','shut','opensFor','lockedAfter','exteriorOf','locked','description'],
