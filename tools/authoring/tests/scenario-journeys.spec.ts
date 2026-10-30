@@ -37,13 +37,13 @@ test.beforeEach(async({page})=>{
 test('the scenario opens as the story\'s flow, drawn from the files that own it, with no problems, and opening saves nothing',async({page})=>{
   const before=await files(page);
   await openScenario(page);
-  await expect(page.locator('.scenario-card')).toHaveCount(11);
-  await expect(page.locator('.react-flow__edge')).toHaveCount(30);
+  await expect(page.locator('.scenario-card')).toHaveCount(15);
+  await expect(page.locator('.react-flow__edge')).toHaveCount(38);
   await expect(page.getByRole('tab',{name:'Problems (0)'})).toBeVisible();
   // Each ending a port of its scene, each region that plays a scene and each way out a port of its map.
   await expect(card(page,'scene:drowned-rat').locator('.scenario-port')).toHaveCount(6);
   await expect(card(page,'map:caerwyn').locator('.scenario-port')).toHaveText([/the yard behind the King's Granary/,/the tally loft/,/the downriver end of the wharves/,/Through the palace gate/,/The Drowned Rat's door/,/Along the wharf to the Heron.*4 tiles/]);
-  await expect(card(page,'start').locator('.scenario-port')).toHaveText([/Starts on Caerwyn.*at \(42, 9\)/,/First lead.*hanged-clerk/]);
+  await expect(card(page,'start').locator('.scenario-port')).toHaveText([/Starts on The King's Road.*at \(12, 12\)/,/First lead.*kings-road/]);
   await page.screenshot({path:'dist/screenshots/scenario.png'});
   expect(await files(page)).toEqual(before);
   expect(await savedText(page,'caerwyn.kmscenario')).toBe(await text('caerwyn.kmscenario'));
@@ -59,7 +59,7 @@ test('the scenario\'s wiring edited in its owning file: an ending\'s next in its
   const scene=await saved(page,'scenes/hanged-clerk.kmscene');
   expect(Object.keys(node(scene,'failed').data)).toEqual(['kind','title','description','closing','result','exitKind','next','effects','lore'].filter(k=>k in node(scene,'failed').data));
   expect({...scene,nodes:scene.nodes.map((n:any)=>n.id==='failed'?{...n,data:{...n.data,next:undefined}}:n)}).toEqual({...clerk,nodes:clerk.nodes.map((n:any)=>n.id==='failed'?{...n,data:{...n.data,next:undefined}}:n)});
-  await expect(page.locator('.react-flow__edge')).toHaveCount(31);
+  await expect(page.locator('.react-flow__edge')).toHaveCount(39);
   // Drawn: the same ending dragged on to the wharves after dark instead.
   const from=card(page,'scene:hanged-clerk').locator('[data-port="ending:failed"] .react-flow__handle');
   const to=card(page,'scene:wharf-night').locator('.react-flow__handle.target');
@@ -118,13 +118,13 @@ test('the scenario\'s own fields: the start, the story\'s order, a new map made 
   const listed=page.locator('.files-view');
   await listed.getByRole('button',{name:'Move Scene wharf-night up'}).click();
   doc=await saved(page,'caerwyn.kmscenario');
-  expect(doc.scenes).toEqual(['hanged-clerk','caerwyn-afternoon','wharf-night','drowned-rat','heron-warehouse','kings-morning']);
+  expect(doc.scenes).toEqual(['kings-road','toll-bridge','kings-thanks','hanged-clerk','caerwyn-afternoon','wharf-night','drowned-rat','heron-warehouse','kings-morning']);
   // A new map: made in maps/ from the default legend, and listed.
   const maps=listed.locator('[data-section="maps"]');
   await maps.getByRole('button',{name:'Add map',exact:true}).click();
   await maps.getByLabel('New map: its title',{exact:true}).fill('The Cooperage');
   await maps.getByRole('button',{name:'Make the map'}).click();
-  await expect(maps.locator('[data-field="maps.4"]')).toContainText('The Cooperage');
+  await expect(maps.locator('[data-field="maps.5"]')).toContainText('The Cooperage');
   doc=await saved(page,'caerwyn.kmscenario');
   expect(doc.maps).toEqual([...scenario.maps,'the-cooperage']);
   const made=await saved(page,'maps/the-cooperage.kmmap');

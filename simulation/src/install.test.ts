@@ -22,7 +22,7 @@ test("the owner installs Caerwyn: the campaign, each scene's def (its file whole
   assert.deepEqual(defs.map(d => d.key), ["hanged-clerk", "caerwyn-afternoon", "drowned-rat", "wharf-night", "heron-warehouse", "kings-morning", "talk"]);
   const def = defs[0];
   assert.deepEqual([def!.id, def!.campaignId, def!.key, def!.title], ["caerwyn@0.1.0/hanged-clerk", "caerwyn@0.1.0", "hanged-clerk", "The Hanged Clerk"]);
-  assert.match(def!.hook, /^This morning a palace clerk, Wendell Prout/);
+  assert.match(def!.hook, /^At first light a page woke you in your room in the palace: the King would see you at once\. A palace clerk, Wendell Prout/);
   assert.deepEqual(JSON.parse(def!.json), caerwynPack({ asIs: true }).scenes[0], "the scene's .kmscene file, as it is");
   assert.deepEqual(all(host.db.placeDef).map(p => p.id), ["caerwyn@0.1.0/granary-yard", "caerwyn@0.1.0/drowned-rat", "caerwyn@0.1.0/heron", "caerwyn@0.1.0/dressing-room"]);
 });

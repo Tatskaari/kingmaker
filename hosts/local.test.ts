@@ -7,14 +7,16 @@ import type { FakeOptions } from "../ai/llm/fake-openrouter.ts";
 import { all, sceneNow, TEST_CLERK } from "../simulation/src/host/testing.ts";
 import { devFake, onTop, quietGm } from "./dev/fake.ts";
 import { readCampaignFiles } from "./dev/campaign.ts";
+import { filesFromTheGranary } from "../shared/scene/testdata/from-the-granary.ts";
 import { localHost, type LocalHost } from "./local.ts";
 
 /**
- * campaigns/caerwyn with the tests' own hanged clerk (its routes and endings by the ids these tests
- * play: cart-comes, held-as-murder, open-case…), played by the two-part GM as every scene is
- * (docs/two-part-design.md).
+ * campaigns/caerwyn from the granary (shared/scene/testdata/from-the-granary.ts: these tests begin in
+ * the granary lane, the prologue on the King's Road left out) with the tests' own hanged clerk (its
+ * routes and endings by the ids these tests play: cart-comes, held-as-murder, open-case…), played by
+ * the two-part GM as every scene is (docs/two-part-design.md). CAMPAIGN is the campaign's own clerk.
  */
-const CAMPAIGN = readCampaignFiles(join(import.meta.dirname, "..", "campaigns", "caerwyn"));
+const CAMPAIGN = filesFromTheGranary(readCampaignFiles(join(import.meta.dirname, "..", "campaigns", "caerwyn")));
 const FILES = { ...CAMPAIGN, "scenes/hanged-clerk.kmscene": readFileSync(TEST_CLERK, "utf8") };
 
 /**
@@ -225,7 +227,7 @@ const rowsOf = (local: LocalHost) => all(local.sim.db.sceneSuggestion).sort((a, 
 test("the two-part GM on the local host: the campaign's hanged clerk walked to murder by persons unknown a route a line (the Hobb lead's name owed first, said by the fake's Kell in the next reply), then its wind-down and the story on to the Rat", async () => {
   const base = onTop(devFake(), { streamMs: 0, suggestDelayMs: 0 });
   let next: FakeOptions = base;
-  const local = await localHost({ seed: 7, fake: () => next });
+  const local = await localHost({ seed: 7, fake: () => next, files: CAMPAIGN });
   const sim = local.sim;
   assert.equal(sim.as(WREN).newGame({ campaign: "caerwyn", name: "Wren Ashdown", concept: "a quick-witted investigator lent to the case by the King", build: "ranger" }), undefined);
   assert.equal(sim.as(WREN).walk({ toward: "lead" }), undefined);
@@ -285,7 +287,7 @@ test("the two-part GM on the local host: the campaign's hanged clerk walked to m
  */
 test("a thorough end on the local host: the campaign's clerk ended with its discoveries reached first, and the Rat waits owing nothing; a plain end owes them on", async () => {
   const ended = async (thorough: boolean) => {
-    const local = await localHost({ seed: 7, fake: () => onTop(devFake(), { streamMs: 0, suggestDelayMs: 0 }) });
+    const local = await localHost({ seed: 7, fake: () => onTop(devFake(), { streamMs: 0, suggestDelayMs: 0 }), files: CAMPAIGN });
     const sim = local.sim;
     assert.equal(sim.as(WREN).newGame({ campaign: "caerwyn", name: "Wren Ashdown", concept: "a quick-witted investigator lent to the case by the King", build: "ranger" }), undefined);
     assert.equal(sim.as(WREN).walk({ toward: "lead" }), undefined);
@@ -311,7 +313,7 @@ test("a thorough end on the local host: the campaign's clerk ended with its disc
 async function storyGame() {
   const base = onTop(devFake(), { streamMs: 0, suggestDelayMs: 0 });
   let next: FakeOptions = base;
-  const local = await localHost({ seed: 7, fake: () => next });
+  const local = await localHost({ seed: 7, fake: () => next, files: CAMPAIGN });
   const sim = local.sim;
   assert.equal(sim.as(WREN).newGame({ campaign: "caerwyn", name: "Wren Ashdown", concept: "a quick-witted investigator lent to the case by the King", build: "ranger" }), undefined);
   assert.equal(sim.as(WREN).walk({ toward: "lead" }), undefined);

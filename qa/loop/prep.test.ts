@@ -11,8 +11,8 @@ const loaded = campaignAt(CAERWYN);
 
 test("the campaign through the AI service's loader: the story's scenes in order, the interludes not to be played", async () => {
   const campaign = await loaded;
-  assert.deepEqual(campaign.keys, ["hanged-clerk", "caerwyn-afternoon", "drowned-rat", "wharf-night", "heron-warehouse", "kings-morning"]);
-  assert.deepEqual(playable(campaign), ["hanged-clerk", "drowned-rat", "heron-warehouse", "kings-morning"]);
+  assert.deepEqual(campaign.keys, ["kings-road", "toll-bridge", "kings-thanks", "hanged-clerk", "caerwyn-afternoon", "drowned-rat", "wharf-night", "heron-warehouse", "kings-morning"]);
+  assert.deepEqual(playable(campaign), ["kings-road", "toll-bridge", "kings-thanks", "hanged-clerk", "drowned-rat", "heron-warehouse", "kings-morning"]);
 });
 
 test("the hanged clerk's prep as the GM had it: the truth, where it starts, the cards with why they're here, their limits and roles, the discoveries with their paths, the event with its cue, the endings with their result and what their routes need", async () => {
@@ -23,7 +23,7 @@ test("the hanged clerk's prep as the GM had it: the truth, where it starts, the 
   assert.match(text, /\n\*\*The clock\.\*\* The dead-cart is due at the noon bell\./);
   assert.match(text, /\n\*\*What the world can't offer here:\*\*\n- Getting someone to talk to the dead/);
 
-  assert.match(text, /\n## Where it starts: Stones at a hanged man \[start\]\n\nThis scene introduces the story\./);
+  assert.match(text, /\n## Where it starts: Stones at a hanged man \[start\]\n\nThis scene begins the investigation, the morning after the road\./);
   assert.match(text, /\n\*\*Each person's part as the scene opens \(the co-GM's first roles\):\*\*\n- Cob \[cob\]: Characterise: stones and cheek\./);
   assert.equal(text.match(/An opening image to use or adapt/g)?.length, 1, "the opening once, as where it starts");
 

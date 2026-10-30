@@ -29,6 +29,19 @@ export interface ScenePlace {
 }
 
 export const PLACES: Record<string, ScenePlace> = {
+  // The prologue on the King's Road (the afternoon before the eve) and the King's thanks that evening.
+  "kings-road": {
+    sceneId: "kings-road", map: "kings-road", region: "crossroads", place: "kings-road", present: ["fitch", "tansy"], time: "afternoon",
+    lead: { map: "kings-road", at: { x: 13, y: 11 }, label: "the crossroads" }, after: { map: "kings-road", at: { x: 25, y: 11 } },
+  },
+  "toll-bridge": {
+    sceneId: "toll-bridge", map: "kings-road", region: "toll-bridge", place: "toll-bridge", present: ["haskett", "tob", "garrow", "rearguard"], time: "evening",
+    lead: { map: "kings-road", at: { x: 33, y: 11 }, label: "the toll bridge" }, after: { map: "kings-road", at: { x: 38, y: 12 } },
+  },
+  "kings-thanks": {
+    sceneId: "kings-thanks", map: "palace", region: "kings-parlour", place: "kings-parlour", present: ["king", "holt", "tob"], time: "evening",
+    lead: { map: "caerwyn", at: { x: 11, y: 13 }, label: "the palace" }, after: { map: "caerwyn", at: { x: 11, y: 14 } },
+  },
   "hanged-clerk": {
     sceneId: "hanged-clerk", map: "caerwyn", region: "granary-yard", place: "granary-yard", present: ["kell", "cob", "moll"], time: "morning",
     lead: { map: "caerwyn", at: { x: 42, y: 10 }, label: "the granary yard" }, after: { map: "caerwyn", at: { x: 42, y: 9 } },

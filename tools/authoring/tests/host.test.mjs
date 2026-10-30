@@ -196,7 +196,7 @@ test('every real scene opens in the scene editor with its exact bytes, and an un
   const h = harness();
   h.addCampaign();
   const scenes = campaignFiles.filter(([file]) => file.startsWith('scenes/'));
-  assert.equal(scenes.length, 7);
+  assert.equal(scenes.length, 10);
   for (const [file, raw] of scenes) {
     const view = h.createView();
     await view.onLoadFile(h.entries.get(file));
@@ -396,9 +396,9 @@ test('the scene host reads the campaign around the file, offers lore by the game
   const campaign = await host.campaign();
   assert.equal(campaign.root,'');
   assert.equal(campaign.error,undefined);
-  assert.deepEqual(plain(campaign.scenes.map(scene => scene.id)),['hanged-clerk','caerwyn-afternoon','drowned-rat','wharf-night','heron-warehouse','kings-morning','talk']);
-  assert.deepEqual(plain(campaign.places.map(place => place.key)),['granary-yard','drowned-rat','heron','dressing-room']);
-  assert.equal(campaign.loreFiles.size,154);
+  assert.deepEqual(plain(campaign.scenes.map(scene => scene.id)),['kings-road','toll-bridge','kings-thanks','hanged-clerk','caerwyn-afternoon','drowned-rat','wharf-night','heron-warehouse','kings-morning','talk']);
+  assert.deepEqual(plain(campaign.places.map(place => place.key)),['kings-road','toll-bridge','kings-parlour','granary-yard','drowned-rat','heron','dressing-room']);
+  assert.equal(campaign.loreFiles.size,174);
   assert.deepEqual(plain(campaign.lore.filter(note => note.path.startsWith('Cast/Cob/')).map(note => [note.path,note.name,note.kind])),[['Cast/Cob/public.md','Cob','character']]);
   await host.openLore('Cast/Cob/public.md');
   await host.openScene('drowned-rat');
@@ -420,8 +420,8 @@ test('a scene in a campaign folder deeper in the vault finds its campaign there'
   await h.view.onLoadFile(h.entries.get('campaigns/caerwyn/scenes/kings-morning.kmscene'));
   const campaign = await h.hostFor(h.view).campaign();
   assert.equal(campaign.root,'campaigns/caerwyn/');
-  assert.equal(campaign.scenes.length,7);
-  assert.equal(campaign.loreFiles.size,154);
+  assert.equal(campaign.scenes.length,10);
+  assert.equal(campaign.loreFiles.size,174);
   await h.hostFor(h.view).openLore('World/Fronts.md');
   assert.deepEqual(h.opened,['campaigns/caerwyn/lore/World/Fronts.md']);
 });
@@ -439,7 +439,7 @@ test('the real scenario, maps and places open in their editors with their exact 
   const h = harness();
   h.addCampaign();
   const files = campaignFiles.filter(([file]) => /^([^/]+\.kmscenario|maps\/.*\.kmmap|places\/.*\.kmplace)$/.test(file));
-  assert.equal(files.length, 9);
+  assert.equal(files.length, 13);
   for (const [file, raw] of files) {
     const view = h.createView();
     await view.onLoadFile(h.entries.get(file));

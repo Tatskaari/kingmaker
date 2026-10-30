@@ -32,6 +32,7 @@ test("each of the campaign's scenes and its talk template loads, holds together,
 test("the arc's scenes as play has them: an ending of their own added; the story's leads carried", () => {
   const essentials = Object.fromEntries(campaign.scenes.map(key => [key, (sceneOf(doc(key)).essentials ?? []).map(e => e.id)]));
   assert.deepEqual(essentials, {
+    "kings-road": [], "toll-bridge": [], "kings-thanks": [],
     "hanged-clerk": ["motive", "hobb"], "caerwyn-afternoon": ["lead"], "drowned-rat": ["the-master", "the-heron", "prouts-page"],
     "wharf-night": ["lead"], "heron-warehouse": [], "kings-morning": [],
   });
@@ -40,12 +41,15 @@ test("the arc's scenes as play has them: an ending of their own added; the story
   assert.equal(clerk.exits.find(e => e.id === IMPROVISED_EXIT_ID)!.next, "caerwyn-afternoon", "its ways on all go to the afternoon, and so does an ending of their own");
 });
 
-test("the story's fields come through: an interlude, what it takes for granted, the rest, the milestone, every ending's effects (story-design §4.2)", () => {
+test("the story's fields come through: an interlude, what it takes for granted, the rest, the milestone, a scene that comes to the player, every ending's effects (story-design §4.2)", () => {
   const afternoon = sceneOf(doc("caerwyn-afternoon")), wharf = sceneOf(doc("wharf-night")), king = sceneOf(doc("kings-morning"));
   assert.deepEqual([afternoon.interlude, afternoon.rest, afternoon.time, afternoon.exits.map(e => e.next)], [true, "short", "afternoon", ["drowned-rat"]]);
   assert.deepEqual([wharf.assumes?.length, wharf.overtaken], [1, "heron-warehouse"]);
   assert.deepEqual([king.rest, king.milestone, king.time, king.exits.every(e => !e.next)], ["long", true, "next-morning", true]);
   assert.deepEqual(sceneOf(doc("hanged-clerk")).onEnd, [{ op: "follow", who: "kell" }]);
-  const plain = sceneOf({ ...doc("hanged-clerk"), onEnd: undefined });
-  assert.ok(!["interlude", "assumes", "overtaken", "rest", "milestone", "background", "onEnd", "companion", "anytime"].some(k => k in plain));
+  // The night in the palace before the clerk, and what the road left; the road and the King's thanks come to the player.
+  assert.deepEqual([sceneOf(doc("hanged-clerk")).rest, sceneOf(doc("hanged-clerk")).background?.length], ["long", 1]);
+  assert.deepEqual(["kings-road", "toll-bridge", "kings-thanks", "kings-morning"].map(key => !!sceneOf(doc(key)).summons), [true, false, true, false], "the King's morning comes to the player by its time (next-morning), not its own word");
+  const plain = sceneOf({ ...doc("kings-road"), summons: undefined });
+  assert.ok(!["interlude", "assumes", "overtaken", "rest", "milestone", "background", "onEnd", "companion", "anytime", "summons"].some(k => k in plain));
 });

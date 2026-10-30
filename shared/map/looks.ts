@@ -35,6 +35,16 @@ export const CAST: Record<string, Look & { name: string }> = {
   page: { name: "a palace page", glyph: "p", color: "#e6a0ff" },
   // Sallow's yawning lantern-boy (by name alone he'd be drawn as his lantern).
   "lantern-boy": { name: "the lantern-boy", glyph: "l", color: "#8fd8c8" },
+  // The prologue on the King's Road: the carter and his granddaughter, the patrol, the toll-warden, and the goblins.
+  fitch: { name: "Barnaby Fitch", glyph: "F", color: "#d9b48a" },
+  tansy: { name: "Tansy Fitch", glyph: "t", color: "#f4b6c8" },
+  haskett: { name: "Corporal Haskett", glyph: "H", color: "#8fc88f" },
+  tob: { name: "Guardsman Wren", glyph: "W", color: "#b8e8a8" },
+  garrow: { name: "Garrow", glyph: "G", color: "#5aa088" },
+  nabber: { name: "Nabber", glyph: "g", color: "#9ad04a" },
+  rearguard: { name: "Wartle", glyph: "g", color: "#8ac048" },
+  grisk: { name: "Grisk", glyph: "g", color: "#c8d850" },
+  "grisk-worg": { name: "Grisk's worg", glyph: "d", color: "#9a9a9a" },
   player: { name: "you", glyph: "@", color: "#ffffff" },
 };
 

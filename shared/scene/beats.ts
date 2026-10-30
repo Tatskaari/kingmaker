@@ -78,6 +78,12 @@ export function storyNeeds(scene: Scene, gm: Where): Set<string> {
   return new Set([...follow, ...holders]);
 }
 
+/**
+ * The scene comes to the player rather than waiting in its place for them (docs/scene-format.md
+ * `summons`): it opens as soon as the story reaches it. The King's morning, at next-morning, always has.
+ */
+export const comesToPlayer = (scene: Pick<Scene, "summons" | "time">): boolean => !!scene.summons || scene.time === "next-morning";
+
 /** An event with a fight (docs/combat-gm.md): reaching it rolls for initiative with its line-up. */
 export type FightBeat = Beat & { fight: NonNullable<Beat["fight"]> };
 

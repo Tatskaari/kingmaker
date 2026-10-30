@@ -15,9 +15,9 @@
     "PaaaPffffffffp",
     "PaaaPffffffffP",
     "PqaaPPPPPPPPPP",
-    "PaaaP",
-    "PvvvP",
-    "PPQPP"
+    "Paaa+ffffffffP",
+    "PvvvPffffffffp",
+    "PPQPPPPPPPPPPP"
   ],
   "legend": {
     "P": {
@@ -110,6 +110,25 @@
         "h": 1
       },
       "description": "The back stairs, worn by three hundred years of trays."
+    },
+    {
+      "id": "kings-parlour",
+      "name": "the King's parlour",
+      "rect": {
+        "x": 5,
+        "y": 9,
+        "w": 8,
+        "h": 2
+      },
+      "sceneId": "kings-thanks",
+      "worldOrigin": {
+        "x": 5,
+        "y": 9
+      },
+      "trigger": "enter",
+      "label": "Go in to the King",
+      "shut": "A footman says the King is at supper, and is not receiving.",
+      "description": "A small, warm, over-furnished room off the long gallery where the King takes his supper on a tray when there are delegations to dine: a fire, two armchairs, a writing table buried in Assembly papers, and windows onto the city's lamps."
     }
   ],
   "exits": [

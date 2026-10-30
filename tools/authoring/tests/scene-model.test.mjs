@@ -30,7 +30,7 @@ async function campaignFiles(){
 }
 
 test('every real scene opens with the game\'s parse and saves to the same bytes',async()=>{
-  assert.deepEqual(sceneFiles,['caerwyn-afternoon.kmscene','drowned-rat.kmscene','hanged-clerk.kmscene','heron-warehouse.kmscene','kings-morning.kmscene','talk.kmscene','wharf-night.kmscene']);
+  assert.deepEqual(sceneFiles,['caerwyn-afternoon.kmscene','drowned-rat.kmscene','hanged-clerk.kmscene','heron-warehouse.kmscene','kings-morning.kmscene','kings-road.kmscene','kings-thanks.kmscene','talk.kmscene','toll-bridge.kmscene','wharf-night.kmscene']);
   const texts=[...await Promise.all(sceneFiles.map(name=>read(`scenes/${name}`))),await readFile(new URL('hanged-clerk.kmscene',TESTDATA),'utf8')];
   for(const text of texts){
     const file=openSceneFile(text);
@@ -388,12 +388,12 @@ test('the campaign around a scene: its root, its scenes, places and quests, its 
   assert.equal(sceneKeyOf('scenes/hanged-clerk.kmscene'),'hanged-clerk');
   const campaign=await readCampaign('scenes/hanged-clerk.kmscene',await campaignFiles());
   assert.equal(campaign.error,undefined);
-  assert.deepEqual(campaign.scenes.map(scene=>scene.id),['hanged-clerk','caerwyn-afternoon','drowned-rat','wharf-night','heron-warehouse','kings-morning','talk']);
+  assert.deepEqual(campaign.scenes.map(scene=>scene.id),['kings-road','toll-bridge','kings-thanks','hanged-clerk','caerwyn-afternoon','drowned-rat','wharf-night','heron-warehouse','kings-morning','talk']);
   assert.ok(campaign.scenes.every(scene=>scene.doc&&!scene.error));
   assert.equal(campaign.talk,'talk');
-  assert.deepEqual(campaign.places.map(place=>place.key),['granary-yard','drowned-rat','heron','dressing-room']);
-  assert.deepEqual(Object.keys(campaign.quests),['hanged-clerk','purveyors-man','heron-ledger']);
-  assert.equal(campaign.loreFiles.size,154);
+  assert.deepEqual(campaign.places.map(place=>place.key),['kings-road','toll-bridge','kings-parlour','granary-yard','drowned-rat','heron','dressing-room']);
+  assert.deepEqual(Object.keys(campaign.quests),['assembly-cushions','hanged-clerk','purveyors-man','heron-ledger']);
+  assert.equal(campaign.loreFiles.size,174);
   assert.ok(campaign.loreFiles.has('Cast/Cob/private.md'),'the rules see every file');
   const cob=campaign.lore.find(note=>note.path==='Cast/Cob/public.md');
   assert.deepEqual(cob,{path:'Cast/Cob/public.md',name:'Cob',kind:'character'});
@@ -436,6 +436,8 @@ test('a path via something the scene hasn\'t got is a warning, not a problem: on
   const campaign=await readCampaign('scenes/hanged-clerk.kmscene',await campaignFiles());
   const warned=Object.fromEntries(campaign.scenes.map(scene=>[scene.id,viaWarnings(scene.doc,campaign.places.find(place=>place.key===scene.doc.place)).map(w=>w.message.match(/“(.*)”/)[1])]));
   assert.deepEqual(warned,{
+    // The road's pouches are on the goblins, who aren't in its place until they come out of the hedge; its smoke is over the river.
+    'kings-road':['the goblins\' pouches','the smoke'],'toll-bridge':[],'kings-thanks':[],
     'hanged-clerk':['the body','the body'],'caerwyn-afternoon':[],
     'drowned-rat':['Hobb\'s right hand','Prout\'s page','the heron pennies','Cob\'s left boot'],'wharf-night':[],
     'heron-warehouse':['a sack split on the hoist'],'kings-morning':['his papers'],talk:[],

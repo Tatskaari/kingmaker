@@ -71,7 +71,7 @@ test('the scenario: its id renamed, a quest renamed in every scene naming it, th
   const ledger=page.locator('.quests-view [data-field="quests.heron-ledger"]');
   await expect(ledger).toContainText('Named by');
   await rename(ledger,'Quest key','heron-ledger','the-ledger');
-  await expect.poll(async()=>Object.keys((await saved(page,'caerwyn.kmscenario')).quests)).toEqual(['hanged-clerk','purveyors-man','the-ledger']);
+  await expect.poll(async()=>Object.keys((await saved(page,'caerwyn.kmscenario')).quests)).toEqual(['assembly-cushions','hanged-clerk','purveyors-man','the-ledger']);
   for(const scene of ['drowned-rat','heron-warehouse']){
     const before=await text(`scenes/${scene}.kmscene`);
     await expect.poll(()=>savedText(page,`scenes/${scene}.kmscene`)).toBe(before.replaceAll('"quest": "heron-ledger"','"quest": "the-ledger"'));
@@ -146,7 +146,7 @@ test('a map: a legend character and a region\'s id renamed, a region\'s optional
   await start.getByLabel('x',{exact:true}).fill('3');
   await start.getByLabel('y',{exact:true}).fill('5');
   await start.getByRole('button',{name:'Start the story on this map'}).click();
-  await expect.poll(async()=>(await saved(page,'caerwyn.kmscenario')).start).toEqual({day:1,time:'morning',map:'palace',at:[3,5]});
+  await expect.poll(async()=>(await saved(page,'caerwyn.kmscenario')).start).toEqual({day:1,time:'afternoon',map:'palace',at:[3,5]});
   await page.getByRole('button',{name:'Undo map edit'}).click();
   await expect.poll(()=>savedText(page,'caerwyn.kmscenario')).toBe(await text('caerwyn.kmscenario'));
   // People by the hour, on the town's painter: only those about at night.

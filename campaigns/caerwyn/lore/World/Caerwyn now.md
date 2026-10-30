@@ -1,11 +1,19 @@
 ---
-summary: "How Caerwyn stands right now, hour by hour, from the morning a clerk was found hanged behind the King's Granary to the morning of the Assembly procession: the bells, the price of bread, the Corn Exchange board, the Assembly preparations, the palace gate, the river and the watch, the talk around town and who's saying it (porters, carters, market folk, the palace kitchens, the stairs), and what the town says about the King's investigator. Kept up to date as the story goes on."
+summary: "How Caerwyn stands right now, hour by hour, from the evening two days before the Assembly (the cushions come in off the King's Road) and the morning a clerk was found hanged behind the King's Granary to the morning of the Assembly procession: the bells, the price of bread, the Corn Exchange board, the Assembly preparations, the palace gate, the river and the watch, the talk around town and who's saying it (porters, carters, market folk, the palace kitchens, the stairs), and what the town says about the King's investigator. Kept up to date as the story goes on."
 type: "world"
 visibility: "public"
 ---
 # Caerwyn now
 
-What anyone in town could see or hear, hour by hour, on the eve of the Centennial Assembly and the morning after. Go by the scene's time and by what has actually happened: an "If" line holds only if it did. Talk belongs to the people named, and is said once, by someone it matters to.
+What anyone in town could see or hear, hour by hour, from the evening two days before the Centennial Assembly, through the eve, to the morning after. Go by the scene's time and by what has actually happened: an "If" line holds only if it did. Talk belongs to the people named, and is said once, by someone it matters to.
+
+## Evening, two days before
+- **The town**: the delegations arriving all day, the bunting half up, and the city gates shutting at the ninth bell this week. The King takes supper on a tray in his parlour while the delegations dine in the Great Hall, and goes down for the toasts at the ninth bell.
+- **The road**: no patrols on the King's Road all week but one, sent out at the King's own wish to bring the Assembly's cushions in from the Nine Furrows.
+  - If the goblins were broken at Garrow's toll bridge: by dark the palace guardroom has it that a traveller saved the cushion patrol, and the cushions, from goblins and a war-boss on a worg, and the gate guards are telling anyone who'll listen. The Kläggenheim delegation's baggage guard tell it too, in Kläggenheim, with gestures.
+- **The talk**:
+  - The palace kitchens: the cushions have come, three hundred in the King's green, and the under-purveyor for linen has had to lie down.
+  - Carters: goblins at Garrow's bridge, nine miles out, and never so close before.
 
 ## Morning, the eve
 - **The town**: bunting going up on every rope that will hold it, and the whole watch out lining the procession route. Every official is at the palace, and the answer to every request is "After the Assembly."
@@ -46,7 +54,7 @@ What anyone in town could see or hear, hour by hour, on the eve of the Centennia
   - If the barge sailed: the Heron's doors are shut, its floor is swept, and nobody on the wharves saw anything.
 
 ## The King's investigator
-What Caerwyn says about them, a line for each public deed as it gets about, with who's saying it. To begin with nobody knows them, though the palace gate has been told the King will see them in the morning.
+What Caerwyn says about them, a line for each public deed as it gets about, with who's saying it. To begin with nobody knows them, beyond the palace guardroom's tale of the traveller who saved the cushion patrol on the King's Road (if they did); the palace gate has been told the King will see them in the morning.
 
 ## Read when relevant
 - [Caerwyn](Caerwyn.md) — read for the city itself: its quarters, bells, money and law

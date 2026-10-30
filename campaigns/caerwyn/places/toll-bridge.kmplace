@@ -1,0 +1,244 @@
+{
+  "format": "kingmaker",
+  "version": 2,
+  "kind": "place",
+  "id": "toll-bridge",
+  "title": "Garrow's toll bridge",
+  "description": "A humpbacked stone bridge over the river in spate, the only crossing for miles: Garrow's whitewashed toll house at the near end, the toll pole across the road, and the road running on beyond to Caerwyn.",
+  "size": {
+    "w": 105,
+    "h": 60
+  },
+  "areas": [
+    {
+      "id": "toll-house",
+      "name": "Garrow's toll house",
+      "rect": {
+        "x": 20,
+        "y": 10,
+        "w": 15,
+        "h": 10
+      },
+      "description": "One whitewashed room: a stove, a high desk, the King's penny box chained to it, and Garrow behind his shutters."
+    },
+    {
+      "id": "near-bank",
+      "name": "the near bank",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "w": 45,
+        "h": 60
+      },
+      "description": "The road up to the bridge, the toll house beside it, a ditch along the south side, and the hay wain the patrol pulled across the road for cover."
+    },
+    {
+      "id": "bridge",
+      "name": "the bridge",
+      "rect": {
+        "x": 45,
+        "y": 25,
+        "w": 25,
+        "h": 10
+      },
+      "description": "A humpbacked stone bridge, its parapet long since gone into the river, one cart wide and slick with spray."
+    },
+    {
+      "id": "far-bank",
+      "name": "the far bank",
+      "rect": {
+        "x": 70,
+        "y": 0,
+        "w": 35,
+        "h": 60
+      },
+      "description": "Willows, reeds and the road running on east to Caerwyn: the goblins' side of the river."
+    }
+  ],
+  "things": [
+    {
+      "id": "toll-house-door",
+      "name": "the toll-house door",
+      "kind": "feature",
+      "in": "near-bank",
+      "at": [
+        25,
+        20
+      ],
+      "size": "large",
+      "material": "wood",
+      "tags": [
+        "door"
+      ],
+      "states": [
+        "shut",
+        "barred"
+      ],
+      "description": "Stout oak, barred from inside, with a slot for the King's penny. Garrow is behind it."
+    },
+    {
+      "id": "shutters",
+      "name": "the toll-house shutters",
+      "kind": "feature",
+      "in": "near-bank",
+      "at": [
+        15,
+        10
+      ],
+      "size": "medium",
+      "material": "wood",
+      "states": [
+        "shut",
+        "barred"
+      ],
+      "description": "Whitewashed shutters barred from inside, with a crack Garrow shouts through."
+    },
+    {
+      "id": "ledger",
+      "name": "Garrow's ledger",
+      "kind": "item",
+      "in": "garrow",
+      "size": "small",
+      "material": "paper",
+      "description": "The toll ledger, the size of a door: every cart, beast and soul across the bridge, by date, in Garrow's crabbed hand, with what they paid."
+    },
+    {
+      "id": "penny-box",
+      "name": "the King's penny box",
+      "kind": "item",
+      "in": "toll-house",
+      "at": [
+        25,
+        15
+      ],
+      "size": "small",
+      "material": "iron",
+      "states": [
+        "locked"
+      ],
+      "description": "An iron cash box with the King's arms on the lid, chained to Garrow's desk."
+    },
+    {
+      "id": "toll-pole",
+      "name": "the toll pole",
+      "kind": "feature",
+      "in": "near-bank",
+      "at": [
+        40,
+        30
+      ],
+      "size": "large",
+      "material": "wood",
+      "tags": [
+        "flammable"
+      ],
+      "states": [
+        "burning"
+      ],
+      "description": "The red-and-white toll pole across the road at the bridge foot, which the goblins have set alight: it burns like a torch."
+    },
+    {
+      "id": "hay-wain",
+      "name": "the hay wain",
+      "kind": "object",
+      "in": "near-bank",
+      "at": [
+        30,
+        30
+      ],
+      "size": "huge",
+      "material": "wood",
+      "tags": [
+        "cover",
+        "flammable"
+      ],
+      "states": [
+        "overturned"
+      ],
+      "description": "A hay wain the patrol dragged across the road for cover, its hay spilled in a heap and three black-fletched goblin arrows in its boards."
+    },
+    {
+      "id": "river",
+      "name": "the river",
+      "kind": "feature",
+      "in": "bridge",
+      "at": [
+        55,
+        20
+      ],
+      "size": "gargantuan",
+      "material": "liquid",
+      "tags": [
+        "deep",
+        "water"
+      ],
+      "description": "The river in winter spate: brown, loud and freezing, and deep enough to drown a horse. Anything that goes in is a mile downstream before it can shout."
+    }
+  ],
+  "people": {
+    "player": {
+      "in": "near-bank",
+      "at": [
+        0,
+        25
+      ],
+      "note": "coming up the road out of the dusk"
+    },
+    "haskett": {
+      "in": "near-bank",
+      "at": [
+        35,
+        30
+      ],
+      "note": "behind the hay wain, an arrow in her shoulder"
+    },
+    "tob": {
+      "in": "near-bank",
+      "at": [
+        35,
+        35
+      ],
+      "note": "behind the hay wain, spear up"
+    },
+    "garrow": {
+      "in": "toll-house",
+      "at": [
+        25,
+        10
+      ],
+      "note": "behind his shutters, writing it all down"
+    },
+    "rearguard": {
+      "in": "near-bank",
+      "at": [
+        10,
+        20
+      ],
+      "note": "round the toll-house corner with the rest of the rearguard, beating a drum"
+    },
+    "grisk": {
+      "in": "far-bank",
+      "at": [
+        90,
+        25
+      ],
+      "note": "on his worg beyond the willows"
+    },
+    "fitch": {
+      "in": "near-bank",
+      "at": [
+        5,
+        30
+      ],
+      "note": "driving the cart up the road"
+    },
+    "tansy": {
+      "in": "near-bank",
+      "at": [
+        5,
+        25
+      ],
+      "note": "on top of the cushions"
+    }
+  }
+}

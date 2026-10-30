@@ -88,7 +88,7 @@ test("the lore check is never told a secret, so it can't give one away: a model 
   for (const a of asked) {
     // The GM's truths, and two things a public index lets slip in its pointers (who hires the Crakes, a second book).
     for (const spoiler of ["Cob, asleep in his nest", "Sallow's racket", "the murder in the tally loft", "the paid goblins", "Sallow and Big Hobb", "strangled him with a cord", "the page is sewn into the lining", "the Crake brothers he hires", "the true book"]) assert.ok(!a.input.includes(spoiler), `not in the check's lore: ${spoiler}`);
-    assert.match(a.input, /## The story's premise\nThis morning/, "the premise, which needs no secret, is");
+    assert.match(a.input, /## The story's premise\nTwo days before the Centennial Assembly/, "the premise, which needs no secret, is");
   }
   assert.match(asked[0]!.instructions, /aren't yours to guess at/, "and it's told the lore is all it knows");
   assert.match(asked[0]!.instructions, /their past is their own, not part of the case/, "a tie to the case is the premise's to rule out");
@@ -131,27 +131,28 @@ test("a backstory that fits comes back with nothing to fix; offline it isn't che
 });
 
 test("Draft one: a backstory from the concept and the build, shown before it's anyone's; offline, the GM is offline", async () => {
-  const { ask, asked } = model({ "backstory.draft": { story: "I was born above a chandler's shop.\nMy mother taught me to count.\n\nThe King asked, so I came." } });
+  const { ask, asked } = model({ "backstory.draft": { story: "I was born above a chandler's shop.\nMy mother taught me to count.\n\nI'm going to Caerwyn to see the procession." } });
   const drafted = await draftBackstory(WHO, { ask });
-  assert.deepEqual(drafted, { ok: true, value: "I was born above a chandler's shop. My mother taught me to count.\n\nThe King asked, so I came." });
+  assert.deepEqual(drafted, { ok: true, value: "I was born above a chandler's shop. My mother taught me to count.\n\nI'm going to Caerwyn to see the procession." });
   assert.equal(asked.length, 1, "once, when it keeps to the premise");
   assert.match(asked[0]!.input, /halfling rogue 3 \(Thief\), sage background/, "it's told the build");
-  assert.match(asked[0]!.input, /## The story this backstory leads into\nThis morning.*Wendell Prout, was found hanged.*the King's investigator now/, "and the story it leads into, from this morning");
-  assert.match(asked[0]!.instructions, /Their past runs up to this morning: Prout was found hanged, and then.*the King asked them/, "it ends where the game begins, in the morning's order");
+  assert.match(asked[0]!.input, /## The story this backstory leads into\nTwo days before the Centennial Assembly.*King's Road.*nobody at court has asked anything of them/, "and the story it leads into, from the road");
+  assert.match(asked[0]!.instructions, /It ends where the game begins: this afternoon, on the last miles of the King's Road.*never met the King or anyone at court/, "it ends where the game begins: the campaign's own words");
   const offline = await draftBackstory(WHO);
   assert.match(offline.ok ? "" : offline.why, /offline/);
 });
 
-test("a draft that has the King ask before Prout was found (or on another day) is asked for again, once", async () => {
-  assert.deepEqual(premiseSlips("This morning, before Prout was found, the King asked me to look into his death."), ["the King asked them after Prout was found, not before"]);
-  assert.deepEqual(premiseSlips("Yesterday a palace runner came: the King asked for me by name."), ["the King asked them this morning"]);
-  assert.deepEqual(premiseSlips("This morning, when the news of Prout reached him, the King asked me to see him done right by. Yesterday I mended nets."), []);
+test("a draft that has the court ask for them, or makes them the King's investigator already, is asked for again, once", async () => {
+  assert.deepEqual(premiseSlips("Last week the King sent for me by name."), ["nobody at court has asked anything of them: they're coming to the Assembly on their own account"]);
+  assert.deepEqual(premiseSlips("The palace invited us to play at the feast."), ["nobody at court has asked anything of them: they're coming to the Assembly on their own account"]);
+  assert.deepEqual(premiseSlips("I'm the King's investigator, and I'm good at it."), ["they aren't the King's investigator: nobody at court knows them yet"]);
+  assert.deepEqual(premiseSlips("I begged a lift on the King's Road and asked the carter about the city. I mean to see the King's procession."), []);
   let tries = 0;
-  const { ask, asked } = model({ "backstory.draft": () => ({ story: ++tries === 1 ? "I mend nets. This morning, before Prout was found, the King asked me to look into it." : "I mend nets. This morning, once Prout was found, the King asked me to look into it." }) });
+  const { ask, asked } = model({ "backstory.draft": () => ({ story: ++tries === 1 ? "I mend nets. Last week the King sent for me." : "I mend nets, and I mean to see the Assembly." }) });
   const drafted = await draftBackstory(WHO, { ask });
   assert.equal(tries, 2);
-  assert.match(asked[1]!.instructions, /got the order of this morning wrong \(the King asked them after Prout was found, not before\)/);
-  assert.deepEqual(drafted, { ok: true, value: "I mend nets. This morning, once Prout was found, the King asked me to look into it." });
+  assert.match(asked[1]!.instructions, /got the story's start wrong \(nobody at court has asked anything of them/);
+  assert.deepEqual(drafted, { ok: true, value: "I mend nets, and I mean to see the Assembly." });
 });
 
 test("Work it in: the notes as a story in their voice, every name, place and number they wrote kept (asked again when one's left out)", async () => {

@@ -91,6 +91,7 @@ export function SceneView(){
       </details>}
       <Checkbox label="Interlude" field="interlude" hint="Downtime between scenes, standing in for the map: the story skips it, going on from one of its endings." checked={!!doc.interlude} onChange={checked=>set('interlude',checked?true:undefined)}/>
       <Checkbox label="Milestone" field="milestone" hint="Reaching it is a milestone: the player's character goes up a level as it opens." checked={!!doc.milestone} onChange={checked=>set('milestone',checked?true:undefined)}/>
+      <Checkbox label="Comes to the player" field="summons" hint="It opens as soon as the story reaches it (the game's first scene as the game begins, or the next as the last ends), rather than waiting in its place for the player to walk in: a guard taking them to the King, a page at first light. A scene at next-morning always does." checked={!!doc.summons} onChange={checked=>set('summons',checked?true:undefined)}/>
     </Group>
     <Group title="The world" anchor="scene-world" field="world">
       <ListField label="Limits" field="limits" addLabel="Add a limit" rows={2} hint="Tempting things that don't exist or can't work here, so the GM can say “no, but” honestly." items={list('limits')} onChange={items=>set('limits',optionalList(items))}/>

@@ -171,7 +171,9 @@ export function placeRuleProblems(c: ScenarioCampaign): ScenarioProblem[] {
  * stand on (or with no map, its first scene opens at once); and every scene of the story can be
  * reached from there, by a region that plays it on a map the player can walk to from the start
  * (through the maps' exits), or by the story's flow from a scene that can be reached (an ending's
- * next: the interludes, the King's summons).
+ * next: the interludes, the King's summons). A scene reached puts the player on the map it's played
+ * on, so the walk goes on from there too (the King's Road ends at the palace, and the town is a step
+ * out of its gate).
  */
 export function flowProblems(c: ScenarioCampaign): ScenarioProblem[] {
   const problems: ScenarioProblem[] = [];
@@ -191,27 +193,32 @@ export function flowProblems(c: ScenarioCampaign): ScenarioProblem[] {
     else if (map && typeof map !== "string" && !standable(map, tile)) p(`it starts at (${tile.x}, ${tile.y}) on ${start.map}, where nobody can stand`, "start");
   } else if (start.at) p("it says where to start (start.at) but not on which map", "start");
 
-  // The maps the player can walk to from the start, and the scenes their regions play. A map on the
-  // way that doesn't build says so itself, and what's beyond it can't be told: nothing more is said.
-  const walked = new Set<string>();
-  const queue = start.map !== undefined ? [start.map] : [];
-  while (queue.length) {
-    const id = queue.shift()!;
-    if (walked.has(id)) continue;
-    walked.add(id);
-    const map = byId.get(id);
-    if (map === undefined || typeof map === "string") return problems;
-    for (const e of map.exits) if (!walked.has(e.to.map) && byId.has(e.to.map)) queue.push(e.to.map);
-  }
+  // The maps the player can walk to from the start and the scenes their regions play, the story's flow
+  // from what's reached (each ending's next), and the walk again from the map of each scene reached,
+  // until nothing more is. A map on the way that doesn't build says so itself, and what's beyond it
+  // can't be told: nothing more is said.
   const reached = new Set<string>(start.map === undefined ? [c.scenario.firstScene] : []);
-  for (const id of walked) for (const r of (byId.get(id) as TileMap).regions) if (r.sceneId) reached.add(r.sceneId);
   // A zoo's exhibits open their scenes themselves (shared/zoo/exhibits.ts).
   for (const e of (c.scenario as { exhibits?: Array<{ scene?: unknown }> }).exhibits ?? []) if (typeof e.scene === "string") reached.add(e.scene);
-  // And the story's flow from what's reached: each ending's next.
   const nexts = new Map(c.scenes.map(scene => [scene.key, nextsOf(scene.doc)]));
+  const walked = new Set<string>();
+  const queue = start.map !== undefined ? [start.map] : [];
   for (let grew = true; grew; ) {
     grew = false;
+    while (queue.length) {
+      const id = queue.shift()!;
+      if (walked.has(id)) continue;
+      walked.add(id);
+      const map = byId.get(id);
+      if (map === undefined || typeof map === "string") return problems;
+      for (const e of map.exits) if (!walked.has(e.to.map) && byId.has(e.to.map)) queue.push(e.to.map);
+      for (const r of map.regions) if (r.sceneId && !reached.has(r.sceneId)) { reached.add(r.sceneId); grew = true; }
+    }
     for (const id of [...reached]) for (const next of nexts.get(id) ?? []) if (!reached.has(next)) { reached.add(next); grew = true; }
+    for (const [id, map] of byId) {
+      if (walked.has(id) || typeof map === "string" || map === undefined) continue;
+      if ((map.regions as PlaceRegion[]).some(r => r.sceneId && r.worldOrigin && reached.has(r.sceneId))) { queue.push(id); grew = true; }
+    }
   }
   for (const id of c.scenario.scenes) {
     if (!reached.has(id)) p(`the scene ${id} can't be reached from the start: no region plays it on a map the player can walk to, and no scene that can be reached goes on to it`, "scenes");

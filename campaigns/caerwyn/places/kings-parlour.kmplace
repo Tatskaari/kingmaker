@@ -1,0 +1,156 @@
+{
+  "format": "kingmaker",
+  "version": 2,
+  "kind": "place",
+  "id": "kings-parlour",
+  "title": "The King's parlour",
+  "description": "A small, warm, over-furnished room off the long gallery, where King Aldren takes his supper on a tray when there are delegations to dine.",
+  "size": {
+    "w": 40,
+    "h": 10
+  },
+  "areas": [
+    {
+      "id": "parlour",
+      "name": "the King's parlour",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "w": 40,
+        "h": 10
+      },
+      "description": "A coal fire, two armchairs, a writing table buried in Assembly papers, a tea tray and a supper tray, and windows onto the city's lamps."
+    }
+  ],
+  "things": [
+    {
+      "id": "fire",
+      "name": "the fire",
+      "kind": "feature",
+      "in": "parlour",
+      "at": [
+        35,
+        0
+      ],
+      "size": "large",
+      "material": "stone",
+      "tags": [
+        "fire",
+        "light"
+      ],
+      "states": [
+        "lit"
+      ],
+      "description": "A coal fire in a marble chimneypiece, banked high: the King feels the cold."
+    },
+    {
+      "id": "armchair",
+      "name": "the King's armchair",
+      "kind": "object",
+      "in": "parlour",
+      "at": [
+        30,
+        0
+      ],
+      "size": "medium",
+      "material": "wood",
+      "description": "A sagging old armchair by the fire with a green Assembly cushion on it: the sample, which the King has been sitting on all week to be sure."
+    },
+    {
+      "id": "tea-tray",
+      "name": "the tea tray",
+      "kind": "object",
+      "in": "parlour",
+      "at": [
+        25,
+        5
+      ],
+      "size": "small",
+      "material": "silver",
+      "description": "A silver teapot under a knitted cosy, cups, a milk jug, a sugar bowl with tongs, and lemon: the King keeps everything, for anyone's tea."
+    },
+    {
+      "id": "supper-tray",
+      "name": "the supper tray",
+      "kind": "object",
+      "in": "parlour",
+      "at": [
+        20,
+        5
+      ],
+      "size": "small",
+      "material": "silver",
+      "description": "Cold chicken, a heel of bread and half a custard tart, beside a stack of seating plans."
+    },
+    {
+      "id": "writing-table",
+      "name": "the writing table",
+      "kind": "object",
+      "in": "parlour",
+      "at": [
+        10,
+        0
+      ],
+      "size": "medium",
+      "material": "wood",
+      "description": "Buried in Assembly papers: seating plans, menus, the Order of Procession and a petition about ribbons. At one corner, a squared-off pile of letters under a card in the King's round hand."
+    },
+    {
+      "id": "after-pile",
+      "name": "the after-the-Assembly pile",
+      "kind": "item",
+      "in": "parlour",
+      "at": [
+        10,
+        0
+      ],
+      "size": "small",
+      "material": "paper",
+      "description": "Two dozen letters and petitions under a card in the King's round hand: 'After the Assembly'. Near the top, one in a small, careful clerk's hand on granary-office paper."
+    },
+    {
+      "id": "kings-crowns",
+      "name": "silver crowns",
+      "kind": "item",
+      "in": "king",
+      "size": "tiny",
+      "material": "silver",
+      "quantity": 5,
+      "description": "Five heavy silver crowns from the King's own purse, with his face on them, rather younger than the face he has now."
+    }
+  ],
+  "people": {
+    "player": {
+      "in": "parlour",
+      "at": [
+        0,
+        0
+      ],
+      "note": "just inside the door"
+    },
+    "tob": {
+      "in": "parlour",
+      "at": [
+        5,
+        5
+      ],
+      "note": "at attention inside the door"
+    },
+    "king": {
+      "in": "parlour",
+      "at": [
+        25,
+        0
+      ],
+      "note": "getting up out of his armchair by the fire"
+    },
+    "holt": {
+      "in": "parlour",
+      "at": [
+        35,
+        5
+      ],
+      "note": "by the window, his watch open"
+    }
+  }
+}

@@ -129,6 +129,8 @@ const STATBLOCK_WEAPON: Record<string, string> = {
   spy: "shortsword", bandit: "scimitar", "bandit-captain": "scimitar", "warrior-infantry": "spear", "warrior-veteran": "longsword",
   knight: "greatsword", priest: "mace", "priest-acolyte": "club", mage: "dagger", scout: "shortsword", pirate: "dagger",
   "pirate-captain": "rapier", cultist: "ritual-sickle", "cultist-fanatic": "dagger", mastiff: "mastiff-bite", wolf: "wolf-bite",
+  // The hedge-goblins on the King's Road (the prologue) and their war-boss's worg.
+  "goblin-minion": "dagger", "goblin-warrior": "scimitar", "goblin-boss": "scimitar", worg: "worg-bite",
 };
 
 export function statblockFor(id: string | undefined, weapon: string | undefined, content: Dnd.Content): CombatStatblock {

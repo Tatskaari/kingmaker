@@ -19,7 +19,7 @@ const placeNames=(await readdir(new URL('places/',CAMPAIGN))).filter(name=>name.
 const yard=async()=>openPlaceFile(await read('places/granary-yard.kmplace'));
 
 test('every real place opens with the game\'s parse and saves to the same bytes',async()=>{
-  assert.deepEqual(placeNames,['dressing-room.kmplace','drowned-rat.kmplace','granary-yard.kmplace','heron.kmplace']);
+  assert.deepEqual(placeNames,['dressing-room.kmplace','drowned-rat.kmplace','granary-yard.kmplace','heron.kmplace','kings-parlour.kmplace','kings-road.kmplace','toll-bridge.kmplace']);
   for(const name of placeNames){
     const text=await read(`places/${name}`);
     const doc=openPlaceFile(text);

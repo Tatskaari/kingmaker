@@ -1,4 +1,5 @@
 import { initialGm, type GmState } from "../../../shared/gm/state.ts";
+import { comesToPlayer } from "../../../shared/scene/beats.ts";
 import { useMaps } from "../../../shared/map/maps.ts";
 import { regionForScene, scenePlace } from "../../../shared/map/places.ts";
 import type { Tile2 } from "../../../shared/map/types.ts";
@@ -12,6 +13,7 @@ import { applyOnStart } from "../story/effects.ts";
 import { rekeyOwed } from "../world/cross.ts";
 import { waitingPlace } from "../world/place.ts";
 import { mapFilesOf, mapPlaceOf, originOf } from "./rows.ts";
+import { openLead } from "./lead.ts";
 import { keepTicking } from "./tick.ts";
 
 /**
@@ -19,7 +21,8 @@ import { keepTicking } from "./tick.ts";
  * start.map and start.at), new_game and begin put the host on it in place of opening the first
  * scene: the map's own place (map:caerwyn), the host's seat in it, their explore row on the start's
  * tile facing south (the prototype's newExploration), the lead (the first scene), and the lead's
- * place built on its map with its scene waiting. With no map, the first scene opens at once, as V1.
+ * place built on its map with its scene waiting; a first scene that comes to the player (docs/scene-format.md
+ * `summons`) opens there and then. With no map, the first scene opens at once, as V1.
  */
 
 /** The game set off on its campaign's start map, if it has one: true when it has. */
@@ -32,6 +35,11 @@ export function startOnMap(tx: TxCtx, game: GameRow, campaign: CampaignRow): boo
   putOnMap(tx, game, mapKey, startTile(file.start.at));
 
   buildLead(tx, gameRow(tx, game.id), file.firstScene);
+  // A first scene that comes to the player (the King's Road: on the cart as the game begins) opens at once, where it's played.
+  if (comesToPlayer(graphOf(sceneDefOf(tx, game, file.firstScene)))) {
+    const host = playerRow(tx, game.hostId);
+    openLead(tx, { identity: host.identity, id: host.id }, gameRow(tx, game.id));
+  }
   return true;
 }
 

@@ -44,7 +44,7 @@ test("the campaign's story: the scenes it installs, their places as their worlds
   const ambush = story.scene("crossroads-ambush")!; // one of the 19 the campaign doesn't install
 
   assert.equal(story.id, "caerwyn@0.1.0");
-  assert.equal(story.all().length, 25, "the prototype's 25 scenes, the arc's six among them");
+  assert.equal(story.all().length, 28, "the campaign's nine (the prologue's three, then the arc's six) and the 19 of the prototype's it doesn't install");
   assert.equal(yard.prep, undefined, "an installed scene's prep is read from it, live");
   assert.ok(yard.world?.areas.some(a => a.name === "the lane"), "its place's areas and things, by name");
   assert.ok(yard.exits.some(e => e.id === "own-ending"), "as play has it: an ending of its own");
@@ -73,8 +73,8 @@ test("the hanged clerk's story and the words any other scene might use are the p
   const played = storyScenes(scene, state);
 
   assert.deepEqual(played.map(s => s.id), ["hanged-clerk", "caerwyn-afternoon", "drowned-rat", "wharf-night", "heron-warehouse", "kings-morning"]);
-  // 2560 until M2, whose gm.md lost the notes' markup (only who says each line is left of it).
-  assert.equal(everyday(played, story).size, 2551);
+  // 2560 until M2, whose gm.md lost the notes' markup (only who says each line is left of it); 2551 until the prologue on the King's Road, whose three scenes' words any other scene might use too.
+  assert.equal(everyday(played, story).size, 2789);
   // The Heron is a name of the story's, and its river door a place of it, though nobody has said either.
   const v = vetting(scene, state);
   assert.ok(v.proper.includes("Heron"));

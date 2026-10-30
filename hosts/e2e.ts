@@ -1,4 +1,5 @@
-import { join, resolve } from "node:path";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import type { FakeOptions } from "../ai/llm/fake-openrouter.ts";
 import * as verbs from "../client/headless.ts";
@@ -6,6 +7,7 @@ import type { SceneRows } from "../client/scene/rows.ts";
 import type { Markup } from "../shared/markup.ts";
 import { idempotencyKey, type Step } from "../shared/protocol/keys.ts";
 import { refusalIn } from "../shared/protocol/refusals.ts";
+import { readCampaignFiles } from "./dev/campaign.ts";
 import { reportLines } from "./dev/doctor.ts";
 import { devFake, onTop } from "./dev/fake.ts";
 import type { Mode } from "./dev/mode.ts";
@@ -23,6 +25,7 @@ import { theTown } from "./e2e/town.ts";
 import { aFightInTheRing } from "./e2e/fight.ts";
 import { aProblemReported } from "./e2e/report.ts";
 import { configureTerminal } from "./terminal.ts";
+import { filesFromTheGranary } from "../shared/scene/testdata/from-the-granary.ts";
 
 /**
  * The end to end test (v0-design §10.4, v5-design §4.4, v1-design §4.3, full-gm-design §4.4,
@@ -179,13 +182,21 @@ process.exit(passed ? 0 : 1);
 // The steps (v0-design §10.4, v5-design §4.4); V1's, 15 to 21, are e2e/creation.ts's, the GM's, 22 to 24, e2e/gm.ts's, the world's, 26 to 28 and 30, e2e/world.ts's, the whole story's, 31 to 34, e2e/story.ts's, the town's, 36 to 39, e2e/town.ts's, the fight's, 40, e2e/fight.ts's, and a report's, 41, e2e/report.ts's.
 
 /**
- * 1. The stack is up (--fresh); the campaign goes into both, and the zoo (M6) into both beside it (its
- * scene exhibits are played by the GM: docs/combat-gm.md), as the dev stack installs them; the dice
+ * 1. The stack is up (--fresh); the campaign goes into both, from the granary (its prologue left out:
+ * shared/scene/testdata/from-the-granary.ts), and the zoo (M6) into both beside it (its scene exhibits
+ * are played by the GM: docs/combat-gm.md), as the dev stack installs them; the dice
  * are fixed for the run, as only the owner may; the doctor finds all well.
  */
 async function installedAndWell(stack: Stack): Promise<void> {
   step(`1. Up in ${stack.mode} mode, the campaign installed (and the zoo), the dice fixed, the doctor`);
-  const installed = await stack.install(join(import.meta.dirname, "..", "campaigns", "caerwyn"));
+  // From the granary, as these steps have always played it (the prologue on the King's Road left out: npm run arc plays it), written beside the stack.
+  const fromTheGranary = join(flags.root, "caerwyn-from-the-granary");
+  rmSync(fromTheGranary, { recursive: true, force: true });
+  for (const [path, text] of Object.entries(filesFromTheGranary(readCampaignFiles(join(import.meta.dirname, "..", "campaigns", "caerwyn"))))) {
+    mkdirSync(dirname(join(fromTheGranary, path)), { recursive: true });
+    writeFileSync(join(fromTheGranary, path), text);
+  }
+  const installed = await stack.install(fromTheGranary);
   ok(`${installed.id} installed in both`);
   const zoo = await stack.install(join(import.meta.dirname, "..", "campaigns", "zoo"));
   check(`${zoo.id} installed in both (its scene exhibits are the GM's to play: the Crakes' toll)`, zoo.structure.ok && zoo.words.ok && !("skipped" in zoo.words));
@@ -213,12 +224,13 @@ async function theOpening(stack: Stack, a: Player): Promise<Game> {
   const rows = await until(a, "the scene to go live", 60_000, r => r.scene.status === "live" && r);
   const walked = a.conn.explore();
   check(`A went over to Kell in the yard, and the hanged clerk opened: "${walked?.said}"`, walked?.ex.scene === "hanged-clerk" && /Kell/.test(walked.said) && rows.scene.title === "The Hanged Clerk");
-  const entry = a.events.findIndex(e => e.table === "transcript" && e.op === "insert" && e.row.turn === 0);
+  // The opening's entry is the GM's (a night's rest before the scene writes its dice lines into turn 0 first).
+  const entry = a.events.findIndex(e => e.table === "transcript" && e.op === "insert" && e.row.turn === 0 && e.row.speaker === "gm");
   const drafts = a.events.slice(0, entry).filter(e => e.table === "reply_draft" && e.op !== "delete");
   check(`A saw the opening's draft grow (${drafts.length} posts) before its entry landed`, entry >= 0 && drafts.length >= 2);
   const streamed = speakersIn(...drafts.map(e => e.row.markup));
   check(`its posts named who says each line as it grew: ${streamed.join(", ")}`, ["cob", "kell"].every(k => streamed.includes(k)));
-  const kept = speakersIn(rows.transcript.find(t => t.turn === 0)?.markup);
+  const kept = speakersIn(rows.transcript.find(t => t.turn === 0 && t.speaker === "gm")?.markup);
   check(`the opening's entry keeps them: ${kept.join(", ")}`, kept.join() === streamed.join());
   ok(`game ${rows.game.id}, its scene live`);
   return gameOf(stack, rows);

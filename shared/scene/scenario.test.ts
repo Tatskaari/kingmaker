@@ -30,12 +30,12 @@ function problemsOf<T>(made: () => T, parse: (value: unknown, where: string) => 
 
 test("Caerwyn's files parse as they are, each written as the scenes are, unknown keys kept", () => {
   const files = [scenarioPath("caerwyn"), ...readdirSync(join(CAERWYN, "maps")).map(f => `maps/${f}`), ...readdirSync(join(CAERWYN, "places")).map(f => `places/${f}`)];
-  assert.deepEqual(files, ["caerwyn.kmscenario", "maps/caerwyn.kmmap", "maps/drowned-rat.kmmap", "maps/heron.kmmap", "maps/palace.kmmap", "places/dressing-room.kmplace", "places/drowned-rat.kmplace", "places/granary-yard.kmplace", "places/heron.kmplace"]);
+  assert.deepEqual(files, ["caerwyn.kmscenario", "maps/caerwyn.kmmap", "maps/drowned-rat.kmmap", "maps/heron.kmmap", "maps/kings-road.kmmap", "maps/palace.kmmap", "places/dressing-room.kmplace", "places/drowned-rat.kmplace", "places/granary-yard.kmplace", "places/heron.kmplace", "places/kings-parlour.kmplace", "places/kings-road.kmplace", "places/toll-bridge.kmplace"]);
   for (const path of files) assert.equal(text(path), `${JSON.stringify(JSON.parse(text(path)), null, 2)}\n`, `${path}: JSON.stringify with two spaces, and a newline`);
 
   const doc = parseScenario(text(scenarioPath("caerwyn")), scenarioPath("caerwyn"));
   assert.deepEqual([doc.format, doc.version, doc.kind, doc.id, doc.title, doc.campaignVersion], ["kingmaker", 2, "scenario", "caerwyn", "Caerwyn", "0.1.0"]);
-  assert.deepEqual(doc.maps, ["caerwyn", "drowned-rat", "heron", "palace"]);
+  assert.deepEqual(doc.maps, ["kings-road", "caerwyn", "drowned-rat", "heron", "palace"]);
   assert.deepEqual(parseMap(text(mapPath("palace"))).title, "The Palace");
   assert.deepEqual(parsePlace(text(placePath("granary-yard"))).title, "The yard behind the King's Granary");
   assert.deepEqual((scenarioDocumentOf({ ...scenario(), plugin: { zoom: 2 } }) as unknown as { plugin: unknown }).plugin, { zoom: 2 });
@@ -45,7 +45,7 @@ test("Caerwyn's files parse as they are, each written as the scenes are, unknown
 test("the game's shapes: campaign.json's, maps/<key>.json's and places/<key>.json's fields, in their order", () => {
   const campaign = loadScenario(text(scenarioPath("caerwyn")));
   assert.deepEqual(Object.keys(campaign), ["id", "title", "version", "firstScene", "startPlace", "start", "level", "rulesPack", "scenes", "talk", "places", "maps", "startingPurse", "creation", "quests"]);
-  assert.deepEqual([campaign.id, campaign.version, campaign.firstScene], ["caerwyn", "0.1.0", "hanged-clerk"]);
+  assert.deepEqual([campaign.id, campaign.version, campaign.firstScene], ["caerwyn", "0.1.0", "kings-road"]);
 
   const map = loadMap(text(mapPath("caerwyn")));
   assert.deepEqual(Object.keys(map), ["id", "name", "grid", "legend", "regions", "exits", "people"]);

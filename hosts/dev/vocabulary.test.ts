@@ -39,7 +39,7 @@ test("caerwyn's vocabulary is fit: the prototype's scenes the campaign doesn't i
 
 test("an installed scene is read from its file, in an entry's place: what the tool would write for it comes from the scene", () => {
   const scene = loadScene(files[SCENE]!, SCENE);
-  const entry = entryOf(scene, packOf(files).places[0]);
+  const entry = entryOf(scene, packOf(files).places.find(p => p.key === "granary-yard"));
 
   assert.deepEqual([entry.id, entry.next, entry.prep], ["hanged-clerk", ["caerwyn-afternoon"], prepText(scene)]);
   assert.deepEqual(entry.cast.map(c => c.called ?? c.name), ["Sergeant Agnes Kell", "the boy in the too-big boots", "the girl in the shawl", "the corporal", "the old porter"]);

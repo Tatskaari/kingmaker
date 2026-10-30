@@ -38,6 +38,13 @@ interface SceneDocument {
   interlude?: boolean;
   rest?: "short" | "long";
   milestone?: boolean;
+  /**
+   * The scene comes to the player: it opens as soon as the story reaches it (the game's first scene
+   * as the game begins, or the next as the last ends), rather than waiting in its place for them to
+   * walk in. A palace guard taking them to the King; a page at first light. A scene at next-morning
+   * always comes to the player (the King's morning).
+   */
+  summons?: boolean;
 
   // ---- The prep (prose, GM-facing unless it says otherwise) ----
   /** What the player knows walking in: player-facing (the map's lead, the between-scenes card). */
@@ -314,6 +321,7 @@ interface Route {
 - **The targets.** The discoveries not yet reached, each with its paths (who or what holds each, and how strong it is). The GM steers towards them through the people's roles.
 - **Facts.** A reached beat's and a taken route's `establishes` are settled (a dice route's on a success). The GM is told their sentences, and the endings' effects test them.
 - **Carried beats.** A beat with `carry` that the scene ends without is owed to the player by the story, as the campaign's essentials were before. One the scene reaches is owed no more. While it's owed, its `things` go on with whoever holds them into the next scene that can hold it (the page in Cob's boot); a scene ended for QA (`thorough`) takes the things of the discoveries it reaches into the player's hands.
+- **A scene that comes to the player.** A scene with `summons` (or at `next-morning`) opens as soon as the story reaches it, where it's played: as the game begins when it's the first scene (the King's Road opens on the cart), or as the scene before it ends (Garrow's bridge ends with Guardsman Wren taking the player to the King, and the King's thanks opens in his parlour at once). The player is moved to its place on its map, and whoever walks with them comes too. Any other scene waits in its place for the player to walk in.
 - **The start.** As the scene comes into the story (its row made: built as the lead the player is heading for on a map, or opened at once without one), `onStart`'s effects apply, once, as an ending's do: the hanged clerk starts its quest there, so the King's request is in the player's quests from the game's first moment rather than only at the scene's end.
 - **Effects.** As the scene ends, `onEnd`'s effects and then the ending's apply, each when its facts hold (`if` all established, `unless` none). The story's (quest, flag, attitude, journal, follow) write the story. The world's (give, remove, move, create, note…) change the scene's place as the stage manager's do: a give puts the thing in the player's keeping (`$player`) or a person's, and a remove takes someone or something off the place. They name things by their ids in the place, and one whose thing isn't there isn't done (the game logs it). What the player holds then goes on with them into the next scene. `remember`, `promise` and a combat ending's `startFight` are recorded (a combat ending is the map's fight, the zoo's ring's; the story's fights are events played in the conversation).
 

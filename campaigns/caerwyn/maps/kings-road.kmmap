@@ -1,0 +1,149 @@
+{
+  "format": "kingmaker",
+  "version": 2,
+  "kind": "map",
+  "id": "kings-road",
+  "title": "The King's Road",
+  "description": "The last miles of the King's Road into Caerwyn on the afternoon before the eve of the Assembly: the crossroads, with its milestone and empty gibbet between blackthorn hedges, the drovers' track going off north to the Nine Furrows, the fields, and Garrow's toll bridge over the river in winter spate.",
+  "grid": [
+    "ttttttttt::ttttttttttttttttttttttttttttttt~www~ttttttttt",
+    "ttttttttt::ttttttttttttttttttttttttttttttt~www~ttttttttt",
+    ",,,t,,,,,::,,,t,,,,,,,,,,,,t,,,,,,,t,,,,,,~www~,,,,,,,,,",
+    ",,,,,,t,,::,,,,,,,,t,,,,,,,,,,,,,,,,,,,,,,~www~,,,t,,,,,",
+    ",,,,,,,,,::,,,,,,,,,,,,,,,,,,,,t,,,,,,,,,,~www~,,,,,,,,,",
+    ",,,,,,,,,::,,,,,,,,,,,,,,,,,,,,,hhhhhhhhhh~www~hhhhhhhh,",
+    "hhhhhhhhh::hhhhhhhhhhhhhh,,,,,,,h,,,,,,,,,~www~,,,,,,,h,",
+    "h,,,,,,,,::,,,,,,,,,t,,,h,,,,,,,h,t,HHHHH,~www~,,,,t,,h,",
+    "h,,t,,,,,::,,,t,,,,,,,,,h,t,,,,,h,,,NFFFN,~www~,,,,,,,h,",
+    "h,,,,,,,G::m,,,,,,,,,,,,h,,,,,,th,,,HFFFH,~www~,,,,,,,h,",
+    "h,hhh,hhh::hhhhh,hhhhhh,h,,,,,,,h,,,HHDHH,~www~,,,,,,,h,",
+    "::::::::::::::::::::::::::::::::::::::::::=====:::::::::",
+    "::::::::::::::::::::::::::::::::::::::::::=====:::::::::",
+    "h,hhhhh,hhhhhhhhhhh,hhh,h,,,,,,,h,,,,,,,,,~www~,,,,,,,h,",
+    "h,,,,,,,,,,,,,,,,,,,,,,,h,,t,,,,h,,,,,,,,,~www~,,,,,,,h,",
+    "h,,,t,,,,,,,,,,,,,,,,t,,h,,,,t,,h,,,,,,,,,~www~,,,,,,,h,",
+    "h,,,,,,,,,,,t,,,,,,,,,,,h,,,,,,,h,,,,,,,,,~www~,t,,,,,h,",
+    "hhhhhhhhhhhhhhhhhhhhhhhhh,,,,,,,h,,,,,,,,,~www~,,,,,,,h,",
+    ",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,hhhhhhhhhh~www~hhhhhhhh,",
+    ",,,,,,,,,,,,,,,,,t,,,,,,,,,,,,,,,,,,,,,,,,~www~,,,,,t,,,",
+    ",,,,t,,,,,,,,,,,,,,,,,,,,t,,,,,,,,,,,,t,,,~www~,,,,,,,,,",
+    ",,,,,,,,,,,,,t,,,,,,,,,,,,,,,t,,,,,,,,,,,,~www~,,t,,,,,,",
+    "tttttttttttttttttttttttttttttttttttttttttt~www~ttttttttt",
+    "tttttttttttttttttttttttttttttttttttttttttt~www~ttttttttt"
+  ],
+  "legend": {
+    ",": {
+      "terrain": "grass"
+    },
+    ":": {
+      "terrain": "dirt"
+    },
+    "t": {
+      "terrain": "tree"
+    },
+    "h": {
+      "terrain": "fence",
+      "style": "hedge",
+      "height": 2,
+      "opaque": true
+    },
+    "~": {
+      "terrain": "water"
+    },
+    "w": {
+      "terrain": "deep-water"
+    },
+    "=": {
+      "terrain": "bridge"
+    },
+    "H": {
+      "terrain": "wall",
+      "style": "plaster",
+      "height": 3
+    },
+    "N": {
+      "terrain": "window",
+      "style": "plaster",
+      "height": 3
+    },
+    "D": {
+      "terrain": "door",
+      "style": "plaster",
+      "height": 3,
+      "blocks": true
+    },
+    "F": {
+      "terrain": "floor",
+      "roof": "plaster",
+      "roofHeight": 3
+    },
+    "m": {
+      "terrain": "grass"
+    },
+    "G": {
+      "terrain": "grass"
+    }
+  },
+  "regions": [
+    {
+      "id": "crossroads",
+      "name": "the crossroads on the King's Road",
+      "rect": {
+        "x": 1,
+        "y": 7,
+        "w": 23,
+        "h": 10
+      },
+      "sceneId": "kings-road",
+      "worldOrigin": {
+        "x": 1,
+        "y": 7
+      },
+      "trigger": "enter",
+      "label": "The crossroads",
+      "description": "Where the drovers' track from the Nine Furrows meets the King's Road: a milestone worn smooth, an empty gibbet, and tall blackthorn hedges on both sides of the road."
+    },
+    {
+      "id": "drovers-track",
+      "name": "the drovers' track",
+      "rect": {
+        "x": 9,
+        "y": 0,
+        "w": 2,
+        "h": 7
+      },
+      "description": "A rutted track going off north between the woods to the Nine Furrows farmlands, deep in old hoofprints."
+    },
+    {
+      "id": "the-fields",
+      "name": "the fields along the King's Road",
+      "rect": {
+        "x": 25,
+        "y": 2,
+        "w": 7,
+        "h": 20
+      },
+      "description": "Winter fields either side of the road, stubble and frost and a few bare oaks, and the smoke going up ahead over the river."
+    },
+    {
+      "id": "toll-bridge",
+      "name": "Garrow's toll bridge",
+      "rect": {
+        "x": 33,
+        "y": 6,
+        "w": 21,
+        "h": 12
+      },
+      "sceneId": "toll-bridge",
+      "worldOrigin": {
+        "x": 33,
+        "y": 6
+      },
+      "trigger": "enter",
+      "label": "Go on to the toll bridge",
+      "description": "A humpbacked stone bridge over the river in spate, the only crossing for miles, with Garrow's whitewashed toll house at the near end and the road running on beyond it to Caerwyn."
+    }
+  ],
+  "exits": [],
+  "people": []
+}

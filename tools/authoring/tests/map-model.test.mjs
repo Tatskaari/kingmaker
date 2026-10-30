@@ -20,7 +20,7 @@ const town=async()=>openMapFile(await read('maps/caerwyn.kmmap'));
 const palace=async()=>openMapFile(await read('maps/palace.kmmap'));
 
 test('every real map opens with the game\'s parse and saves to the same bytes; its grid as cells comes back as the same rows',async()=>{
-  assert.deepEqual(mapNames,['caerwyn.kmmap','drowned-rat.kmmap','heron.kmmap','palace.kmmap']);
+  assert.deepEqual(mapNames,['caerwyn.kmmap','drowned-rat.kmmap','heron.kmmap','kings-road.kmmap','palace.kmmap']);
   for(const name of mapNames){
     const text=await read(`maps/${name}`);
     const doc=openMapFile(text);
