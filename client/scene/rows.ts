@@ -19,7 +19,9 @@ export interface SceneRows {
   /** This client's player: my_seat's playerId. */
   me: bigint;
   game: Pick<Game, "id" | "time">;
-  scene: Pick<Scene, "id" | "title" | "hook" | "status" | "controllerId" | "turnId" | "turns"> & Partial<Pick<Scene, "time" | "kind">>;
+  scene: Pick<Scene, "id" | "title" | "hook" | "status" | "controllerId" | "turnId" | "turns"> & Partial<Pick<Scene, "time" | "kind" | "sceneKey">>;
+  /** The authored source of a generated talk-<companion>-<n> scene, from the campaign. */
+  talkTemplate?: string;
   players: Array<Pick<Player, "id" | "name" | "suggestions">>;
   /** Each player's sheet: its status line; the lead's spells too, and what the rules say of them, for the place's menu. */
   sheets: Array<Pick<Sheet, "playerId" | "statusLine"> & LeadSheet>;
@@ -73,9 +75,12 @@ export function sceneViewOf(rows: SceneRows): SceneView {
 
   // The scene's own time of day (the game's moves on with the story once it's over), in a word: "Evening".
   const time = rows.scene.time ?? rows.game.time;
+  const sceneKey = rows.scene.kind === "talk" ? rows.talkTemplate ?? rows.scene.sceneKey : rows.scene.sceneKey;
   const name = (key: string) => rows.names.find(n => n.key === key)?.name;
   return {
     sceneId: String(rows.scene.id),
+    ...(sceneKey ? { sceneKey } : {}),
+    ...(time ? { musicTime: time } : {}),
     title: rows.scene.title, ...(time ? { time: timeWord(time) } : {}), ...(rows.scene.hook ? { hook: rows.scene.hook } : {}),
     game: String(rows.game.id),
     player: { name: lead?.name ?? "", ...(status ? { status } : {}) },

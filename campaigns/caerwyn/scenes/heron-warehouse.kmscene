@@ -10,6 +10,14 @@
     "World/Caerwyn now.md"
   ],
   "time": "night",
+  "music": {
+    "morning": "scene",
+    "afternoon": "scene",
+    "evening": "night",
+    "night": "night",
+    "next-morning": "scene",
+    "combat": "fight"
+  },
   "place": "heron",
   "hook": "Night, on the eve of the Assembly. The big man with the bandaged hand, Hobb Mallory, works nights for a gentleman at the Heron warehouse, at the downriver end of the wharves, and tonight a barge is loading there. If the King's 'lost' grain goes anywhere, it goes through those doors. Sergeant Kell is with you on the dark wharf.",
   "setting": "Night on the eve of the Centennial Assembly, at the downriver end of Caerwyn's wharves, where the lamps give out. The Heron warehouse is a tall, tarred timber warehouse standing half on the wharf and half on piles over the river, with a painted heron on its signboard. On the wharf side is the land door, big double doors with a wicket in one leaf, and beside it Saul's sentry box and brazier, with Duchess the dog snoring across the threshold. On the river side, along a slippery plank walk on the piles, is the river door: a low loading door at water level with a grille in it, where the gang come and go, holding a brass heron token up to the grille for whoever is nearest inside to draw the bolt. Above it the hoist beam juts out over the barge moored alongside: the Saltmere barge Patience, broad and low, hatches open, her bargees waiting for the ebb. The hoist itself is worked from inside, on the floor just within the river door, its rope running up and out over the beam's pulley to swing sacks down into her hold. Inside is one long floor lit by lanterns and thick with grain dust, which hangs in the light like fog. Down one side are stacked the palace's grain sacks, each stamped with the wheat-ear; down the other, new sacks stamped with a heron. Between them Hep Grist's gang are slitting, pouring and sewing, and a chute runs down through the river door to the barge. There's a heap of empty wheat-ear sacks waiting for the river, a brazier for cold hands, and a painted sign reading NO NAKED LIGHTS, which everyone ignores. Up a short stair, a glass-sided counting-box hangs over the floor, where Mister Scrope sits under a lamp with a fat green ledger open under his left hand. The river runs high, fast and black under the floor, and the tide is on the turn. The bells carry across the water: at the midnight bell the Master comes, and at the second bell after it the ebb runs and the Patience, which waits for no one, casts off.",

@@ -48,7 +48,7 @@ test("the game's shapes: campaign.json's, maps/<key>.json's and places/<key>.jso
   assert.deepEqual([campaign.id, campaign.version, campaign.firstScene], ["caerwyn", "0.1.0", "hanged-clerk"]);
 
   const map = loadMap(text(mapPath("caerwyn")));
-  assert.deepEqual(Object.keys(map), ["id", "name", "grid", "legend", "regions", "exits", "people"]);
+  assert.deepEqual(Object.keys(map), ["id", "name", "music", "grid", "legend", "regions", "exits", "people"]);
   assert.deepEqual([map.id, map.name, map.grid.length, map.grid[0]!.length], ["caerwyn", "Caerwyn", 46, 64]);
 
   const place = loadPlace(text(placePath("granary-yard")));

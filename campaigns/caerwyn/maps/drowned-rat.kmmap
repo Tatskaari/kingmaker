@@ -5,6 +5,14 @@
   "id": "drowned-rat",
   "title": "The Drowned Rat",
   "description": "The Drowned Rat, halfway down the river stairs: the landing, the skiff-hull bar, the fireside corner and the scullery.",
+  "music": {
+    "morning": "town",
+    "afternoon": "town",
+    "evening": "night",
+    "night": "night",
+    "next-morning": "town",
+    "combat": "fight"
+  },
   "grid": [
     ",,,,,,,,,,,,,~ww",
     "vvKKKKKKKKKKK~ww",

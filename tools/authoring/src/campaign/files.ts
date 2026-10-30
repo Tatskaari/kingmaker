@@ -8,6 +8,8 @@ import {MAP_EXTENSION,PLACE_EXTENSION,SCENARIO_EXTENSION,mapPath,parseMap,parseP
 import type {MapDocument,PlaceDocument,ScenarioDocument} from '../../../../shared/scene/scenario.ts';
 import {flowProblems,mapRuleProblems,placeRuleProblems,scenarioRuleProblems} from '../../../../shared/scene/scenario-rules.ts';
 import type {ScenarioCampaign,ScenarioProblem,ScenarioProblemAt} from '../../../../shared/scene/scenario-rules.ts';
+import {readTuneChoices} from './tunes.ts';
+import type {TuneChoice} from './tunes.ts';
 
 export type {MapDocument,PlaceDocument,ScenarioDocument,ScenarioProblem,ScenarioProblemAt,SceneDocument};
 
@@ -70,6 +72,7 @@ export type CampaignFiles={
   looks:Record<string,{glyph?:string;fg?:string}>;
   /** Every file under lore/, by its path there. */
   lore:string[];
+  tunes?:TuneChoice[];
 };
 
 /** The campaign around the file at `path`: its scenario and every scene, map and place it lists. */
@@ -79,8 +82,8 @@ export async function readCampaignFiles(path:string,files:VaultFiles):Promise<Ca
   const inFolder=(folder:string,extension:string)=>all.filter(file=>file.startsWith(`${folder}/`)&&file.split('/').length===2&&file.endsWith(extension)).map(keyOfPath).sort((a,b)=>a.localeCompare(b));
   const present={scenes:inFolder('scenes','.kmscene'),maps:inFolder('maps',MAP_EXTENSION),places:inFolder('places',PLACE_EXTENSION)};
   const lore=all.filter(file=>file.startsWith('lore/')).map(file=>file.slice(5)).sort((a,b)=>a.localeCompare(b));
-  const looks=await readLooks(root,files);
-  const empty:CampaignFiles={root,scenes:[],maps:[],places:[],present,looks,lore};
+  const [looks,tunes]=await Promise.all([readLooks(root,files),readTuneChoices(root,files)]);
+  const empty:CampaignFiles={root,scenes:[],maps:[],places:[],present,looks,lore,tunes};
 
   const found=scenarioPathIn(all);
   if(!found){

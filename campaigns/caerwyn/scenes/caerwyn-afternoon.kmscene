@@ -12,6 +12,14 @@
     "Places/Market Square.md"
   ],
   "time": "afternoon",
+  "music": {
+    "morning": "scene",
+    "afternoon": "scene",
+    "evening": "night",
+    "night": "night",
+    "next-morning": "scene",
+    "combat": "fight"
+  },
   "interlude": true,
   "rest": "short",
   "hook": "A breath between one thing and the next.",

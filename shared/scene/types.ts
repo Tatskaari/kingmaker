@@ -3,6 +3,7 @@
 import type { BeatData, CastMember, OuterLimit, Path } from "./document.ts";
 import type { Effect } from "./files.ts";
 import type { WorldOp, WorldSpec } from "../world/scene-world.ts";
+import type { MusicAssignments } from "../music/assignments.ts";
 
 /**
  * A scene is GM prep, not a script: who is here and what they want, the beats the
@@ -279,6 +280,7 @@ export interface Scene {
   interlude?: boolean;
   /** When it happens, for the map (the time of day it shows). */
   time?: "morning" | "afternoon" | "evening" | "night" | "next-morning";
+  music?: MusicAssignments;
   /** Reaching this scene is a milestone: the player's character goes up a level as it opens. */
   milestone?: boolean;
   /** The place as a world: areas, things and where people start (shared/world/scene-world.ts). A campaign keeps it in places/<key>.kmplace: a host that wants it here puts it here. */

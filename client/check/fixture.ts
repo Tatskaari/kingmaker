@@ -9,6 +9,8 @@ import type { SceneView } from "../scene/view.ts";
  */
 export const YARD: SceneView = {
   "sceneId": "7",
+  "sceneKey": "hanged-clerk",
+  "musicTime": "morning",
   "title": "The Hanged Clerk",
   "time": "Morning",
   "game": "1",
@@ -139,7 +141,7 @@ export function yardRows(): SceneRows {
   return {
     me: 1n,
     game: { id: BigInt(YARD.game), time: YARD.time!.toLowerCase() },
-    scene: { id: 7n, title: YARD.title, hook: YARD.hook!, status: "live", controllerId: 1n, turnId: undefined, turns: turns.length - 1 },
+    scene: { id: 7n, sceneKey: "hanged-clerk", title: YARD.title, hook: YARD.hook!, status: "live", controllerId: 1n, turnId: undefined, turns: turns.length - 1 },
     players: [{ id: 1n, name: YARD.player.name, suggestions: true }, { id: 2n, name: "Tamsin Vell", suggestions: true }],
     sheets: [{ playerId: 1n, statusLine: YARD.player.status! }],
     transcript: YARD.entries.map((e, i) => ({ seq: i + 1, turn: e.turn, speaker: e.speaker, kind: e.kind, text: e.text, markup: e.markup ? JSON.stringify(e.markup) : undefined })),

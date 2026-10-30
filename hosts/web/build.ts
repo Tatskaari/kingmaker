@@ -5,6 +5,8 @@ import { dirname, join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { gzipSync } from "node:zlib";
 import { build } from "esbuild";
+import { readTuneLibrary } from "./tunes.ts";
+import type { SoundLibrary } from "../../client/sound/library.ts";
 import { fontFaceCss, fontList, webFonts } from "../../web/fonts/fonts.ts";
 import { readContent } from "./content.ts";
 import { keyNeedles, preloadOf, siteProblems, stampedPage, stampedScript, stampOf, writeSite, type Site } from "./site.ts";
@@ -31,7 +33,7 @@ import { tuiAliases, tuiFonts } from "./tui.ts";
  * nothing like an OpenRouter key: the dev key is read from ~/secrets to look for, and never printed);
  * a site that breaks one isn't written.
  *
- *   npm run build:web [-- --out <dir>]      (dist/web by default; --out for the preview)
+ *   npm run build:web [-- --out <dir> --tunes <lore/Tunes>]      (dist/web and repo lore/Tunes by default)
  */
 
 const V2 = resolve(import.meta.dirname, "..", "..");
@@ -39,11 +41,14 @@ const V2 = resolve(import.meta.dirname, "..", "..");
 async function main(argv: string[]): Promise<void> {
   const started = performance.now();
   const out = outOf(argv);
+  const { values } = parseArgs({ args: argv, options: { out: { type: "string" }, tunes: { type: "string" } } });
+  const tuneDirectory = resolve(values.tunes ?? join(V2, "lore", "Tunes"));
+  const library = readTuneLibrary(tuneDirectory, [join(V2, "campaigns"), join(dirname(tuneDirectory), "Game")]);
 
   const site = await bundleWorkers(out);
   site.set("doors.js", await bundlePage("doors.ts"));
   site.set("sound.js", await bundlePage("sound.ts"));
-  site.set("sound-worklet.js", await bundlePage("sound-worklet.ts"));
+  site.set("sound-worklet.js", await bundlePage("sound-worklet.ts", library));
   addFiles(site, vendorFiles());
   addFiles(site, fontFiles());
   site.set("content.json", encode(JSON.stringify(readContent(V2))));
@@ -57,7 +62,7 @@ async function main(argv: string[]): Promise<void> {
 
 /** Where the site goes: emptied first, so a build that fails leaves none. A folder that isn't a site of the page's isn't touched. */
 function outOf(argv: string[]): string {
-  const { values } = parseArgs({ args: argv, options: { out: { type: "string" } } });
+  const { values } = parseArgs({ args: argv, options: { out: { type: "string" }, tunes: { type: "string" } } });
   const out = resolve(values.out ?? join(V2, "dist", "web"));
   if (existsSync(out) && readdirSync(out).length && !existsSync(join(out, "index.html"))) throw new Error(`${out} isn't a build of the page's (no index.html), so it isn't emptied: choose another --out`);
   rmSync(out, { recursive: true, force: true });
@@ -96,10 +101,11 @@ async function bundleWorkers(out: string): Promise<Site> {
  * the audio thread (sound-worklet.ts, the client's engine). Each a module for page.js to import, or
  * sound.js to load.
  */
-async function bundlePage(entry: string): Promise<Uint8Array> {
+async function bundlePage(entry: string, library?: SoundLibrary): Promise<Uint8Array> {
   const result = await build({
     absWorkingDir: V2, entryPoints: [join(V2, "web", "page", entry)], bundle: true, format: "esm", platform: "browser", target: "es2022",
     minify: true, legalComments: "none", write: false, logLevel: "warning",
+    define: { __KM_SOUND_LIBRARY__: JSON.stringify(library ?? { version: 1, tunes: {}, music: {}, cues: {} }) },
   });
   const file = result.outputFiles[0];
   if (!file) throw new Error(`the page's ${entry} didn't bundle`);

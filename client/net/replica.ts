@@ -48,6 +48,9 @@ export class Replica implements Backend {
     const game = seat ? t.game.id.find(seat.gameId) : undefined;
     const scene = seat?.sceneId === undefined ? undefined : t.scene.id.find(seat.sceneId);
     if (!seat || !game || !scene) return undefined;
+    // Talks have generated keys; their music is authored on the campaign's talk template.
+    const campaign = scene.kind === "talk" ? [...t.campaign.iter()].find(row => row.id === `${game.campaign}@${game.campaignVersion}`) : undefined;
+    const talkTemplate: unknown = campaign ? JSON.parse(campaign.json).talk : undefined;
 
     const of = <T>(table: { iter(): Iterable<T> }, keep: (row: T) => boolean) => [...table.iter()].filter(keep);
     const mine = <T extends { gameId: bigint }>(table: { iter(): Iterable<T> }) => of(table, r => r.gameId === game.id);
@@ -57,6 +60,7 @@ export class Replica implements Backend {
     return {
       me: seat.playerId,
       game, scene,
+      ...(typeof talkTemplate === "string" ? { talkTemplate } : {}),
       players: of(t.player, p => p.gameId === game.id),
       sheets: of(t.sheet, s => s.gameId === game.id),
       transcript: of(t.transcript, r => r.sceneId === scene.id),

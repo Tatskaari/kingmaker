@@ -4,7 +4,7 @@ import type { Beat } from "../fight/script.ts";
 import { YARD } from "../check/fixture.ts";
 import type { SceneView } from "../scene/view.ts";
 import type { Unit } from "../../shared/fight/types.ts";
-import { moodOf } from "./attach.ts";
+import { moodOf, musicOf } from "./attach.ts";
 import { audition, music, setSoundOut, sfx, ui } from "./cues.ts";
 import type { SoundMessage } from "./engine.ts";
 import { fightSounds } from "./fight.ts";
@@ -58,6 +58,25 @@ test("the music is said when it changes, and the sound board's mood is held over
   audition(undefined);
   await flush();
   assert.deepEqual(said.filter(m => m.type === "music").map(m => m.type === "music" && m.mood), ["title", "fight", "town"]);
+});
+
+test("music context changes send a new request even in the same mood, and audition restores the latest context", async () => {
+  const said = heard();
+  music("town", { map: "caerwyn", slot: "morning" });
+  music("town", { slot: "morning", map: "caerwyn" });
+  music("town", { map: "caerwyn", slot: "afternoon" });
+  music("town", { map: "palace", slot: "afternoon" });
+  audition("fight");
+  music("scene", { scene: "kings-morning", map: "palace", slot: "next-morning", track: "royal" });
+  audition(undefined);
+  await flush();
+  assert.deepEqual(said, [
+    { type: "music", mood: "town", map: "caerwyn", slot: "morning" },
+    { type: "music", mood: "town", map: "caerwyn", slot: "afternoon" },
+    { type: "music", mood: "town", map: "palace", slot: "afternoon" },
+    { type: "music", mood: "fight" },
+    { type: "music", mood: "scene", scene: "kings-morning", map: "palace", slot: "next-morning", track: "royal" },
+  ]);
 });
 
 test("a scene opens with its chime (what it had isn't news); another opens with its own, a talk's quietly", async () => {
@@ -143,9 +162,26 @@ test("the music for each screen", () => {
   assert.equal(screen({ screen: "explore", explore: { view: { ex: { story: { time: "night" } } } } }), "night");
   assert.equal(screen({ screen: "scene", scene: { page: "scene", view: { ...YARD } } }), "scene");
   assert.equal(screen({ screen: "scene", scene: { page: "scene", view: { ...YARD, talk: true } } }), "between");
-  assert.equal(screen({ screen: "scene", scene: { page: "scene", view: { ...YARD, place: { time: "evening" } } } }), "night");
+  assert.equal(screen({ screen: "scene", scene: { page: "scene", view: { ...YARD, musicTime: "evening", place: { time: "evening" } } } }), "night");
   assert.equal(screen({ screen: "scene", scene: { page: "between", view: YARD } }), "between");
   assert.equal(screen({ screen: "scene", scene: { page: "end", view: YARD } }), "end");
   assert.equal(screen({ screen: "fight", fight: { view: { status: "on" }, player: { caughtUp: false } } }), "fight");
   assert.equal(screen({ screen: "fight", fight: { view: { status: "over" }, player: { caughtUp: true } } }), null);
+});
+
+test("authored music follows the active scene and map, including fights, without leaking an old scene into a new one", () => {
+  const request = (app: object) => musicOf(app as Parameters<typeof musicOf>[0]);
+  const explore = { view: { game: "1", ex: { map: "music-test-town", scene: "hanged-clerk", story: { time: "next-morning" } } } };
+  const scene = { page: "scene", view: { ...YARD, musicTime: "next-morning" } };
+  assert.deepEqual(request({ screen: "explore", explore }), { mood: "town", map: "music-test-town", slot: "next-morning" });
+  assert.deepEqual(request({ screen: "scene", explore, scene }), { mood: "scene", scene: "hanged-clerk", map: "music-test-town", slot: "next-morning" });
+  assert.deepEqual(request({ screen: "scene", explore, scene: { ...scene, view: { ...scene.view, talk: true, sceneKey: "companion-conversation" } } }), { mood: "between", scene: "companion-conversation", map: "music-test-town", slot: "next-morning" });
+  assert.deepEqual(request({ screen: "scene", explore, scene: { ...scene, page: "fight" } }), { mood: "fight", scene: "hanged-clerk", map: "music-test-town", slot: "combat" });
+  const fight = { view: { game: "1", status: "on", map: { id: "music-test-town", music: { combat: "drums" } } }, player: { caughtUp: false } };
+  assert.deepEqual(request({ screen: "fight", explore, scene, fight }), { mood: "fight", scene: "hanged-clerk", map: "music-test-town", slot: "combat", track: "drums" });
+  assert.deepEqual(request({ screen: "fight", explore: { view: { ...explore.view, game: "old-game" } }, scene, fight }), { mood: "fight", map: "music-test-town", slot: "combat", track: "drums" });
+  assert.deepEqual(request({ screen: "fight", explore, scene, fight: { ...fight, view: { ...fight.view, status: "over" }, player: { caughtUp: true } } }), { mood: null });
+  for (const page of ["between", "end"]) assert.deepEqual(request({ screen: "scene", explore, scene: { ...scene, page } }), { mood: page });
+  assert.deepEqual(request({ screen: "title", explore, scene }), { mood: "title" });
+  assert.deepEqual(request({ screen: "explore", explore: { view: { ...explore.view, fight: { title: "Brawl" } } } }), { mood: "fight", map: "music-test-town", slot: "combat" });
 });

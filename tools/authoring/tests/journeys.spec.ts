@@ -380,7 +380,7 @@ test('a fact renamed follows everywhere it\'s named; removed, after asking, it l
 test('the Scene view: the scene\'s own fields, grouped, each edited where it is',async({page})=>{
   await view(page,'Scene').click();
   const scene=page.locator('.scene-view');
-  await expect(scene.getByRole('region')).toHaveText([/^The scene/,/^What the player knows/,/^The prep/,/^When and where/,/^The world/,/^The story/,/^Lore/]);
+  await expect(scene.getByRole('region')).toHaveText([/^The scene/,/^What the player knows/,/^The prep/,/^When and where/,/^Music/,/^The world/,/^The story/,/^Lore/]);
   await expect(scene.getByRole('region',{name:'What the player knows'}).getByLabel('Hook',{exact:true})).toHaveValue(clerk().hook);
   await scene.getByRole('region',{name:'The prep'}).getByLabel('Premise',{exact:true}).fill('Murder or suicide, before the noon cart?');
   await scene.getByRole('region',{name:'When and where'}).getByLabel('Time',{exact:true}).selectOption('afternoon');
@@ -396,7 +396,7 @@ test('the Scene view: the scene\'s own fields, grouped, each edited where it is'
   expect(after.known).toEqual(['The noon bell is the Assembly bell.']);
   expect(after.milestone).toBe(true);
   // Keys new to the file go where the format puts them.
-  expect(Object.keys(after)).toEqual(['format','version','kind','id','title','description','lore','time','place','milestone','hook','setting','premise','truth','clock','limits','known','cast','facts','onStart','onEnd','afterwards','fronts','nodes','edges']);
+  expect(Object.keys(after)).toEqual(['format','version','kind','id','title','description','lore','time','music','place','milestone','hook','setting','premise','truth','clock','limits','known','cast','facts','onStart','onEnd','afterwards','fronts','nodes','edges']);
   await page.screenshot({path:'dist/screenshots/scene-view.png'});
   // The effects as it starts are forms, as the endings' are: the clerk starts its quest with the King's request.
   const story=scene.getByRole('region',{name:'The story'});

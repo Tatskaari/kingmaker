@@ -5,6 +5,14 @@
   "id": "talk",
   "title": "A word with {name}",
   "description": "A word with {name} between scenes: a talk for its own sake, with no story exits.",
+  "music": {
+    "morning": "between",
+    "afternoon": "between",
+    "evening": "between",
+    "night": "between",
+    "next-morning": "between",
+    "combat": "fight"
+  },
   "lore": [],
   "hook": "A word with {name}, between one thing and the next.",
   "setting": "Out in the town between one scene of the story and the next, wherever the player stopped for a word (the details established in play say where and when), with the place going about its business around them.",

@@ -5,6 +5,14 @@
   "id": "heron",
   "title": "The Heron Warehouse",
   "description": "The Heron warehouse at the downriver end of the wharves: the wharf outside, the re-sacking floor and its counting-box, the plank walk and the barge Patience.",
+  "music": {
+    "morning": "town",
+    "afternoon": "town",
+    "evening": "night",
+    "night": "night",
+    "next-morning": "town",
+    "combat": "fight"
+  },
   "grid": [
     "KKKKKKKKKKKKKKKKKKKKKKK",
     "_______________________",

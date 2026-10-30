@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "music": {
+    "title": "title",
+    "town": "town",
+    "night": "night",
+    "scene": "scene",
+    "between": "between",
+    "fight": "fight",
+    "end": "end"
+  },
+  "cues": {}
+}

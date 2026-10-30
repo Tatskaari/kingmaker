@@ -311,3 +311,7 @@ On a fresh machine, install the test browser first: `npx playwright install chro
 None of this is the Obsidian desktop app: the host tests and the bundle check stand in for Obsidian's API. `npm run dev` serves the harness (on port 4177) to look at by hand.
 
 CI runs these on every PR ([check.yml](../../.github/workflows/check.yml)'s `authoring` job).
+
+### Creating files from the explorer
+
+Right-click a file or folder and open **Kingmaker** for **New scene**, **New scenario**, **New map**, **New place**, or **New tune**. Each action asks for a title and creates the file in that folder (or beside the clicked file). Tunes use the shared `.kmtune` score format and open in the separately installed Kingmaker Tunes sequencer. Existing command-palette actions remain available.
