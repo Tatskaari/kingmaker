@@ -119,7 +119,8 @@ function BackstoryGroup({doc,campaign,edit}:{doc:ScenarioDocument;campaign:Campa
   const setPlace=(index:number,key:string,value:string)=>set('places',places.map((place,i)=>i===index?withKey(place,key,value,ORDER.creationPlace):place));
   return <Group title="The world a backstory is written for" anchor="scenario-backstory" field="creation" hint="What the character's backstory is written against, as a game begins.">
     <TextField label="World" field="creation.name" hint="The world's name, for a primer doc without a title." value={creation.name} onChange={value=>set('name',value)}/>
-    <TextArea label="Premise" field="creation.premise" rows={6} hint="The story the backstory leads into: why they took this case, and that the story's people don't know them yet." value={creation.premise} onChange={value=>set('premise',value)}/>
+    <TextArea label="Premise" field="creation.premise" rows={6} hint="The story the backstory leads into: where the game begins, why they're there, and that the story's people don't know them yet." value={creation.premise} onChange={value=>set('premise',value)}/>
+    <TextArea label="Where a backstory ends" field="creation.begins" rows={4} hint="The drafting model's last word on where a backstory ends: the moment the game begins, and what their past may and mayn't lead up to. Empty: it ends where the premise says the game begins." value={creation.begins??''} onChange={value=>set('begins',value.trim()?value:undefined)}/>
     <SelectField label="Primer" field="creation.primer" hint="The lore doc that tells of the world." value={creation.primer} options={[{value:'',label:'None'},...lore.map(path=>({value:path,label:path}))]} onChange={value=>set('primer',value)}/>
     <fieldset className="lore-chips" data-field="creation.notCanon">
       <legend className="field-label">Not canon</legend>

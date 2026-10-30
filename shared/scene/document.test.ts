@@ -49,6 +49,7 @@ test("a file that isn't a scene says why, naming where", () => {
   assert.deepEqual(problemsOf(d => { (d.nodes[5]!.data as { result: string }).result = "great"; }), ['nodes[5] (murder-unknown): its result "great" isn\'t good, mixed or bad']);
   assert.deepEqual(problemsOf(d => { delete (d.cast[0] as Partial<SceneDocument["cast"][number]>).whyHere; }), ["cast[0] (kell) has no whyHere"]);
   assert.deepEqual(problemsOf(d => { (d as { onStart: unknown }).onStart = [{ quest: "hanged-clerk" }]; }), ["its onStart isn't a list of { op, … }"]);
+  assert.deepEqual(problemsOf(d => { (d as { summons: unknown }).summons = "yes"; }), ["its summons isn't true or false"], "a scene that comes to the player says so with true");
 });
 
 test("a cue's outer limit: each count a whole number of exchanges, after and until nodes of the scene; the runtime keeps a cue's, and only a cue's", () => {

@@ -37,10 +37,10 @@ test('the real scenario opens with the game\'s parse and saves to the same bytes
   assert.equal(next.start.time,'evening');
   assert.deepEqual(Object.keys(next.start),['day','time','map','at']);
   next=withStart(doc,'palace',{x:2,y:10});
-  assert.deepEqual(next.start,{day:1,time:'morning',map:'palace',at:[2,10]});
-  assert.equal(withStart(doc,'caerwyn',{x:42,y:9}),doc,'the same start is the same scenario');
+  assert.deepEqual(next.start,{day:1,time:'afternoon',map:'palace',at:[2,10]});
+  assert.equal(withStart(doc,'kings-road',{x:12,y:12}),doc,'the same start is the same scenario');
   next=withStart(doc,undefined,undefined);
-  assert.deepEqual(next.start,{day:1,time:'morning'});
+  assert.deepEqual(next.start,{day:1,time:'afternoon'});
   assert.deepEqual(Object.keys(setScenarioField(doc,'talk',undefined)),Object.keys(doc).filter(key=>key!=='talk'));
   next=setCreationField(doc,'notCanon',['World/Fronts.md']);
   assert.deepEqual(next.creation.notCanon,['World/Fronts.md']);
@@ -61,12 +61,12 @@ test('the campaign around any of its files: its root, the scenario, every scene,
     assert.equal(campaign.root,prefix);
     assert.equal(campaign.error,undefined);
     assert.equal(campaign.scenarioPath,`${prefix}caerwyn.kmscenario`);
-    assert.deepEqual(campaign.scenes.map(scene=>scene.key),['hanged-clerk','caerwyn-afternoon','drowned-rat','wharf-night','heron-warehouse','kings-morning','talk']);
+    assert.deepEqual(campaign.scenes.map(scene=>scene.key),['kings-road','toll-bridge','kings-thanks','hanged-clerk','caerwyn-afternoon','drowned-rat','wharf-night','heron-warehouse','kings-morning','talk']);
     assert.ok(campaign.scenes.every(scene=>scene.doc&&!scene.error));
-    assert.deepEqual(campaign.maps.map(map=>[map.key,!!map.doc]),[['caerwyn',true],['drowned-rat',true],['heron',true],['palace',true]]);
-    assert.deepEqual(campaign.places.map(place=>place.key),['granary-yard','drowned-rat','heron','dressing-room']);
-    assert.deepEqual(campaign.present.maps,['caerwyn','drowned-rat','heron','palace']);
-    assert.equal(campaign.lore.length,154);
+    assert.deepEqual(campaign.maps.map(map=>[map.key,!!map.doc]),[['kings-road',true],['caerwyn',true],['drowned-rat',true],['heron',true],['palace',true]]);
+    assert.deepEqual(campaign.places.map(place=>place.key),['kings-road','toll-bridge','kings-parlour','granary-yard','drowned-rat','heron','dressing-room']);
+    assert.deepEqual(campaign.present.maps,['caerwyn','drowned-rat','heron','kings-road','palace']);
+    assert.equal(campaign.lore.length,174);
     assert.equal(campaign.looks.kell.glyph,'K');
     assert.deepEqual(campaignProblems(campaign),[],'the campaign check finds nothing');
   }
@@ -81,10 +81,12 @@ test('the campaign around any of its files: its root, the scenario, every scene,
 test('the flow is drawn from the files that own it: the start, each ending\'s next, each region\'s scene and each map\'s ways out',async()=>{
   const campaign=await readCampaignFiles('caerwyn.kmscenario',await vault());
   const flow=flowOf(campaign.scenario,campaign);
-  assert.deepEqual(flow.cards.map(card=>card.id),[START_CARD,...['hanged-clerk','caerwyn-afternoon','drowned-rat','wharf-night','heron-warehouse','kings-morning'].map(sceneCard),...['caerwyn','drowned-rat','heron','palace'].map(mapCard)]);
+  assert.deepEqual(flow.cards.map(card=>card.id),[START_CARD,...['kings-road','toll-bridge','kings-thanks','hanged-clerk','caerwyn-afternoon','drowned-rat','wharf-night','heron-warehouse','kings-morning'].map(sceneCard),...['kings-road','caerwyn','drowned-rat','heron','palace'].map(mapCard)]);
   const edge=(source,handle)=>flow.edges.find(e=>e.source===source&&e.sourceHandle===handle);
-  assert.deepEqual(edge(START_CARD,'start:map'),{id:'start>start:map',source:START_CARD,sourceHandle:'start:map',target:mapCard('caerwyn'),label:'Starts on Caerwyn',owner:{kind:'start'}});
-  assert.equal(edge(START_CARD,'start:lead').target,sceneCard('hanged-clerk'));
+  assert.deepEqual(edge(START_CARD,'start:map'),{id:'start>start:map',source:START_CARD,sourceHandle:'start:map',target:mapCard('kings-road'),label:'Starts on The King\'s Road',owner:{kind:'start'}});
+  assert.equal(edge(START_CARD,'start:lead').target,sceneCard('kings-road'));
+  assert.equal(edge(sceneCard('toll-bridge'),'ending:to-the-king').target,sceneCard('kings-thanks'),'the bridge\'s endings go on to the King\'s thanks, which comes to the player');
+  assert.equal(edge(sceneCard('kings-thanks'),'ending:kings-guest').target,sceneCard('hanged-clerk'));
   assert.equal(edge(sceneCard('hanged-clerk'),'ending:murder-unknown').target,sceneCard('caerwyn-afternoon'));
   assert.equal(edge(sceneCard('hanged-clerk'),'ending:failed'),undefined,'an ending with no next ends the story');
   assert.deepEqual(edge(mapCard('caerwyn'),'region:0').owner,{kind:'region',map:'caerwyn',index:0,region:'granary-yard'});
@@ -93,7 +95,7 @@ test('the flow is drawn from the files that own it: the start, each ending\'s ne
   const heron=flow.cards.find(card=>card.id===mapCard('caerwyn')).ports.find(port=>port.target===mapCard('heron'));
   assert.deepEqual(heron.owner,{kind:'exits',map:'caerwyn',indices:[2,3,4,5],label:'Along the wharf to the Heron',to:'heron'});
   assert.equal(heron.detail,'4 tiles');
-  assert.equal(flow.edges.length,30,'the start\'s 2, the endings\' 15, the regions\' 6 and the ways between maps\' 7');
+  assert.equal(flow.edges.length,38,'the start\'s 2, the endings\' 20, the regions\' 9 and the ways between maps\' 7');
   // Every edge is its owner's: the story's flow is in the scenes' endings and the maps, nothing stored.
   const nexts=campaign.scenes.flatMap(scene=>endingsOf(scene).filter(e=>e.next).map(e=>[scene.key,e.id,e.next]));
   assert.deepEqual(flow.edges.filter(e=>e.owner.kind==='ending').map(e=>[e.owner.scene,e.owner.ending,e.target.slice(6)]),nexts);
@@ -105,8 +107,8 @@ test('the layout: where the scenario keeps each card, and where it puts what it 
   const flow=flowOf(campaign.scenario,campaign);
   const unplaced=layoutOf(flow,undefined);
   assert.deepEqual(unplaced.get(START_CARD),{x:-380,y:200});
-  assert.deepEqual(unplaced.get(sceneCard('drowned-rat')),{x:760,y:0});
-  assert.deepEqual(unplaced.get(mapCard('heron')),{x:760,y:460});
+  assert.deepEqual(unplaced.get(sceneCard('drowned-rat')),{x:1900,y:0},'the sixth scene, after the prologue\'s three');
+  assert.deepEqual(unplaced.get(mapCard('heron')),{x:1140,y:460},'the fourth map, after the road\'s');
   const doc=withLayout(campaign.scenario,{'maps/heron':{x:10.4,y:-20.6},start:{x:0,y:0}});
   assert.deepEqual(doc.layout,{'maps/heron':{x:10,y:-21},start:{x:0,y:0}});
   assert.equal(Object.keys(doc).at(-1),'layout','the layout goes last, where the format puts it');
@@ -123,9 +125,9 @@ test('the rules see an editor\'s draft: a broken map or scenario is a problem in
   assert.deepEqual(problems.map(p=>[p.path,p.message,p.at]),[
     ['maps/caerwyn.kmmap','"Through the palace gate" goes to castle, which isn\'t one of the campaign\'s maps',{kind:'map',map:'caerwyn',exit:0}],
   ]);
-  const moved=withStart(campaign.scenario,'caerwyn',{x:0,y:44});
+  const moved=withStart(campaign.scenario,'kings-road',{x:0,y:0});
   assert.deepEqual(campaignProblems(withDraft(campaign,'scenario','caerwyn',moved,serializeScenario(moved))).map(p=>[p.path,p.message]),[
-    ['caerwyn.kmscenario','it starts at (0, 44) on caerwyn, where nobody can stand'],
+    ['caerwyn.kmscenario','it starts at (0, 0) on kings-road, where nobody can stand'],
   ]);
   // A listed file that isn't of its format's shape is its own problem, and the rules wait for it.
   const mangled=await readCampaignFiles('caerwyn.kmscenario',await vault({'places/heron.kmplace':'{"format":"kingmaker"}'}));
@@ -148,8 +150,10 @@ test('where the campaign\'s files name each other, both ways: a scene\'s regions
   const doc=campaign.scenario;
   const clerk=model.sceneUsesOf('hanged-clerk',doc,campaign);
   assert.deepEqual(clerk.regions.map(r=>[r.map,r.region,r.lays]),[['caerwyn','granary-yard',true],['caerwyn','tally-loft',true]]);
-  assert.equal(clerk.first,true);
-  assert.deepEqual(clerk.from,[]);
+  assert.equal(clerk.first,false,'the King\'s Road comes first now');
+  assert.deepEqual(clerk.from.map(e=>[e.scene,e.ending]),[['kings-thanks','kings-guest']]);
+  const road=model.sceneUsesOf('kings-road',doc,campaign);
+  assert.deepEqual([road.first,road.place,road.regions.map(r=>[r.map,r.region,r.lays])],[true,'kings-road',[['kings-road','crossroads',true]]]);
   assert.equal(clerk.place,'granary-yard');
   assert.deepEqual(clerk.next.map(e=>[e.ending,e.next??null]),[['murder-unknown','caerwyn-afternoon'],['suspicious','caerwyn-afternoon'],['failed',null]]);
   const afternoon=model.sceneUsesOf('caerwyn-afternoon',doc,campaign);
@@ -158,7 +162,8 @@ test('where the campaign\'s files name each other, both ways: a scene\'s regions
   // The Heron's scene is laid by the Heron's map and opened from the town's wharf end.
   assert.deepEqual(model.sceneUsesOf('heron-warehouse',doc,campaign).regions.map(r=>[r.map,r.region,r.lays]),[['caerwyn','heron-wharf',false],['heron','heron',true]]);
   const town=model.mapUsesOf('caerwyn',doc,campaign);
-  assert.equal(town.start,true);
+  assert.equal(town.start,false);
+  assert.equal(model.mapUsesOf('kings-road',doc,campaign).start,true,'the story starts on the King\'s Road');
   assert.deepEqual(town.out.map(w=>[w.to,w.label,w.count]),[['palace','Through the palace gate',1],['drowned-rat','The Drowned Rat\'s door',1],['heron','Along the wharf to the Heron',4]]);
   assert.deepEqual(town.into.map(w=>[w.from,w.label,w.count]),[['drowned-rat','Up the river stairs',4],['drowned-rat','Down to the wharves',2],['heron','Back along the wharves',9],['palace','Down to the palace gate',1]]);
   assert.deepEqual(town.plays.map(p=>[p.region,p.scene,p.lays]),[['granary-yard','hanged-clerk',true],['tally-loft','hanged-clerk',true],['heron-wharf','heron-warehouse',false]]);
@@ -171,7 +176,7 @@ test('a quest renamed: its key where it was in the scenario, and every scene\'s 
   const campaign=await readCampaignFiles('caerwyn.kmscenario',await vault());
   const doc=campaign.scenario;
   const next=model.renameQuest(doc,'hanged-clerk','the-clerk');
-  assert.deepEqual(Object.entries(next.quests),[['the-clerk','The Hanged Clerk'],['purveyors-man','The Purveyor\'s Man'],['heron-ledger','The Heron Ledger']]);
+  assert.deepEqual(Object.entries(next.quests),[['assembly-cushions','The Assembly\'s Cushions'],['the-clerk','The Hanged Clerk'],['purveyors-man','The Purveyor\'s Man'],['heron-ledger','The Heron Ledger']]);
   assert.equal(serializeScenario(next),scenarioText.replace('"hanged-clerk": "The Hanged Clerk"','"the-clerk": "The Hanged Clerk"'));
   const changed=[];
   for(const scene of campaign.scenes){

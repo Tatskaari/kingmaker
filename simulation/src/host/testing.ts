@@ -18,6 +18,7 @@ import type { Skill } from "../../../shared/scene/types.ts";
 import { playerRow } from "../rows.ts";
 import { engineCall, sessionOf } from "../rules/session.ts";
 import { memoryHost, type AiPost, type AiReply, type MemoryHost } from "./memory.ts";
+import { looksFromTheGranary, mapFromTheGranary, scenarioFromTheGranary, sceneFromTheGranary } from "../../../shared/scene/testdata/from-the-granary.ts";
 
 /**
  * Test support for the memory host: the hanged clerk's campaign as install_campaign takes it (the
@@ -40,21 +41,25 @@ export const TEST_CLERK = join(import.meta.dirname, "..", "..", "..", "shared", 
 /**
  * Whether a game starts on the campaign's map (map-design §3.3), or, as the stack's tests before the
  * map, in its first scene at once; whether the hanged clerk is the campaign's own (`asIs`) rather
- * than the tests' (TEST_CLERK); and a test's own changes to scenes' files (`edit`, by key). Every
- * scene plays on the two-part GM (docs/two-part-design.md).
+ * than the tests' (TEST_CLERK); whether the story begins with the prologue on the King's Road, as
+ * the campaign does (`prologue`), or at the granary, as every test before the prologue knows it
+ * (shared/scene/testdata/from-the-granary.ts); and a test's own changes to scenes' files (`edit`, by
+ * key). Every scene plays on the two-part GM (docs/two-part-design.md).
  */
-export interface PackOptions { map?: boolean; asIs?: boolean; edit?: Record<string, (doc: SceneDocument) => SceneDocument> }
+export interface PackOptions { map?: boolean; asIs?: boolean; prologue?: boolean; edit?: Record<string, (doc: SceneDocument) => SceneDocument> }
 
 /**
  * campaigns/caerwyn as install_campaign takes it: every scene's file whole (the hanged clerk the
- * tests' own, unless `asIs`), then the talk template's. Its maps are installed either way; without
+ * tests' own, unless `asIs`), then the talk template's; from the granary unless `prologue`. Its maps are installed either way; without
  * `map: true` its start is off the map (the scenario's start.map and start.at left out), so a new
  * game opens its first scene at once, as the stack's tests from before the map expect.
  */
 export function caerwynPack(options: PackOptions = {}): CampaignPack {
-  const campaign = loadScenario(read(scenarioPath("caerwyn")), scenarioPath("caerwyn"));
+  const scenario = loadScenario(read(scenarioPath("caerwyn")), scenarioPath("caerwyn"));
+  const campaign = options.prologue ? scenario : scenarioFromTheGranary(scenario);
   const { map: _map, at: _at, ...offMap } = campaign.start;
-  const file = (key: string) => JSON.parse(key === "hanged-clerk" && !options.asIs ? readFileSync(TEST_CLERK, "utf8") : read(`scenes/${key}.kmscene`)) as SceneDocument;
+  const asWritten = (key: string) => JSON.parse(key === "hanged-clerk" && !options.asIs ? readFileSync(TEST_CLERK, "utf8") : read(`scenes/${key}.kmscene`)) as SceneDocument;
+  const file = (key: string) => (options.prologue ? asWritten(key) : sceneFromTheGranary(asWritten(key)));
   // A test's own change to a scene's file (`edit`, by its key): a fight beat added to the clerk, a combat exit to the Heron.
   const scene = (key: string) => options.edit?.[key]?.(file(key)) ?? file(key);
   return {
@@ -62,8 +67,8 @@ export function caerwynPack(options: PackOptions = {}): CampaignPack {
     scenes: [...campaign.scenes, campaign.talk!].map(scene),
     places: campaign.places.map(key => loadPlace(read(placePath(key)), placePath(key))),
     builds: JSON.parse(read("builds.json")) as BuildsFile,
-    looks: JSON.parse(read("looks.json")) as LooksFile,
-    maps: (campaign.maps ?? []).map(key => loadMap(read(mapPath(key)), mapPath(key))),
+    looks: (looks => (options.prologue ? looks : looksFromTheGranary(looks)))(JSON.parse(read("looks.json")) as LooksFile),
+    maps: (campaign.maps ?? []).map(key => (map => (options.prologue ? map : mapFromTheGranary(map)))(loadMap(read(mapPath(key)), mapPath(key)))),
   };
 }
 

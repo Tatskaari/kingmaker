@@ -358,13 +358,13 @@ async function author(page:Page,wide:number,narrow:number){
   await page.getByRole('button',{name:'Select',exact:true}).click();
   await stroke(page,{x:2,y:8});
   await page.locator('.tile-inspector').getByRole('button',{name:'Start the story here'}).click();
-  await expect.poll(async()=>(await saved(page,'caerwyn.kmscenario')).start).toEqual({day:1,time:'morning',map:'chandler-row',at:[2,8]});
+  await expect.poll(async()=>(await saved(page,'caerwyn.kmscenario')).start).toEqual({day:1,time:'afternoon',map:'chandler-row',at:[2,8]});
   await expect(page.getByRole('button',{name:'The story\'s start at 2, 8'})).toBeVisible();
   await open(page,'caerwyn.kmscenario');
   await tab(page,'Views of the scenario','Scenario').click();
   const own2=page.locator('.scenario-view');
-  await own2.getByLabel('Start map',{exact:true}).selectOption('caerwyn');
-  await tile(own2,'Start tile',42,9);
+  await own2.getByLabel('Start map',{exact:true}).selectOption('kings-road');
+  await tile(own2,'Start tile',12,12);
   await expect.poll(async()=>(await saved(page,'caerwyn.kmscenario')).start).toEqual(scenario.start);
 
   // ---- No problems anywhere, and the scenario lists what was made, nothing else of it changed ----

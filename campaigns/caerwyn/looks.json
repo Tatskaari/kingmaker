@@ -73,5 +73,45 @@
     "role": "person",
     "glyph": "M",
     "fg": "#c8ccd4"
+  },
+  "fitch": {
+    "role": "person",
+    "glyph": "F",
+    "fg": "#d9b48a"
+  },
+  "tansy": {
+    "role": "person",
+    "glyph": "t",
+    "fg": "#f4b6c8"
+  },
+  "haskett": {
+    "role": "person",
+    "glyph": "H",
+    "fg": "#8fc88f"
+  },
+  "tob": {
+    "role": "person",
+    "glyph": "W",
+    "fg": "#b8e8a8"
+  },
+  "garrow": {
+    "role": "person",
+    "glyph": "G",
+    "fg": "#5aa088"
+  },
+  "nabber": {
+    "role": "person",
+    "glyph": "g",
+    "fg": "#9ad04a"
+  },
+  "rearguard": {
+    "role": "person",
+    "glyph": "g",
+    "fg": "#8ac048"
+  },
+  "grisk": {
+    "role": "person",
+    "glyph": "g",
+    "fg": "#c8d850"
   }
 }

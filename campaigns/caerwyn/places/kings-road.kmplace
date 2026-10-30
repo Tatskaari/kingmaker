@@ -1,0 +1,176 @@
+{
+  "format": "kingmaker",
+  "version": 2,
+  "kind": "place",
+  "id": "kings-road",
+  "title": "The crossroads on the King's Road",
+  "description": "Where the drovers' track from the Nine Furrows comes down to the King's Road nine miles out of Caerwyn: frozen ruts between blackthorn hedges taller than a man, a milestone, an empty gibbet, and Fitch's cart piled with the Assembly's cushions.",
+  "size": {
+    "w": 115,
+    "h": 50
+  },
+  "areas": [
+    {
+      "id": "road",
+      "name": "the King's Road",
+      "rect": {
+        "x": 0,
+        "y": 20,
+        "w": 115,
+        "h": 10
+      },
+      "description": "Two cart-widths of frozen ruts between the hedges, running east to Caerwyn and the toll bridge, and west to the Nine Furrows."
+    },
+    {
+      "id": "north-field",
+      "name": "the field north of the road",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "w": 115,
+        "h": 20
+      },
+      "description": "Frosted stubble behind the north hedge, where the drovers' track comes down to the crossroads past the milestone and the gibbet."
+    },
+    {
+      "id": "south-field",
+      "name": "the field south of the road",
+      "rect": {
+        "x": 0,
+        "y": 30,
+        "w": 115,
+        "h": 20
+      },
+      "description": "Rough pasture behind the south hedge, a ditch along it, a few bare thorn trees."
+    }
+  ],
+  "things": [
+    {
+      "id": "cart",
+      "name": "Fitch's cart",
+      "kind": "object",
+      "in": "road",
+      "at": [
+        55,
+        20
+      ],
+      "size": "huge",
+      "material": "wood",
+      "tags": [
+        "cart",
+        "container"
+      ],
+      "description": "A high-sided farm cart under patched sacking, piled to twice a man's height with bundles of green cushions, with Bramble the old bay mare in the shafts."
+    },
+    {
+      "id": "cushions",
+      "name": "the Assembly's cushions",
+      "kind": "item",
+      "in": "cart",
+      "size": "large",
+      "material": "cloth",
+      "tags": [
+        "soft",
+        "flammable"
+      ],
+      "description": "Three hundred cushions for the Assembly's seats, stuffed with Nine Furrows wool and covered in the King's own green, in bundles of ten under sacking. The King ordered them himself."
+    },
+    {
+      "id": "milestone",
+      "name": "the milestone",
+      "kind": "feature",
+      "in": "north-field",
+      "at": [
+        50,
+        10
+      ],
+      "size": "medium",
+      "material": "stone",
+      "description": "Worn smooth by travellers' hands: CAERWYN IX, and under it, scratched small, a goblin's face with its tongue out."
+    },
+    {
+      "id": "gibbet",
+      "name": "the empty gibbet",
+      "kind": "feature",
+      "in": "north-field",
+      "at": [
+        35,
+        10
+      ],
+      "size": "large",
+      "material": "wood",
+      "states": [
+        "empty"
+      ],
+      "description": "An empty gibbet with its chain creaking in the wind. Nobody has hanged on it in years: it's kept up as advice."
+    },
+    {
+      "id": "north-hedge",
+      "name": "the north hedge",
+      "kind": "feature",
+      "in": "north-field",
+      "at": [
+        60,
+        15
+      ],
+      "size": "gargantuan",
+      "material": "wood",
+      "tags": [
+        "thorny",
+        "cover"
+      ],
+      "description": "Blackthorn taller than a man, black with winter and thick enough to hide anything small. Its gaps have been widened lately, by something small."
+    },
+    {
+      "id": "south-hedge",
+      "name": "the south hedge",
+      "kind": "feature",
+      "in": "south-field",
+      "at": [
+        60,
+        30
+      ],
+      "size": "gargantuan",
+      "material": "wood",
+      "tags": [
+        "thorny",
+        "cover"
+      ],
+      "description": "Blackthorn like the north hedge, with a ditch along its foot and gaps worn through it."
+    }
+  ],
+  "people": {
+    "player": {
+      "in": "road",
+      "at": [
+        55,
+        25
+      ],
+      "note": "riding on the tailboard of the cart"
+    },
+    "fitch": {
+      "in": "road",
+      "at": [
+        60,
+        20
+      ],
+      "note": "up front with the reins"
+    },
+    "tansy": {
+      "in": "road",
+      "at": [
+        50,
+        20
+      ],
+      "note": "on top of the cushions"
+    },
+    "nabber": {
+      "in": "north-field",
+      "at": [
+        75,
+        10
+      ],
+      "note": "behind the north hedge by a gap, with his hedge-gang"
+    }
+  }
+}

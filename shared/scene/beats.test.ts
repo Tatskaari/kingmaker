@@ -188,13 +188,16 @@ test("a thorough end's discoveries: each the scene can reach taken through its o
   assert.deepEqual(climbed.gm.path.find(p => p.to === "murder")?.via, "climb");
 });
 
-test("a thorough end on every scene of the story: every discovery reached but one behind an event (the King's Sallow, once he's sent for), every carried one landed", () => {
+/** What a thorough end can't reach, being behind an event it doesn't stage: the King's Sallow, once he's sent for; what the goblins carry and where they came from, once the crossroads' fight is fought; the patrol and Garrow's book, once the toll bridge's rearguard's is. */
+const BEHIND_AN_EVENT: Record<string, string[]> = { "kings-morning": ["sallow-slips"], "kings-road": ["be-seen", "the-bridge"], "toll-bridge": ["the-patrol", "garrows-ledger"] };
+
+test("a thorough end on every scene of the story: every discovery reached but those behind an event (the King's Sallow, once he's sent for; the prologue's, once its fights are fought), every carried one landed", () => {
   const dir = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
   const campaign = loadScenario(readFileSync(join(dir, scenarioPath("caerwyn")), "utf8"), scenarioPath("caerwyn"));
   for (const key of campaign.scenes) {
     const each = sceneOf(JSON.parse(readFileSync(join(dir, "scenes", `${key}.kmscene`), "utf8")) as SceneDocument);
     const done = reachDiscoveries(each, initialGm(each), 1).gm;
-    assert.deepEqual(ids(targetsOf(each, done)), key === "kings-morning" ? ["sallow-slips"] : [], `${key}: what's left to find`);
+    assert.deepEqual(ids(targetsOf(each, done)), BEHIND_AN_EVENT[key] ?? [], `${key}: what's left to find`);
     assert.deepEqual((each.essentials ?? []).filter(e => !done.landed.includes(e.id)).map(e => e.id), [], `${key}: nothing carried is owed on`);
     assert.deepEqual([done.beat, done.closing], [each.start, undefined], `${key}: the stage stays`);
   }

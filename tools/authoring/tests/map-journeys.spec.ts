@@ -171,7 +171,7 @@ test('an exit and a person added from a tile\'s menu, each edited in the inspect
   await page.getByRole('menuitem',{name:'Start the story here'}).click();
   await expect(page.getByRole('button',{name:'The story\'s start at 3, 5'})).toBeVisible();
   const scenario=await saved(page,'caerwyn.kmscenario');
-  expect(scenario.start).toEqual({day:1,time:'morning',map:'palace',at:[3,5]});
+  expect(scenario.start).toEqual({day:1,time:'afternoon',map:'palace',at:[3,5]});
   expect({...scenario,start:undefined}).toEqual({...await original('caerwyn.kmscenario'),start:undefined});
   // Undo takes the start back, in the scenario's file.
   await page.getByRole('button',{name:'Undo map edit'}).click();
@@ -366,8 +366,8 @@ test('a version 1 map migrated: the user\'s harbour study, its spawn point made 
   const pairs:Record<string,string>={'grass|lamp':'L','cobbles|lamp':'l','cobbles|sign':'s'};
   v1.terrain.tiles.forEach((id:string,i:number)=>{const clutter=v1.terrain.clutter?.[i];expect([...doc.grid[Math.floor(i/64)]][i%64]).toBe(clutter?pairs[`${id}|${clutter}`]:chars[id])});
   const scenario=await saved(page,'caerwyn.kmscenario');
-  expect(scenario.start).toEqual({day:1,time:'morning',map:'harbour-study',at:[46,40]});
-  expect(scenario.maps).toEqual(['caerwyn','drowned-rat','heron','palace','harbour-study']);
+  expect(scenario.start).toEqual({day:1,time:'afternoon',map:'harbour-study',at:[46,40]});
+  expect(scenario.maps).toEqual(['kings-road','caerwyn','drowned-rat','heron','palace','harbour-study']);
   await expect(page.getByRole('button',{name:'The story\'s start at 46, 40'})).toBeVisible();
 });
 

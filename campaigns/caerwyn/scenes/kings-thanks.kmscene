@@ -1,0 +1,438 @@
+{
+  "format": "kingmaker",
+  "version": 2,
+  "kind": "scene",
+  "id": "kings-thanks",
+  "title": "The King's Thanks",
+  "description": "Supper on a tray in the King's parlour: a round, kind king who remembers how everyone takes their tea, the Marshal's pocket watch, and a pile of letters for after the Assembly.",
+  "lore": [
+    "World/Royal Palace.md",
+    "World/Centennial Assembly.md"
+  ],
+  "time": "evening",
+  "place": "kings-parlour",
+  "summons": true,
+  "hook": "Guardsman Wren has brought you in at the city gate, up through streets hung with bunting and into the palace by a side door, to tell the King himself what happened on his road. A footman has taken your coat. The King, you're told, is at supper, and said to bring you straight in.",
+  "setting": "Evening, two days before the Centennial Assembly, in the King's parlour in the palace: a small, warm, over-furnished room off the long gallery, where King Aldren takes his supper on a tray while the delegations dine in the Great Hall (he goes down for the toasts at the ninth bell). A coal fire banked high; two armchairs, and on the King's a green Assembly cushion, the sample, which he has been sitting on all week to be sure; a writing table buried in seating plans, menus, the Order of Procession and a petition about ribbons, and at its corner a squared-off pile of letters under a card in the King's round hand: 'After the Assembly'. A tea tray with everything on it, for anyone's tea, and a supper tray with cold chicken and half a custard tart. Through the windows the city's lamps and bunting, and a band rehearsing somewhere. Marshal Garran Holt stands by the window with his pocket watch open.",
+  "premise": "What does the King make of the traveller who saved his patrol and his cushions, and what will they make of him?",
+  "truth": "King Aldren is exactly as kind as he seems, and exactly as avoidant: he takes small things seriously because big ones frighten him. He asked for a patrol for the cushions because the cushions he could do something about. The goblins on his road, a mile from his gate, frighten him: the Purveyor's office has told him for a month that the palace's wagons are 'lost to goblins', and he has let it be so, because 'after the Assembly' is easier. A week ago his grain clerk of twenty years, Wendell Prout (who brings him the grain accounts every quarter-day and takes his tea milk first, one sugar, the cup warmed), wrote asking for an audience about 'irregularities in the Roll'; the letter is near the top of the after-the-Assembly pile, and he moves it whenever he looks at it. Tonight he'd mention Wendell fondly if the grain or the goblins come up, and say he'll see him after the Assembly. He doesn't know that by morning Wendell will be dead (nobody here does, and nothing here should hint at it). He likes the traveller at once: they've done something for him, and they don't belong to anyone at court. Marshal Holt thinks the goblins are the Purveyor's office's business, the patrol a waste, and the King late.",
+  "clock": "The ninth bell and the toasts: Holt calls the minutes aloud, fewer each time, about two fewer an exchange, a number he has called never called again (sixteen at the start). At the bell the King must go down to the Great Hall, and the audience is over: about eight exchanges in all.",
+  "limits": [
+    "Going out into the city tonight, to the clerk or anyone: the palace shuts for the night after the delegations' dinner, the King won't hear of his guest going out after dark ('After the Assembly; it's waited a week'), and the player doesn't know where anyone lives.",
+    "A royal warrant, a commission or anything in writing: the King signs nothing that might upset anyone. He gives his word, his thanks and a purse.",
+    "The Assembly's business, the delegations or the Concord: tonight is the King's supper on a tray, nothing more; the delegations are at dinner in the Great Hall.",
+    "Reading the King's letters without him seeing: they're on his table, under his eye, and he's sharp about small things.",
+    "Anyone else at court: the Purveyor's office, the Captain of the watch and the rest are at the delegations' dinner, and can't be sent for tonight."
+  ],
+  "known": [
+    "The King remembers how everyone takes their tea, and every guard's name, and their mothers'.",
+    "'After the Assembly' is what the palace says to anything that isn't on the timetable this week.",
+    "The procession leaves the palace gate at the ninth bell on Assembly morning, two days from now; tomorrow is the eve, with the rehearsals."
+  ],
+  "cast": [
+    {
+      "id": "king",
+      "name": "King Aldren",
+      "called": "the King",
+      "lore": "Cast/King Aldren/public.md",
+      "look": "Sixty, round and kindly, in a velvet supper coat with crumbs on the waistcoat, reading spectacles pushed up on his forehead and forgotten there, a napkin still tucked into his collar, and a cup of tea he points with.",
+      "voice": "Warm, unhurried and courteous. Remembers small things out loud ('You'll take it black, I think: you look like a black-tea person'). Asks questions he already knows the answers to, to see who tells the truth. Never says no; says 'after the Assembly'. Frightened, he slips into the royal 'we'. Avoid: raising his voice, signing anything, or giving an order to anyone but Garran.",
+      "wants": "To thank the traveller who saved his patrol and his cushions, properly, in person, and to hear what's on his road from someone who saw it; to keep them (they don't belong to anyone at court, which is rare and precious this week); and not to have to decide anything about the goblins until after the Assembly.",
+      "fears": "Goblins a mile from his gate on the eve of his Assembly, in front of every delegation in the Concord. Having to decide something big. Being told something he'll have to act on.",
+      "whyHere": "At supper on a tray in his parlour while the delegations dine in the Great Hall (he goes down for the toasts at the ninth bell); he asked to see the traveller the moment Wren brought word up from the gate.",
+      "knows": [
+        "He asked the Marshal for one patrol on the road this week, for the Assembly's cushions, because he takes his guests' comfort seriously, down to the cushions: the Concord's delegates sit on them for three days.",
+        "He asked to be told of anything on the King's Road this week, at once. Nobody tells him anything; 'after the Assembly', Garran says.",
+        "The Purveyor's office tells him the palace's grain wagons are being 'lost to goblins' on the King's Road, a dozen this month. He'd hoped it was exaggerated.",
+        "His grain clerk of twenty years, Wendell Prout, brings him the grain accounts every quarter-day and takes his tea milk first, one sugar, the cup warmed. A week ago Wendell wrote asking for an audience about 'irregularities in the Roll'. The King put the letter on the after-the-Assembly pile: Wendell never minds waiting.",
+        "Everyone's tea, everyone's mother, every guard's name: Wren's mother has a bad chest, and Corporal Haskett takes hers stewed."
+      ],
+      "secrets": [
+        "Wendell's letter frightens him a little, because irregularities in the Roll would mean deciding something, so he moves it to the bottom of the pile and then back to the top. It shows in a glance at the writing table whenever the grain or the goblins come up; asked about the pile kindly, or about the grain wagons, he says so fondly, and that he'll see Wendell after the Assembly. He doesn't know that by morning Wendell will be dead."
+      ],
+      "attitude": "Delighted with the traveller from the first minute: they've done something for him, and they don't belong to anyone at court. Kindness for kindness; small lies he catches and forgives once; a promise made in his hearing he remembers for ever.",
+      "limits": "Signs nothing, gives no warrant or commission, decides nothing big tonight ('after the Assembly'). Won't let his guest go out into the city after dark. Never raises his voice.",
+      "roles": {
+        "characterise": "The tea, guessed; the cushions, rejoiced over; the road, asked about in small kind questions; crumbs; the royal 'we' when the goblins come up.",
+        "inconsistency": "He glances at the pile of letters on his writing table whenever the grain or the goblins come up, and changes the subject to cushions.",
+        "hooks": "His grain clerk Wendell and the letter about irregularities in the Roll; 'after the Assembly'; a room in the palace for the traveller, and a purse."
+      },
+      "statblock": "noble",
+      "weapon": "dagger"
+    },
+    {
+      "id": "holt",
+      "name": "Marshal Garran Holt",
+      "called": "the Marshal with the pocket watch",
+      "lore": "Cast/Marshal Garran Holt/public.md",
+      "look": "A long, grey, upright soldier in the palace guard's green with a marshal's sash, by the window with a silver pocket watch open in his palm, which he consults the way other men consult their conscience.",
+      "voice": "Clipped and exact; numbers, times and orders of precedence. Calls the minutes to the ninth bell aloud, fewer each time, never the same number twice. 'After the Assembly, Majesty' is his answer to anything that isn't on the timetable.",
+      "wants": "The King down to the Great Hall for the toasts at the ninth bell, the Assembly on time to the minute, and nothing on the road to upset the timetable: goblins are a Purveyor's-office matter.",
+      "fears": "The Assembly running late. The King deciding something on the spur of the moment.",
+      "whyHere": "Keeping the King to the timetable: the toasts at the ninth bell.",
+      "knows": [
+        "He sent the one patrol on the road at the King's wish, for the cushions, and thought it a waste of two guards.",
+        "The order of procession, the seating, the toasts: everything, to the minute.",
+        "The Purveyor's office says the grain wagons are lost to goblins; it's the office's business, and after the Assembly."
+      ],
+      "attitude": "Correct, cool and in a hurry; grudgingly impressed by anyone who saved two of his guards; he'll remember the name.",
+      "limits": "Never lets the King be late. Never countermands the King. Calls in the guards at steel drawn in the King's presence.",
+      "roles": {
+        "characterise": "The watch, the minutes, the timetable.",
+        "inconsistency": "He says the patrol was a waste, and keeps asking after Haskett's arm.",
+        "hooks": "'After the Assembly'; the King's timetable; the Purveyor's office's business."
+      },
+      "statblock": "knight",
+      "weapon": "longsword"
+    },
+    {
+      "id": "tob",
+      "name": "Guardsman Tobias Wren",
+      "called": "the young guard",
+      "aka": [
+        "Tob",
+        "Wren",
+        "Guardsman Wren"
+      ],
+      "lore": "Cast/Guardsman Tobias Wren/public.md",
+      "look": "Nineteen, long and thin as a rake in a steel cap too big for him and the King's green, mud to the knees, standing very straight just inside the door.",
+      "voice": "Earnest, formal and breathless; trips over his words in front of the King, then gets them out all at once. 'In the King's name' is no use to him now he's in front of the King.",
+      "wants": "The King to hear what the player did, from him first, and then to be dismissed before he says something stupid.",
+      "whyHere": "He brought the player up from the gate to tell the King what happened on the road, as the King asked.",
+      "knows": [
+        "What happened at the toll bridge, as it happened, and at the crossroads as the player or Fitch told it.",
+        "Aunt Maud (Corporal Haskett) is in the guardroom being sewn up, or as the bridge left her."
+      ],
+      "attitude": "As the toll bridge left him with the player (what happened there wins): mostly, they're his hero.",
+      "limits": "Says his report to the King once, badly, then stands to attention and blushes. Never contradicts the King.",
+      "statblock": "guard",
+      "weapon": "spear"
+    }
+  ],
+  "facts": {
+    "prout-named": "The King has spoken of Wendell Prout, his grain clerk of twenty years, and the letter Prout wrote him a week ago asking for an audience about irregularities in the Royal Granary Roll, which he has put off until after the Assembly."
+  },
+  "background": [
+    "This is the same evening as the King's Road. What happened at the crossroads and Garrow's bridge is in what happened just before this scene, and that wins: how the fights went, whether Corporal Haskett is on her feet, what the player found (heron pennies, Garrow's ledger), and how Guardsman Wren stands with them. Wren has brought them up from the gate; Fitch has taken Tansy and the cushions round to the palace's back door."
+  ],
+  "reinforcements": [
+    {
+      "id": "palace-guards",
+      "name": "two palace guards",
+      "statblock": "guard",
+      "weapon": "halberd",
+      "look": "Two palace guards in the King's green with halberds, at the run from the long gallery.",
+      "after": 1,
+      "why": "Holt's shout and the footman's scream bring two palace guards in from the long gallery at the run."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "type": "story",
+      "position": {
+        "x": 0,
+        "y": 220
+      },
+      "data": {
+        "kind": "start",
+        "title": "Supper on a tray",
+        "description": "This is the prologue's last scene and its breath: warm, funny and short. Wren brings the player in and stammers out his report (or the player tells it); the King pours tea and guesses how they take it (he's usually right, and if he isn't he's delighted to be wrong), and wants to hear everything: the crossroads, the bridge, goblins a mile from his gate, the corporal's arm, and above all whether the cushions are safe. Let the King be the King: kind, curious, remembering small things out loud, a little frightened under it when the goblins come up, and grateful. Holt calls the minutes to the ninth bell. The point of the scene is that the player meets the King and likes him (or doesn't), and that he likes them: enough that in the morning, when something terrible happens, it's them he'll send for. Don't foreshadow the morning.",
+        "cast": {
+          "king": "Characterise: up out of his armchair to shake the player's hand with crumbs on his waistcoat, the tea guessed, the cushions rejoiced over ('Garran, they saved the cushions!'), small kind questions about the road. When the goblins or the grain wagons come up, a glance at his writing table.",
+          "holt": "Characterise: by the window with his watch open, calling the minutes to the ninth bell, fewer each time.",
+          "tob": "Characterise: just inside the door, at attention, report delivered in one breath; blushes when the King asks after his mother's chest."
+        },
+        "lore": []
+      }
+    },
+    {
+      "id": "after-the-assembly",
+      "type": "story",
+      "position": {
+        "x": 420,
+        "y": 40
+      },
+      "data": {
+        "kind": "beat",
+        "title": "After the Assembly",
+        "description": "The player sees how the King deals with what frightens him: he puts it off. It's the King's nature, shown, not explained.",
+        "revelation": "The King puts off whatever frightens him until after the Assembly: the goblins on his road and the grain wagons 'lost' to them, and a pile of letters on his writing table he hasn't answered.",
+        "paths": [
+          {
+            "via": "king",
+            "clue": "'The Purveyor's office tells us the wagons are lost to goblins. We had hoped it was exaggerated.' A sip of tea. 'Well. It will all be looked into, most thoroughly, after the Assembly.'",
+            "earn": "No dice: once the goblins, the road or the grain wagons come up.",
+            "strength": "suggestive"
+          },
+          {
+            "via": "holt",
+            "clue": "'After the Assembly, Majesty.' He says it like a prayer, without looking up from his watch.",
+            "earn": "No dice: whenever anything that isn't on the timetable comes up.",
+            "strength": "hook"
+          },
+          {
+            "via": "the after-the-Assembly pile",
+            "clue": "On the writing table, among the seating plans, a squared-off pile of letters and petitions under a card in the King's round hand: 'After the Assembly'.",
+            "earn": "No dice: free to anyone who looks at the writing table.",
+            "strength": "hook"
+          }
+        ],
+        "lore": []
+      }
+    },
+    {
+      "id": "wendell",
+      "type": "story",
+      "position": {
+        "x": 420,
+        "y": 220
+      },
+      "data": {
+        "kind": "beat",
+        "title": "The King's grain clerk",
+        "description": "The player hears of Wendell Prout, the King's grain clerk, from the King himself: a name, a cup of tea and a letter put off. Nothing more is known tonight, and nothing should be made of it: it's a kind old man remembering a kind old clerk. It lands in the morning.",
+        "revelation": "The King's grain clerk of twenty years, Wendell Prout, wrote to him a week ago asking for an audience about irregularities in the Royal Granary Roll, and the King has put him off until after the Assembly.",
+        "paths": [
+          {
+            "via": "king",
+            "clue": "'My grain clerk, Wendell Prout: twenty years he's brought me the accounts every quarter-day. Milk first, one sugar, and the cup warmed; he's particular. He wrote asking to see me about something in the Roll. Irregularities.' A glance at the pile. 'After the Assembly. He won't mind; he never minds.'",
+            "earn": "No dice: once the grain wagons or 'lost to goblins' come up, or the player asks about the pile or about the King's people, as kindly as he asks about theirs.",
+            "strength": "hook"
+          },
+          {
+            "via": "the after-the-Assembly pile",
+            "clue": "Near the top of the pile, a letter in a small, careful clerk's hand on granary-office paper: 'Majesty, I humbly beg an audience at your earliest convenience on a matter of certain irregularities in the Royal Granary Roll, which I would not trust to paper. Your obedient servant, W. Prout, under-clerk.'",
+            "earn": "No dice: if the King shows it them (asked kindly about the pile, he does, a little ashamed). Read without his leave while he's looking elsewhere, it's a quick look (Sleight of Hand); seen doing it, he's mildly hurt and puts the pile away.",
+            "strength": "hook",
+            "check": {
+              "skill": "sleight_of_hand",
+              "dc": 13
+            }
+          }
+        ],
+        "establishes": [
+          "prout-named"
+        ],
+        "lore": []
+      }
+    },
+    {
+      "id": "ninth-bell",
+      "type": "story",
+      "position": {
+        "x": 840,
+        "y": 220
+      },
+      "data": {
+        "kind": "beat",
+        "title": "The ninth bell",
+        "description": "The bell for the toasts: Holt snaps his watch shut, and the King sighs, gets up, brushes the crumbs off his waistcoat and must go down to the Great Hall. Before he goes he thanks the player properly, gives them a purse of silver crowns from his own pocket and a room in the palace for the Assembly ('You'll stay, of course. We insist. Garran, see to it.'), and says one small true thing about them.",
+        "cast": {
+          "king": "Up, napkin out of his collar, a purse pressed into the player's hand; 'You'll stay, of course. We insist.' One small true thing about the player as he goes.",
+          "holt": "At the door, holding it open, watch in hand.",
+          "tob": "Dismissed with thanks and a word about his mother; nearly falls over the footstool."
+        },
+        "pressure": "Holt holds the door; the King must go down.",
+        "lore": []
+      }
+    },
+    {
+      "id": "kings-guest",
+      "type": "story",
+      "position": {
+        "x": 1260,
+        "y": 120
+      },
+      "data": {
+        "kind": "exit",
+        "title": "The King's guest",
+        "description": "The King has thanked the player, given them a purse from his own pocket and a room in the palace for the Assembly, and gone down for the toasts. They're his guest now.",
+        "closing": "The King goes down for the toasts with crumbs on his waistcoat, turning at the door to say one small true thing about the player (how they take their tea, what they did on the bridge). A footman shows them up to a small room high under the palace roof, with a fire, a green cushion on the chair, and the city's lamps going out one by one beyond the window. End on the player falling asleep in the King's palace. Don't narrate the morning.",
+        "result": "good",
+        "exitKind": "progress",
+        "next": "hanged-clerk",
+        "effects": [
+          {
+            "op": "give",
+            "what": "kings-crowns",
+            "to": "$player"
+          },
+          {
+            "op": "quest",
+            "quest": "assembly-cushions",
+            "do": "complete",
+            "text": "The King's cushions are in the palace, and the King thanked you himself over supper, with a purse and a room in the palace for the Assembly."
+          },
+          {
+            "op": "attitude",
+            "who": "king",
+            "to": "friendly",
+            "text": "Saved his patrol and the Assembly's cushions on the King's Road, and told him about it over supper."
+          },
+          {
+            "op": "remember",
+            "who": "king",
+            "text": "The evening before the eve, the traveller who saved my patrol and the Assembly's cushions on the King's Road came up to supper. I thanked them, gave them a purse and a room in the palace for the Assembly. Nobody at court knows them."
+          },
+          {
+            "op": "remember",
+            "who": "king",
+            "text": "That evening I told the traveller about Wendell's letter, and that I'd see him after the Assembly.",
+            "if": {
+              "established": "prout-named"
+            }
+          },
+          {
+            "op": "remember",
+            "who": "tob",
+            "text": "I brought the traveller to the King, and the King thanked them, and asked after my mother."
+          },
+          {
+            "op": "flag",
+            "name": "kings_guest",
+            "value": "true"
+          },
+          {
+            "op": "journal",
+            "text": "Supper with the King: he thanked me for the road and the cushions, and gave me a purse and a room in the palace for the Assembly."
+          },
+          {
+            "op": "journal",
+            "text": "The King's grain clerk, Wendell Prout, wrote asking to see him about 'irregularities in the Roll'. The King has put him off until after the Assembly.",
+            "if": {
+              "established": "prout-named"
+            }
+          }
+        ],
+        "lore": []
+      }
+    },
+    {
+      "id": "shown-out",
+      "type": "story",
+      "position": {
+        "x": 1260,
+        "y": 380
+      },
+      "data": {
+        "kind": "exit",
+        "title": "Shown the door",
+        "description": "Last resort. The player has made a scene the King can't overlook (steel drawn or a blow struck in his parlour, the King threatened, his letters snatched and read aloud to mock him, the Marshal insulted to his face), and Holt has had them put out of the palace into the night by the guards. The King won't send for them again, and the story ends here.",
+        "closing": "The palace's side door shuts behind them. The bunting, the cold, the city's lamps going out. Land on the player alone in the street; don't narrate beyond it.",
+        "result": "bad",
+        "exitKind": "leave",
+        "effects": [
+          {
+            "op": "attitude",
+            "who": "king",
+            "to": "unfriendly",
+            "text": "Made a scene in his parlour on the eve of the eve of his Assembly."
+          },
+          {
+            "op": "quest",
+            "quest": "assembly-cushions",
+            "do": "fail",
+            "text": "Put out of the palace into the night by the Marshal's guards."
+          },
+          {
+            "op": "journal",
+            "text": "Shown the door of the King's palace by the Marshal's guards."
+          }
+        ],
+        "lore": []
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "pile",
+      "source": "start",
+      "target": "after-the-assembly",
+      "type": "smoothstep",
+      "label": "After the Assembly",
+      "data": {
+        "condition": "",
+        "phase": "outcome",
+        "skill": "",
+        "dc": 12
+      }
+    },
+    {
+      "id": "wendell",
+      "source": "start",
+      "target": "wendell",
+      "type": "smoothstep",
+      "label": "The King's grain clerk",
+      "data": {
+        "condition": "",
+        "phase": "outcome",
+        "skill": "",
+        "dc": 12
+      }
+    },
+    {
+      "id": "bell",
+      "source": "start",
+      "target": "ninth-bell",
+      "type": "smoothstep",
+      "label": "The ninth bell",
+      "data": {
+        "condition": "The ninth bell: once the player has told the King about the road and had their chances with him (the tea, the goblins, the cushions, a question or two), or the talk has run down. The outer limit is the eighth exchange: Holt snaps his watch shut then, whatever is happening.",
+        "phase": "cue",
+        "skill": "",
+        "dc": 12,
+        "limit": [
+          {
+            "exchanges": 8
+          }
+        ]
+      }
+    },
+    {
+      "id": "goodnight",
+      "source": "ninth-bell",
+      "target": "kings-guest",
+      "type": "smoothstep",
+      "label": "Goodnight",
+      "data": {
+        "condition": "The King has thanked the player and gone down for the toasts, and they've been shown up to their room. The outer limit is the second exchange after the bell: the King goes then. Not needed once the player has taken their leave of him: that's [take-leave].",
+        "phase": "cue",
+        "skill": "",
+        "dc": 12,
+        "limit": [
+          {
+            "exchanges": 2,
+            "after": "ninth-bell"
+          }
+        ]
+      }
+    },
+    {
+      "id": "take-leave",
+      "source": "start",
+      "target": "kings-guest",
+      "type": "smoothstep",
+      "label": "Taking their leave",
+      "data": {
+        "condition": "The player takes their leave of the King (or asks to rest), once he's thanked them and offered them a room in the palace.",
+        "phase": "outcome",
+        "skill": "",
+        "dc": 12
+      }
+    },
+    {
+      "id": "last-resort",
+      "source": "start",
+      "target": "shown-out",
+      "type": "smoothstep",
+      "label": "Last resort",
+      "data": {
+        "condition": "Last resort only: the player has made a scene the King can't overlook (steel drawn or a blow struck in his parlour, the King threatened, his letters snatched and read aloud to mock him, the Marshal insulted to his face). Not for rudeness, a raised voice or a question he doesn't like: he forgives those.",
+        "phase": "outcome",
+        "skill": "",
+        "dc": 12
+      }
+    }
+  ]
+}

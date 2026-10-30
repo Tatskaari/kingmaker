@@ -1,0 +1,508 @@
+{
+  "format": "kingmaker",
+  "version": 2,
+  "kind": "scene",
+  "id": "kings-road",
+  "title": "The King's Road",
+  "description": "A cart of three hundred cushions for the Assembly, an old carter and his granddaughter, and goblins in the blackthorn at the crossroads.",
+  "lore": [
+    "World/King's Road.md"
+  ],
+  "time": "afternoon",
+  "place": "kings-road",
+  "summons": true,
+  "hook": "You're riding the last miles of the King's Road into Caerwyn for the Centennial Assembly, on the back of a farm cart piled with three hundred cushions for the Assembly's seats, beside the carter, old Barnaby Fitch, and his granddaughter Tansy, who has never seen a city, or a king. The sun's getting low. Ahead is the crossroads, and its blackthorn hedges.",
+  "setting": "Late afternoon, two days before the Centennial Assembly, at the crossroads nine miles out of Caerwyn, where the drovers' track from the Nine Furrows comes down to the King's Road: frozen ruts, a milestone worn smooth (CAERWYN IX), an empty gibbet with its chain creaking, and blackthorn hedges taller than a man on both sides of the road, black with winter, with gaps in them. The light is going amber, and the wind smells of woodsmoke from somewhere it shouldn't. Fitch's cart is a high-sided farm cart under patched sacking, piled to twice a man's height with three hundred Assembly cushions in the King's green, in bundles of ten, with Bramble the old bay mare in the shafts. The player rides on the tailboard or up beside Fitch; Tansy rides on top of the cushions like a queen on a hill.",
+  "premise": "Can the player get Fitch, Tansy and the King's cushions through the goblins at the crossroads, and will they go on to the trouble at the bridge?",
+  "truth": "The hedge-goblins of the burnt mill have been paid all month, in new silver heron pennies, by a 'longlegs' in a grey hood who smells of flowers, to be seen on the King's Road: to shoot oxen, chase travellers and make a show, so that palace wagons can be written off in the city as 'lost to goblins'. They never take grain (they wouldn't know where to sell it). Today their war-boss Grisk has brought the band down to Garrow's toll bridge to make the biggest show yet before the Assembly, and has caught the one palace patrol on the road there; he left Nabber and a few of the hedge-gang to keep the crossroads, and they jump the first cart that comes. They shout 'Be seen! Be seen!' because that's what they're paid for, and they'd sooner frighten than fight: a goblin that's hurt, or sees its friends drop, runs. Each carries a few heron pennies, new silver from a Saltmere grain factor's cashbox, which nobody in the Nine Furrows has ever seen. Nobody here knows any of this, and it isn't this scene's to explain: the heron pennies and 'be seen' are a puzzle to carry on.",
+  "clock": "The goblins strike soon, and it's felt coming first, once: the hedge rustling where there's no wind, Bramble shying, Fitch going quiet. Within the first two or three exchanges (a scrap of talk on the cart, the crossroads coming up, Tansy asking the player something) the first arrow hits the cushions and the fight is on; sooner if the player looks hard at the hedge, stops the cart or goes ahead. After the fight the light going is felt a step at a time and never the same sign twice: the smoke over the bridge thickening, a horn, Fitch wanting the cart moving and the patrol found before dark, a little more urgently each exchange.",
+  "limits": [
+    "Turning back or going round: there's no other way into the city for miles. The King's Road crosses the river only at Garrow's bridge, and the drovers' track goes back to the Nine Furrows, a day's walk.",
+    "Help from anyone else on the road: nobody else is on it. The Assembly traffic went through this morning, the palace's patrols have been called in to line the Assembly route (all but one), and carters won't take the road this late.",
+    "Following the goblins home: their burnt mill is half a day north past the woods. The ones that run go east toward the bridge, to their boss.",
+    "Anyone else's magic: nobody here can cast anything. What the player's own spells and sheet can do, the rules do.",
+    "Knowing what the heron pennies are or who Longlegs is: nobody here does. It's a puzzle to carry on into the city."
+  ],
+  "known": [
+    "Carters say there are no patrols on the King's Road this week: the Marshal has called them all in to line the Assembly route.",
+    "'Lost to goblins' is what the city says of a dozen palace grain wagons this month; carters say they've never seen a goblin carry off a sack of wheat.",
+    "The hedge-goblins call people 'longlegs' and love anything shiny.",
+    "Garrow keeps the toll bridge a mile on: a silver penny a head, the King's penny, and he writes everyone in his book."
+  ],
+  "cast": [
+    {
+      "id": "fitch",
+      "name": "Barnaby Fitch",
+      "called": "the old carter",
+      "aka": [
+        "Fitch",
+        "old Fitch"
+      ],
+      "lore": "Cast/Barnaby Fitch/public.md",
+      "look": "A carter of seventy in a caped greatcoat and a hat like a collapsed chimney, with a white moustache that does his frowning for him, a stump of clay pipe he never lights, and a blackthorn cudgel across his knees. He carried a pike for King Edric forty years ago and still sits a cart as if it were a horse.",
+      "voice": "Gruff, slow and Nine Furrows broad, every other sentence ending on a grumble ('...and that's the truth of it'). Calls the player 'friend' until they've done something, then by their name. Talks to Bramble the mare as if she were his wife, and to Tansy as if she were his sergeant. 'Forty year I've drove this road.'",
+      "wants": "The cushions delivered to the palace by dark (the King ordered them himself, by letter, and Fitch keeps the letter in his hat), paid for, and Tansy kept safe: in that order of what he'll say, and the other order of what he means.",
+      "fears": "Losing Tansy, whose mother he lost to a winter fever. Being on the road after dark with no patrols. Being thought too old for the road, which he is.",
+      "whyHere": "Bringing three hundred cushions for the Assembly's seats in from the Nine Furrows (wool from his own sheep, sewn by his village, the King's own order) on his farm cart. The player is riding with him: they begged a lift at the last inn, or he offered one, an extra pair of hands on a road with no patrols.",
+      "knows": [
+        "The palace sent word to the carters bringing goods for the Assembly: the one patrol on the King's Road this week would meet the King's cushions at Garrow's toll bridge, a mile on from the crossroads.",
+        "Forty years on this road, and he has never seen a goblin carry off so much as a sack of grain: they shoot the oxen, chase the carts and run. The city says a dozen palace grain wagons were 'lost to goblins' this month. Lost where, he'd like to know.",
+        "There have been no patrols on the road all week: the Marshal has called them all in to line the Assembly route.",
+        "Garrow at the toll bridge takes a silver penny a head, writes everyone in his book and is the most disagreeable man in three counties.",
+        "Caerwyn: he has brought goods to the palace's back door every quarter for thirty years. The King's servants are decent folk, and once the King sent a cup of tea down to him in the yard, which he has never got over."
+      ],
+      "secrets": [
+        "His hands shake now, and he can't hold the reins steady once the light goes, which is why he wanted company on the cart. It shows when he passes the reins to Tansy or grips his cudgel too hard; he'd own it only to someone who has fought beside him."
+      ],
+      "attitude": "Gruff and wary with a stranger and warm underneath; once the player has fought beside him he's theirs, and says so in his way ('You'll do').",
+      "limits": "Never leaves Tansy, and never runs from a fight with her in it. If he goes down in the fight he's badly hurt, not dead: an arrow in the shoulder, and he swears about it.",
+      "roles": {
+        "characterise": "Grumbles about the road, the price of bread, the Assembly and the King's cushions ('Three hundred! For sitting on!'), and is proud of every one of them.",
+        "inconsistency": "He keeps looking at the hedges, and his hands aren't steady on the reins.",
+        "hooks": "The patrol meant to meet them at Garrow's bridge; the 'lost' grain wagons nobody ever saw a goblin take; the King who ordered the cushions himself."
+      },
+      "statblock": "warrior-infantry",
+      "weapon": "club"
+    },
+    {
+      "id": "tansy",
+      "name": "Tansy Fitch",
+      "called": "the girl on the cushions",
+      "lore": "Cast/Tansy Fitch/public.md",
+      "look": "A girl of nine in a red knitted hood and three of her grandfather's mufflers, freckled, a front tooth missing, riding on top of the cushions like a queen on a hill with a wooden horse in her fist.",
+      "voice": "Fast, curious, fearless and very loud: three questions before you've answered one ('Have you seen the King? Is he really round? Is it true he remembers everybody's tea? How do you take yours?'). Says 'actually' a great deal, like her teacher. Frightened, she goes very quiet and very polite.",
+      "wants": "To see the King, the procession and a city, all three for the first time; to be useful; and to keep a goblin arrow, if there is one going.",
+      "fears": "Something happening to Grandad. Being sent home before the procession.",
+      "whyHere": "Her grandfather's helper on the cart, out of the Nine Furrows for the first time in her life. She has never seen a city, a king or a goblin, and means to see all three.",
+      "knows": [
+        "The patrol is meant to meet them at the bridge: Grandad said so, and that there'd be soldiers with helmets.",
+        "The King wrote to her grandfather himself about the cushions: she's seen the letter, which lives in his hat.",
+        "Her mother carved the wooden horse; her mother is dead."
+      ],
+      "attitude": "Takes to the player at once and completely: she has decided they're a hero, and expects them to behave like one. Anyone who disappoints her is told so.",
+      "limits": "Never fights: in a fight she hides (under the cushions, behind the cart) and stays hidden, and she's never hurt worse than a scrape. She won't let go of the wooden horse.",
+      "roles": {
+        "characterise": "Questions, all of them, about the player, the city and the King; after the fight, very quiet for a moment, then fiercely brave about it.",
+        "inconsistency": "She won't let go of the wooden horse, even to climb.",
+        "hooks": "She makes the player promise she'll see the King, or the procession at least. She's the first to see the smoke over the bridge."
+      },
+      "statblock": "commoner",
+      "weapon": "unarmed-strike"
+    },
+    {
+      "id": "nabber",
+      "name": "Nabber",
+      "called": "the goblin in the copper-pot helmet",
+      "look": "Small, green and quick, with ears like jug handles and teeth like a broken comb, in rags and stolen oddments. Nabber wears a copper cooking pot for a helmet and a lady's fur tippet; the others have black-fletched arrows, rusty scimitars and a great deal of noise. Each has a little leather pouch on a string round its neck.",
+      "voice": "Shrieks in broken Common and goblin: 'Be seen! Be seen!', 'Longlegs! Shiny!', 'Run, run!'. Nabber does the talking, about himself ('Nabber is very fierce. Nabber wants shinies.'). Cornered, they whine and bargain.",
+      "wants": "To be seen on the road, frighten the longlegs (people), grab anything shiny and run: that's what they're paid for. Not to die for it.",
+      "fears": "Fire. Dogs. Dying for pennies. Their war-boss Grisk, more than any longlegs.",
+      "whyHere": "Left by the war-boss to keep the crossroads while the big band makes its show at the toll bridge: the first cart along is theirs to frighten.",
+      "knows": [
+        "Longlegs pays them in shiny new pennies with a bird on: a tall one in a grey hood who smells like flowers, who comes to the burnt mill at night. They don't know a name.",
+        "Be seen on the road, shoot the cows, chase the carts, run away: that's the job. Never take the wheat (what would they do with wheat?).",
+        "The war-boss Grisk is at the bridge with the big band and his worg, 'pinning the shiny-hats' (the patrol's helmets)."
+      ],
+      "secrets": [
+        "Nabber has kept back a handful of the band's pennies in his pot-helmet, and will bargain them for his life."
+      ],
+      "attitude": "All bravado while they're winning. The moment one of them drops, or the fight turns, they run for the gaps in the hedges and away east toward the bridge. A goblin held down begs, bargains and tells anything to be let go.",
+      "limits": "They never take grain, and they don't know Longlegs's name. They aren't brave: hurt, or with two of their own down, a goblin runs.",
+      "roles": {
+        "characterise": "Shrieking, posturing and grabbing; then, cornered, whining and very reasonable.",
+        "inconsistency": "They shout 'Be seen!' as if being seen were the point, and they go for the shiny things, not the cargo.",
+        "hooks": "The heron pennies in their pouches; Longlegs, who pays; the war-boss at the bridge."
+      },
+      "enters": "ambush",
+      "group": "Nabber and two more of the hedge-gang: goblins of the burnt mill",
+      "statblock": "goblin-warrior",
+      "weapon": "scimitar",
+      "members": [
+        {
+          "id": "goblin-blade",
+          "name": "a hedge-goblin with a rusty scimitar",
+          "statblock": "goblin-warrior",
+          "weapon": "scimitar",
+          "look": "A hedge-goblin with a rusty scimitar and an ear missing, shrieking."
+        },
+        {
+          "id": "goblin-bow",
+          "name": "a hedge-goblin with a bow",
+          "statblock": "goblin-minion",
+          "weapon": "shortbow",
+          "look": "A small hedge-goblin with a black-fletched bow, up the road ahead, shooting at anything that moves."
+        }
+      ]
+    }
+  ],
+  "facts": {
+    "paid-to-be-seen": "The goblins at the crossroads were paid to be seen on the road, in new silver heron pennies, by someone they call Longlegs, a tall one in a grey hood who smells like flowers: nobody here knows who, or what heron pennies are.",
+    "trouble-at-bridge": "The goblins' war-band and their boss have the King's patrol pinned at Garrow's toll bridge, a mile on, where the smoke is."
+  },
+  "onStart": [
+    {
+      "op": "quest",
+      "quest": "assembly-cushions",
+      "do": "start",
+      "text": "You're bringing three hundred cushions for the Assembly's seats into Caerwyn on Barnaby Fitch's cart, with his granddaughter Tansy: the King ordered them himself."
+    }
+  ],
+  "reinforcements": [
+    {
+      "id": "hedge-gang",
+      "name": "two more hedge-goblins",
+      "statblock": "goblin-minion",
+      "weapon": "dagger",
+      "look": "Two smaller, younger hedge-goblins with kitchen knives tied to sticks, very excited.",
+      "after": 2,
+      "why": "The rest of the hedge-gang, who were watching the road behind the cart, come running up it at the noise, shrieking 'Be seen!'."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "type": "story",
+      "position": {
+        "x": 0,
+        "y": 220
+      },
+      "data": {
+        "kind": "start",
+        "title": "On the cushion cart",
+        "description": "This scene opens the game and the story: the prologue on the road into Caerwyn. Open on the cart: the cushions, the amber light, the crossroads coming up, Fitch grumbling and Tansy's questions. Give the player a moment to be someone (Tansy asks who they are and why they're going to the Assembly; Fitch asks whether they can use whatever they carry), two or three exchanges at most, and then the goblins. Keep it light and quick: this is the calm before the arrow. Don't explain the world; let Fitch and Tansy show it (the Assembly in two days, the King who ordered cushions himself, a road with no patrols, 'lost to goblins'). The opening image: three hundred green cushions on a cart in the low sun, a girl on top of them, the hedges black ahead.",
+        "cast": {
+          "fitch": "Characterise: up front with the reins, grumbling about the road, the light and the King's cushions, and watching the hedges. Gives the player a job if they've nothing to do ('Keep your eyes on that hedge, friend'). Hooks: the patrol that's meant to meet them at Garrow's bridge, a mile on.",
+          "tansy": "Characterise: up top on the cushions, questions for the player one after another: who they are, why they're going to the Assembly, whether they've seen the King, how they take their tea (the King remembers everybody's, Grandad says). She's the first to see the hedge move.",
+          "nabber": "Not here yet: in the hedges, waiting. Nothing is said of them before the ambush, though the hedge can rustle once."
+        },
+        "lore": []
+      }
+    },
+    {
+      "id": "ambush",
+      "type": "story",
+      "position": {
+        "x": 420,
+        "y": 220
+      },
+      "data": {
+        "kind": "beat",
+        "title": "Goblins in the hedge",
+        "description": "An arrow thumps into the cushions a hand's breadth from Tansy, and the hedges burst: goblins out through the gaps on both sides of the road, shrieking 'Be seen! Be seen!', one with a bow up the road ahead, Bramble rearing in the shafts. It's played on the board, a turn each in initiative order: Nabber's hedge-gang against the player, Fitch beside them with his cudgel, Tansy under the cushions (she never fights). The goblins would sooner frighten than fight: hurt, or seeing two of their own drop, a goblin breaks for the gaps and away east toward the bridge. More of the gang may come up the road behind the cart once it's started. When it's over the scene picks up from how it went: the cart, the cushions, Fitch and Tansy, the fallen goblins and what's on them, and smoke over the bridge.",
+        "cast": {
+          "nabber": "Out of the gaps in the hedges shrieking 'Be seen!', the bow shooting at the cart from up the road; they go for whoever's nearest and loudest, and the horse. Hurt, or with two of their own down, they break and run east for the bridge. One held down begs and tells.",
+          "fitch": "Stands up on the cart bellowing at them like a sergeant, then gets down beside the player with his cudgel; puts himself between the goblins and Tansy every time.",
+          "tansy": "Under the cushions at the first arrow, as she was told; peeks out to shout warnings ('Behind you!'); never fights."
+        },
+        "pressure": "The light is going and there's smoke over the river ahead: Fitch wants the cart moving and the patrol found before dark, says so, and then gets the cart moving himself.",
+        "fight": {
+          "foes": [
+            "nabber",
+            "goblin-blade",
+            "goblin-bow"
+          ],
+          "allies": [
+            "fitch"
+          ]
+        },
+        "lore": []
+      }
+    },
+    {
+      "id": "be-seen",
+      "type": "story",
+      "position": {
+        "x": 840,
+        "y": 40
+      },
+      "data": {
+        "kind": "beat",
+        "title": "Paid to be seen",
+        "description": "The player comes to see that the goblins weren't after the cart or the cushions: they were making a show on the road, for pay. It's a first glimpse of the story's heart (the 'lost' grain wagons), and nobody here understands it yet: let it puzzle them. It can only come out once the fight has begun.",
+        "revelation": "The goblins weren't after the cart or the cushions: they were paid to make a show on the road ('Be seen!'), in new silver heron pennies nobody out here has ever seen, by someone they call Longlegs.",
+        "paths": [
+          {
+            "via": "the goblins' pouches",
+            "clue": "Every goblin that's fallen, dead or out cold, has a few new silver pennies in the pouch round its neck, stamped with a heron: good silver, new this month, money nobody in the Nine Furrows has ever seen (Fitch hasn't).",
+            "earn": "No dice: free to anyone who searches a fallen goblin.",
+            "strength": "suggestive"
+          },
+          {
+            "via": "nabber",
+            "clue": "A goblin held down and offered its life: 'Longlegs pays! Be seen on the road, shoot the cows, run away! Shiny pennies!' Longlegs is a tall one in a grey hood who smells like flowers. That's all it knows, and it'll say anything to be let go.",
+            "earn": "No dice: for a goblin that's beaten, held and offered its life. Threatened instead, it squeals it faster, or lies; that's the roll.",
+            "strength": "suggestive",
+            "check": {
+              "skill": "intimidation",
+              "dc": 10
+            }
+          },
+          {
+            "via": "fitch",
+            "clue": "Forty years on this road, and he has never seen a goblin carry off so much as a sack of grain: they shoot the oxen and run. 'Lost to goblins,' the city says of the palace's grain wagons. Lost where? What would a goblin do with a wagon of wheat?",
+            "earn": "No dice: once the fight's over and he's had a pull at his flask, or when asked what goblins want.",
+            "strength": "hook"
+          },
+          {
+            "via": "tansy",
+            "clue": "She heard them shouting it: 'Be seen! Be seen!' 'Why would they want to be seen? I'd want to be hidden, actually, if I was a goblin.'",
+            "earn": "No dice: she says it as soon as she's out from under the cushions.",
+            "strength": "hook"
+          }
+        ],
+        "establishes": [
+          "paid-to-be-seen"
+        ],
+        "lore": []
+      }
+    },
+    {
+      "id": "the-bridge",
+      "type": "story",
+      "position": {
+        "x": 840,
+        "y": 260
+      },
+      "data": {
+        "kind": "beat",
+        "title": "Smoke at the bridge",
+        "description": "The player learns where the trouble really is, and where the road goes on: the toll bridge a mile ahead, where the goblins' war-band has the King's patrol pinned. This is the lead to the next scene, so the player must have it before the scene can end well; it comes out only once the fight has begun, and the smoke is free to anyone who looks east.",
+        "revelation": "The goblins came from Garrow's toll bridge a mile on, where the rest of their band and a war-boss have the King's patrol pinned down; smoke is going up over the river, and the cart's only way into the city is across that bridge.",
+        "paths": [
+          {
+            "via": "tansy",
+            "clue": "Back up on the cushions, Tansy sees it first: black smoke going up over the river ahead, and a horn, far off. 'That's where the soldiers are! Grandad said there'd be soldiers at the bridge!'",
+            "earn": "No dice: once the fight's done and she has climbed back up (she always climbs back up).",
+            "strength": "strong"
+          },
+          {
+            "via": "fitch",
+            "clue": "The palace sent word that the one patrol on the road this week would meet the King's cushions at Garrow's bridge, a mile on. That smoke is the bridge, and he doesn't like it.",
+            "earn": "No dice: once the goblins are gone and he sees the smoke, or is asked where help is.",
+            "strength": "strong"
+          },
+          {
+            "via": "nabber",
+            "clue": "A goblin begging for its life squeals that the boss is at the bridge with the big band and his worg, 'pinning the shiny-hats' (the soldiers), and they were only to keep the crossroads.",
+            "earn": "No dice: from a goblin that's beaten and held; it wants to be let go to run to its boss.",
+            "strength": "strong"
+          },
+          {
+            "via": "the smoke",
+            "clue": "Black smoke going up over the trees to the east, where the road meets the river, and the far-off bray of a horn: someone's in trouble at the bridge.",
+            "earn": "No dice: free to anyone who looks east once the fight is over.",
+            "strength": "suggestive"
+          }
+        ],
+        "required": true,
+        "establishes": [
+          "trouble-at-bridge"
+        ],
+        "lore": []
+      }
+    },
+    {
+      "id": "on-to-the-bridge",
+      "type": "story",
+      "position": {
+        "x": 1260,
+        "y": 120
+      },
+      "data": {
+        "kind": "exit",
+        "title": "On to the bridge",
+        "description": "The goblins are dead, fled or begging, the cart and most of the cushions are whole, and the player sets off for the bridge and the patrol, with Fitch and Tansy coming on behind at the cart's pace.",
+        "closing": "Fitch gets Bramble calmed and the cart rolling at a walk, one-handed if he's hurt; Tansy back on top of the cushions with a goblin arrow she means to keep. The player goes ahead toward the smoke. End on the road east, the smoke going up black over the river, a horn.",
+        "result": "good",
+        "exitKind": "progress",
+        "next": "toll-bridge",
+        "effects": [
+          {
+            "op": "quest",
+            "quest": "assembly-cushions",
+            "do": "advance",
+            "stage": "crossroads",
+            "text": "Saw off the hedge-goblins at the crossroads with Barnaby Fitch and Tansy. On to Garrow's toll bridge, where the King's patrol is meant to meet the cushions, and where the smoke is."
+          },
+          {
+            "op": "attitude",
+            "who": "fitch",
+            "to": "friendly",
+            "text": "Fought the goblins off his cart at the crossroads, beside him."
+          },
+          {
+            "op": "attitude",
+            "who": "tansy",
+            "to": "friendly",
+            "text": "Saved her grandfather and the King's cushions from the goblins."
+          },
+          {
+            "op": "remember",
+            "who": "fitch",
+            "text": "At the crossroads the traveller fought off the hedge-goblins beside him and saved the cart, the cushions and Tansy, then went on ahead to the bridge."
+          },
+          {
+            "op": "remember",
+            "who": "tansy",
+            "text": "At the crossroads the traveller fought the goblins off Grandad's cart. They're a hero, actually."
+          },
+          {
+            "op": "flag",
+            "name": "crossroads",
+            "value": "held"
+          },
+          {
+            "op": "journal",
+            "text": "Goblins jumped Fitch's cart at the crossroads, shrieking 'Be seen!'. There's smoke at Garrow's toll bridge ahead, where the King's patrol is meant to be."
+          },
+          {
+            "op": "journal",
+            "text": "The goblins carried new silver pennies stamped with a heron, and someone they call Longlegs pays them to be seen on the road.",
+            "if": {
+              "established": "paid-to-be-seen"
+            }
+          }
+        ],
+        "lore": []
+      }
+    },
+    {
+      "id": "beaten-up",
+      "type": "story",
+      "position": {
+        "x": 1260,
+        "y": 360
+      },
+      "data": {
+        "kind": "exit",
+        "title": "Beaten up",
+        "description": "The fight went against the player: they went down, ran from it or walked away from the cart, and the hedge-gang made off east with an armful of cushions and Fitch's flask, jeering. Fitch got the player back on their feet (or onto the cart), and there's nothing for it but the bridge, where the smoke is.",
+        "closing": "Fitch hauls the player up onto the cart beside him, swearing gently; Tansy hands them a cushion to sit on, solemnly. The cart creaks on toward the smoke. End on the road east, the light going.",
+        "result": "mixed",
+        "exitKind": "progress",
+        "next": "toll-bridge",
+        "effects": [
+          {
+            "op": "quest",
+            "quest": "assembly-cushions",
+            "do": "advance",
+            "stage": "beaten",
+            "text": "The hedge-goblins had the better of it at the crossroads and made off with some of the cushions. On to Garrow's toll bridge, where the King's patrol is meant to be."
+          },
+          {
+            "op": "remember",
+            "who": "fitch",
+            "text": "At the crossroads the goblins got the better of the traveller; he got them back on their feet and the cart on toward the bridge."
+          },
+          {
+            "op": "flag",
+            "name": "crossroads",
+            "value": "lost"
+          },
+          {
+            "op": "journal",
+            "text": "Goblins jumped Fitch's cart at the crossroads, shrieking 'Be seen!', and got away with some of the cushions. There's smoke at Garrow's toll bridge ahead."
+          }
+        ],
+        "lore": []
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "goblins-strike",
+      "source": "start",
+      "target": "ambush",
+      "type": "smoothstep",
+      "label": "The hedge moves",
+      "data": {
+        "condition": "The goblins strike: once the player has had an exchange or two on the cart to be someone, or at once if they stop the cart, look hard into the hedge or go ahead on foot. The outer limit is the third exchange: the arrow comes then, whatever is happening.",
+        "phase": "cue",
+        "skill": "",
+        "dc": 12,
+        "limit": [
+          {
+            "exchanges": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "paid",
+      "source": "ambush",
+      "target": "be-seen",
+      "type": "smoothstep",
+      "label": "Paid to be seen",
+      "data": {
+        "condition": "",
+        "phase": "outcome",
+        "skill": "",
+        "dc": 12
+      }
+    },
+    {
+      "id": "the-smoke",
+      "source": "ambush",
+      "target": "the-bridge",
+      "type": "smoothstep",
+      "label": "Smoke at the bridge",
+      "data": {
+        "condition": "",
+        "phase": "outcome",
+        "skill": "",
+        "dc": 12
+      }
+    },
+    {
+      "id": "set-off",
+      "source": "ambush",
+      "target": "on-to-the-bridge",
+      "type": "smoothstep",
+      "label": "On to the bridge",
+      "data": {
+        "condition": "The fight is over, the goblins dead, fled or begging, and the player sets off for the bridge (or says they will), with Fitch and Tansy coming on behind.",
+        "phase": "outcome",
+        "requires": [
+          "the-bridge"
+        ],
+        "skill": "",
+        "dc": 12
+      }
+    },
+    {
+      "id": "light-going",
+      "source": "ambush",
+      "target": "on-to-the-bridge",
+      "type": "smoothstep",
+      "label": "The light's going",
+      "data": {
+        "condition": "The light's going: once the fight is over and the player has had a few exchanges to see to Fitch and Tansy, search the goblins and look about, Fitch gets the cart rolling toward the bridge whether they're ready or not, and the player goes on with it. About five exchanges after the fight at most. Not needed once the player has set off for the bridge: that's [set-off].",
+        "phase": "cue",
+        "requires": [
+          "the-bridge"
+        ],
+        "skill": "",
+        "dc": 12,
+        "limit": [
+          {
+            "exchanges": 5,
+            "after": "ambush"
+          }
+        ]
+      }
+    },
+    {
+      "id": "beaten",
+      "source": "ambush",
+      "target": "beaten-up",
+      "type": "smoothstep",
+      "label": "Beaten up",
+      "data": {
+        "condition": "The fight went against the player: they went down, ran from it or walked away from the cart, and the goblins have gone off east with what they grabbed. Not when the player won it or held the goblins off: that's [set-off].",
+        "phase": "outcome",
+        "skill": "",
+        "dc": 12
+      }
+    }
+  ]
+}

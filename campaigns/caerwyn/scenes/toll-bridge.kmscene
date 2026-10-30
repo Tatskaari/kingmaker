@@ -1,0 +1,711 @@
+{
+  "format": "kingmaker",
+  "version": 2,
+  "kind": "scene",
+  "id": "toll-bridge",
+  "title": "Garrow's Toll Bridge",
+  "description": "The one patrol on the King's Road pinned behind a hay wain, a toll-warden who won't open his door, and a goblin war-boss on a worg across the river.",
+  "lore": [
+    "World/King's Road.md"
+  ],
+  "time": "evening",
+  "place": "toll-bridge",
+  "hook": "A mile on from the crossroads, the King's Road crosses the river by Garrow's toll bridge, and that's where the smoke is coming from. Somewhere behind you Fitch is getting his cart moving. Ahead: shouting, a drum, a horn, and goblins.",
+  "setting": "Dusk, two days before the Centennial Assembly, at Garrow's toll bridge: a humpbacked stone bridge over a river in winter spate (brown, loud and freezing, its parapet long since gone into it), the only crossing for miles. At the near end Garrow's whitewashed toll house, shuttered and barred, smoke curling from its chimney; the red-and-white toll pole across the road burning like a torch where the goblins lit it. Across the road at the bridge foot the patrol has dragged over a hay wain for cover, its hay spilled, goblin arrows in its boards, and behind it two palace guards in steel caps and the King's green, one of them hurt. Goblins round the toll-house corner with their backs to the road, a drum and a bow; and over the river, out of sight beyond the willows, a horn and something that howls. Beyond the bridge the road runs on east to Caerwyn, five miles, the city's lamps not yet lit.",
+  "premise": "Can the player break the goblins' hold on the bridge and save the King's patrol, and what will they make of the war-boss when he comes?",
+  "truth": "The war-boss Grisk has brought the burnt mill's war-band down to Garrow's bridge for the biggest show yet before the Assembly, as the longlegs pays them to: be seen, burn the toll pole, frighten the city. He didn't expect a patrol, and when Corporal Haskett and Guardsman Wren rode out to meet the King's cushions his archers shot their horses from under them; they've been pinned behind the hay wain since. Wartle and two of the band (the rearguard) hold the near bank; Grisk himself waits across the river with his worg and a spearman, to cross once the soldiers break. Garrow has been barricaded in his toll house since the first arrow, writing it all down, as he writes down everything: his ledger has twelve palace grain wagons crossing inward this month, laden, which the city says were lost to goblins. Grisk is a goblin boss, not a fool: he fights from his worg's back while it's winning and quits when it isn't, and he'd sell his own band for his life, along with what he knows of a lady rider Chief Gubbin took at a ford a week ago for the longlegs. Nobody here knows who the longlegs is, and it isn't this scene's to explain: the ledger and the pennies are puzzles to carry on.",
+  "clock": "The rearguard's fight comes almost at once: as soon as the player shows themselves or does anything, or with the first exchange at the latest. After it, a short breath behind the hay wain (the guards, Garrow through his shutters, the horn across the river), and then the war-boss comes, felt before he's seen (the horn across the river, a howl, the drum falling silent): within three exchanges of the rearguard's fight, sooner if the player crosses the bridge or calls him out. After that fight Fitch's cart comes up the road, and the light going is felt a step at a time and never the same sign twice: Wren wanting to get the player to the King before the gates shut at the ninth bell, a step more urgently each exchange.",
+  "limits": [
+    "Crossing the river anywhere but the bridge: it's in winter spate, deep and fast enough to drown a horse, and the nearest ford is miles upstream.",
+    "More help from the city: the gates are five miles off and every guard is lining the Assembly route; nobody is coming but whoever is on the road already.",
+    "Getting into the toll house: Garrow has barred his door and shutters and won't open them to anyone while there's a goblin in sight (after, he opens to the King's green, grudgingly).",
+    "Healing beyond what the player and the rules can do: Haskett has a field dressing and nothing else, and the toll house has a stove, a kettle and a bottle of brandy.",
+    "Chasing the goblins to the burnt mill: it's half a day north past the woods, and the light's gone.",
+    "Knowing who the longlegs is, or what the ledger's wagons mean: nobody here does. They're puzzles to carry on into the city."
+  ],
+  "known": [
+    "There are no patrols on the King's Road this week but this one: every guard is lining the Assembly route.",
+    "Garrow takes the King's penny, a silver penny a head, and writes everyone in his book.",
+    "The city gates shut at the ninth bell this week, for the Assembly; the King's green goes through any gate.",
+    "The King takes his guests' comfort very seriously, down to the cushions."
+  ],
+  "cast": [
+    {
+      "id": "haskett",
+      "name": "Corporal Maud Haskett",
+      "called": "the corporal with the halberd",
+      "aka": [
+        "Haskett",
+        "the corporal"
+      ],
+      "lore": "Cast/Corporal Maud Haskett/public.md",
+      "look": "A square, weathered woman of fifty in a dented steel cap and the palace guard's green, with a halberd taller than she is and a goblin arrow through the meat of her left shoulder that she has snapped off short and is ignoring. A face like a slammed door, and kind eyes she keeps for emergencies.",
+      "voice": "Barks, in a sergeant's shorthand ('Down. Now. Good.'). Swears inventively and never the same way twice. Calls Wren 'lad' and the player 'you' until they've earned better, then 'friend'. Calmest when it's worst: 'Well, that's a nuisance.'",
+      "wants": "Her lad home alive, the bridge held, and the King told the truth about what's on his road, which nobody at the palace has wanted to hear this month.",
+      "fears": "Losing Wren, her sister's boy, on his first patrol. Dying for cushions, which she'd never live down.",
+      "whyHere": "The one patrol on the King's Road this week: the Marshal sent her and Wren out, at the King's own wish, to meet the Assembly's cushions at the bridge and see them in. The goblins shot their horses an hour ago, and they've been pinned behind the hay wain since.",
+      "knows": [
+        "Marshal's orders, the King's wish: one patrol, the two of them, to see the Assembly's cushions in safe. Every other guard is lining the Assembly route.",
+        "The goblins shot both horses at the bridge foot an hour ago. There's a war-boss across the river with a worg and a horn, waiting for them to break.",
+        "The goblins have been bolder this month than in her twenty years in the guard: shooting oxen in daylight, always where they'll be seen, never taking anything worth the having.",
+        "'After the Assembly' is the Marshal's answer to everything this month, and the palace keeps the road's troubles from the King.",
+        "Garrow, the toll-warden: a pest, but he'll have written every arrow down."
+      ],
+      "secrets": [
+        "The arrow went deeper than she lets on: she can't lift her halberd above her shoulder and will go down if the fight goes long. She says nothing in front of Wren; it shows in how she keeps the halberd low."
+      ],
+      "attitude": "No time for strangers in a fight, and all the time in the world for one who's fought beside her. Grateful in deeds, not words: she'll put the player's name in the Marshal's ear and the King's.",
+      "limits": "Never leaves Wren, never lets him be the hero if she can help it, never begs. If she goes down she's badly hurt and bleeding, not dead: whether she's up again soon is down to what the player does for her (a hand on the wound, Medicine, a spell or a potion).",
+      "roles": {
+        "characterise": "Barks orders, swears, ignores the arrow in her shoulder: steady as a wall.",
+        "inconsistency": "She keeps her halberd low and won't lift her left arm.",
+        "hooks": "The King's patrol and the King's wish; goblins who want to be seen; the war-boss across the river; a King who should be told what's on his road."
+      },
+      "statblock": "guard",
+      "weapon": "halberd"
+    },
+    {
+      "id": "tob",
+      "name": "Guardsman Tobias Wren",
+      "called": "the young guard",
+      "aka": [
+        "Tob",
+        "Wren",
+        "Guardsman Wren"
+      ],
+      "lore": "Cast/Guardsman Tobias Wren/public.md",
+      "look": "Nineteen, long and thin as a rake in a steel cap too big for him and the King's green, holding his spear like a broom, with a fluff of moustache he's very proud of and a face that goes white, then red.",
+      "voice": "Earnest, formal and breathless. Says 'In the King's name!' at everything, goblins included; calls the player 'sir' or 'madam' whatever they are; trips over his words when he's excited and goes very quiet when he's frightened. 'The King knows my name. He asked after my mother.'",
+      "wants": "To do his duty, get his aunt (the corporal) home alive, and see the King thank whoever saved them: the King should know what's on his road, and Wren means to tell him.",
+      "fears": "Being a coward. Aunt Maud dying because of him. The King being disappointed in him.",
+      "whyHere": "The patrol's second man, on his first patrol outside the walls, sent with his aunt to bring the Assembly's cushions in safe.",
+      "knows": [
+        "The King asked for a patrol for the cushions himself: he takes his guests' comfort very seriously, down to the cushions. The Marshal grumbled, but sent two of them.",
+        "The King told the Marshal, in Wren's hearing, that he wanted to be told of anything on the King's Road this week, himself, at once. Wren means to see he is.",
+        "The King knows every guard's name, and how their mothers are.",
+        "The city gates shut at the ninth bell for the Assembly; the King's green goes through any gate."
+      ],
+      "attitude": "Hero-worships the player from the first blow they strike for the patrol, can't do enough for them, and insists, politely and immovably, that they come and tell the King.",
+      "limits": "Never leaves his aunt while she's down. Never lets the player not come to the King: he'll walk them there himself, by the hand if need be.",
+      "roles": {
+        "characterise": "'In the King's name!'; then, once it's over, shaking, grateful, and talking too much about the King.",
+        "inconsistency": "Brave in the wrong places and frightened in the right ones.",
+        "hooks": "The King asked to be told of anything on the road: the player must come and tell him."
+      },
+      "statblock": "guard",
+      "weapon": "spear"
+    },
+    {
+      "id": "garrow",
+      "name": "Garrow",
+      "called": "the toll-warden",
+      "aka": [
+        "Mister Garrow"
+      ],
+      "lore": "Cast/Garrow/public.md",
+      "look": "A thin man of sixty in a bottle-green coat with brass buttons, a ledger the size of a door under his arm and a quill behind each ear, with a face like a disappointed heron. Seen only through a crack in his shutters until it's safe.",
+      "voice": "Officious, nasal and furious, in the language of regulations ('The King's penny is levied upon every soul, beast and conveyance crossing the King's bridge, without exception'). Writes things down while he talks and reads them back. Lonely underneath it, and can't say so.",
+      "wants": "The King's penny paid by everyone, his book kept straight and his toll house unburnt; and, though he'd never say it, to be thanked by someone, once.",
+      "fears": "Goblins. The Treasury's auditors. Being blamed for the burnt toll pole.",
+      "whyHere": "He keeps the King's toll bridge, as his father did; he barred himself in at the first arrow and has been writing it all down.",
+      "knows": [
+        "Every cart, beast and soul across the bridge is in his ledger, by date, with what they paid.",
+        "Twelve palace grain wagons this month, wheat-ear canvas, laden, crossed his bridge inward to the city, and every one paid its penny. The city says palace wagons were 'lost to goblins'. Not on his bridge they weren't.",
+        "The goblins have been on the road all month, but they never came at his bridge before today.",
+        "Two palace guards and their horses this afternoon; the horses shot; the guards behind the hay wain."
+      ],
+      "secrets": [
+        "He has been keeping a tally of the goblins too, by number and by the hour, and the war-boss's name, which they shout: Grisk. He'd show it to anyone who thanked him."
+      ],
+      "attitude": "Hostile to anyone who hasn't paid. Won't open his door to anyone while there's a goblin in sight; after, he demands the King's penny from everyone, the dead goblins included. Thanked, he goes pink and doesn't know what to do with himself.",
+      "limits": "Never opens his door while there's a goblin in sight. Never waives the toll on his own authority (the King's green can, and Wren does if asked). Never fights. Never lets go of his ledger.",
+      "roles": {
+        "characterise": "The King's penny, the regulations and the ledger, read aloud; outrage about the burnt toll pole.",
+        "inconsistency": "He's been keeping the goblins' tally too, and he's frightened out of his wits.",
+        "hooks": "His ledger, and the palace grain wagons that crossed his bridge laden all month: 'lost to goblins', not on his bridge."
+      },
+      "statblock": "commoner",
+      "weapon": "unarmed-strike"
+    },
+    {
+      "id": "rearguard",
+      "name": "Wartle",
+      "called": "the goblin with the drum",
+      "look": "A squat goblin with a stolen palace helmet over one eye and a drum on a string, which he beats when he remembers to; with him, two more of the war-band round the toll-house corner, one with a scimitar and one with a bow.",
+      "voice": "Shrieks 'Be seen!' and beats the drum; jeers at the soldiers in broken Common ('Shiny-hats! Shiny-hats hide!'); cornered, whines, bargains and offers pennies.",
+      "wants": "To keep the shiny-hats pinned until the boss comes over, be seen doing it, and not die for it.",
+      "fears": "The war-boss Grisk; fire; anyone coming at them from behind.",
+      "whyHere": "Grisk's rearguard on the near bank, keeping the patrol pinned behind the hay wain while the war-boss waits across the river.",
+      "knows": [
+        "The boss Grisk is across the river with his worg and the rest, and will come over when the shiny-hats break.",
+        "Longlegs pays them to be seen on the road, in pennies with a bird on; nobody knows Longlegs's name."
+      ],
+      "attitude": "Jeering while they're winning; the moment two of them are down or they're hurt, they run for the bridge and their boss.",
+      "limits": "They don't know Longlegs's name. They don't fight to the death.",
+      "roles": {
+        "characterise": "Drum, jeers and arrows at the hay wain; their backs to the road.",
+        "inconsistency": "They're making a show of it, not a siege: shouting to be seen.",
+        "hooks": "The war-boss across the river; Longlegs's pennies."
+      },
+      "group": "Wartle and two more of Grisk's war-band, the rearguard on the near bank",
+      "statblock": "goblin-warrior",
+      "weapon": "scimitar",
+      "members": [
+        {
+          "id": "rearguard-blade",
+          "name": "a goblin with a scimitar",
+          "statblock": "goblin-warrior",
+          "weapon": "scimitar",
+          "look": "A goblin with a scimitar, darting out from the toll-house corner to jab at the hay wain."
+        },
+        {
+          "id": "rearguard-bow",
+          "name": "a goblin archer",
+          "statblock": "goblin-warrior",
+          "weapon": "shortbow",
+          "look": "A goblin with a black-fletched bow at the toll-house corner, shooting at the hay wain."
+        }
+      ]
+    },
+    {
+      "id": "grisk",
+      "name": "Grisk",
+      "called": "the goblin war-boss on the worg",
+      "look": "A big goblin, near as tall as a short man, in a palace breastplate hammered to fit and a crown of ox horns, with a scimitar, a horn on a string and a necklace of heron pennies, riding a worg the size of a pony: grey, scarred and foam-jawed, with yellow eyes.",
+      "voice": "Roars in good Common, which he's proud of: 'Grisk is seen! All the longlegs see Grisk!'. Laughs at his own jokes, calls the player 'little longlegs'. Bargaining, he's very reasonable indeed.",
+      "wants": "To be seen as no goblin has ever been seen, frighten the city on the eve of its Assembly and earn the longlegs' biggest purse; to keep his worg and his skin.",
+      "fears": "Dying for pennies. Losing his worg. The longlegs, who frightens him, and whose name he doesn't know.",
+      "whyHere": "Leading the burnt mill's war-band in the biggest show yet before the Assembly, as the longlegs paid for, and waiting across the river for the pinned patrol to break.",
+      "knows": [
+        "The longlegs pays in heron pennies for the band to be seen on the road: a tall one in a grey hood who smells of flowers, who comes to the burnt mill by night. Grisk doesn't know a name, and wishes he did (he'd ask for more).",
+        "'Never take the wheat,' the longlegs said, and anyway, who would buy it?"
+      ],
+      "secrets": [
+        "A week ago the longlegs paid Chief Gubbin extra for a job at a ford on the King's Road: a lady rider with a sealed letter, taken back to the burnt mill and kept there. Grisk wasn't on it, but he knows, and would trade it for his life."
+      ],
+      "attitude": "Mocking while he's winning, reasonable when he isn't; he'd sell anyone for his life, his own band first.",
+      "limits": "Never fights to the death: once his worg is down or he's badly hurt he runs for the far bank, or, cornered, throws down his scimitar and bargains. He doesn't know the longlegs' name.",
+      "roles": {
+        "characterise": "Horn, roar and swagger on the worg's back; then, beaten, very reasonable.",
+        "inconsistency": "A war-boss who wants to be seen more than he wants to win.",
+        "hooks": "The longlegs, the heron pennies, and the lady rider Chief Gubbin took at the ford."
+      },
+      "enters": "war-boss",
+      "group": "Grisk, his worg and a goblin with a spear",
+      "statblock": "goblin-boss",
+      "weapon": "scimitar",
+      "members": [
+        {
+          "id": "grisk-worg",
+          "name": "Grisk's worg",
+          "statblock": "worg",
+          "weapon": "worg-bite",
+          "look": "A worg the size of a pony, grey and scarred, foam on its jaws and yellow eyes, which hates everyone but Grisk, and him mostly."
+        },
+        {
+          "id": "grisk-spear",
+          "name": "a goblin with a spear",
+          "statblock": "goblin-minion",
+          "weapon": "spear",
+          "look": "A goblin with a spear twice its height, running at the worg's heels."
+        }
+      ]
+    },
+    {
+      "id": "fitch",
+      "name": "Barnaby Fitch",
+      "called": "the old carter",
+      "aka": [
+        "Fitch",
+        "old Fitch"
+      ],
+      "lore": "Cast/Barnaby Fitch/public.md",
+      "look": "A carter of seventy in a caped greatcoat and a hat like a collapsed chimney, with a white moustache that does his frowning for him and a blackthorn cudgel, driving a farm cart piled with three hundred green Assembly cushions behind an old bay mare.",
+      "voice": "Gruff, slow and Nine Furrows broad, every other sentence ending on a grumble ('...and that's the truth of it'). 'Forty year I've drove this road.'",
+      "wants": "The cushions over the bridge and into the palace, and Tansy safe.",
+      "whyHere": "Bringing the Assembly's cushions in from the Nine Furrows; he comes up the road behind the player once the bridge is clear, as he said he would.",
+      "knows": [
+        "What happened at the crossroads, as it happened.",
+        "The King ordered the cushions himself: the letter is in his hat."
+      ],
+      "attitude": "As the crossroads left him with the player (what happened there wins).",
+      "limits": "Never leaves Tansy. Takes his hat off to the King's green.",
+      "enters": "the-cart",
+      "statblock": "warrior-infantry",
+      "weapon": "club"
+    },
+    {
+      "id": "tansy",
+      "name": "Tansy Fitch",
+      "called": "the girl on the cushions",
+      "lore": "Cast/Tansy Fitch/public.md",
+      "look": "A girl of nine in a red knitted hood and three of her grandfather's mufflers, freckled, a front tooth missing, with a wooden horse in her fist.",
+      "voice": "Fast, curious, fearless and very loud; says 'actually' a great deal. Frightened, she goes very quiet and very polite.",
+      "wants": "To see the King, and to know everyone is all right; to look at the worg, if it's dead.",
+      "whyHere": "On top of her grandfather's cart as it comes up the road once the bridge is clear.",
+      "knows": [
+        "What happened at the crossroads, as it happened.",
+        "She's going to see the King. She's decided."
+      ],
+      "attitude": "As the crossroads left her (what happened there wins): mostly, the player is her hero.",
+      "limits": "Never fights. Off the cart before it stops.",
+      "enters": "the-cart",
+      "statblock": "commoner",
+      "weapon": "unarmed-strike"
+    }
+  ],
+  "facts": {
+    "patrol-known": "Corporal Haskett and Guardsman Wren are the only patrol on the King's Road this week, sent at the King's own wish to bring the Assembly's cushions in; the King asked to be told of anything on the road.",
+    "wagons-crossed": "Garrow's ledger has twelve palace grain wagons crossing his bridge inward to the city this month, laden, though the city says palace wagons were lost to goblins."
+  },
+  "background": [
+    "This is the same evening as the crossroads, a mile on along the King's Road. What happened at the crossroads is in what happened just before this scene, and that wins: how the fight there went, what the player found on the goblins, and how Fitch and Tansy stand with them. Fitch and Tansy are coming on behind with the cart, and arrive once the bridge is clear."
+  ],
+  "reinforcements": [
+    {
+      "id": "axemen",
+      "name": "two Kläggenheim axemen",
+      "statblock": "tough",
+      "weapon": "greataxe",
+      "look": "Two vast Kläggenheim axemen in fur and iron, beards in plaits, riding shaggy northern ponies far too small for them and roaring the same word over and over (it means 'breakfast').",
+      "after": 3,
+      "why": "The Kläggenheim delegation's baggage guard, riding a mile behind on the road with their delegation's luggage for the Assembly, come up at the gallop at the horn and the noise, axes out and roaring."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "type": "story",
+      "position": {
+        "x": 0,
+        "y": 260
+      },
+      "data": {
+        "kind": "start",
+        "title": "Smoke at the toll bridge",
+        "description": "This is the prologue's big fight, in two halves with a breath between, and then the road to the King. Open on the player coming up the road out of the dusk into the noise: the toll pole burning like a torch, the hay wain dragged across the road at the bridge foot, two palace guards behind it (one with an arrow in her shoulder), goblins round the toll-house corner with their backs to the road, a drum, a bow, and Garrow shouting through his shutters about the King's penny. The goblins haven't seen the player yet. End the opening on the moment before it starts: the player's first act starts the fight.",
+        "cast": {
+          "haskett": "Characterise: behind the hay wain with her halberd and a snapped-off arrow in her shoulder, swearing steadily. She sees the player and bellows at them to get down or get stuck in.",
+          "tob": "Characterise: behind the wain beside her, white as milk, spear up, shouting 'In the King's name!' at goblins who don't care.",
+          "garrow": "Characterise: through a crack in his shutters: 'Toll's a penny a head! Nobody crosses without paying the King's penny!'",
+          "rearguard": "Characterise: three goblins with their backs to the road, shooting at the wain, beating a drum and shrieking 'Be seen!'. They haven't seen the player."
+        },
+        "lore": []
+      }
+    },
+    {
+      "id": "rearguard-fight",
+      "type": "story",
+      "position": {
+        "x": 400,
+        "y": 260
+      },
+      "data": {
+        "kind": "beat",
+        "title": "The rearguard",
+        "description": "The fight for the near bank: Wartle's rearguard against the player, with Corporal Haskett and Guardsman Wren coming out from behind the hay wain to fight beside them. Garrow stays behind his shutters. The goblins fight while they're winning and run for the bridge and their boss once two of them are down or they're hurt. It's played on the board. When it's over the scene picks up from how it went, behind the hay wain: Haskett's arm, Wren's nerves, Garrow through his shutters, the horn across the river.",
+        "cast": {
+          "rearguard": "They turn on the newcomer behind them, the archer shooting at whoever's in the open; two down or hurt, they run for the bridge.",
+          "haskett": "Out from behind the wain with her halberd, keeping it low; she puts herself between the goblins and Wren.",
+          "tob": "Beside her with his spear, shouting 'In the King's name!' and very nearly brave.",
+          "garrow": "Behind his shutters, reading the regulations aloud to the goblins."
+        },
+        "pressure": "A horn across the river, and a howl: something is coming. Haskett gets the patrol behind the wain and her halberd up.",
+        "fight": {
+          "foes": [
+            "rearguard",
+            "rearguard-blade",
+            "rearguard-bow"
+          ],
+          "allies": [
+            "haskett",
+            "tob"
+          ]
+        },
+        "lore": []
+      }
+    },
+    {
+      "id": "the-patrol",
+      "type": "story",
+      "position": {
+        "x": 800,
+        "y": 40
+      },
+      "data": {
+        "kind": "beat",
+        "title": "The King's patrol",
+        "description": "The player learns who the guards are and why they're here: the only patrol on the road, sent for the cushions at the King's own wish, and pinned an hour. It's a breather's talk, and Wren's first chance to say the King must be told.",
+        "revelation": "Corporal Haskett and Guardsman Wren are the only patrol on the King's Road this week, sent out at the King's own wish to bring the Assembly's cushions in safe. The goblins shot their horses at the bridge foot an hour ago, and their war-boss is waiting across the river to finish them.",
+        "paths": [
+          {
+            "via": "haskett",
+            "clue": "'Marshal's orders, the King's wish: one patrol, the two of us, to see the cushions in. The cushions. Then their archers had our horses and we've been behind this cart an hour. The boss is over there with his dog.'",
+            "earn": "No dice: once the rearguard is beaten or gone, asked anything at all.",
+            "strength": "strong"
+          },
+          {
+            "via": "tob",
+            "clue": "'The King asked for us himself! Well. For the cushions. He wanted to be told of anything on the road, at once. You'll have to come and tell him, sir. Madam.'",
+            "earn": "No dice: once the rearguard is gone; he can't stop talking.",
+            "strength": "strong"
+          },
+          {
+            "via": "garrow",
+            "clue": "Through the shutter: two palace guards and two horses this afternoon, the horses shot at the bridge foot, all written down.",
+            "earn": "No dice: asked what happened; he reads it out of his ledger.",
+            "strength": "suggestive"
+          }
+        ],
+        "establishes": [
+          "patrol-known"
+        ],
+        "lore": []
+      }
+    },
+    {
+      "id": "garrows-ledger",
+      "type": "story",
+      "position": {
+        "x": 800,
+        "y": 200
+      },
+      "data": {
+        "kind": "beat",
+        "title": "Garrow's book",
+        "description": "The player learns what Garrow's ledger says about the palace's grain wagons, and probably can't make sense of it yet: a puzzle to carry into the city with the heron pennies. Garrow doesn't know what it means either; he only knows the city says something his book says didn't happen.",
+        "revelation": "Garrow writes down everything that crosses his bridge, and his book has twelve palace grain wagons crossing inward to the city, laden, this month: whatever 'lost to goblins' means, it didn't happen on his bridge.",
+        "paths": [
+          {
+            "via": "garrow",
+            "clue": "'Twelve palace wagons this month, wheat-ear canvas, laden, inwards, every one of them paid its penny. Lost to goblins! Not on my bridge they weren't. It's in the book.'",
+            "earn": "No dice: asked about the goblins, the road or the wagons, or about his book (he's proud of it, and furious that the city says wagons were lost on his road); through the shutter while there's a goblin in sight, or at his door after.",
+            "strength": "hook"
+          },
+          {
+            "via": "Garrow's ledger",
+            "clue": "Column after column in a crabbed hand: 'P.W., wheat-ear canvas, laden, inwards, 1d', twelve times this month, and in the margin of today, 'Goblins. 14. GRISK (they shout it).'",
+            "earn": "No dice: read with his leave, which thanks or the King's green gets; he never lets go of it. Read over his shoulder against his will, it's a quick look (Sleight of Hand).",
+            "strength": "hook",
+            "check": {
+              "skill": "sleight_of_hand",
+              "dc": 12
+            }
+          }
+        ],
+        "establishes": [
+          "wagons-crossed"
+        ],
+        "lore": []
+      }
+    },
+    {
+      "id": "war-boss",
+      "type": "story",
+      "position": {
+        "x": 1200,
+        "y": 260
+      },
+      "data": {
+        "kind": "beat",
+        "title": "Grisk comes over the bridge",
+        "description": "The horn blows, the worg howls, and the war-boss Grisk comes over the bridge on his worg with a spearman at its heels, roaring that the longlegs will be seen, all right. Against the player and whoever's still on their feet beside them (Haskett, Wren). It's played on the board: the worg is as dangerous as Grisk, and the bridge has no parapet, so a shove sends someone into the river in spate, and gone. Grisk fights from the worg's back while it's winning; once the worg is down or he's badly hurt he quits ('Seen enough!') and runs for the far bank, or, cornered, throws down his scimitar and bargains (the longlegs, the pennies, the lady rider at the ford). A pair of Kläggenheim axemen may come up the road at the noise once it's been going a while. When it's over the scene picks up from how it went.",
+        "cast": {
+          "grisk": "Over the bridge on the worg, roaring, going for whoever stands in the road; the worg bites whatever's nearest. Badly hurt or unhorsed, he runs or bargains.",
+          "haskett": "Halberd low, beside the player; if the fight goes long, her arm gives and she goes down.",
+          "tob": "Beside his aunt; if she goes down he stands over her with his spear and won't be moved.",
+          "garrow": "Behind his shutters, writing it down."
+        },
+        "pressure": "The light is almost gone: Wren wants the player away to the King before the gates shut, a step more urgently each exchange.",
+        "fight": {
+          "foes": [
+            "grisk",
+            "grisk-worg",
+            "grisk-spear"
+          ],
+          "allies": [
+            "haskett",
+            "tob"
+          ]
+        },
+        "lore": []
+      }
+    },
+    {
+      "id": "the-cart",
+      "type": "story",
+      "position": {
+        "x": 1600,
+        "y": 260
+      },
+      "data": {
+        "kind": "beat",
+        "title": "The cart comes up",
+        "description": "After the war-boss's fight, Fitch's cart comes creaking up the road out of the dusk with Tansy on top, and stops at the hay wain. Tansy is off it before it stops: to the player, to the hurt corporal, or to look at the worg. Fitch takes his hat off to the King's green. Garrow unbars his door now that it's safe, and demands the King's penny from everyone, the dead goblins included. And Wren, shaking, says the King asked to be told of anything on the road, and the player must come and tell him themselves.",
+        "cast": {
+          "fitch": "Hat off to the soldiers; a look at the player that says he's glad they're alive, and a grumble that says the same.",
+          "tansy": "Off the cart at a run, all questions; she wants to come to the King too (she can't: Fitch is taking her to their lodgings in the city).",
+          "garrow": "Door unbarred at last: the King's penny, from everyone, and the regulations; thanked, he goes pink.",
+          "tob": "The King must be told, by the player, tonight: he'll take them himself, on the axemen's pony if he has to.",
+          "haskett": "Bandaged or bleeding, as the fight left her: orders Wren to take the player to the King and not to stammer."
+        },
+        "pressure": "The light's gone and the city gates shut at the ninth bell: Wren has the player on a borrowed horse and the road to the city is waiting, more urgently each exchange.",
+        "lore": []
+      }
+    },
+    {
+      "id": "to-the-king",
+      "type": "story",
+      "position": {
+        "x": 2000,
+        "y": 140
+      },
+      "data": {
+        "kind": "exit",
+        "title": "Taken to the King",
+        "description": "The bridge is clear (Grisk dead, fled or bargaining), the patrol is saved, the cushions are through, and Guardsman Wren is taking the player to the King: the King asked to hear of anything on the road, and Wren won't hear of them not coming.",
+        "closing": "Wren leads the player over the bridge and along the dark road to the city on a borrowed horse (or riding double behind him), Haskett bandaged on the cart with Tansy fussing over her, Fitch following with the cushions. The gate opens for the King's green; up through streets hung with bunting, the lamps being lit, to the palace. End at a side door of the palace, with Wren straightening his cap.",
+        "result": "good",
+        "exitKind": "progress",
+        "next": "kings-thanks",
+        "effects": [
+          {
+            "op": "quest",
+            "quest": "assembly-cushions",
+            "do": "advance",
+            "stage": "bridge",
+            "text": "The goblins are off Garrow's bridge and the cushions are through. Guardsman Wren is taking you to the King, who asked to hear of anything on his road."
+          },
+          {
+            "op": "attitude",
+            "who": "tob",
+            "to": "friendly",
+            "text": "Saved him and his aunt from the goblins and the war-boss at the toll bridge."
+          },
+          {
+            "op": "attitude",
+            "who": "haskett",
+            "to": "friendly",
+            "text": "Fought beside her at the toll bridge when it counted."
+          },
+          {
+            "op": "remember",
+            "who": "tob",
+            "text": "At Garrow's bridge the traveller came up behind the goblins, saved Aunt Maud and me from the rearguard and the war-boss Grisk, and I took them to the King."
+          },
+          {
+            "op": "remember",
+            "who": "haskett",
+            "text": "At Garrow's bridge the traveller broke the goblins pinning us behind the hay wain and stood with us against the war-boss. My lad took them to the King."
+          },
+          {
+            "op": "flag",
+            "name": "toll_bridge",
+            "value": "held"
+          },
+          {
+            "op": "journal",
+            "text": "Broke the goblins at Garrow's toll bridge with Corporal Haskett and Guardsman Wren. Wren's taking me to the King, who wants to hear of anything on his road."
+          },
+          {
+            "op": "journal",
+            "text": "Garrow's ledger: twelve palace grain wagons crossed his bridge into the city this month, laden. The city says they were lost to goblins.",
+            "if": {
+              "established": "wagons-crossed"
+            }
+          }
+        ],
+        "lore": []
+      }
+    },
+    {
+      "id": "carried-in",
+      "type": "story",
+      "position": {
+        "x": 2000,
+        "y": 400
+      },
+      "data": {
+        "kind": "exit",
+        "title": "Carried in",
+        "description": "The fight went against the player (they went down, or the goblins had the better of it), but the war-band was driven off over the river by the axemen, the patrol or its own nerve, and Wren has the player taken to the palace anyway, slung over a horse if need be: the King must hear it.",
+        "closing": "The player comes round on a horse's back, Wren walking at its head with the reins, Fitch's cart creaking behind. The city's lamps; the bunting; the palace. End at a side door of the palace, the player aching, Wren saying 'You can sit down in front of the King, he won't mind.'",
+        "result": "mixed",
+        "exitKind": "progress",
+        "next": "kings-thanks",
+        "effects": [
+          {
+            "op": "quest",
+            "quest": "assembly-cushions",
+            "do": "advance",
+            "stage": "carried",
+            "text": "The goblins had the better of you at Garrow's bridge, but the war-band was driven off and the cushions got through. Guardsman Wren has brought you to the King anyway."
+          },
+          {
+            "op": "remember",
+            "who": "tob",
+            "text": "At Garrow's bridge the traveller came to help us against the goblins and went down fighting; I brought them to the King anyway."
+          },
+          {
+            "op": "flag",
+            "name": "toll_bridge",
+            "value": "carried"
+          },
+          {
+            "op": "journal",
+            "text": "The goblins got the better of me at Garrow's toll bridge, but they were driven off. Guardsman Wren brought me to the King."
+          }
+        ],
+        "lore": []
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "into-it",
+      "source": "start",
+      "target": "rearguard-fight",
+      "type": "smoothstep",
+      "label": "Into the fight",
+      "data": {
+        "condition": "The fight for the near bank: as soon as the player shows themselves to the goblins or does anything at all (a shout, a blow, a spell, a dash for the hay wain), the goblins turn on them. The outer limit is the first exchange: the goblins see them then, whatever they're doing.",
+        "phase": "cue",
+        "skill": "",
+        "dc": 12,
+        "limit": [
+          {
+            "exchanges": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "who-they-are",
+      "source": "rearguard-fight",
+      "target": "the-patrol",
+      "type": "smoothstep",
+      "label": "The King's patrol",
+      "data": {
+        "condition": "",
+        "phase": "outcome",
+        "skill": "",
+        "dc": 12
+      }
+    },
+    {
+      "id": "the-book",
+      "source": "rearguard-fight",
+      "target": "garrows-ledger",
+      "type": "smoothstep",
+      "label": "Garrow's book",
+      "data": {
+        "condition": "",
+        "phase": "outcome",
+        "skill": "",
+        "dc": 12
+      }
+    },
+    {
+      "id": "the-horn",
+      "source": "rearguard-fight",
+      "target": "war-boss",
+      "type": "smoothstep",
+      "label": "The horn",
+      "data": {
+        "condition": "The war-boss comes: once the rearguard's fight is over and the player has had a breath behind the hay wain (a word with the guards, a look at Haskett's arm, Garrow through his shutters), or at once if the player crosses the bridge or calls him out. The outer limit is the third exchange after the rearguard's fight: the horn, the howl and Grisk on his worg on the bridge, whatever is happening.",
+        "phase": "cue",
+        "skill": "",
+        "dc": 12,
+        "limit": [
+          {
+            "exchanges": 3,
+            "after": "rearguard-fight"
+          }
+        ]
+      }
+    },
+    {
+      "id": "cart-comes",
+      "source": "war-boss",
+      "target": "the-cart",
+      "type": "smoothstep",
+      "label": "The cart comes up",
+      "data": {
+        "condition": "Once the war-boss's fight is over, however it went: Fitch's cart comes up the road with Tansy on top. The outer limit is the first exchange after the fight.",
+        "phase": "cue",
+        "skill": "",
+        "dc": 12,
+        "limit": [
+          {
+            "exchanges": 1,
+            "after": "war-boss"
+          }
+        ]
+      }
+    },
+    {
+      "id": "go-with-wren",
+      "source": "the-cart",
+      "target": "to-the-king",
+      "type": "smoothstep",
+      "label": "To the King",
+      "data": {
+        "condition": "The bridge is clear and the patrol saved, and the player goes with Wren to tell the King (or agrees to, or simply sets off with him). Not when the war-boss's fight went against the player: that's [carried].",
+        "phase": "outcome",
+        "requires": [
+          "war-boss"
+        ],
+        "skill": "",
+        "dc": 12
+      }
+    },
+    {
+      "id": "gates-shutting",
+      "source": "the-cart",
+      "target": "to-the-king",
+      "type": "smoothstep",
+      "label": "The gates are shutting",
+      "data": {
+        "condition": "The light's gone and the gates shut at the ninth bell: once the player has had a few exchanges with the cart, the patrol and Garrow (about four after the cart comes up at most), Wren won't wait any longer and the player goes with him. Not needed once they've set off with him: that's [go-with-wren].",
+        "phase": "cue",
+        "requires": [
+          "war-boss"
+        ],
+        "skill": "",
+        "dc": 12,
+        "limit": [
+          {
+            "exchanges": 4,
+            "after": "the-cart"
+          }
+        ]
+      }
+    },
+    {
+      "id": "carried",
+      "source": "war-boss",
+      "target": "carried-in",
+      "type": "smoothstep",
+      "label": "Carried in",
+      "data": {
+        "condition": "The war-boss's fight went against the player: they went down or ran from it, and the goblins were driven off by others (the axemen, the patrol) or got away over the river. Not when the player won it or saw Grisk off: that's [go-with-wren], once the cart has come up.",
+        "phase": "outcome",
+        "skill": "",
+        "dc": 12
+      }
+    },
+    {
+      "id": "fell-early",
+      "source": "rearguard-fight",
+      "target": "carried-in",
+      "type": "smoothstep",
+      "label": "Down at the wain",
+      "data": {
+        "condition": "The rearguard's fight went against the player: they went down, and the patrol, the axemen or the goblins' own nerve finished it without them. Not when the player won it: then the war-boss comes, by [the-horn].",
+        "phase": "outcome",
+        "skill": "",
+        "dc": 12
+      }
+    }
+  ]
+}

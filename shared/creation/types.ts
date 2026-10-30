@@ -49,8 +49,14 @@ export interface Backstory {
 export interface CreationWorld {
   /** The world's name, for a primer doc without a title: "Caerwyn". */
   name: string;
-  /** The story the backstory leads into: why they took this case, and that the story's people don't know them yet. */
+  /** The story the backstory leads into: where the game begins, why they're there, and that the story's people don't know them yet. */
   premise: string;
+  /**
+   * Where a backstory ends, as the drafting model is told it: the moment the game begins, and what
+   * the past may and mayn't lead up to ("It ends where the game begins: this afternoon, on the King's
+   * Road..."). None: it ends this morning, the King having asked them (the hanged clerk's start).
+   */
+  begins?: string;
   /** The doc that tells of the world, for drafting one: "World/Caerwyn.md". */
   primer: string;
   /** The World docs the lore check doesn't read (how the world stands now, its fronts, the index), though every other one is canon. */

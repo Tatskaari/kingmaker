@@ -33,6 +33,8 @@ export interface SceneDocument {
   interlude?: boolean;
   rest?: "short" | "long";
   milestone?: boolean;
+  /** The scene comes to the player: it opens as soon as the story reaches it, rather than waiting in its place (a guard taking them to the King). */
+  summons?: boolean;
 
   // ---- The prep (prose, GM-facing unless it says otherwise) ----
   /** What the player knows walking in: player-facing (the map's lead, the between-scenes card). */
@@ -357,7 +359,7 @@ export function shapeProblems(value: unknown): string[] {
   stringList(d, "lore", p, "its ");
   if (d.time !== undefined && !TIMES.includes(d.time as TimeOfDay)) p.push(`its time ${JSON.stringify(d.time)} isn't one of ${TIMES.join(", ")}`);
   if (d.rest !== undefined && d.rest !== "short" && d.rest !== "long") p.push(`its rest ${JSON.stringify(d.rest)} isn't short or long`);
-  for (const k of ["interlude", "milestone"]) if (d[k] !== undefined && typeof d[k] !== "boolean") p.push(`its ${k} isn't true or false`);
+  for (const k of ["interlude", "milestone", "summons"]) if (d[k] !== undefined && typeof d[k] !== "boolean") p.push(`its ${k} isn't true or false`);
   for (const k of ["place", "clock", "overtaken", "fronts", "companion"]) if (d[k] !== undefined && typeof d[k] !== "string") p.push(`its ${k} isn't text`);
   for (const k of ["limits", "known", "background", "assumes"]) if (d[k] !== undefined) stringList(d, k, p, "its ");
   if (d.facts !== undefined && !(isObject(d.facts) && Object.values(d.facts).every(s => typeof s === "string"))) p.push("its facts aren't { id: sentence }");

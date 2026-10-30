@@ -29,7 +29,7 @@ function contextFor(doc: SceneDocument): SceneContext {
   };
 }
 
-const clerk = () => structuredClone(scenes[0]!);
+const clerk = () => structuredClone(scenes.find(s => s.id === "hanged-clerk")!);
 
 test("every scene of the campaign keeps the rules, as the campaign check finds", () => {
   const ids = new Set(scenes.map(s => s.id));

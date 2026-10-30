@@ -21,6 +21,8 @@ function changed(path: string, edit: ((json: any) => void) | string | undefined)
 
 const SCENARIO = "caerwyn.kmscenario", SCENE = "scenes/hanged-clerk.kmscene", PLACE = "places/granary-yard.kmplace";
 const RAT = "scenes/drowned-rat.kmscene", HERON = "scenes/heron-warehouse.kmscene";
+/** The prologue on the King's Road: the crossroads, the toll bridge, and supper with the King. */
+const ROAD = "scenes/kings-road.kmscene", TOLL = "scenes/toll-bridge.kmscene", THANKS = "scenes/kings-thanks.kmscene";
 /** A node's data, or a route's, by its id, to edit in place. */
 const node = (scene: any, id: string) => scene.nodes.find((n: any) => n.id === id).data;
 const route = (scene: any, id: string) => scene.edges.find((e: any) => e.id === id);
@@ -31,17 +33,17 @@ test("caerwyn is fit to install: its pack every scene's file, its files every fi
   const pack = packOf(files);
 
   assert.deepEqual(checkCampaign(files), []);
-  assert.deepEqual(pack.scenes.map(s => s.id), ["hanged-clerk", "caerwyn-afternoon", "drowned-rat", "wharf-night", "heron-warehouse", "kings-morning", "talk"], "the story's, then the talk template's");
+  assert.deepEqual(pack.scenes.map(s => s.id), ["kings-road", "toll-bridge", "kings-thanks", "hanged-clerk", "caerwyn-afternoon", "drowned-rat", "wharf-night", "heron-warehouse", "kings-morning", "talk"], "the story's, then the talk template's");
   assert.equal(pack.campaign.talk, "talk");
-  assert.match(pack.scenes[0]!.hook, /^This morning a palace clerk, Wendell Prout/);
-  assert.deepEqual(pack.scenes[0], JSON.parse(files[SCENE]!), "a scene's file as it is");
-  assert.deepEqual(pack.places.map(p => p.key), ["granary-yard", "drowned-rat", "heron", "dressing-room"]);
-  assert.deepEqual(pack.campaign.quests, { "hanged-clerk": "The Hanged Clerk", "purveyors-man": "The Purveyor's Man", "heron-ledger": "The Heron Ledger" });
-  assert.deepEqual(pack.maps.map(m => m.id), ["caerwyn", "drowned-rat", "heron", "palace"]);
-  assert.deepEqual([pack.campaign.start.map, pack.campaign.start.at], ["caerwyn", [42, 9]]);
+  assert.match(pack.scenes[0]!.hook, /^You're riding the last miles of the King's Road into Caerwyn/);
+  assert.deepEqual(pack.scenes[0], JSON.parse(files[ROAD]!), "a scene's file as it is");
+  assert.deepEqual(pack.places.map(p => p.key), ["kings-road", "toll-bridge", "kings-parlour", "granary-yard", "drowned-rat", "heron", "dressing-room"]);
+  assert.deepEqual(pack.campaign.quests, { "assembly-cushions": "The Assembly's Cushions", "hanged-clerk": "The Hanged Clerk", "purveyors-man": "The Purveyor's Man", "heron-ledger": "The Heron Ledger" });
+  assert.deepEqual(pack.maps.map(m => m.id), ["kings-road", "caerwyn", "drowned-rat", "heron", "palace"]);
+  assert.deepEqual([pack.campaign.start.map, pack.campaign.start.at], ["kings-road", [12, 12]], "on the cart at the crossroads");
   assert.deepEqual(Object.keys(pack.builds), ["cleric", "fighter", "ranger", "rogue", "wizard"]);
   assert.equal(pack.looks.kell?.fg, "#6d9eeb");
-  assert.equal(Object.keys(files).filter(p => p.startsWith("lore/")).length, 154);
+  assert.equal(Object.keys(files).filter(p => p.startsWith("lore/")).length, 174);
   assert.deepEqual(Object.keys(files).filter(p => p.startsWith("scenes/")), pack.scenes.map(s => `scenes/${s.id}.kmscene`).sort(), "a file a scene, nothing else");
   assert.deepEqual(Object.keys(files).filter(p => !p.includes("/") && p.endsWith(".kmscenario")), ["caerwyn.kmscenario"], "the scenario, named for the campaign");
   assert.deepEqual(Object.keys(files).filter(p => p.startsWith("maps/")), pack.maps.map(m => `maps/${m.id}.kmmap`).sort(), "a file a map, nothing else");
@@ -117,7 +119,8 @@ const sceneFiles = () => Object.entries(files).filter(([path]) => path.endsWith(
 
 test("a cue into an ending gives way to what the player has under way, and names the routes it would cut short (QA round qa2-1018's H5: the Heron's second bell closed on the barge sailing mid-arrest)", () => {
   const intoEndings = sceneFiles().flatMap(([path, s]) => (s.edges as any[]).filter(e => e.data.phase === "cue" && node(s, e.target).kind === "exit").map(e => ({ path, s, e })));
-  assert.deepEqual(intoEndings.map(({ path, e }) => `${path} ${e.id}`), ["scenes/heron-warehouse.kmscene cast-off"], "the campaign's one cue into an ending");
+  // The Heron's second bell; and the prologue's three, each into its own good ending when the player dawdles (the light going, the gates shutting, the King going down for the toasts).
+  assert.deepEqual(intoEndings.map(({ path, e }) => `${path} ${e.id}`).sort(), ["scenes/heron-warehouse.kmscene cast-off", `${ROAD} light-going`, `${THANKS} goodnight`, `${TOLL} gates-shutting`].sort(), "the campaign's cues into an ending");
   for (const { s, e } of intoEndings) {
     const good = (s.edges as any[]).filter(r => node(s, r.target).kind === "exit" && node(s, r.target).result === "good").map(r => r.id);
     assert.match(e.data.condition, /Not needed once /);
@@ -138,9 +141,12 @@ test("a route into a bad or mixed ending that could be true at the same moment a
     [RAT]: { "after-him": ["let-him-go"], "wait-for-him": ["let-him-go"], manners: ["let-him-go", "their-man-inside"] },
     [HERON]: { "cast-off": ["in-the-act", "away-with-book"], "give-up": ["away-with-book"], overpowered: ["in-the-act"], ablaze: ["away-with-book", "in-the-act"], sunk: ["away-with-book", "in-the-act"] },
     [KING]: { "put-off": ["king-acts"], "thrown-away": ["king-acts"] },
+    [ROAD]: { beaten: ["set-off"] },
+    [TOLL]: { carried: ["go-with-wren"] },
   };
   // And those that can't be true with a good one at once: Hobb bolted to his master, the trail lost without the Heron. (The Heron's fight is an event now, played in the conversation: its routes go to no ending.)
-  const apart: Record<string, string[]> = { [RAT]: ["got-away", "trail-goes-cold"] };
+  // The prologue's too: down at the hay wain before the war-boss ever comes, and shown the King's door for a scene he can't overlook.
+  const apart: Record<string, string[]> = { [RAT]: ["got-away", "trail-goes-cold"], [TOLL]: ["fell-early"], [THANKS]: ["last-resort"] };
   const result = (s: any, id: string) => node(s, route(s, id).target).result;
   for (const [path, s] of sceneFiles()) {
     const worse = (s.edges as any[]).filter(e => node(s, e.target).kind === "exit" && node(s, e.target).result !== "good").map(e => e.id);
@@ -435,7 +441,7 @@ test("the maps: each builds as the simulation builds it, its ways out land where
   const misnamed = changed("maps/palace.kmmap", m => { m.id = "castle"; });
   const nowhere = changed(MAP, m => { m.exits[0].to.map = "atlantis"; m.exits[1].to.at = { x: 2, y: 1 }; });
   const strays = changed(MAP, m => { m.regions[0].rect.x = 63; m.regions[1].id = "granary-yard"; m.people[0].at = { x: 99, y: 0 }; m.people[1].times = ["teatime"]; });
-  const offStart = changed(SCENARIO, c => { c.start.at = [2, 2]; });
+  const offStart = changed(SCENARIO, c => { c.start.at = [0, 0]; });
   const lostStart = changed(SCENARIO, c => { c.start.map = "atlantis"; });
 
   assert.deepEqual(checkCampaign(broken), ['maps/caerwyn.kmmap: "Z" isn\'t in its legend (at (64, 0))']);
@@ -453,7 +459,7 @@ test("the maps: each builds as the simulation builds it, its ways out land where
     "maps/caerwyn.kmmap: region granary-yard isn't inside the map",
     "maps/caerwyn.kmmap: region granary-yard is caerwyn's too",
   ]);
-  assert.deepEqual(checkCampaign(offStart), ["caerwyn.kmscenario: it starts at (2, 2) on caerwyn, where nobody can stand"]);
+  assert.deepEqual(checkCampaign(offStart), ["caerwyn.kmscenario: it starts at (0, 0) on kings-road, where nobody can stand"]);
   assert.deepEqual(checkCampaign(lostStart), ["caerwyn.kmscenario: it starts on the map atlantis, which isn't one of its maps"]);
 });
 

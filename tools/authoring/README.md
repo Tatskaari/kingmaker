@@ -68,7 +68,7 @@ The scene's own fields, grouped as an author thinks of them, each group a card (
 - **The scene:** its title, its **id** (its file's name: Rename asks, and says to rename the file to match, since the scenario and the endings that go on to it name it too; the problems say until they agree) and its one-line description.
 - **What the player knows:** the hook.
 - **The prep:** setting, premise, truth and clock.
-- **When and where:** time, place (one of the campaign's, with the place's things listed under it and a button to open the place), rest, interlude and milestone.
+- **When and where:** time, place (one of the campaign's, with the place's things listed under it and a button to open the place), rest, interlude, milestone and whether it comes to the player.
 - **The world:** limits and what locals know, each a list.
 - **The story:** background, assumes, overtaken, the effects **as it starts** (onStart: effect cards with conditions, as an ending's: what the scene does once as it comes into the story, before it's played, as the lead the player is heading for on the map or as it opens with none; the hanged clerk starts its quest there, with the King's request), the effects **on every ending** (onEnd: effect cards with conditions, as an ending's), **afterwards** (the world ops applied to the place as it ends, whatever the ending: world op cards without conditions; a new one is a draft until it says what it acts on, and is saved, in the same card, the moment it does), the fronts doc, and the talk template's companion.
 - **Lore:** the GM's always-in docs.
@@ -96,7 +96,7 @@ Every value a scene file can hold is created, changed and taken out in the edito
 | `title`, `description` | Scene view, The scene |
 | `hook` | Scene view, What the player knows |
 | `setting`, `premise`, `truth`, `clock` | Scene view, The prep (`clock` emptied is taken out) |
-| `time`, `place`, `rest`, `interlude`, `milestone` | Scene view, When and where (each "Not set", "None" or unticked takes it out) |
+| `time`, `place`, `rest`, `interlude`, `milestone`, `summons` | Scene view, When and where (each "Not set", "None" or unticked takes it out; `summons` is "Comes to the player") |
 | `limits`, `known` | Scene view, The world: lists, each item added, edited, moved, removed |
 | `background`, `assumes`, `overtaken` | Scene view, The story (overtaken: one of the campaign's scenes, or a scene file it doesn't list yet) |
 | `onStart` | Scene view, The story: As it starts (effect cards, with conditions) |
@@ -246,7 +246,7 @@ Every value these files can hold is created, changed and taken out in the editor
 | `talk` | Files view, The talk template (None takes it out; or **New scene, the talk template**) |
 | `maps`, `places` | Files view: cards, **[+ Add map]**, **[+ Add place]**; every **New map** or **New place** where one is picked; a map listed when the story's start is set on it |
 | `startingPurse` (`name`, `quantity`, `description`) | Scenario view, The starting purse: a card a coin, moved and removed, **[+ Add coin]** |
-| `creation` (`name`, `premise`, `primer`) | Scenario view, The world a backstory is written for |
+| `creation` (`name`, `premise`, `begins`, `primer`) | Scenario view, The world a backstory is written for (`begins` is "Where a backstory ends"; emptied, it's taken out) |
 | `creation.notCanon` | the same: chips, **[+ Add a doc]** from the lore |
 | `creation.places` (`doc`, `words`) | the same: a card each, **[+ Add a place doc]** |
 | `quests` | Quests view: a card each (Quest title; Quest key, Rename, the scenes' effects following), **[+ Add quest]**, removed (asking) |

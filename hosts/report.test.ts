@@ -22,6 +22,7 @@ import { rowsFromParsed } from "../shared/report/rows.ts";
 import { all, TEST_CLERK } from "../simulation/src/host/testing.ts";
 import { devFake, onTop, quietGm } from "./dev/fake.ts";
 import { readCampaignFiles } from "./dev/campaign.ts";
+import { filesFromTheGranary } from "../shared/scene/testdata/from-the-granary.ts";
 import { localHost } from "./local.ts";
 
 /**
@@ -30,7 +31,7 @@ import { localHost } from "./local.ts";
  * service's own of it given to its owner alone.
  */
 
-const FILES = { ...readCampaignFiles(join(import.meta.dirname, "..", "campaigns", "caerwyn")), "scenes/hanged-clerk.kmscene": readFileSync(TEST_CLERK, "utf8") };
+const FILES = { ...filesFromTheGranary(readCampaignFiles(join(import.meta.dirname, "..", "campaigns", "caerwyn"))), "scenes/hanged-clerk.kmscene": readFileSync(TEST_CLERK, "utf8") };
 const WREN = new Identity(0x1001n);
 const SDK = { Identity, Timestamp, TimeDuration };
 /** The page host's dice, fixed: a test never rolls the page's own randomness. */
@@ -135,7 +136,7 @@ function repoContent(): Content {
   const prompts = join(import.meta.dirname, "..", "ai", "prompts");
   const names = readdirSync(prompts, { recursive: true, encoding: "utf8" }).filter(path => path.endsWith(".md") && path !== "README.md");
   return {
-    campaign: readCampaignFiles(join(import.meta.dirname, "..", "campaigns", "caerwyn")),
+    campaign: filesFromTheGranary(readCampaignFiles(join(import.meta.dirname, "..", "campaigns", "caerwyn"))),
     prompts: Object.fromEntries(names.map(path => [relative(prompts, join(prompts, path)).split(sep).join("/").slice(0, -3), readFileSync(join(prompts, path), "utf8")])),
     fake: onTop(devFake(), { streamMs: 0, suggestDelayMs: 0 }),
   };

@@ -283,6 +283,13 @@ export interface Scene {
   time?: "morning" | "afternoon" | "evening" | "night" | "next-morning";
   /** Reaching this scene is a milestone: the player's character goes up a level as it opens. */
   milestone?: boolean;
+  /**
+   * The scene comes to the player: it opens as soon as the story reaches it (the game's first scene
+   * as the game begins, or the next as the last ends), rather than waiting in its place for them to
+   * walk in. A palace guard taking them to the King; a page at first light. A scene at
+   * next-morning always comes to the player (the King's morning).
+   */
+  summons?: boolean;
   /** The place as a world: areas, things and where people start (shared/world/scene-world.ts). A campaign keeps it in places/<key>.kmplace: a host that wants it here puts it here. */
   world?: WorldSpec;
   /**

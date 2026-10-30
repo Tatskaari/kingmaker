@@ -31,8 +31,14 @@ const STYLE = "The house style is dry and a little comic (Pratchett): the world 
 // ---------------------------------------------------------------------------------------------
 // The world, as the model's told it (the docs service's authored lore).
 
-/** The story the backstory leads into (why they took this case). */
-export const PREMISE = "This morning, the eve of the Centennial Assembly in Caerwyn, a palace clerk, Wendell Prout, was found hanged behind the King's Granary, and the Watch Captain has already called it suicide. When the news reached him, King Aldren, who remembers how Prout took his tea, asked the player character quietly to see Prout done right by (they're the King's investigator now), and lent them a sergeant of the watch, Agnes Kell, who has never met them. The game begins as they walk into the granary yard to meet her. The King asked for them, but none of the story's other named people know them yet.";
+/** The story the backstory leads into: where the game begins, and why they're there. */
+export const PREMISE = "Two days before the Centennial Assembly in Caerwyn, the player character is riding the last miles of the King's Road into the city for the Assembly, on a carter's farm cart piled with cushions for the Assembly's seats, beside the old carter, Barnaby Fitch, and his granddaughter Tansy, who offered them a lift at the last inn. The game begins on the cart at the crossroads nine miles out, late in the afternoon. They're coming to Caerwyn on their own account: they've never met the King, nobody at court has asked anything of them, and none of the story's named people know them yet. What happens on the road brings them to the King that evening, and by the morning of the eve he'll have asked them to look into a death; none of that has happened yet.";
+
+/** Where Caerwyn's backstories end: on the road, before anything at court (the scenario's creation.begins). */
+export const BEGINS = "It ends where the game begins: this afternoon, on the last miles of the King's Road, riding into Caerwyn on a carter's cart of cushions for the Assembly. Say why they're going to Caerwyn for the Assembly (their reasons are their own: work, a debt, a sight to see, somebody to find), not how anything goes. They've never met the King or anyone at court, and nobody has asked anything of them: nothing in their past is part of the story to come.";
+
+/** Where a backstory ends for a world that doesn't say (no creation.begins). */
+const ENDS = "It ends where the game begins, as the story's premise has it: say why they're there, in their own words, not how the story goes. Nothing in their past is part of the story to come.";
 
 /**
  * Caerwyn, the world a backstory is written for when no other is given: the premise, the city's own
@@ -42,6 +48,7 @@ export const PREMISE = "This morning, the eve of the Centennial Assembly in Caer
 export const CAERWYN: CreationWorld = {
   name: "Caerwyn",
   premise: PREMISE,
+  begins: BEGINS,
   primer: "World/Caerwyn.md",
   notCanon: ["World/Caerwyn now.md", "World/Fronts.md", "World/index.md"],
   places: [
@@ -89,19 +96,19 @@ export async function draftBackstory(w: Who, options: { ask?: Ask | null; world?
   const once = async (also: string[] = []) => tidy((await ask<{ story: string }>({
     operation: "backstory.draft", effort: "low", maxOutputTokens: 1200,
     instructions: [
-      "You write a player character's backstory for a tabletop roleplaying game, in the first person, as the player would write it at the table: where they're from, what they owe (and to whom), who they've lost, and why they took this case (the story it leads into).",
+      "You write a player character's backstory for a tabletop roleplaying game, in the first person, as the player would write it at the table: where they're from, what they owe (and to whom), who they've lost, and what brings them to where the story begins (the story it leads into).",
       "120 to 180 words, in two or three short paragraphs; plain and specific: names, places, and one good detail each. Their past makes sense of their concept and their build (the class's skills, the background's trade, the species), told as a life, not in the game's terms (no class, subclass or background by name).",
       "Invent their own people and places freely, but fit the world below: don't make them kin to, or old friends or enemies of, the story's named people (they've never met any of them), and don't give them anything the world would have had to record (a title, an office, a famous deed).",
-      "It ends where the game begins. Their past runs up to this morning: Prout was found hanged, and then, when the news reached him, the King asked them (because Prout was found, so never before it, and never on another day). Say why they said yes, not how the case goes: their reasons are their own (a debt, a loss, a conscience), but the case is Prout's alone, and nothing in their past is part of it.",
+      (options.world ?? CAERWYN).begins ?? ENDS,
       STYLE,
-      ...(also.length ? [`Your first draft got the order of this morning wrong (${also.join("; ")}): keep to the story's premise this time.`] : []),
+      ...(also.length ? [`Your first draft got the story's start wrong (${also.join("; ")}): keep to the story's premise this time.`] : []),
     ].join("\n"),
     input: [{ role: "user", content: [`## The player character\n${who(w)}`, primer(options.world ?? CAERWYN)].join("\n\n") }],
     json: { name: "backstory", schema: { type: "object", additionalProperties: false, required: ["story"], properties: { story: { type: "string", description: "The backstory: paragraphs separated by a blank line" } } } },
   })).story);
   try {
     let story = await once();
-    // Words alone can show a draft that has the King asking before Prout was found (or on another day): asked again, once.
+    // Words alone can show a draft that has the court asking for them, or makes them the King's investigator already: asked again, once.
     const slips = premiseSlips(story);
     if (slips.length) story = await once(slips);
     return story ? { ok: true, value: story } : { ok: false, why: "The GM had nothing to say. Try again, or write it yourself." };
@@ -109,16 +116,16 @@ export async function draftBackstory(w: Who, options: { ask?: Ask | null; world?
 }
 
 /**
- * What a story says against the premise's order of things that its words alone show: the King
- * asking before Prout was found ("This morning, before Prout was found, the King asked me"), or on
- * another day ("Yesterday a palace runner asked me"). Each as what the premise has instead.
+ * What a story says against the premise's start that its words alone show: the King or the court
+ * having asked for them ("Last week the King sent for me"), or their being the King's investigator
+ * already. Caerwyn's story begins on the road, before anyone at court knows them. Each as what the
+ * premise has instead.
  */
 export function premiseSlips(story: string): string[] {
   const slips: string[] = [];
-  if (/\bbefore\s+(?:Prout|he|his body|the body|the clerk|anyone)\b[^.!?\n]{0,30}?\b(?:was|had been|were)\s+(?:found|discovered)\b/i.test(story)) slips.push("the King asked them after Prout was found, not before");
-  const another = /\b(?:yesterday|last night|the night before|the day before|days? ago|last week|a week ago)\b/i;
-  const asked = /\b(?:King|palace)\b[^.!?\n]{0,80}?\b(?:asked|sent for|summoned|called for|sent word)\b/i;
-  if (story.split(/(?<=[.!?])\s+|\n+/).some(s => another.test(s) && asked.test(s))) slips.push("the King asked them this morning");
+  const court = /\b(?:the King(?!'s Road)|King Aldren|Aldren|the palace|the court|the Marshal)\b[^.!?\n]{0,80}?\b(?:asked|sent for|summoned|called for|sent word to|hired|commissioned|appointed|engaged|invited|chose)\s+(?:\w+\s+){0,2}?(?:me|us)\b/i;
+  if (story.split(/(?<=[.!?])\s+|\n+/).some(s => court.test(s))) slips.push("nobody at court has asked anything of them: they're coming to the Assembly on their own account");
+  if (/\bthe King'?s investigator\b/i.test(story)) slips.push("they aren't the King's investigator: nobody at court knows them yet");
   return slips;
 }
 

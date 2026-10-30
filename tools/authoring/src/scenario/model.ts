@@ -20,7 +20,7 @@ export const ORDER={
   scenario:['format','version','kind','id','title','description','campaignVersion','firstScene','startPlace','start','level','rulesPack','scenes','talk','places','maps','startingPurse','creation','quests','layout'],
   start:['day','time','map','at'],
   coin:['name','quantity','description'],
-  creation:['name','premise','primer','notCanon','places'],
+  creation:['name','premise','begins','primer','notCanon','places'],
   creationPlace:['doc','words'],
   point:['x','y'],
 } as const;

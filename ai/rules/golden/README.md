@@ -11,6 +11,8 @@ KM_RUNS_DIR=$(mktemp -d) OPENROUTER_API_KEY=offline node --no-warnings tools/v2/
 
 Record again only when a case is added: the prototype's code these come from is fixed at `44c6d4a`.
 
+The exceptions are `backstory-draft.json` and `backstory-check.json`, re-recorded from the game itself (2026-10-30) when Caerwyn's story began with the prologue on the King's Road: the premise and where a backstory ends are the campaign's now (its `creation.premise` and `creation.begins`), the lore check reads the new people's public profiles, and the draft's stand-in story ends on the road. They're the game's calls, not the prototype's.
+
 Each file has `about` (the case), `fn` and `args` (what was called, with what), `byName` (the stand-in's answer for each schema name; none is the least JSON that fits), `calls` (each request body as sent to OpenRouter, in order, with its operation) and `result` (what the prototype made of the answer, the engine's ids masked).
 
 | File | Call | Operation |

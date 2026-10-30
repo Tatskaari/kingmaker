@@ -57,12 +57,12 @@ const request = (op: BackstoryOp, text = op === "draft" ? "" : NEPHEW, rev = 1):
 const asked = (body: Request) => ({ instructions: body.instructions ?? "", input: body.input?.find(m => m.role === "user")?.content ?? "" });
 
 test("draft: a backstory from who they are, for the campaign's world: its primer and premise, and the build's line", async () => {
-  const { fake, contextFor } = await setUp({ byName: { backstory: { story: "I kept the Treasury's ledgers for nine years.\n\nThis morning the King asked me to see Prout done right by." } } }, c => ({ ...c, premise: "PREMISE: the King asked them this morning, once Prout was found." }));
+  const { fake, contextFor } = await setUp({ byName: { backstory: { story: "I kept the Treasury's ledgers for nine years.\n\nNow I mean to see the Assembly." } } }, c => ({ ...c, premise: "PREMISE: the King asked them this morning, once Prout was found." }));
   const req = request("draft");
   const answer = await pipeline.backstories(req, contextFor(req.key));
 
   const { instructions, input } = asked(fake.sent[0]!);
-  assert.deepEqual(answer.asked, { ok: true, value: "I kept the Treasury's ledgers for nine years.\n\nThis morning the King asked me to see Prout done right by." });
+  assert.deepEqual(answer.asked, { ok: true, value: "I kept the Treasury's ledgers for nine years.\n\nNow I mean to see the Assembly." });
   assert.match(instructions, /^You write a player character's backstory for a tabletop roleplaying game/);
   assert.match(input, /^## The player character\nTamsin Vell: a disgraced palace auditor with a ledger-keeper's eye\. In game terms: halfling rogue 3 \(Thief\), criminal background\./);
   assert.match(input, /## The world: Caerwyn\n/);

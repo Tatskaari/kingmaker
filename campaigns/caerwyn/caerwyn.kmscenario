@@ -4,22 +4,25 @@
   "kind": "scenario",
   "id": "caerwyn",
   "title": "Caerwyn",
-  "description": "A palace clerk found hanged behind the King's Granary on the eve of the Centennial Assembly, and the King's investigator sent to see him done right by: from the granary yard, down the river stairs to the Drowned Rat and the Heron, to the King's morning.",
+  "description": "The King's Road into Caerwyn two days before the Centennial Assembly, goblins at the crossroads and the toll bridge, and supper with the King; then a palace clerk found hanged behind the King's Granary on the eve of the Assembly, and the King's investigator sent to see him done right by: from the granary yard, down the river stairs to the Drowned Rat and the Heron, to the King's morning.",
   "campaignVersion": "0.1.0",
-  "firstScene": "hanged-clerk",
+  "firstScene": "kings-road",
   "startPlace": "granary-yard",
   "start": {
     "day": 1,
-    "time": "morning",
-    "map": "caerwyn",
+    "time": "afternoon",
+    "map": "kings-road",
     "at": [
-      42,
-      9
+      12,
+      12
     ]
   },
   "level": 3,
   "rulesPack": "starter-pack@0.1.0",
   "scenes": [
+    "kings-road",
+    "toll-bridge",
+    "kings-thanks",
     "hanged-clerk",
     "caerwyn-afternoon",
     "drowned-rat",
@@ -29,12 +32,16 @@
   ],
   "talk": "talk",
   "places": [
+    "kings-road",
+    "toll-bridge",
+    "kings-parlour",
     "granary-yard",
     "drowned-rat",
     "heron",
     "dressing-room"
   ],
   "maps": [
+    "kings-road",
     "caerwyn",
     "drowned-rat",
     "heron",
@@ -59,7 +66,7 @@
   ],
   "creation": {
     "name": "Caerwyn",
-    "premise": "This morning, the eve of the Centennial Assembly in Caerwyn, a palace clerk, Wendell Prout, was found hanged behind the King's Granary, and the Watch Captain has already called it suicide. When the news reached him, King Aldren, who remembers how Prout took his tea, asked the player character quietly to see Prout done right by (they're the King's investigator now), and lent them a sergeant of the watch, Agnes Kell, who has never met them. The game begins as they walk into the granary yard to meet her. The King asked for them, but none of the story's other named people know them yet.",
+    "premise": "Two days before the Centennial Assembly in Caerwyn, the player character is riding the last miles of the King's Road into the city for the Assembly, on a carter's farm cart piled with cushions for the Assembly's seats, beside the old carter, Barnaby Fitch, and his granddaughter Tansy, who offered them a lift at the last inn. The game begins on the cart at the crossroads nine miles out, late in the afternoon. They're coming to Caerwyn on their own account: they've never met the King, nobody at court has asked anything of them, and none of the story's named people know them yet. What happens on the road brings them to the King that evening, and by the morning of the eve he'll have asked them to look into a death; none of that has happened yet.",
     "primer": "World/Caerwyn.md",
     "notCanon": [
       "World/Caerwyn now.md",
@@ -95,9 +102,11 @@
         "doc": "Places/Watch House.md",
         "words": "\\b(watch house|watch-house|cells?|gaol|jail)\\b"
       }
-    ]
+    ],
+    "begins": "It ends where the game begins: this afternoon, on the last miles of the King's Road, riding into Caerwyn on a carter's cart of cushions for the Assembly. Say why they're going to Caerwyn for the Assembly (their reasons are their own: work, a debt, a sight to see, somebody to find), not how anything goes. They've never met the King or anyone at court, and nobody has asked anything of them: nothing in their past is part of the story to come."
   },
   "quests": {
+    "assembly-cushions": "The Assembly's Cushions",
     "hanged-clerk": "The Hanged Clerk",
     "purveyors-man": "The Purveyor's Man",
     "heron-ledger": "The Heron Ledger"

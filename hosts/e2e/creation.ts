@@ -95,7 +95,8 @@ export async function aConceptToTheOpening(stack: Stack, root: string, a: Player
   await aWalkBothSee(a, b);
   const rows = await until(a, "the opening to go live", 60_000, r => r.game.id === game && r.scene.status === "live" && r);
   const seen = a.events.slice(from);
-  const entry = seen.findIndex(e => e.table === "transcript" && e.op === "insert" && e.row.turn === 0);
+  // The opening's entry is the GM's (a night's rest before the scene writes its dice lines into turn 0 first).
+  const entry = seen.findIndex(e => e.table === "transcript" && e.op === "insert" && e.row.turn === 0 && e.row.speaker === "gm");
   const drafts = seen.slice(0, entry).filter(e => e.table === "reply_draft" && e.op !== "delete").length;
   check(`A saw the opening's draft grow (${drafts} posts) before its entry landed`, entry >= 0 && drafts >= 2);
   check("the creation is gone with begin", a.conn.home().creation === undefined);

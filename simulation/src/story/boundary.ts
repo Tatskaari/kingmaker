@@ -1,6 +1,7 @@
-// The commit is the prototype's chainScene after its calls (src/runtime/engine.ts:1080-1091 at 44c6d4a) and the game's onward (src/game/play.ts:518-527) as rows: the history entry completes the scene's chapter, freshScene and Object.assign are the next scene's gm_state (initialGm and what the boundary handed on), the next scene waits in its place (buildLead) and the story's lead and time move on; a summons (next-morning) opens at once. The calls themselves, bringOver and the docs are the AI service's (POST /v1/scenes/boundary).
+// The commit is the prototype's chainScene after its calls (src/runtime/engine.ts:1080-1091 at 44c6d4a) and the game's onward (src/game/play.ts:518-527) as rows: the history entry completes the scene's chapter, freshScene and Object.assign are the next scene's gm_state (initialGm and what the boundary handed on), the next scene waits in its place (buildLead) and the story's lead and time move on; a summons (a scene that comes to the player: the King's morning, a guard taking them to the King) opens at once. The calls themselves, bringOver and the docs are the AI service's (POST /v1/scenes/boundary).
 
 import { initialGm, type GmState } from "../../../shared/gm/state.ts";
+import { comesToPlayer } from "../../../shared/scene/beats.ts";
 import type { BoundaryResponse, Usage } from "../../../shared/protocol/ai.ts";
 import { idOf } from "../../../shared/protocol/keys.ts";
 import type { TxCtx } from "../context.ts";
@@ -81,8 +82,9 @@ function crossed(tx: TxCtx, plan: BoundaryPlan, answer: Partial<BoundaryResponse
     skipped: (next?.skipped ?? []).map(s => ({ sceneKey: s.sceneId, why: s.why })),
   });
 
+  const nextGraph = graphOf(sceneDefOf(tx, game, key));
   const handed: GmState = {
-    ...initialGm(graphOf(sceneDefOf(tx, game, key))),
+    ...initialGm(nextGraph),
     adjustments: next?.adjustments ?? [], ...(next?.opening ? { opening: next.opening } : {}), ...(next?.lead ? { lead: next.lead } : {}),
     absent: next?.absent ?? [], patches: next?.patches ?? [], hinted: next?.hinted ?? [], owed: answer.owed ?? [],
   };
@@ -91,17 +93,15 @@ function crossed(tx: TxCtx, plan: BoundaryPlan, answer: Partial<BoundaryResponse
   // The clock moved on: the action menu's rests are the new time of day's (town-design §3.3), so the sheet's catalogue is made again.
   if ((lead.time ?? game.time) !== game.time) refreshActions(tx, playerRow(tx, game.hostId));
   const skipped = next?.skipped?.length ? ` (skipped: ${next.skipped.map(s => s.sceneId).join(", ")})` : "";
-  tx.log(`[story] ${scene.sceneKey} ended by ${plan.exit}: ${key} ${lead.time === SUMMONS ? "summons" : "waits"}${skipped}${handed.absent.length ? `; absent: ${handed.absent.join(", ")}` : ""}`);
+  const summons = comesToPlayer(nextGraph);
+  tx.log(`[story] ${scene.sceneKey} ended by ${plan.exit}: ${key} ${summons ? "summons" : "waits"}${skipped}${handed.absent.length ? `; absent: ${handed.absent.join(", ")}` : ""}`);
 
-  // A scene that comes to the player (a summons the next morning) opens straight away (play.ts:524).
-  if (lead.time === SUMMONS) {
+  // A scene that comes to the player (a summons: the King's morning, a guard taking them to the King) opens straight away (play.ts:524).
+  if (summons) {
     const host = playerRow(tx, game.hostId);
     openLead(tx, { identity: host.identity, id: host.id }, gameRow(tx, game.id));
   }
 }
-
-/** A scene's time when it summons the player rather than waiting for them: the King's morning. */
-const SUMMONS = "next-morning";
 
 /** The hand-off when the answer has none: the prototype's own fallback (engine.ts:1167). */
 function fallbackHandOff(tx: TxCtx, game: GameRow, sceneKey: string, exitId: string): string {

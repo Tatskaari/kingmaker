@@ -17,26 +17,27 @@ import { portDuplex } from "./transport.ts";
  * The contract between the page's two halves, in Node (browser-design §7): the client's Replica over
  * the port link against the page host, over a real MessageChannel (every message a real structured
  * clone, revived on the client's side), on the fake model (hosts/dev/fake.json, its delays taken
- * out). A new game with a ready-made build, the map with its lead, the walk into the yard (what g
- * makes), the opening streamed, then a line with its reply and the suggested lines.
+ * out). A new game with a ready-made build, its first scene come to the player (the King's Road opens on
+ * the cart as the game begins), the opening streamed, then a line with its reply and the suggested lines.
  * Then the server rebuilt from what the database in memory kept, a new client on a new channel, and
  * the game carried on from where it was.
  */
 
 const V2 = join(import.meta.dirname, "..", "..");
-const LINE = "Sergeant, who found him?";
+const LINE = "Is that the crossroads ahead?";
 /** The page host's dice, fixed: a test never rolls the page's own randomness. */
 const DICE = 7;
-const NEXT = "And the Purveyor's office: who keeps it?";
+const NEXT = "And the King: is he really round?";
 
-/** What the build's content.json holds, made from the repo: the campaign's files, the prompts by name, the dev fake (answering at once). */
+/** What the build's content.json holds, made from the repo: the campaign's files, the prompts by name, the dev fake (answering at once, its co-GM still). */
 function repoContent(): Content {
   const prompts = join(V2, "ai", "prompts");
   const names = readdirSync(prompts, { recursive: true, encoding: "utf8" }).filter(path => path.endsWith(".md") && path !== "README.md");
   return {
     campaign: readCampaignFiles(join(V2, "campaigns", "caerwyn")),
     prompts: Object.fromEntries(names.map(path => [relative(prompts, join(prompts, path)).split(sep).join("/").slice(0, -3), readFileSync(join(prompts, path), "utf8")])),
-    fake: onTop(devFake(), { streamMs: 0, suggestDelayMs: 0 }),
+    // The co-GM stays where it is: this is the page's plumbing, not the story (the fake walks the King's Road into its fight on the first line).
+    fake: onTop(devFake(), { streamMs: 0, suggestDelayMs: 0, coGm: { still: true } }),
   };
 }
 
@@ -68,25 +69,23 @@ const turn = (replica: Replica, n: number) => replica.rows()?.turns.find(row => 
 /** A column the client's row types leave out (they pick what the screens read), though the row came with every one. */
 const column = (row: object, name: string) => (row as Record<string, unknown>)[name];
 
-test("the page's two halves over a real MessageChannel, on the fake model: a new game, the map, into the yard, the opening streamed, a line with its reply and suggested lines; then the server rebuilt from what was kept, and the game carried on", { timeout: 120_000 }, async t => {
+test("the page's two halves over a real MessageChannel, on the fake model: a new game, its first scene opened on the cart, the opening streamed, a line with its reply and suggested lines; then the server rebuilt from what was kept, and the game carried on", { timeout: 120_000 }, async t => {
   const database = memoryDatabase();
   const content = repoContent();
 
-  // The first run: the title's rows, a ready-made character, the map and its lead.
+  // The first run: the title's rows, a ready-made character, and the first scene, which comes to the player.
   const first = await pageHost(database, content);
   const { replica, events } = clientOf(t, first.host);
   await replica.ready;
   assert.deepEqual(replica.home().campaigns.map(campaign => `${campaign.key}@${campaign.version}`), ["caerwyn@0.1.0"]);
   assert.equal(await replica.newGame({ campaign: "caerwyn", name: "Wren Ashdown", concept: "a quick-witted investigator lent to the case by the King", build: "ranger" }), undefined);
-  assert.equal(replica.explore()?.lead?.title, "The Hanged Clerk", "the map, the lead just south");
-
-  // g: the walk to the lead, into the yard, which opens the scene; its opening streams in.
-  assert.equal(await replica.walk({ toward: "lead" }), undefined);
+  // The King's Road opens on the cart as the game begins (a scene that comes to the player: no walk to it); its opening streams in.
   await until(() => turn(replica, 0)?.phase === "done", "the opening");
+  assert.equal(replica.view()?.title, "The King's Road", "the first scene, opened where it's played");
   const opening = turn(replica, 0)!;
   assert.ok(column(opening, "firstTextAt"), "the opening streamed into its draft");
   assert.ok(events.indexOf(`reply_draft insert ${opening.id}`) >= 0 && events.indexOf(`reply_draft delete ${opening.id}`) > events.indexOf(`reply_draft insert ${opening.id}`), "its draft came, and went as the reply committed");
-  assert.ok(replica.view()!.entries.some(entry => /Behind the King’s Granary/.test(entry.text ?? "")), "the fake's first golden reply");
+  assert.ok(replica.view()!.entries.some(entry => /Behind the King’s Granary/.test(entry.text ?? "")), "the fake's first golden reply (it has the same four for every scene)");
 
   // A line, its reply and the suggested lines.
   assert.equal(await replica.say(LINE), undefined);

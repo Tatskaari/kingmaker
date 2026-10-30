@@ -50,6 +50,8 @@ interface ScenarioDocument {
 
 **The version clash:** the envelope's `version` (2, the format) and the campaign's own version ("0.1.0") share a name. The campaign's moves to `campaignVersion`, and the loader reads either. A campaign's id for installs is still `<id>@<campaignVersion>`.
 
+**The world a backstory is written for** (`creation`): its `name`, its `premise` (the story the backstory leads into: where the game begins, and that the story's people don't know the character yet), its `primer` (the lore doc that tells of the world), what isn't canon (`notCanon`) and the places' docs by the words that call them up (`places`), and optionally `begins`: where a backstory ends, as the drafting model is told it (Caerwyn's: on the last miles of the King's Road, before anyone at court has asked anything of them). With none, a backstory ends where the premise says the game begins.
+
 **The flow is derived, never stored.** The diagram's edges come from the files that own them, and the plugin edits each edge in its owner:
 - A scene's ending goes to `next`, in the scene's file.
 - A map region plays a scene (`sceneId`), in the map's file.

@@ -6,6 +6,7 @@ import * as verbs from "../../client/headless.ts";
 import { portLink } from "../../client/net/port.ts";
 import { Replica } from "../../client/net/replica.ts";
 import { readCampaignFiles } from "../../hosts/dev/campaign.ts";
+import { filesFromTheGranary } from "../../shared/scene/testdata/from-the-granary.ts";
 import { devFake, onTop } from "../../hosts/dev/fake.ts";
 import { startHost } from "../../hosts/web/page-host.ts";
 import type { Content } from "./content.ts";
@@ -32,7 +33,7 @@ function repoContent(): Content {
   const prompts = join(V2, "ai", "prompts");
   const names = readdirSync(prompts, { recursive: true, encoding: "utf8" }).filter(path => path.endsWith(".md") && path !== "README.md");
   return {
-    campaign: readCampaignFiles(join(V2, "campaigns", "caerwyn")),
+    campaign: filesFromTheGranary(readCampaignFiles(join(V2, "campaigns", "caerwyn"))),
     prompts: Object.fromEntries(names.map(path => [relative(prompts, join(prompts, path)).split(sep).join("/").slice(0, -3), readFileSync(join(prompts, path), "utf8")])),
     fake: onTop(devFake(), { streamMs: 0, suggestDelayMs: 0 }),
   };
